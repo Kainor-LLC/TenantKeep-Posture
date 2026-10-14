@@ -75,7 +75,7 @@ function Get-PostureCollaborationFact {
         $facts.ownerlessSites = [int](& $v $sites 'Ownerless')
         $facts.ownerlessGroups = @(& $rows $groups).Count
         $facts.unifiedGroups = $(if ($null -ne $groupSummary) { [int](& $v $groupSummary 'UnifiedGroups') } else { $null })
-        $affected.ownerless = @(@(@(& $rows $siteRows) | Where-Object { -not $_.IsOneDrive -and (-not $_.Owner -or [string]$_.Owner -match '^\s*$') } | ForEach-Object { [ordered]@{ name = [string]$_.Url; detail = "site ($($_.Template)) with no owner" } }) +
+        $affected.ownerless = @(@(@(& $rows $siteRows) | Where-Object { $_.Ownerless -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Url; detail = "site ($($_.Template)) with no owner" } }) +
             @(& $rows $groups | ForEach-Object { [ordered]@{ name = [string]$_.DisplayName; detail = "Microsoft 365 group with no owner, created $([string]$_.CreatedDateTime)" } }))
         $facts.sitesAnonymousSharingAllowed = [int](& $v $sites 'AnonymousSharingAllowed')
     }

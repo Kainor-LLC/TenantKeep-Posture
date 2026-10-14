@@ -21,6 +21,8 @@ function Invoke-PostureSharePointCollection {
     $save = { param($Data, [string] $Name, [bool] $Csv = $false) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data -AsArray -Csv:$Csv)) }
     $saveOne = { param($Data, [string] $Name) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data)) }
     $pnp = { param([string] $Name, [hashtable] $Params = @{}) @(Invoke-PosturePnpCommand -Name $Name -Parameters $Params) }
+    $prop = { param($o, [string] $n) if ($o.PSObject.Properties[$n]) { $o.$n } else { $null } }
+    $groupId = { param($o) $g = [string](& $prop $o 'GroupId'); if ($g -and $g -ne [guid]::Empty.ToString()) { $g } else { '' } }
 
     Invoke-PostureStep -Label 'SharePoint tenant settings' -Folder $Folder -Script {
         $props = @('SharingCapability', 'DefaultSharingLinkType', 'DefaultLinkPermission', 'RequireAnonymousLinksExpireInDays', 'FileAnonymousLinkType', 'FolderAnonymousLinkType', 'OneDriveSharingCapability',
@@ -38,17 +40,23 @@ function Invoke-PostureSharePointCollection {
             $rows = @($sites | Where-Object { $_ } | ForEach-Object {
                     [ordered]@{
                         Url = [string]$_.Url; Title = [string]$_.Title; Template = [string]$_.Template; SharingCapability = [string]$_.SharingCapability; StorageUsageCurrent = $_.StorageUsageCurrent
-                        LastContentModifiedDate = $_.LastContentModifiedDate; Owner = [string]$_.Owner; GroupId = [string]$_.GroupId; SensitivityLabel = [string]$_.SensitivityLabel; LockState = [string]$_.LockState
+                        LastContentModifiedDate = $_.LastContentModifiedDate; Owner = [string]$_.Owner; OwnerEmail = [string](& $prop $_ 'OwnerEmail'); OwnerLoginName = [string](& $prop $_ 'OwnerLoginName'); OwnerName = [string](& $prop $_ 'OwnerName')
+                        GroupId = (& $groupId $_); SensitivityLabel = [string]$_.SensitivityLabel; LockState = [string]$_.LockState
                         RestrictedAccessControl = $_.RestrictedAccessControl; DenyAddAndCustomizePages = [string]$_.DenyAddAndCustomizePages; IsOneDrive = ([string]$_.Template -like 'SPSPERS*')
+                        IsSystem = ([string]$_.Template -match '^(SRCHCEN|SPSMSITEHOST|APPCATALOG|POINTPUBLISHINGHUB|POINTPUBLISHINGTOPIC|EDISC|REDIRECTSITE|TEAMCHANNEL|SPSPERS|BDR|OFFILE|STS#-1)')
                     }
                 })
+            # Ownerless: a site that is not group-connected (the group's owners decide those), not a system site, and
+            # reports no owner in any of the four owner properties. (verify) which of the four Get-PnPTenantSite fills for modern sites.
+            $ownerless = @($rows | Where-Object { -not $_.IsOneDrive -and -not $_.IsSystem -and -not $_.GroupId -and -not ($_.Owner -or $_.OwnerEmail -or $_.OwnerLoginName -or $_.OwnerName) })
+            foreach ($r in $rows) { $r.Ownerless = ($ownerless -contains $r) }
             & $save $rows 'spo-sites' $true
             $teamSites = @($rows | Where-Object { -not $_.IsOneDrive })
             & $saveOne ([ordered]@{
                     Total = $rows.Count; OneDrives = @($rows | Where-Object { $_.IsOneDrive }).Count; Sites = $teamSites.Count
                     ByTemplate = @($teamSites | Group-Object { $_.Template } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } })
                     AnonymousSharingAllowed = @($teamSites | Where-Object { $_.SharingCapability -eq 'ExternalUserAndGuestSharing' }).Count
-                    Ownerless = @($teamSites | Where-Object { -not $_.Owner -or $_.Owner -match '^\s*$' }).Count
+                    Ownerless = $ownerless.Count
                     Labeled = @($teamSites | Where-Object { $_.SensitivityLabel }).Count
                     RestrictedAccessControl = @($teamSites | Where-Object { $_.RestrictedAccessControl -eq $true }).Count
                 }) 'spo-sites-summary'

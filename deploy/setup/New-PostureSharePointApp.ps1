@@ -18,7 +18,10 @@
          tenant on 2026-10-14. Delegated means the app can do nothing the signed-in reader cannot. A browser window
          signs you in and then asks for admin consent.
       3b. With -ClientId and a Graph session holding Application.ReadWrite.All, adds the SharePoint permission to the
-         existing registration instead (for an app registered with AllSites.Read), and prints the consent link.
+         existing registration instead (for an app registered with AllSites.Read).
+      3c. With a Graph session holding DelegatedPermissionGrant.ReadWrite.All, grants admin consent through Graph, so
+         no consent page is involved. (The adminconsent URL fails for this public client, AADSTS500113, because its
+         only reply address is localhost.)
       4. Writes sharePointClientId into profile.json when -ProfilePath is given, so the collection hint and the
          docs show the right command.
       5. Prints what is left to do by hand.
@@ -43,10 +46,10 @@
 .EXAMPLE
     ./New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
 .EXAMPLE
-    Connect-MgGraph -TenantId <tenant> -Scopes Application.Read.All
-    ./New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com
+    Connect-MgGraph -TenantId <tenant> -Scopes Application.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All
+    ./New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ClientId <existing app id> -ProfilePath ./profile.json
 
-    With a Graph session the script finds an existing registration by name and skips the creation.
+    Fully automated for an existing registration: adds the SharePoint permission, grants admin consent through Graph, records the id. Nothing left by hand but the reader's SharePoint Administrator role.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'One-time admin script output is for the console.')]
@@ -134,6 +137,32 @@ if ($clientId -and $ctx -and @($ctx.Scopes) -contains 'Application.ReadWrite.All
     elseif (-not $changed) { Write-Host "The registration already requests $($sharePointPermissions -join ', ')." }
 }
 
+# 3c. Grant admin consent through Graph when the session can, so no consent page is needed. The adminconsent URL
+#     fails for a public client whose only reply address is localhost (AADSTS500113); the grant object is the same thing.
+$consentGranted = $false
+if ($clientId -and $ctx -and @($ctx.Scopes) -contains 'DelegatedPermissionGrant.ReadWrite.All') {
+    $sp = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$clientId'&`$select=id" -OutputType HashTable).value)
+    if ($sp.Count -eq 0 -and $PSCmdlet.ShouldProcess($clientId, 'Create the service principal')) {
+        $sp = @(Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals' -Body @{ appId = $clientId } -ContentType 'application/json' -OutputType HashTable)
+    }
+    $wanted = [ordered]@{ '00000003-0000-0ff1-ce00-000000000000' = $sharePointPermissions; '00000003-0000-0000-c000-000000000000' = $graphPermissions }
+    foreach ($resourceAppId in $wanted.Keys) {
+        $resource = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$resourceAppId'&`$select=id,displayName" -OutputType HashTable).value)
+        if ($resource.Count -eq 0) { continue }
+        $existing = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?`$filter=clientId eq '$($sp[0].id)' and resourceId eq '$($resource[0].id)'" -OutputType HashTable).value | Where-Object { $_.consentType -eq 'AllPrincipals' })
+        $have = @($(if ($existing.Count -gt 0) { ([string]$existing[0].scope) -split '\s+' }) | Where-Object { $_ })
+        $scope = @($have + @($wanted[$resourceAppId]) | Select-Object -Unique) -join ' '
+        if ($existing.Count -gt 0 -and @($wanted[$resourceAppId] | Where-Object { $_ -notin $have }).Count -eq 0) { Write-Host "Consent already covers $($wanted[$resourceAppId] -join ', ') on $($resource[0].displayName)."; $consentGranted = $true; continue }
+        if ($PSCmdlet.ShouldProcess($resource[0].displayName, "Grant admin consent for $scope")) {
+            if ($existing.Count -gt 0) { $null = Invoke-MgGraphRequest -Method PATCH -Uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/$($existing[0].id)" -Body @{ scope = $scope } -ContentType 'application/json' }
+            else { $null = Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants' -Body @{ clientId = $sp[0].id; consentType = 'AllPrincipals'; resourceId = $resource[0].id; scope = $scope } -ContentType 'application/json' }
+            Write-Host "Admin consent granted for $scope on $($resource[0].displayName)."
+            $consentGranted = $true
+        }
+    }
+    if ($consentGranted) { $consentNeeded = $false }
+}
+
 # 4. Record it.
 if ($ProfilePath) {
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProfilePath)   # expands ~ and relative paths; .NET file APIs know neither
@@ -150,7 +179,7 @@ if ($ProfilePath) {
 $short = $Tenant -replace '\.onmicrosoft\.com$', ''
 Write-Host ''
 Write-Host 'Remaining steps, by hand:'
-Write-Host "  1. Admin consent. $(if ($consentNeeded) { 'The permission list changed, so grant consent again:' } else { 'If the consent page did not appear or you declined it, open:' })"
+Write-Host "  1. Admin consent. $(if ($consentGranted) { 'Granted through Graph; nothing to do.' } elseif ($consentNeeded) { 'The permission list changed, so grant consent again, from Entra > Enterprise applications > the app > Permissions:' } else { 'If the consent page did not appear or you declined it, grant it from Entra > Enterprise applications > the app > Permissions, or open:' })"
 Write-Host "     https://login.microsoftonline.com/$Tenant/adminconsent?client_id=$clientId"
 Write-Host '  2. The account that runs the collection needs the SharePoint Administrator role (Global Reader does not reach the tenant admin settings). Assign it through PIM if you have it.'
 Write-Host '  3. If a Conditional Access policy blocks unknown apps or requires a compliant device, the app sign-in is subject to it like any other; run from a device that passes.'

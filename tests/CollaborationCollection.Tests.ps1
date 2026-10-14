@@ -47,11 +47,12 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         }
 
         It 'summarises sites: OneDrives apart, ownerless and anonymous sharing counted' {
+            @(& $script:Read 'spo-sites' | Where-Object { $_.Ownerless }).Url | Should -Be 'https://contoso.sharepoint.example/sites/OldProject'
             $s = & $script:Read 'spo-sites-summary'
-            $s.Total | Should -Be 3
+            $s.Total | Should -Be 4
             $s.OneDrives | Should -Be 1
-            $s.Sites | Should -Be 2
-            $s.Ownerless | Should -Be 1
+            $s.Sites | Should -Be 3
+            $s.Ownerless | Should -Be 1 -Because 'the group-connected site is judged through its group and the search centre is a system site'
             $s.AnonymousSharingAllowed | Should -Be 1
             $s.RestrictedAccessControl | Should -Be 1
         }

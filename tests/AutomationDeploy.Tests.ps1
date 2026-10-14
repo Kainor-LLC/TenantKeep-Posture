@@ -68,6 +68,8 @@ Describe 'deploy scripts' {
         $src | Should -Match 'adminconsent\?client_id='
         $src | Should -Match 'SharePoint Administrator'
         $src | Should -Match 'sharePointClientId'
+        $src | Should -Match 'DelegatedPermissionGrant\.ReadWrite\.All' -Because 'consent is granted through Graph when the admin session allows it; the adminconsent URL fails for a localhost-only public client'
+        $src | Should -Match 'oauth2PermissionGrants'
     }
 
     It 'the grant script refuses without the admin scopes' {

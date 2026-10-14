@@ -97,7 +97,9 @@ which delegated means bound by the reader's own rights; Graph User.Read, Sites.R
 stay manual: consent if it was declined, the SharePoint Administrator role for the reading account, Conditional
 Access on the new app, and the connect commands. It is a tenant write and lives outside the module for that reason;
 run it once per tenant as an admin who can register apps. Delete the registration to revoke everything. With `-ClientId` and a Graph session holding Application.ReadWrite.All it
-adds the SharePoint permission to an existing registration instead of creating one.
+adds the SharePoint permission to an existing registration instead of creating one, and with
+DelegatedPermissionGrant.ReadWrite.All grants the admin consent through Graph; the adminconsent web page does not work
+for this app (AADSTS500113, its only reply address is localhost).
 
 ```powershell
 ./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
@@ -125,6 +127,9 @@ first in that session, or:
 $exo = az account get-access-token --resource https://outlook.office365.com --query accessToken -o tsv
 Connect-ExchangeOnline -AccessToken $exo -Organization contoso.onmicrosoft.com -ShowBanner:$false
 ```
+
+Order matters in the first process too: once PnP.PowerShell is imported, an interactive `Connect-MgGraph` in the same
+session fails with the same macOS error, so sign in to Graph first and import PnP afterwards.
 
 That token path hit a further assembly conflict on the same machine (Microsoft.IdentityModel.Tokens versions). The
 dependable arrangement on macOS is two processes: one with Graph, PnP and Teams running `-Collector Entra, Intune,
