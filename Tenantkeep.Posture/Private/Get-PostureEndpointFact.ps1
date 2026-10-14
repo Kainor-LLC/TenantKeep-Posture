@@ -61,38 +61,41 @@ function Get-PostureEndpointFact {
         $hasWin = { param([string] $IdPattern, [string] $ValuePattern = '.') @($win | Where-Object { [string]$_.SettingDefinitionId -match $IdPattern -and [string]$_.Value -match $ValuePattern }).Count -gt 0 }
         $hasMac = { param([string] $IdPattern, [string] $ValuePattern = '.') @($mac | Where-Object { [string]$_.SettingDefinitionId -match $IdPattern -and [string]$_.Value -match $ValuePattern }).Count -gt 0 }
 
-        # BitLocker (EP-002). (verify) child ids: encryptionmethodwithxts_ostype _7 is XTS-AES 256; osrequireactivedirectorybackup _1 escrows to Entra
+        # BitLocker (EP-002). Ids confirmed on a live policy 2026-10-14: encryptionmethodwithxtsosdropdown_name _7 is XTS-AES 256,
+        # configuretpmusagedropdown_name _1 requires TPM, osrequireactivedirectorybackup_name _1 escrows to Entra before enabling.
         $facts.bitlockerPolicyAssigned = @($assigned | Where-Object { [string]$_.TemplateFamily -eq 'endpointSecurityDiskEncryption' }).Count -gt 0
         $facts.bitlockerRequireEncryption = & $hasWin 'bitlocker_requiredeviceencryption$' '_1$'
-        $facts.bitlockerXtsAes256Os = & $hasWin 'encryptionmethodwithxts_?ostype' '_7$'
+        $facts.bitlockerXtsAes256Os = & $hasWin 'encryptionmethodwithxtsos(dropdown_name|type)$' '_7$'
         $facts.bitlockerSilent = & $hasWin 'bitlocker_allowwarningforotherdiskencryption$' '_0$'
-        $facts.bitlockerTpmStartup = & $hasWin 'systemdrivesrequirestartupauthentication$' '_1$'
+        $facts.bitlockerTpmStartup = (& $hasWin 'systemdrivesrequirestartupauthentication$' '_1$') -and (& $hasWin 'configuretpmusagedropdown_name$' '_1$')
         $facts.bitlockerEscrowRequired = & $hasWin 'osrequireactivedirectorybackup' '_1$'
-        $affected.bitlockerGaps = @(@(@('require device encryption', $facts.bitlockerRequireEncryption), @('XTS-AES 256 for the OS drive', $facts.bitlockerXtsAes256Os), @('silent enablement', $facts.bitlockerSilent), @('TPM startup authentication', $facts.bitlockerTpmStartup), @('recovery key escrow required before enabling', $facts.bitlockerEscrowRequired)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'not set in any assigned Windows policy' } })
+        $affected.bitlockerGaps = @(@(@('require device encryption', $facts.bitlockerRequireEncryption), @('XTS-AES 256 for the OS drive', $facts.bitlockerXtsAes256Os), @('silent enablement', $facts.bitlockerSilent), @('TPM required at startup', $facts.bitlockerTpmStartup), @('recovery key escrow required before enabling', $facts.bitlockerEscrowRequired)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'not set in any assigned Windows policy' } })
 
-        # Firewall (EP-003). (verify) vendor_msft_firewall_mdmstore_<profile>profile_enablefirewall _true
+        # Firewall (EP-003). Ids confirmed 2026-10-14: vendor_msft_firewall_mdmstore_<profile>profile_enablefirewall _true
         $facts.firewallDomain = & $hasWin 'firewall_mdmstore_domainprofile_enablefirewall$' '_true$'
         $facts.firewallPrivate = & $hasWin 'firewall_mdmstore_privateprofile_enablefirewall$' '_true$'
         $facts.firewallPublic = & $hasWin 'firewall_mdmstore_publicprofile_enablefirewall$' '_true$'
         $affected.firewallProfilesOff = @(@(@('domain', $facts.firewallDomain), @('private', $facts.firewallPrivate), @('public', $facts.firewallPublic)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = "$($_[0]) profile"; detail = 'firewall not enabled by an assigned policy' } })
 
-        # LAPS (EP-004). (verify) backupdirectory _1 is Entra; postauthenticationactions 1, 3, 5 include a password reset
+        # LAPS (EP-004). Ids confirmed 2026-10-14: backupdirectory _1 is Entra; postauthenticationactions 1, 3, 5 include a password reset
         $facts.lapsBackupToEntra = & $hasWin 'laps_policies_backupdirectory$' '_1$'
         $facts.lapsResetAfterUse = & $hasWin 'laps_policies_postauthenticationactions$' '_(1|3|5)$'
 
-        # Defender Antivirus (EP-005), tamper protection (EP-006), network protection (EP-007). (verify) ids and values
+        # Defender Antivirus (EP-005), tamper protection (EP-006), network protection (EP-007). Ids confirmed 2026-10-14.
+        # schedulescanday: 0 is every day, 1 to 7 a weekday, 8 never. tamperprotection_options 0 is enabled.
         $facts.avRealTime = & $hasWin 'defender_allowrealtimemonitoring$' '_1$'
         $facts.avCloudProtection = & $hasWin 'defender_allowcloudprotection$' '_1$'
         $facts.avPua = & $hasWin 'defender_puaprotection$' '_1$'
         $facts.avSampleSubmission = & $hasWin 'defender_submitsamplesconsent$' '_(1|3)$'
-        $facts.avScheduledScan = & $hasWin 'defender_schedulescanday$' '_([1-8])$'
+        $facts.avScheduledScan = & $hasWin 'defender_schedulescanday$' '_([0-7])$'
         $affected.avGaps = @(@(@('real-time protection', $facts.avRealTime), @('cloud-delivered protection', $facts.avCloudProtection), @('PUA protection block', $facts.avPua), @('automatic sample submission', $facts.avSampleSubmission), @('scheduled scan day', $facts.avScheduledScan)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'not set in any assigned antivirus policy' } })
         $facts.tamperProtection = & $hasWin 'tamperprotection' '_0$'
         $facts.networkProtectionBlock = & $hasWin 'defender_enablenetworkprotection$' '_1$'
 
-        # ASR rules (EP-008) and exclusions (EP-009). (verify) the 19 rule ids as the settings catalog names them
-        $asrRules = @('blockabuseofexploitedvulnerablesigneddrivers', 'blockadobereaderfromcreatingchildprocesses', 'blockallofficeapplicationsfromcreatingchildprocesses', 'blockcredentialstealingfromwindowslocalsecurityauthoritysubsystem', 'blockexecutablecontentfromemailclientandwebmail', 'blockexecutablefilesrunningunlesstheymeetaprevalenceagetrustedlistcriterion', 'blockexecutionofpotentiallyobfuscatedscripts', 'blockjavascriptorvbscriptfromlaunchingdownloadedexecutablecontent', 'blockofficeapplicationsfromcreatingexecutablecontent', 'blockofficeapplicationsfrominjectingcodeintootherprocesses', 'blockofficecommunicationappfromcreatingchildprocesses', 'blockpersistencethroughwmieventsubscription', 'blockprocesscreationsfrompsexecandwmicommands', 'blockrebootingmachineinsafemode', 'blockuntrustedunsignedprocessesthatrunfromusb', 'blockuseofcopiedorimpersonatedsystemtools', 'blockwebshellcreationforservers', 'blockwin32apicallsfromofficemacros', 'useadvancedprotectionagainstransomware')
-        $asrRows = @($win | Where-Object { [string]$_.SettingDefinitionId -match 'attacksurfacereductionrules_' })
+        # ASR rules (EP-008) and exclusions (EP-009). The 19 rule ids as the settings catalog names them (18 confirmed on a live policy 2026-10-14;
+        # blockwebshellcreationforservers (verify)). Per-rule exclusions sit under <rule>_perruleexclusions and count as exclusions.
+        $asrRules = @('blockabuseofexploitedvulnerablesigneddrivers', 'blockadobereaderfromcreatingchildprocesses', 'blockallofficeapplicationsfromcreatingchildprocesses', 'blockcredentialstealingfromwindowslocalsecurityauthoritysubsystem', 'blockexecutablecontentfromemailclientandwebmail', 'blockexecutablefilesrunningunlesstheymeetprevalenceagetrustedlistcriterion', 'blockexecutionofpotentiallyobfuscatedscripts', 'blockjavascriptorvbscriptfromlaunchingdownloadedexecutablecontent', 'blockofficeapplicationsfromcreatingexecutablecontent', 'blockofficeapplicationsfrominjectingcodeintootherprocesses', 'blockofficecommunicationappfromcreatingchildprocesses', 'blockpersistencethroughwmieventsubscription', 'blockprocesscreationsfrompsexecandwmicommands', 'blockrebootingmachineinsafemode', 'blockuntrustedunsignedprocessesthatrunfromusb', 'blockuseofcopiedorimpersonatedsystemtools', 'blockwebshellcreationforservers', 'blockwin32apicallsfromofficemacros', 'useadvancedprotectionagainstransomware')
+        $asrRows = @($win | Where-Object { [string]$_.SettingDefinitionId -match 'attacksurfacereductionrules_' -and [string]$_.SettingDefinitionId -notmatch '_perruleexclusions$' })
         $state = @{}
         foreach ($r in $asrRows) {
             $name = ([string]$r.SettingDefinitionId) -replace '^.*attacksurfacereductionrules_', ''
@@ -107,24 +110,25 @@ function Get-PostureEndpointFact {
         $facts.asrRulesOff = @($asrRules | Where-Object { $state.ContainsKey($_) -and $state[$_] -eq 'off' }).Count
         $facts.asrRulesNotConfigured = @($asrRules | Where-Object { -not $state.ContainsKey($_) }).Count
         $affected.asrRulesNotBlocking = @($asrRules | Where-Object { -not $state.ContainsKey($_) -or $state[$_] -notin @('block', 'warn') } | ForEach-Object { [ordered]@{ name = $_; detail = $(if ($state.ContainsKey($_)) { $state[$_] } else { 'not configured' }) } })
-        $exclusions = @($win | Where-Object { [string]$_.SettingDefinitionId -match 'attacksurfacereductiononlyexclusions$' } | ForEach-Object { ([string]$_.Value) -split '\|' } | Where-Object { $_ })
+        $exclusions = @($win | Where-Object { [string]$_.SettingDefinitionId -match 'attacksurfacereductiononlyexclusions$|_perruleexclusions$' } | ForEach-Object { $r = $_; ([string]$r.Value) -split '\|' | Where-Object { $_ } | ForEach-Object { [ordered]@{ name = $_; detail = $(if ([string]$r.SettingDefinitionId -match '_perruleexclusions$') { 'exclusion for ' + (([string]$r.SettingDefinitionId) -replace '^.*attacksurfacereductionrules_', '' -replace '_perruleexclusions$', '') } else { 'ASR-only exclusion' }) } } })
         $facts.asrExclusions = $exclusions.Count
-        $affected.asrExclusions = @($exclusions | ForEach-Object { [ordered]@{ name = $_; detail = 'ASR-only exclusion' } })
+        $affected.asrExclusions = $exclusions
 
-        # SmartScreen (EP-010), Office macros (EP-011). (verify) ADMX-backed macro ids contain blockmacrosfrominternet per app
+        # SmartScreen (EP-010), Office macros (EP-011). Confirmed 2026-10-14: the ADMX-backed ids end in l_blockmacroexecutionfrominternet per app.
         $facts.smartScreenShell = & $hasWin 'smartscreen_enablesmartscreeninshell$' '_1$'
         $facts.smartScreenNoOverride = & $hasWin 'smartscreen_preventoverrideforfilesinshell$' '_1$'
-        $macroApps = @($all | Where-Object { [string]$_.SettingDefinitionId -match 'blockmacrosfrominternet' -and [string]$_.Value -match '_1$' } | ForEach-Object { $m = [regex]::Match([string]$_.SettingDefinitionId, '(?i)(word|excel|powerpoint|access|visio|project|publisher|outlook)'); if ($m.Success) { $m.Value.ToLowerInvariant() } } | Sort-Object -Unique)
+        $macroApps = @($all | Where-Object { [string]$_.SettingDefinitionId -match 'blockmacro(s|execution)frominternet' -and [string]$_.Value -match '_1$' } | ForEach-Object { $m = [regex]::Match([string]$_.SettingDefinitionId, '(?i)(word|excel|powerpoint|access|visio|project|publisher|outlook)'); if ($m.Success) { $m.Value.ToLowerInvariant() } } | Sort-Object -Unique)
         $facts.officeMacroBlockApps = @($macroApps).Count
 
-        # Windows Hello for Business (EP-012) and cloud Kerberos trust (EP-013). (verify) passportforwork ids
+        # Windows Hello for Business (EP-012) and cloud Kerberos trust (EP-013). passportforwork_{tenantid}_policies_usepassportforwork confirmed 2026-10-14; usecloudtrustforonpremauth (verify)
         $whfb = & $load '09-intune-windows-hello'
         $tenantWide = [bool]($null -ne $whfb -and (& $v $whfb 'Present') -eq $true -and [string](& $v $whfb 'State') -eq 'enabled')
         $facts.windowsHelloEnabled = $tenantWide -or (& $hasWin 'passportforwork_.*_usepassportforwork$' '_true$')
         $facts.windowsHelloCloudTrust = & $hasWin 'usecloudtrustforonpremauth$' '_true$'
 
-        # macOS (EP-015 FileVault, EP-016 hardening, EP-017 Platform SSO). (verify) settings catalog ids for macOS
-        $facts.macFileVaultPolicy = (& $hasMac 'com\.apple\.mcx\.filevault2_enable$' '_on$') -or (& $hasMac 'filevault2_enable$' '_on$')
+        # macOS (EP-015 FileVault, EP-016 hardening, EP-017 Platform SSO). Gatekeeper, firewall, escrow and Platform SSO ids confirmed 2026-10-14.
+        # (verify) com.apple.mcx.filevault2_enable stores _0 on a policy that enables FileVault; confirm against one that disables it.
+        $facts.macFileVaultPolicy = & $hasMac 'filevault2_enable$' '_(0|on|true)$'
         $facts.macFileVaultEscrow = & $hasMac 'fderecoverykeyescrow_location'
         $facts.macGatekeeper = & $hasMac 'com\.apple\.systempolicy\.control_enableassessment$' '_true$'
         $facts.macFirewall = & $hasMac 'com\.apple\.security\.firewall_enablefirewall$' '_true$'

@@ -110,7 +110,7 @@ BeforeAll {
                     (& $ch 'device_vendor_msft_policy_config_defender_allowcloudprotection' 'device_vendor_msft_policy_config_defender_allowcloudprotection_1'),
                     (& $ch 'device_vendor_msft_policy_config_defender_puaprotection' 'device_vendor_msft_policy_config_defender_puaprotection_1'),
                     (& $ch 'device_vendor_msft_policy_config_defender_submitsamplesconsent' 'device_vendor_msft_policy_config_defender_submitsamplesconsent_1'),
-                    (& $ch 'device_vendor_msft_policy_config_defender_schedulescanday' 'device_vendor_msft_policy_config_defender_schedulescanday_0'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_schedulescanday' 'device_vendor_msft_policy_config_defender_schedulescanday_8'),
                     (& $ch 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutablecontentfromemailclientandwebmail' 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutablecontentfromemailclientandwebmail_block'),
                     (& $ch 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockwin32apicallsfromofficemacros' 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockwin32apicallsfromofficemacros_audit'),
                     @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_policy_config_defender_attacksurfacereductiononlyexclusions'; simpleSettingCollectionValue = @(@{ value = 'C:\Tools\legacy.exe' }, @{ value = 'C:\Build' }) } }
@@ -119,7 +119,7 @@ BeforeAll {
             '^deviceManagement/configurationPolicies/sc2/settings' {
                 & $u @(
                     @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_requiredeviceencryption'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_requiredeviceencryption_1'; children = @() } } },
-                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_1'; children = @(@{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsostype'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsostype_7'; children = @() } }) } } },
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_1'; children = @(@{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsosdropdown_name'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsosdropdown_name_7'; children = @() } }) } } },
                     @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions'; groupSettingCollectionValue = @(@{ children = @(@{ settingDefinitionId = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions_osrequireactivedirectorybackup_name'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions_osrequireactivedirectorybackup_name_1'; children = @() } }) }) } },
                     @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_laps_policies_passwordagedays'; simpleSettingValue = @{ value = 30 } } }
                 ); break
@@ -200,7 +200,7 @@ Describe 'Invoke-PostureCollection' {
         It 'flattens settings catalog values through choice children and group collections, and the policy scalars' {
             $settings = @(& $script:Read '09-intune-policy-settings')
             @($settings | Where-Object { $_.PolicyId -eq 'sc4' }).Count | Should -Be 0 -Because 'unassigned policies are not read'
-            $xts = @($settings | Where-Object { $_.SettingDefinitionId -like '*encryptionmethodwithxtsostype' })
+            $xts = @($settings | Where-Object { $_.SettingDefinitionId -like '*encryptionmethodwithxtsosdropdown_name' })
             $xts.Count | Should -Be 1
             $xts[0].Value | Should -Match '_7$'
             @($settings | Where-Object { $_.SettingDefinitionId -like '*osrequireactivedirectorybackup_name' }).Count | Should -Be 1 -Because 'group collections are recursed'
@@ -223,9 +223,9 @@ Describe 'Invoke-PostureCollection' {
             $run = Invoke-PostureChecks -Evidence $script:R.Folder -Domain endpoint -ProfilePath $profilePath -OutputPath (Join-Path $script:Root 'endpoint-checks') -PassThru
             $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
             $by['EP-002'].status | Should -Be 'fail' -Because $by['EP-002'].reason
-            @($by['EP-002'].affected | ForEach-Object { $_.name }) | Should -Be @('silent enablement', 'TPM startup authentication')
+            @($by['EP-002'].affected | ForEach-Object { $_.name }) | Should -Be @('silent enablement', 'TPM required at startup')
             $by['EP-004'].status | Should -Be 'pass'
-            $by['EP-005'].status | Should -Be 'fail' -Because 'scheduled scan day 0 is never'
+            $by['EP-005'].status | Should -Be 'fail' -Because 'scheduled scan day 8 is never'
             $by['EP-008'].status | Should -Be 'fail'
             $by['EP-008'].affectedCount | Should -Be 18 -Because 'one rule blocks, one audits, seventeen are not configured'
             $by['EP-009'].affectedCount | Should -Be 2
