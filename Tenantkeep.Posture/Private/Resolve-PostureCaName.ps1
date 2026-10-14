@@ -28,6 +28,7 @@ function Resolve-PostureCaName {
         'Office365'             = 'Office 365 (built-in app group)'
         'MicrosoftAdminPortals' = 'Microsoft Admin Portals (built-in app group)'
         'AllTrusted'            = 'All trusted locations (built-in)'
+        'ServicePrincipalsInMyTenant' = 'All workload identities in the tenant (built-in)'
     }
     foreach ($v in $Reference['builtIn']) {
         $names[$v] = [ordered]@{ displayName = $builtInLabels[$v]; type = 'builtIn'; deleted = $false }

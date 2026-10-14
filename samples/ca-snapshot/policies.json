@@ -1,0 +1,162 @@
+[
+  {
+    "id": "p-001",
+    "displayName": "CA-001-Admins-Require phishing-resistant MFA",
+    "state": "enabled",
+    "createdDateTime": "2025-03-04T10:00:00Z",
+    "modifiedDateTime": "2026-01-15T09:30:00Z",
+    "conditions": {
+      "users": {
+        "includeUsers": [],
+        "excludeUsers": ["11111111-1111-1111-1111-111111111111", "11111111-1111-1111-1111-111111111112"],
+        "includeGroups": [],
+        "excludeGroups": [],
+        "includeRoles": ["62e90394-69f5-4237-9190-012177145e10", "194ae4cb-b126-40b2-bd5b-6091b380977d", "f28a1f50-f6e7-4571-818b-6a12f2af6b6c"],
+        "excludeRoles": []
+      },
+      "applications": { "includeApplications": ["All"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["all"],
+      "platforms": null,
+      "locations": null,
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": [], "customAuthenticationFactors": [], "termsOfUse": [], "authenticationStrength": { "id": "00000000-0000-0000-0000-000000000004", "displayName": "Phishing-resistant MFA" } },
+    "sessionControls": { "signInFrequency": { "isEnabled": true, "value": 4, "type": "hours", "frequencyInterval": "timeBased" }, "persistentBrowser": { "isEnabled": true, "mode": "never" } }
+  },
+  {
+    "id": "p-002",
+    "displayName": "CA-002-Users-Require MFA for all cloud apps",
+    "state": "enabled",
+    "createdDateTime": "2025-03-04T10:05:00Z",
+    "modifiedDateTime": "2025-11-02T14:00:00Z",
+    "conditions": {
+      "users": {
+        "includeUsers": ["All"],
+        "excludeUsers": ["11111111-1111-1111-1111-111111111111", "11111111-1111-1111-1111-111111111112"],
+        "includeGroups": [],
+        "excludeGroups": ["22222222-2222-2222-2222-222222222201", "22222222-2222-2222-2222-222222222202"],
+        "includeRoles": [],
+        "excludeRoles": []
+      },
+      "applications": { "includeApplications": ["All"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+      "platforms": null,
+      "locations": { "includeLocations": ["All"], "excludeLocations": ["AllTrusted"] },
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["mfa"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": null
+  },
+  {
+    "id": "p-003",
+    "displayName": "Block legacy authentication",
+    "state": "enabled",
+    "createdDateTime": "2025-03-04T10:10:00Z",
+    "modifiedDateTime": "2025-03-04T10:10:00Z",
+    "conditions": {
+      "users": { "includeUsers": ["All"], "excludeUsers": [], "includeGroups": [], "excludeGroups": ["22222222-2222-2222-2222-222222222203"], "includeRoles": [], "excludeRoles": [] },
+      "applications": { "includeApplications": ["All"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["exchangeActiveSync", "other"],
+      "platforms": null,
+      "locations": null,
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["block"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": null
+  },
+  {
+    "id": "p-004",
+    "displayName": "CA-004-Guests-Require MFA and limit apps",
+    "state": "enabledForReportingButNotEnforced",
+    "createdDateTime": "2026-05-20T08:00:00Z",
+    "modifiedDateTime": "2026-05-20T08:00:00Z",
+    "conditions": {
+      "users": { "includeUsers": ["GuestsOrExternalUsers"], "excludeUsers": [], "includeGroups": [], "excludeGroups": [], "includeRoles": [], "excludeRoles": [] },
+      "applications": { "includeApplications": ["Office365"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["all"],
+      "platforms": null,
+      "locations": null,
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "AND", "builtInControls": ["mfa"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": { "signInFrequency": { "isEnabled": true, "value": 1, "type": "days", "frequencyInterval": "timeBased" } }
+  },
+  {
+    "id": "p-005",
+    "displayName": "CA-005-Users-Require compliant device for Windows and macOS",
+    "state": "enabled",
+    "createdDateTime": "2025-06-01T12:00:00Z",
+    "modifiedDateTime": "2026-02-10T16:45:00Z",
+    "conditions": {
+      "users": { "includeUsers": ["All"], "excludeUsers": ["11111111-1111-1111-1111-111111111111", "11111111-1111-1111-1111-111111111112"], "includeGroups": [], "excludeGroups": ["22222222-2222-2222-2222-222222222202", "22222222-2222-2222-2222-222222222299"], "includeRoles": [], "excludeRoles": [] },
+      "applications": { "includeApplications": ["Office365"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["all"],
+      "platforms": { "includePlatforms": ["windows", "macOS"], "excludePlatforms": [] },
+      "locations": null,
+      "signInRiskLevels": [],
+      "userRiskLevels": [],
+      "devices": { "deviceFilter": { "mode": "exclude", "rule": "device.deviceOwnership -eq \"Company\" -and device.trustType -eq \"AzureAD\"" } }
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["compliantDevice"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": null
+  },
+  {
+    "id": "p-006",
+    "displayName": "CA-006-WorkloadIDs-Block from untrusted locations",
+    "state": "disabled",
+    "createdDateTime": "2025-09-09T09:00:00Z",
+    "modifiedDateTime": "2025-12-01T09:00:00Z",
+    "conditions": {
+      "users": { "includeUsers": [], "excludeUsers": [], "includeGroups": [], "excludeGroups": [], "includeRoles": [], "excludeRoles": [] },
+      "clientApplications": { "includeServicePrincipals": ["ServicePrincipalsInMyTenant"], "excludeServicePrincipals": ["44444444-4444-4444-4444-444444444401"] },
+      "applications": { "includeApplications": ["All"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["all"],
+      "platforms": null,
+      "locations": { "includeLocations": ["All"], "excludeLocations": ["55555555-5555-5555-5555-555555555501"] },
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["block"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": null
+  },
+  {
+    "id": "p-007",
+    "displayName": "CA-007-Users-Register security info from trusted locations",
+    "state": "enabled",
+    "createdDateTime": "2025-04-11T11:00:00Z",
+    "modifiedDateTime": "2025-04-11T11:00:00Z",
+    "conditions": {
+      "users": { "includeUsers": ["All"], "excludeUsers": [], "includeGroups": [], "excludeGroups": [], "includeRoles": [], "excludeRoles": [] },
+      "applications": { "includeApplications": [], "excludeApplications": [], "includeUserActions": ["urn:user:registersecurityinfo"] },
+      "clientAppTypes": ["all"],
+      "platforms": null,
+      "locations": { "includeLocations": ["All"], "excludeLocations": ["AllTrusted", "55555555-5555-5555-5555-555555555599"] },
+      "signInRiskLevels": [],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["block"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": null
+  },
+  {
+    "id": "p-008",
+    "displayName": "Sign-in risk: require MFA (report-only pilot)",
+    "state": "enabledForReportingButNotEnforced",
+    "createdDateTime": "2025-10-01T09:00:00Z",
+    "modifiedDateTime": "2025-10-01T09:00:00Z",
+    "conditions": {
+      "users": { "includeUsers": ["All"], "excludeUsers": [], "includeGroups": [], "excludeGroups": [], "includeRoles": [], "excludeRoles": [] },
+      "applications": { "includeApplications": ["All"], "excludeApplications": [], "includeUserActions": [] },
+      "clientAppTypes": ["all"],
+      "platforms": null,
+      "locations": null,
+      "signInRiskLevels": ["high", "medium"],
+      "userRiskLevels": []
+    },
+    "grantControls": { "operator": "OR", "builtInControls": ["mfa"], "customAuthenticationFactors": [], "termsOfUse": [] },
+    "sessionControls": { "signInFrequency": { "isEnabled": true, "frequencyInterval": "everyTime" } }
+  }
+]

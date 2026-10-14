@@ -22,7 +22,7 @@ function Get-PostureCaReference {
     }
 
     $builtIn = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($v in 'All', 'None', 'GuestsOrExternalUsers', 'Office365', 'MicrosoftAdminPortals', 'AllTrusted') { $null = $builtIn.Add($v) }
+    foreach ($v in 'All', 'None', 'GuestsOrExternalUsers', 'Office365', 'MicrosoftAdminPortals', 'AllTrusted', 'ServicePrincipalsInMyTenant') { $null = $builtIn.Add($v) }
 
     $add = {
         param([string] $Bucket, [object] $Values)

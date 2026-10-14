@@ -1,0 +1,5 @@
+[
+  { "id": "00000000-0000-0000-0000-000000000002", "displayName": "Multifactor authentication", "policyType": "builtIn", "allowedCombinations": ["password,microsoftAuthenticatorPush", "password,sms", "fido2", "windowsHelloForBusiness", "x509CertificateMultiFactor", "temporaryAccessPassOneTime"] },
+  { "id": "00000000-0000-0000-0000-000000000003", "displayName": "Passwordless MFA", "policyType": "builtIn", "allowedCombinations": ["fido2", "windowsHelloForBusiness", "x509CertificateMultiFactor", "microsoftAuthenticatorPush"] },
+  { "id": "00000000-0000-0000-0000-000000000004", "displayName": "Phishing-resistant MFA", "policyType": "builtIn", "allowedCombinations": ["fido2", "windowsHelloForBusiness", "x509CertificateMultiFactor"] }
+]

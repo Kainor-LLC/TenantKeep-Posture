@@ -1,0 +1,3 @@
+[
+  { "id": "c1", "displayName": "Sensitive data access", "description": "Required for labelled sites", "isAvailable": true }
+]

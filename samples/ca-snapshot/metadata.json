@@ -1,0 +1,22 @@
+{
+  "product": "Tenantkeep.Posture",
+  "moduleVersion": "0.1.0",
+  "snapshotType": "conditional-access",
+  "snapshotSchema": 1,
+  "tenantId": "00000000-aaaa-bbbb-cccc-000000000000",
+  "account": "reader@contoso.example",
+  "authType": "Delegated",
+  "scopes": ["Directory.Read.All", "Group.Read.All", "Policy.Read.All"],
+  "timestampUtc": "2026-10-13T09:05:12.0000000Z",
+  "completedUtc": "2026-10-13T09:05:40.0000000Z",
+  "graphApiVersions": ["v1.0"],
+  "policyCount": 8,
+  "namedLocationCount": 2,
+  "authStrengthCount": 3,
+  "authContextCount": 1,
+  "groupCount": 4,
+  "includeMembers": false,
+  "errorCount": 0,
+  "powerShell": "7.6.7",
+  "platform": "Darwin 27.0.0"
+}

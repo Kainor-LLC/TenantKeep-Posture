@@ -1,0 +1,6 @@
+[
+  { "groupId": "22222222-2222-2222-2222-222222222201", "memberCount": 12, "memberHash": "3b1f8c0d9e7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c", "hashAlgorithm": "sha256(sorted transitive member ids joined by LF)" },
+  { "groupId": "22222222-2222-2222-2222-222222222202", "memberCount": 341, "memberHash": "9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b", "hashAlgorithm": "sha256(sorted transitive member ids joined by LF)" },
+  { "groupId": "22222222-2222-2222-2222-222222222203", "memberCount": 0, "memberHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "hashAlgorithm": "sha256(sorted transitive member ids joined by LF)" },
+  { "groupId": "22222222-2222-2222-2222-222222222299", "deleted": true, "memberCount": null, "memberHash": null }
+]
