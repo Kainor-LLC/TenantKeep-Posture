@@ -1,0 +1,34 @@
+# local notes with tenant and account details (CLAUDE.md: never commit)
+CLAUDE.local.md
+
+# build output
+out/
+*.nupkg
+*.zip
+
+# signing material, never commit
+*.pfx
+*.p12
+*.pem
+*.key
+*.cer
+signing*
+
+# evidence and reports produced by the module; samples/ holds anonymized data only
+evidence/
+*-ca/
+transcript.txt
+errors.txt
+
+# local settings and secrets
+.env
+*.local.*
+local.settings.json
+.claude/settings.local.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

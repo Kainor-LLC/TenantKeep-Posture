@@ -1,0 +1,65 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Analyze and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          Install-PSResource -Name PSScriptAnalyzer -Version '[1.22.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          Install-PSResource -Name Pester -Version '[5.5.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+
+      - name: Secret scan of the whole tree
+        shell: pwsh
+        run: |
+          . ./.githooks/Test-StagedSecrets.ps1
+          $files = git ls-files | Where-Object { $_ -ne '.githooks/Test-StagedSecrets.ps1' }
+          $hits = foreach ($f in $files) { Test-PostureStagedContent -Path $f -Content (Get-Content -Raw -LiteralPath $f -ErrorAction SilentlyContinue) }
+          if ($hits) { $hits | Format-Table | Out-String | Write-Host; throw 'Secret scan failed.' }
+
+      - name: Analyze and test
+        shell: pwsh
+        run: ./build.ps1 -Task Analyze, Test -SkipInstall
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: out/test-results.xml
+
+  build:
+    name: Build (unsigned, no package)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        shell: pwsh
+        run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+      - name: Stage module
+        shell: pwsh
+        run: ./build.ps1 -Task Build -SkipInstall
+      - name: Confirm Package refuses to run without a certificate
+        shell: pwsh
+        run: |
+          try { ./build.ps1 -Task Package -SkipInstall; throw 'Package ran without a signing certificate.' }
+          catch { if ($_.Exception.Message -notmatch 'No signing certificate') { throw } ; Write-Host "Refused as expected: $($_.Exception.Message)" }
