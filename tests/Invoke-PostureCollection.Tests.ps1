@@ -112,11 +112,11 @@ BeforeAll {
                 ); break
             }
             '^deviceAppManagement/mobileApps' { & $u @(@{ id = 'app1'; displayName = 'Company Portal'; publisher = 'Microsoft'; '@odata.type' = '#microsoft.graph.winGetApp' }); break }
-            '^deviceManagement/applePushNotificationCertificate$' { @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
+            '^deviceManagement/applePushNotificationCertificate$' { if ($env:TKP_TEST_APNS -eq 'missing') { throw 'Response status code does not indicate success: NotFound (Not Found).' }; @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
             '^deviceAppManagement/vppTokens' { & $u @(@{ organizationName = 'Contoso'; appleId = 'apple@contoso.example'; state = 'valid'; expirationDateTime = '2027-06-01T00:00:00Z' }); break }
             '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }); break }
             '^deviceManagement/mobileThreatDefenseConnectors' { & $u @(@{ id = 'mde'; partnerState = 'available'; windowsEnabled = $true; macEnabled = $true; lastHeartbeatDateTime = '2026-10-13T00:00:00Z' }); break }
-            '^deviceManagement/managedDeviceCleanupSettings$' { @{ deviceInactivityBeforeRetirementInDays = 90 }; break }
+            '^deviceManagement/managedDeviceCleanupRules' { & $u @(@{ id = 'r1'; displayName = 'Windows 90d'; deviceCleanupRulePlatformType = 'windows'; deviceInactivityBeforeRetirementInDays = 90 }); break }
             '^informationProtection/bitlocker/recoveryKeys' { & $u @(@{ id = 'k1'; deviceId = 'dev-1'; volumeType = 'operatingSystemVolume' }, @{ id = 'k2'; deviceId = 'dev-1'; volumeType = 'fixedDataVolume' }); break }
             '^identity/conditionalAccess/policies$' { & $u @(); break }
             '^identity/conditionalAccess/namedLocations$' { & $u @(); break }
@@ -163,6 +163,7 @@ Describe 'Invoke-PostureCollection' {
             (& $script:Read '09-intune-enrollment-restrictions')[0].windowsPersonalBlocked | Should -BeTrue
             (& $script:Read '09-intune-mde-connector')[0].PartnerState | Should -Be 'available'
             (& $script:Read '09-intune-device-cleanup').Enabled | Should -BeTrue
+            (& $script:Read '09-intune-device-cleanup').DeviceInactivityBeforeRetirementInDays | Should -Be 90
             (& $script:Read '08-bitlocker-keys-summary').DevicesWithKeys | Should -Be 1
             (& $script:Read '08-bitlocker-keys-by-device')[0].Keys | Should -Be 2
         }
@@ -299,6 +300,18 @@ Describe 'Invoke-PostureCollection' {
                 Join-Path $r.Folder 'policies.json' | Should -Not -Exist
             }
             finally { $env:TKP_TEST_PIM = 'ok' }
+        }
+    }
+
+    Context 'Apple certificate absent' {
+        It 'records Present = false instead of failing the step' {
+            $env:TKP_TEST_APNS = 'missing'
+            try {
+                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'noapns') -Collector Intune -SkipCaSnapshot -PassThru -WarningAction SilentlyContinue
+                (Get-Content -Raw (Join-Path $r.Folder '09-apple-push-cert.json') | ConvertFrom-Json).Present | Should -BeFalse
+                @($r.Errors | Where-Object { $_ -like 'Apple push*' }).Count | Should -Be 0
+            }
+            finally { Remove-Item Env:TKP_TEST_APNS -ErrorAction SilentlyContinue }
         }
     }
 

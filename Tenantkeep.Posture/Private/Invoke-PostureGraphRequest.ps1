@@ -44,8 +44,16 @@ function Invoke-PostureGraphRequest {
             # The SDK's message is only the status; Graph's own error text is in the response body.
             $detail = $(if ($_.ErrorDetails) { [string]$_.ErrorDetails.Message } else { '' })
             $graphMessage = $null
-            $i = $detail.IndexOf('{"error"')
-            if ($i -ge 0) { try { $graphMessage = (ConvertFrom-Json $detail.Substring($i)).error.message } catch { $graphMessage = $null } }
+            $i = $detail.IndexOf('{')
+            if ($i -ge 0) {
+                try {
+                    # Not $body: that is the typed request parameter, and a PSCustomObject will not convert into it.
+                    $errorBody = ConvertFrom-Json $detail.Substring($i)
+                    # Graph proper puts it in error.message; the Intune service answers with a top-level Message.
+                    $graphMessage = if ($errorBody.PSObject.Properties['error']) { [string]$errorBody.error.message } elseif ($errorBody.PSObject.Properties['Message']) { ([string]$errorBody.Message -split ' - ')[0] } else { $null }
+                }
+                catch { $graphMessage = $null }
+            }
             $what = "$Method $next"
             if ($graphMessage) { throw "$($_.Exception.Message) [$what] $graphMessage" }
             throw "$($_.Exception.Message) [$what]"

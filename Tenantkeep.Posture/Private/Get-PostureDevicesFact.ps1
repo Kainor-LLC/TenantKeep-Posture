@@ -130,8 +130,9 @@ function Get-PostureDevicesFact {
     if ($null -eq $catalog) { & $missing @('DEV-010', 'DEV-011') '09-intune-config-profiles-settings-catalog' }
     else {
         $assigned = @($catalog | Where-Object { $_ -and [int]$_.Assignments -gt 0 })
-        $families = [ordered]@{ antivirus = 'endpointSecurityAntivirus'; diskEncryption = 'endpointSecurityDiskEncryption'; firewall = 'endpointSecurityFirewall'; attackSurfaceReduction = 'endpointSecurityAttackSurfaceReductionRules'; endpointDetectionAndResponse = 'endpointSecurityEndpointDetectionAndResponse' }
-        $present = @($families.Keys | Where-Object { $fam = $families[$_]; @($assigned | Where-Object { [string]$_.TemplateFamily -eq $fam }).Count -gt 0 })
+        # Template family values as Graph returns them (confirmed 2026-10-14): attack surface reduction has no 'Rules' suffix.
+        $families = [ordered]@{ antivirus = 'endpointSecurityAntivirus'; diskEncryption = 'endpointSecurityDiskEncryption'; firewall = 'endpointSecurityFirewall'; attackSurfaceReduction = 'endpointSecurityAttackSurfaceReduction'; endpointDetectionAndResponse = 'endpointSecurityEndpointDetectionAndResponse' }
+        $present = @($families.Keys | Where-Object { $fam = $families[$_]; @($assigned | Where-Object { [string]$_.TemplateFamily -like "$fam*" }).Count -gt 0 })
         $facts.endpointSecurityFamiliesRequired = $families.Count
         $facts.endpointSecurityFamiliesAssigned = $present.Count
         $affected.endpointSecurityFamiliesMissing = @($families.Keys | Where-Object { $_ -notin $present } | ForEach-Object { [ordered]@{ name = $_; detail = 'no assigned endpoint security policy of this type' } })
@@ -140,7 +141,7 @@ function Get-PostureDevicesFact {
 
     $mde = & $load '09-intune-mde-connector'
     if ($null -eq $mde) { & $missing @('DEV-012') '09-intune-mde-connector' }
-    else { $facts.mdeConnectorEnabled = [bool](@($mde | Where-Object { $_ -and $_.PartnerState -eq 'available' -and ($_.WindowsEnabled -eq $true -or $_.MacEnabled -eq $true -or $_.MicrosoftDefenderForEndpointAttachEnabled -eq $true) }).Count -gt 0) }
+    else { $facts.mdeConnectorEnabled = [bool](@($mde | Where-Object { $_ -and $_.PartnerState -in @('available', 'enabled') -and ($_.WindowsEnabled -eq $true -or $_.MacEnabled -eq $true -or $_.MicrosoftDefenderForEndpointAttachEnabled -eq $true) }).Count -gt 0) }
 
     $cleanup = & $load '09-intune-device-cleanup'
     if ($null -eq $cleanup) { & $missing @('DEV-013') '09-intune-device-cleanup'; if (-not $facts.Contains('deviceCleanupRuleEnabled')) { $facts.deviceCleanupRuleEnabled = $false } }

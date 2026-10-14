@@ -20,7 +20,9 @@ function Invoke-PostureStep {
         return & $Script
     }
     catch {
-        $message = $_.Exception.Message
+        # One line per failure in errors.txt, whatever the exception text contains.
+        $message = (([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()
+        if ($message.Length -gt 600) { $message = $message.Substring(0, 600) + '...' }
         Write-Verbose "$Label failed at $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)"
         Write-Warning "$Label failed: $message"
         Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message"

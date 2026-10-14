@@ -77,7 +77,10 @@ function Invoke-PostureIntuneCollection {
     } | Out-Null
 
     Invoke-PostureStep -Label 'Apple push certificate' -Folder $Folder -Script {
-        $c = & $one 'deviceManagement/applePushNotificationCertificate'
+        # NotFound means no APNs certificate has been uploaded: a fact, not a failure.
+        $c = $null
+        try { $c = & $one 'deviceManagement/applePushNotificationCertificate' }
+        catch { if ($_.Exception.Message -match 'NotFound|404') { $c = @{} } else { throw } }
         & $saveOne ([ordered]@{ AppleIdentifier = (& $v $c 'appleIdentifier'); ExpirationDateTime = (& $v $c 'expirationDateTime'); LastModifiedDateTime = (& $v $c 'lastModifiedDateTime'); TopicIdentifier = (& $v $c 'topicIdentifier'); Present = [bool](& $v $c 'expirationDateTime') }) '09-apple-push-cert'
     } | Out-Null
     Invoke-PostureStep -Label 'Apple VPP tokens' -Folder $Folder -Script {
@@ -109,9 +112,12 @@ function Invoke-PostureIntuneCollection {
         & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; PartnerState = (& $v $_ 'partnerState'); LastHeartbeatDateTime = (& $v $_ 'lastHeartbeatDateTime'); WindowsDeviceBlockedOnMissingPartnerData = (& $v $_ 'windowsDeviceBlockedOnMissingPartnerData'); WindowsEnabled = (& $v $_ 'windowsEnabled'); MacEnabled = (& $v $_ 'macEnabled'); LinuxEnabled = (& $v $_ 'linuxEnabled'); IosEnabled = (& $v $_ 'iosEnabled'); AndroidEnabled = (& $v $_ 'androidEnabled'); MicrosoftDefenderForEndpointAttachEnabled = (& $v $_ 'microsoftDefenderForEndpointAttachEnabled') } }) '09-intune-mde-connector' $true
     } | Out-Null
 
-    Invoke-PostureStep -Label 'Device cleanup rule' -Folder $Folder -Script {
-        $c = & $one 'deviceManagement/managedDeviceCleanupSettings' 'beta'   # (verify) endpoint
-        & $saveOne ([ordered]@{ DeviceInactivityBeforeRetirementInDays = (& $v $c 'deviceInactivityBeforeRetirementInDays'); Enabled = [bool](& $v $c 'deviceInactivityBeforeRetirementInDays') }) '09-intune-device-cleanup'
+    Invoke-PostureStep -Label 'Device cleanup rules' -Folder $Folder -Script {
+        # managedDeviceCleanupRules (beta) is the per-platform list; managedDeviceCleanupSettings is forbidden for delegated reads (confirmed 2026-10-14).
+        $rules = & $get 'deviceManagement/managedDeviceCleanupRules' 'beta'
+        $flat = @($rules | ForEach-Object { [ordered]@{ Id = (& $v $_ 'id'); DisplayName = (& $v $_ 'displayName'); PlatformType = (& $v $_ 'deviceCleanupRulePlatformType'); DeviceInactivityBeforeRetirementInDays = (& $v $_ 'deviceInactivityBeforeRetirementInDays') } })
+        $days = @($flat | ForEach-Object { $_.DeviceInactivityBeforeRetirementInDays } | Where-Object { $null -ne $_ } | Sort-Object)
+        & $saveOne ([ordered]@{ Rules = $flat; Enabled = ($flat.Count -gt 0); DeviceInactivityBeforeRetirementInDays = $(if ($days.Count -gt 0) { $days[0] } else { $null }) }) '09-intune-device-cleanup'
     } | Out-Null
 
     Invoke-PostureStep -Label 'BitLocker recovery keys' -Folder $Folder -Script {
