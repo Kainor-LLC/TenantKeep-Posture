@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), the check engine with the Conditional Access, identity and authentication catalogs (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`), the Entra collector (`Invoke-PostureCollection`), the profile wizard (`New-PostureProfile`) and the interactive posture report (`New-PostureReport`). Next: devices and endpoint security. Progress: [docs/checklist.md](docs/checklist.md).
+Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), the check engine with the Conditional Access, identity, authentication, devices and email catalogs (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`), the Entra, Intune and Exchange Online collectors (`Invoke-PostureCollection`), the profile wizard (`New-PostureProfile`) and the interactive posture report (`New-PostureReport`). Next: endpoint security. Progress: [docs/checklist.md](docs/checklist.md).
 
 ## Use
 
@@ -22,7 +22,7 @@ Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                  
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
 Invoke-PostureChecks -Evidence ~/audit/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
-Invoke-PostureCollection -OutRoot ~/audit/evidence                                            # A.1 identity evidence plus the CA snapshot in one run folder
+Invoke-PostureCollection -OutRoot ~/audit/evidence                                            # A.1 identity and Intune evidence, A.2 Exchange evidence and the CA snapshot in one run folder
 New-PostureReport -Evidence ~/audit/evidence/<stamp> -Profile ~/audit/profile.json            # report.html (interactive), report.md, checks.json; add -Format Pdf
 New-PostureProfile -Path ~/audit/profile.json -FromGraph                                      # the org profile the checks read
 ```

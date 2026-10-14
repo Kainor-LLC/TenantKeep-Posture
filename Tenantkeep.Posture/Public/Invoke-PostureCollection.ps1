@@ -21,7 +21,9 @@ function Invoke-PostureCollection {
     .PARAMETER OutputFolder
         Write into this exact folder instead.
     .PARAMETER Collector
-        Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions). Default both.
+        Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions),
+        Exchange (A.2 Exchange Online and the mail DNS records). Default all three; Exchange is skipped with a warning
+        when no Connect-ExchangeOnline session exists, and refused when it was asked for by name.
     .PARAMETER StaleDays
         Threshold for inactive users and devices in the summaries. Default 90.
     .PARAMETER IncludeMembers
@@ -30,6 +32,9 @@ function Invoke-PostureCollection {
         Do not write the Conditional Access snapshot into the folder.
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
+    .PARAMETER SkipMailboxEnumeration
+        Skip the Exchange mailbox and CAS mailbox pulls (10 to 20 minutes at 20k mailboxes); the forwarding, shared
+        mailbox and per-mailbox protocol checks are then not evaluated.
     .PARAMETER PassThru
         Return a summary object instead of the folder path.
     .EXAMPLE
@@ -37,6 +42,11 @@ function Invoke-PostureCollection {
         Invoke-PostureCollection
 
         Writes ~/audit/evidence/<stamp>/ with the A.1 files and the CA snapshot.
+    .EXAMPLE
+        Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$false
+        Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot
+
+        Writes the A.2 exo-* files and dns-01-mail-records into a new run folder. Needs View-Only Organization Management or equivalent.
     .EXAMPLE
         Invoke-PostureCollection -OutRoot ./evidence -PassThru | Select-Object Folder, Errors
     .OUTPUTS
@@ -49,11 +59,12 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'Intune')] [string[]] $Collector = @('Entra', 'Intune'),
+        [ValidateSet('Entra', 'Intune', 'Exchange')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
         [switch] $SkipPerUserMfa,
+        [switch] $SkipMailboxEnumeration,
         [switch] $PassThru
     )
 
@@ -75,10 +86,17 @@ function Invoke-PostureCollection {
         'DeviceManagementServiceConfig.Read.All'  = 'Apple push certificate, MDE connector'
         'DeviceManagementApps.Read.All'           = 'Intune apps, Apple VPP tokens'
         'BitLockerKey.ReadBasic.All'              = 'BitLocker recovery key presence'
+        'AttackSimulation.Read.All'               = 'Attack simulation campaigns (skipped quietly when missing)'
     }
     $granted = @($context.Scopes)
     foreach ($scope in $optional.Keys) {
         if ($scope -notin $granted) { Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt." }
+    }
+    $runExchange = $Collector -contains 'Exchange'
+    if ($runExchange -and -not (Test-PostureExoSession)) {
+        if ($PSBoundParameters.ContainsKey('Collector')) { throw 'The Exchange collector needs a connected Exchange Online session: Connect-ExchangeOnline -UserPrincipalName <reader> first. Never connects on its own.' }
+        Write-Warning 'No Exchange Online session; skipping the Exchange collector. Run Connect-ExchangeOnline first, or pass -Collector Entra,Intune to silence this.'
+        $runExchange = $false
     }
 
     $startedUtc = [datetime]::UtcNow
@@ -107,6 +125,11 @@ function Invoke-PostureCollection {
             $r = Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Intune')
+        }
+        if ($runExchange) {
+            $r = Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('Exchange')
         }
 
         $errorsPath = Join-Path $folder 'errors.txt'

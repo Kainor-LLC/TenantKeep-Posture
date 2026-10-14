@@ -127,9 +127,16 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'never calls Connect-MgGraph from module code' {
+    It 'never calls Connect-MgGraph or Connect-ExchangeOnline from module code' {
         # A call at statement position. Error text that tells the user how to reconnect is fine.
-        $hits = Find-Code '(^|[;{|(&])\s*Connect-Mg'
+        $hits = Find-Code '(^|[;{|(&])\s*Connect-(Mg|ExchangeOnline|IPPSSession)'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+    }
+
+    It 'runs Exchange Online cmdlets only through Invoke-PostureExoCommand, which accepts Get- names only' {
+        $hits = Find-Code '(^|[;{|(&])\s*(Get|Set|New|Remove|Enable|Disable|Search|Start|Stop|Export)-(EXO|Hosted|AntiPhish|Safe|Dkim|Accepted|Transport|Inbound|Outbound|Organization|Quarantine|Remote|Sharing|Owa|ActiveSync|Mobile|Role|Malware|Atp|ATP|EOP|Admin|Authentication|Mailbox|CAS|Unified|InboxRule)' 'Invoke-PostureExoCommand.ps1'
+        $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureExoCommand.ps1')
+        $src | Should -Match "ValidatePattern\('\^Get-"
     }
 }

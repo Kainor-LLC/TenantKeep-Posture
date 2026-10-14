@@ -39,8 +39,37 @@ run continues.
 Scopes: DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All,
 DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLockerKey.ReadBasic.All.
 
-Not yet collected: legacy sign-ins (section 12), Exchange and Purview (A.2), SharePoint and Teams (A.3), Maester
-(A.4), Defender effective state (spec 4.11).
+## What the Exchange collector writes
+
+Needs a connected Exchange Online PowerShell session (ExchangeOnlineManagement 3.x, `Connect-ExchangeOnline`), with
+View-Only Organization Management or an equivalent read-only role. The module never connects; with no session the
+collector is skipped with a warning, or refused when `-Collector Exchange` was asked for by name. Every cmdlet goes
+through one `Get-` only entry point, so a write is impossible by construction. Rich cmdlet objects are projected to
+scalars and string lists before they are written.
+
+| File | Source | Notes |
+|---|---|---|
+| `exo-01-orgconfig`, `exo-01-transport-config`, `exo-01-auth-policies`, `exo-01-audit-config` | organization, transport and audit config, authentication policies | SMTP AUTH, ARC sealers, mailbox audit default, unified audit log |
+| `exo-02-accepted-domains`, `exo-02-dkim` | accepted domains, DKIM signing config | |
+| `exo-03-inbound-connectors`, `exo-03-outbound-connectors`, `exo-03-transport-rules` | connectors, mail flow rules | Enhanced Filtering fields, SCL -1 rules with their scope |
+| `exo-04-eop-content-filter`, `exo-04-eop-connection-filter`, `exo-04-eop-malware`, `exo-04-antiphish`, `exo-04-outbound-spam` | EOP policies | Full property set |
+| `exo-04-preset-rules-eop`, `exo-04-preset-rules-mdo` | preset security policy rules | The scope columns say whether Standard or Strict reaches everyone |
+| `exo-05-mdo-safelinks`, `exo-05-mdo-safeattachments`, `exo-05-mdo-global`, `exo-05-quarantine-policies` | Defender for Office 365 policies | Absent or denied without MDO; logged |
+| `exo-06-remote-domains`, `exo-06-sharing-policies`, `exo-06-owa-policies` | remote domains, sharing, OWA policies | |
+| `exo-07-eas-org-settings`, `exo-07-mobile-device-policies` | ActiveSync | |
+| `exo-08-role-groups` | role groups with members | |
+| `exo-09-mailboxes` (+csv), `exo-09-mailboxes-by-type`, `exo-09-mailboxes-with-forwarding` | Get-EXOMailbox, unlimited | Forwarding, holds, audit flag, the Entra object id for the shared mailbox join. `-SkipMailboxEnumeration` at very large sizes |
+| `exo-10-cas-mailboxes` (+csv), `exo-10-cas-summary` | Get-EXOCASMailbox, unlimited | POP, IMAP, ActiveSync, SMTP AUTH override per mailbox |
+| `exo-11-attack-simulations` (+csv) | Graph security/attackSimulation/simulations | Only with AttackSimulation.Read.All; skipped quietly otherwise |
+| `dns-01-mail-records` (+csv) | public DNS through dig (Resolve-DnsName on Windows) | MX, SPF, DMARC, MTA-STS and TLS-RPT per custom authoritative domain; the initial onmicrosoft.com domain is left out |
+
+```powershell
+Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$false
+Invoke-PostureCollection -OutRoot ~/audit/evidence        # Entra, Intune and Exchange into one folder
+```
+
+Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
+at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
 ## Scopes
 

@@ -84,6 +84,10 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] New-PostureReport G1: report model (weighted score with the method stated, headline numbers, domain scorecards, top risks, four recommendation buckets, admins table, CA matrix, appendix), Markdown output, -Client folder, checks.json beside it; Kainor scores 81 (B) over 36 checks (checkpoint G1)
 - [x] New-PostureReport G2: self-contained interactive HTML (templates/report.css, report.js, CSP default-src none), eleven views with the uncollected ones shown as such, checks explorer with filters and search, check detail drawer with the exception snippet and CSV export, executive mode toggle, print view, PDF; verified on the Kainor report (checkpoint G2)
 - [ ] findings.csv export (Export-PostureFindings), portal deep links, trend across runs
+- [x] Exchange Online collector (A.2 exo-01 to exo-10 plus attack simulations and the mail DNS records with MTA-STS and TLS-RPT): one Get-only entry point, never connects, skipped with a warning without a session; `-Collector Exchange`, `-SkipMailboxEnumeration` (checkpoint J)
+- [x] Email domain: checks/email.json (21 checks from spec 4.10; the inbox-rule check waits for an audit search collector) and Get-PostureEmailFact; MDO delivery checks covered by a third-party gateway from the profile, DNS, forwarding, protocol and audit checks evaluated regardless (checkpoint J)
+- [ ] Inbox rules forwarding externally (spec 4.10) through an audit search, not Get-InboxRule
+- [ ] (verify) SCuBA MS.EXO ids on the email checks; CIS ids once the terms are cleared
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 
 ## Later weeks

@@ -1,0 +1,564 @@
+{
+  "domain": "email",
+  "checks": [
+    {
+      "id": "EM-001",
+      "domain": "email",
+      "title": "EOP preset security policy assigned to everyone",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-preset-rules-eop.json"
+      ],
+      "pass": "facts.presetEopEnabled && facts.presetEopAllUsers",
+      "remediation": "Turn on the Standard or Strict preset security policy for Exchange Online Protection and leave the recipient scope empty so it applies to all users and domains. Custom policies then exist only for documented exceptions.",
+      "learn": "https://learn.microsoft.com/defender-office-365/preset-security-policies",
+      "deepLink": null,
+      "narrative": "Preset policies carry Microsoft's recommended anti-spam, anti-malware and anti-phishing settings and update as the recommendations change. A tenant on hand-tuned custom policies drifts; one on the preset with no scope restrictions is protected by default.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-002",
+      "domain": "email",
+      "title": "Defender for Office 365 preset policy assigned to everyone",
+      "severityDefault": "High",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-preset-rules-mdo.json"
+      ],
+      "pass": "facts.presetMdoEnabled && facts.presetMdoAllUsers",
+      "remediation": "Turn on the Standard or Strict preset for Defender for Office 365 with an empty recipient scope, so Safe Links and Safe Attachments reach every mailbox.",
+      "learn": "https://learn.microsoft.com/defender-office-365/preset-security-policies",
+      "deepLink": null,
+      "narrative": "The MDO half of the preset is a separate rule. Tenants often enable the EOP preset and never the MDO one, which leaves Safe Links and Safe Attachments on custom policies or off.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-003",
+      "domain": "email",
+      "title": "Anti-phishing: spoof intelligence on and DMARC honoured",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-antiphish.json"
+      ],
+      "pass": "facts.antiPhishPolicies > 0 && facts.antiPhishSpoofGaps == 0",
+      "affected": "facts.antiPhishSpoofGaps",
+      "remediation": "In every enabled anti-phishing policy turn on spoof intelligence and set the DMARC policy to be honoured (reject or quarantine per the sender's record).",
+      "learn": "https://learn.microsoft.com/defender-office-365/anti-phishing-policies-about",
+      "deepLink": null,
+      "narrative": "Spoof intelligence catches senders using your domains or trusted partners' domains without authorisation. Honouring DMARC applies the sender's own published policy instead of the tenant's spam verdict.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.EXO.11.3v1"
+      }
+    },
+    {
+      "id": "EM-004",
+      "domain": "email",
+      "title": "Impersonation protection for executives and owned domains",
+      "severityDefault": "Medium",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-antiphish.json"
+      ],
+      "pass": "facts.antiPhishPolicies > 0 && facts.antiPhishImpersonationGaps == 0",
+      "affected": "facts.antiPhishImpersonationGaps",
+      "remediation": "In each anti-phishing policy enable user impersonation protection with the executives and finance roles listed, domain impersonation for the owned domains, and mailbox intelligence.",
+      "learn": "https://learn.microsoft.com/defender-office-365/anti-phishing-policies-about#impersonation-settings-in-anti-phishing-policies-in-microsoft-defender-for-office-365",
+      "deepLink": null,
+      "narrative": "Business email compromise starts with a lookalike display name or domain. Impersonation protection needs the names it should protect; a policy with an empty list protects nobody.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.EXO.11.1v1"
+      }
+    },
+    {
+      "id": "EM-005",
+      "domain": "email",
+      "title": "Safe Links and Safe Attachments on for mail, Teams and Office",
+      "severityDefault": "High",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-05-mdo-safelinks.json",
+        "exo-05-mdo-safeattachments.json",
+        "exo-05-mdo-global.json"
+      ],
+      "pass": "facts.safeLinksComplete && facts.safeAttachmentsEnabled && facts.safeAttachmentsSpoEnabled && (facts.safeDocumentsEnabled || !facts.safeDocumentsExpected)",
+      "remediation": "Enable Safe Links for email, Teams and Office apps in at least one policy, Safe Attachments with Block or Dynamic Delivery, Safe Attachments for SharePoint, OneDrive and Teams in the global settings, and Safe Documents where the licence (E5 or Defender for Endpoint P2) includes it.",
+      "learn": "https://learn.microsoft.com/defender-office-365/safe-links-about",
+      "deepLink": null,
+      "narrative": "URL rewriting and detonation at click time, plus attachment detonation, are the controls that stop the payload after the lure got through. Each needs its own policy switch.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.EXO.15.1v1"
+      }
+    },
+    {
+      "id": "EM-006",
+      "domain": "email",
+      "title": "Zero-hour auto purge for spam, phish and malware",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-content-filter.json",
+        "exo-04-eop-malware.json"
+      ],
+      "pass": "facts.zapGaps == 0",
+      "affected": "facts.zapGaps",
+      "remediation": "Enable ZAP in every anti-spam policy (spam and phish) and every anti-malware policy.",
+      "learn": "https://learn.microsoft.com/defender-office-365/zero-hour-auto-purge",
+      "deepLink": null,
+      "narrative": "ZAP retroactively moves messages already delivered once the verdict changes. Off, a message that was clean at delivery and malicious an hour later stays in the inbox.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-007",
+      "domain": "email",
+      "title": "Quarantine: admin-only release for high-confidence phish, user notifications on",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-content-filter.json",
+        "exo-05-quarantine-policies.json"
+      ],
+      "pass": "facts.highConfidencePhishAdminOnly && facts.quarantineNotificationsEnabled",
+      "affected": "facts.highConfidencePhishReleasable",
+      "remediation": "Set the high-confidence phish quarantine tag to AdminOnlyAccessPolicy in every anti-spam policy and enable end-user quarantine notifications in a quarantine policy.",
+      "learn": "https://learn.microsoft.com/defender-office-365/quarantine-policies",
+      "deepLink": null,
+      "narrative": "A user who can release high-confidence phish to themselves defeats the filter. Notifications let users request release of legitimate mail without an admin.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-008",
+      "domain": "email",
+      "title": "Automatic external forwarding blocked",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-outbound-spam.json"
+      ],
+      "pass": "facts.outboundPoliciesAllowingAutoForward == 0",
+      "affected": "facts.outboundPoliciesAllowingAutoForward",
+      "remediation": "Set automatic forwarding to Off in the default outbound spam policy and every custom one. Allow it per user only through a scoped custom policy with a documented reason.",
+      "learn": "https://learn.microsoft.com/defender-office-365/outbound-spam-policies-external-email-forwarding",
+      "deepLink": null,
+      "narrative": "Attackers who get a mailbox set a forward and read quietly for months. Blocking it at the tenant level stops both inbox rules and mailbox forwarding from leaving the tenant.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": "MS.EXO.1.1v1"
+      }
+    },
+    {
+      "id": "EM-009",
+      "domain": "email",
+      "title": "Connection filter IP allow list empty",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-connection-filter.json"
+      ],
+      "pass": "facts.connectionFilterAllowListEntries == 0",
+      "affected": "facts.connectionFilterAllowListEntries",
+      "remediation": "Remove allow-listed IPs or record each with an owner and reason as an object-level exception. Prefer Enhanced Filtering for a gateway and partner connectors for application senders.",
+      "learn": "https://learn.microsoft.com/defender-office-365/connection-filter-policies-configure",
+      "deepLink": null,
+      "narrative": "An IP on the allow list skips spam filtering entirely. Legacy entries for a long-gone gateway or a shared cloud range are an open door.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.EXO.12.1v1"
+      }
+    },
+    {
+      "id": "EM-010",
+      "domain": "email",
+      "title": "No unscoped SCL -1 transport rules",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-03-transport-rules.json"
+      ],
+      "pass": "facts.sclBypassRulesUnscoped == 0",
+      "affected": "facts.sclBypassRulesUnscoped",
+      "remediation": "Delete bypass rules that no longer have a purpose, and scope the rest to a sender IP range or a header the authenticated connector stamps.",
+      "learn": "https://learn.microsoft.com/exchange/security-and-compliance/mail-flow-rules/mail-flow-rules",
+      "deepLink": null,
+      "narrative": "A rule that sets SCL -1 on all mail from a domain or a scope turns filtering off for anything that claims to come from it. Spoofed senders pass straight through.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-011",
+      "domain": "email",
+      "title": "Enhanced Filtering on every partner inbound connector",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-03-inbound-connectors.json"
+      ],
+      "pass": "facts.partnerConnectorsWithoutEnhancedFiltering == 0",
+      "affected": "facts.partnerConnectorsWithoutEnhancedFiltering",
+      "remediation": "On each partner connector that fronts the tenant (a third-party gateway), enable Enhanced Filtering with the gateway's IPs so EOP sees the true source.",
+      "learn": "https://learn.microsoft.com/defender-office-365/skip-filtering-phishing-simulations-sec-ops-mailboxes",
+      "deepLink": null,
+      "narrative": "With a gateway in front, every message arrives from the gateway's IP, SPF fails and spoof intelligence is blind. Enhanced Filtering restores the original connecting IP.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-012",
+      "domain": "email",
+      "title": "DKIM signing enabled on every custom domain",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-02-dkim.json",
+        "exo-02-accepted-domains.json"
+      ],
+      "pass": "facts.dkimDomainsWithoutSigning == 0",
+      "affected": "facts.dkimDomainsWithoutSigning",
+      "remediation": "Publish the two selector CNAMEs for each custom domain and enable DKIM signing. Rotate the keys on a schedule.",
+      "learn": "https://learn.microsoft.com/defender-office-365/email-authentication-dkim-configure",
+      "deepLink": null,
+      "narrative": "DKIM proves the message body was sent by the domain owner's infrastructure and survives forwarding, which SPF does not. DMARC alignment on outbound mail depends on it.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": "MS.EXO.3.1v1"
+      }
+    },
+    {
+      "id": "EM-013",
+      "domain": "email",
+      "title": "DMARC at the target policy with reporting",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minDmarcPolicy": "reject"
+      },
+      "evidence": [
+        "dns-01-mail-records.json"
+      ],
+      "pass": "facts.dmarcGaps == 0",
+      "affected": "facts.dmarcGaps",
+      "remediation": "Publish _dmarc.<domain> with p=reject (or p=quarantine as a dated step with the threshold lowered in the profile) and an rua address that someone reads.",
+      "learn": "https://learn.microsoft.com/defender-office-365/email-authentication-dmarc-configure",
+      "deepLink": null,
+      "narrative": "DMARC tells receivers what to do with mail that fails SPF and DKIM alignment. p=none is monitoring only; without rua nobody sees the reports.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": "MS.EXO.4.2v1"
+      }
+    },
+    {
+      "id": "EM-014",
+      "domain": "email",
+      "title": "SPF valid, under the lookup limit, hard fail",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "spfRequireHardFail": true
+      },
+      "evidence": [
+        "dns-01-mail-records.json"
+      ],
+      "pass": "facts.spfGaps == 0",
+      "affected": "facts.spfGaps",
+      "remediation": "Publish one SPF record per domain that lists the real senders, stays under ten DNS lookups, and ends with -all. Flatten includes if the count is close.",
+      "learn": "https://learn.microsoft.com/defender-office-365/email-authentication-spf-configure",
+      "deepLink": null,
+      "narrative": "SPF names the servers allowed to send for the domain. ~all asks receivers to be lenient; more than ten lookups makes the record permanently fail evaluation. The lookup count here is the top-level record only.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": "MS.EXO.2.2v1"
+      }
+    },
+    {
+      "id": "EM-015",
+      "domain": "email",
+      "title": "MTA-STS and TLS-RPT published",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "dns-01-mail-records.json"
+      ],
+      "pass": "facts.mtaStsGaps == 0",
+      "affected": "facts.mtaStsGaps",
+      "remediation": "Publish _mta-sts.<domain> with the policy file hosted at https://mta-sts.<domain>/.well-known/mta-sts.txt, and _smtp._tls.<domain> with a reporting address.",
+      "learn": "https://learn.microsoft.com/exchange/mail-flow-best-practices/enhancing-mail-flow-with-mta-sts",
+      "deepLink": null,
+      "narrative": "MTA-STS makes senders refuse to deliver to the domain without a valid TLS connection, closing the downgrade. TLS-RPT is how failures get reported.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-016",
+      "domain": "email",
+      "title": "No mailboxes forwarding externally",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-09-mailboxes-with-forwarding.json"
+      ],
+      "pass": "facts.mailboxesForwardingExternally == 0",
+      "affected": "facts.mailboxesForwardingExternally",
+      "remediation": "Clear ForwardingSmtpAddress on mailboxes that should not forward, and record the approved ones as object-level exceptions with an owner.",
+      "learn": "https://learn.microsoft.com/exchange/recipients-in-exchange-online/manage-user-mailboxes/configure-email-forwarding",
+      "deepLink": null,
+      "narrative": "Mailbox-level forwarding is the second place an attacker persists after inbox rules. Forwarding to a recipient object is listed for verification because the target can be an external contact.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-017",
+      "domain": "email",
+      "title": "Legacy protocols off: SMTP AUTH org-wide, POP and IMAP per mailbox",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-transport-config.json",
+        "exo-10-cas-summary.json"
+      ],
+      "pass": "facts.smtpClientAuthDisabled && facts.mailboxesWithPop == 0 && facts.mailboxesWithImap == 0",
+      "affected": "facts.legacyProtocolMailboxes",
+      "remediation": "Disable SMTP AUTH in the transport config and re-enable it only per mailbox for devices that need it. Disable POP and IMAP on every mailbox; a new mailbox has both on by default, so set the default plan or run a scheduled job.",
+      "learn": "https://learn.microsoft.com/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
+      "deepLink": null,
+      "narrative": "Basic authentication for these protocols is retired, but the protocols themselves still work with modern auth and bypass the clients Conditional Access expects. SMTP AUTH is the one that still accepts a password.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.20",
+        "cmmc": "AC.L2-3.1.13",
+        "cisa-scuba": "MS.EXO.5.1v1"
+      }
+    },
+    {
+      "id": "EM-018",
+      "domain": "email",
+      "title": "Shared mailboxes blocked from sign-in",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-09-mailboxes.json",
+        "06-users.json"
+      ],
+      "pass": "facts.sharedMailboxesSignInEnabled == 0",
+      "affected": "facts.sharedMailboxesSignInEnabled",
+      "remediation": "Block sign-in on the user account behind every shared mailbox. Access goes through delegation, never a password.",
+      "learn": "https://learn.microsoft.com/microsoft-365/admin/email/create-a-shared-mailbox#block-sign-in-for-the-shared-mailbox-account",
+      "deepLink": null,
+      "narrative": "The account behind a shared mailbox is created enabled with a random password. Enabled, it is a licence-free, usually MFA-free account anyone who resets the password can use.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L1-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-019",
+      "domain": "email",
+      "title": "Mailbox auditing on and the unified audit log enabled",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-audit-config.json",
+        "exo-01-orgconfig.json"
+      ],
+      "pass": "facts.unifiedAuditLogEnabled && !facts.mailboxAuditDisabledOrgWide",
+      "remediation": "Enable unified audit log ingestion and keep AuditDisabled false in the organisation config so mailbox auditing applies to every mailbox by default.",
+      "learn": "https://learn.microsoft.com/purview/audit-mailboxes",
+      "deepLink": null,
+      "narrative": "Without the audit log there is no investigation: who read, moved or forwarded what. Mailbox auditing is on by default only while the organisation switch stays off.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": "MS.EXO.13.1v1"
+      }
+    },
+    {
+      "id": "EM-020",
+      "domain": "email",
+      "title": "Attack simulation campaign in the last 90 days",
+      "severityDefault": "Low",
+      "license": [
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxDaysSinceSimulation": 90
+      },
+      "evidence": [
+        "exo-11-attack-simulations.json"
+      ],
+      "pass": "facts.attackSimulationsInWindow >= 1",
+      "remediation": "Run a simulation from Attack simulation training at least quarterly and assign training to the users who click.",
+      "learn": "https://learn.microsoft.com/defender-office-365/attack-simulation-training-get-started",
+      "deepLink": null,
+      "narrative": "Users are the last filter. A tenant with the licence and no campaigns has the tooling and not the practice.",
+      "frameworks": {
+        "nist-csf-2": "PR.AT-01",
+        "iso27001": "A.6.3",
+        "cmmc": "AT.L2-3.2.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-021",
+      "domain": "email",
+      "title": "ARC trusted sealers configured for the gateway",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-orgconfig.json",
+        "exo-03-inbound-connectors.json"
+      ],
+      "pass": "facts.partnerInboundConnectors == 0 || facts.arcTrustedSealers > 0",
+      "remediation": "Add the gateway's ARC sealing domain to the trusted ARC sealers list so authentication results survive the hop through it.",
+      "learn": "https://learn.microsoft.com/defender-office-365/email-authentication-arc-configure",
+      "deepLink": null,
+      "narrative": "A gateway that modifies mail breaks DKIM and SPF for the next hop. ARC lets the gateway vouch for the original results; the tenant has to trust the sealer for that to count.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}
