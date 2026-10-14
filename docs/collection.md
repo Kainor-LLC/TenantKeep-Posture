@@ -35,6 +35,11 @@ run continues.
 | `09-intune-mde-connector` (+csv) | mobileThreatDefenseConnectors (beta) | (verify) partner identification |
 | `09-intune-device-cleanup` | managedDeviceCleanupSettings (beta) | (verify) endpoint |
 | `08-bitlocker-keys-by-device` (+csv), `08-bitlocker-keys-summary` | informationProtection/bitlocker/recoveryKeys, ids only | Key presence per device; the key material is never read |
+| `09-intune-policy-settings` (+csv) | configurationPolicies/{id}/settings (beta) for every assigned settings catalog policy | One row per setting instance, recursed through choice children and groups; the endpoint facts match on the definition ids |
+| `09-intune-config-profile-settings` (+csv), `09-intune-compliance-policy-settings` (+csv) | scalar properties of assigned template profiles and compliance policies | Update ring deadlines, jailbreak detection, SIP, SmartScreen in classic profiles |
+| `09-intune-windows-hello` | the tenant-wide windowsHelloForBusinessConfiguration | |
+| `09-intune-app-protection-policies` (+csv) | managedAppPolicies | iOS and Android, with IsAssigned |
+| `09-intune-feature-update-profiles` (+csv) | windowsFeatureUpdateProfiles (beta) | |
 
 Scopes: DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All,
 DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLockerKey.ReadBasic.All.

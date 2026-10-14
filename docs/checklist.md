@@ -89,6 +89,11 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] First real Exchange collection on Kainor on 2026-10-14: 87 files across all three collectors, 0 errors; email domain 16 pass, 4 fail (no EOP or MDO preset policy, MTA-STS and TLS-RPT unpublished, POP and IMAP on by default per mailbox), 1 not evaluated (attack simulation without the scope). All five domains: 74 checks, 56 pass, 14 fail, 3 not evaluated, 1 not applicable. Caught and fixed: the evidence root is now a full provider path, so a tilde or relative root works from a script
 - [ ] Inbox rules forwarding externally (spec 4.10) through an audit search, not Get-InboxRule
 - [ ] (verify) SCuBA MS.EXO ids on the email checks; CIS ids once the terms are cleared
+- [x] Intune policy state for endpoint security (spec 4.11, the Intune half): settings catalog values flattened per assigned policy, template and compliance policy scalars, Windows Hello config, app protection policies, feature update profiles (checkpoint K)
+- [x] Endpoint domain: checks/endpoint.json (18 policy-state checks: baselines, BitLocker, firewall, LAPS, Defender AV, tamper protection, network protection, ASR rules and exclusions, SmartScreen, Office macros, Hello and cloud Kerberos trust, update rings, FileVault, macOS hardening, Platform SSO, mobile) and Get-PostureEndpointFact (checkpoint K)
+- [ ] (verify) every settings catalog definition id and choice value the endpoint facts match on, against a live run; the 19 ASR rule names; baseline template display names
+- [ ] Defender effective state (4.11 Defender half: onboarding, sensor health, AV mode, ASR effective, EDR block mode, AIR, vulnerability management) with Get-DefenderBaseline; needs the the first customer tenant
+- [ ] Effective-state device checks waiting on reports: BitLocker and FileVault encryption report, Credential Guard and HVCI, update compliance, local admin population, recovery key access audit
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 
 ## Later weeks

@@ -101,8 +101,35 @@ BeforeAll {
                 ); break
             }
             '^deviceManagement/windowsAutopilotDeviceIdentities' { & $u @(@{ serialNumber = 'SN1'; manufacturer = 'Dell'; model = 'Latitude'; enrollmentState = 'enrolled'; managedDeviceId = 'm1' }); break }
-            '^deviceManagement/deviceCompliancePolicies' { & $u @(@{ id = 'cp1'; displayName = 'Windows compliance'; '@odata.type' = '#microsoft.graph.windows10CompliancePolicy'; assignments = @(@{ id = 'a1' }) }); break }
-            '^deviceManagement/deviceConfigurations' { & $u @(@{ id = 'dc1'; displayName = 'Wi-Fi'; '@odata.type' = '#microsoft.graph.windowsWifiConfiguration'; assignments = @() }); break }
+            '^deviceManagement/deviceCompliancePolicies' { & $u @(@{ id = 'cp1'; displayName = 'Windows compliance'; '@odata.type' = '#microsoft.graph.windows10CompliancePolicy'; bitLockerEnabled = $true; assignments = @(@{ id = 'a1' }) }, @{ id = 'cp2'; displayName = 'iOS compliance'; '@odata.type' = '#microsoft.graph.iosCompliancePolicy'; securityBlockJailbrokenDevices = $true; passcodeRequired = $true; scheduledActionsForRule = @(@{ ruleName = 'x' }); assignments = @(@{ id = 'a1' }) }); break }
+            '^deviceManagement/deviceConfigurations' { & $u @(@{ id = 'dc1'; displayName = 'Wi-Fi'; '@odata.type' = '#microsoft.graph.windowsWifiConfiguration'; assignments = @() }, @{ id = 'dc2'; displayName = 'Update ring'; '@odata.type' = '#microsoft.graph.windowsUpdateForBusinessConfiguration'; deadlineForQualityUpdatesInDays = 3; deadlineForFeatureUpdatesInDays = 7; deadlineGracePeriodInDays = 2; qualityUpdatesDeferralPeriodInDays = 0; assignments = @(@{ id = 'a1' }) }); break }
+            '^deviceManagement/configurationPolicies/sc1/settings' {
+                $ch = { param([string] $Def, [string] $Val, $Children = @()) @{ settingInstance = @{ settingDefinitionId = $Def; choiceSettingValue = @{ value = $Val; children = $Children } } } }
+                & $u @(
+                    (& $ch 'device_vendor_msft_policy_config_defender_allowrealtimemonitoring' 'device_vendor_msft_policy_config_defender_allowrealtimemonitoring_1'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_allowcloudprotection' 'device_vendor_msft_policy_config_defender_allowcloudprotection_1'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_puaprotection' 'device_vendor_msft_policy_config_defender_puaprotection_1'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_submitsamplesconsent' 'device_vendor_msft_policy_config_defender_submitsamplesconsent_1'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_schedulescanday' 'device_vendor_msft_policy_config_defender_schedulescanday_0'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutablecontentfromemailclientandwebmail' 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutablecontentfromemailclientandwebmail_block'),
+                    (& $ch 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockwin32apicallsfromofficemacros' 'device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockwin32apicallsfromofficemacros_audit'),
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_policy_config_defender_attacksurfacereductiononlyexclusions'; simpleSettingCollectionValue = @(@{ value = 'C:\Tools\legacy.exe' }, @{ value = 'C:\Build' }) } }
+                ); break
+            }
+            '^deviceManagement/configurationPolicies/sc2/settings' {
+                & $u @(
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_requiredeviceencryption'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_requiredeviceencryption_1'; children = @() } } },
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_1'; children = @(@{ settingDefinitionId = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsostype'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_encryptionmethodbydrivetype_encryptionmethodwithxtsostype_7'; children = @() } }) } } },
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions'; groupSettingCollectionValue = @(@{ children = @(@{ settingDefinitionId = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions_osrequireactivedirectorybackup_name'; choiceSettingValue = @{ value = 'device_vendor_msft_bitlocker_systemdrivesrecoveryoptions_osrequireactivedirectorybackup_name_1'; children = @() } }) }) } },
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_laps_policies_passwordagedays'; simpleSettingValue = @{ value = 30 } } }
+                ); break
+            }
+            '^deviceManagement/configurationPolicies/sc3/settings' {
+                & $u @(
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_laps_policies_backupdirectory'; choiceSettingValue = @{ value = 'device_vendor_msft_laps_policies_backupdirectory_1'; children = @() } } },
+                    @{ settingInstance = @{ settingDefinitionId = 'device_vendor_msft_laps_policies_postauthenticationactions'; choiceSettingValue = @{ value = 'device_vendor_msft_laps_policies_postauthenticationactions_3'; children = @() } } }
+                ); break
+            }
             '^deviceManagement/configurationPolicies' {
                 & $u @(
                     @{ id = 'sc1'; name = 'AV baseline'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityAntivirus'; templateDisplayName = 'Microsoft Defender Antivirus' }; settingCount = 12; assignments = @(@{ id = 'a' }) },
@@ -111,10 +138,12 @@ BeforeAll {
                     @{ id = 'sc4'; name = 'Firewall draft'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityFirewall'; templateDisplayName = 'Firewall' }; settingCount = 3; assignments = @() }
                 ); break
             }
+            '^deviceAppManagement/managedAppPolicies' { & $u @(@{ id = 'mam1'; displayName = 'iOS MAM'; '@odata.type' = '#microsoft.graph.iosManagedAppProtection'; isAssigned = $true; deployedAppCount = 12 }, @{ id = 'mam2'; displayName = 'Android MAM draft'; '@odata.type' = '#microsoft.graph.androidManagedAppProtection'; isAssigned = $false; deployedAppCount = 0 }); break }
+            '^deviceManagement/windowsFeatureUpdateProfiles' { & $u @(@{ id = 'fu1'; displayName = 'Windows 11 24H2'; featureUpdateVersion = 'Windows 11, version 24H2'; assignments = @(@{ id = 'a' }) }); break }
             '^deviceAppManagement/mobileApps' { & $u @(@{ id = 'app1'; displayName = 'Company Portal'; publisher = 'Microsoft'; '@odata.type' = '#microsoft.graph.winGetApp' }); break }
             '^deviceManagement/applePushNotificationCertificate$' { if ($env:TKP_TEST_APNS -eq 'missing') { throw 'Response status code does not indicate success: NotFound (Not Found).' }; @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
             '^deviceAppManagement/vppTokens' { & $u @(@{ organizationName = 'Contoso'; appleId = 'apple@contoso.example'; state = 'valid'; expirationDateTime = '2027-06-01T00:00:00Z' }); break }
-            '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }); break }
+            '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }, @{ id = 'whfb'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.windowsHelloForBusinessConfiguration'; priority = 0; state = 'enabled'; pinMinimumLength = 6; securityDeviceRequired = $true; unlockWithBiometricsEnabled = $true; assignments = @() }); break }
             '^deviceManagement/mobileThreatDefenseConnectors' { & $u @(@{ id = 'mde'; partnerState = 'available'; windowsEnabled = $true; macEnabled = $true; lastHeartbeatDateTime = '2026-10-13T00:00:00Z' }); break }
             '^deviceManagement/managedDeviceCleanupRules' { & $u @(@{ id = 'r1'; displayName = 'Windows 90d'; deviceCleanupRulePlatformType = 'windows'; deviceInactivityBeforeRetirementInDays = 90 }); break }
             '^informationProtection/bitlocker/recoveryKeys' { & $u @(@{ id = 'k1'; deviceId = 'dev-1'; volumeType = 'operatingSystemVolume' }, @{ id = 'k2'; deviceId = 'dev-1'; volumeType = 'fixedDataVolume' }); break }
@@ -166,6 +195,45 @@ Describe 'Invoke-PostureCollection' {
             (& $script:Read '09-intune-device-cleanup').DeviceInactivityBeforeRetirementInDays | Should -Be 90
             (& $script:Read '08-bitlocker-keys-summary').DevicesWithKeys | Should -Be 1
             (& $script:Read '08-bitlocker-keys-by-device')[0].Keys | Should -Be 2
+        }
+
+        It 'flattens settings catalog values through choice children and group collections, and the policy scalars' {
+            $settings = @(& $script:Read '09-intune-policy-settings')
+            @($settings | Where-Object { $_.PolicyId -eq 'sc4' }).Count | Should -Be 0 -Because 'unassigned policies are not read'
+            $xts = @($settings | Where-Object { $_.SettingDefinitionId -like '*encryptionmethodwithxtsostype' })
+            $xts.Count | Should -Be 1
+            $xts[0].Value | Should -Match '_7$'
+            @($settings | Where-Object { $_.SettingDefinitionId -like '*osrequireactivedirectorybackup_name' }).Count | Should -Be 1 -Because 'group collections are recursed'
+            @($settings | Where-Object { $_.SettingDefinitionId -like '*passwordagedays' })[0].Value | Should -Be 30
+            @($settings | Where-Object { $_.SettingDefinitionId -like '*attacksurfacereductiononlyexclusions' })[0].Value | Should -Be 'C:\Tools\legacy.exe|C:\Build'
+            $cfg = @(& $script:Read '09-intune-config-profile-settings')
+            @($cfg | Where-Object { $_.Setting -eq 'deadlineForQualityUpdatesInDays' })[0].Value | Should -Be 3
+            @($cfg | Where-Object { $_.PolicyId -eq 'dc1' }).Count | Should -Be 0
+            $comp = @(& $script:Read '09-intune-compliance-policy-settings')
+            @($comp | Where-Object { $_.Setting -eq 'securityBlockJailbrokenDevices' })[0].Type | Should -Be 'iosCompliancePolicy'
+            @($comp | Where-Object { $_.Setting -eq 'scheduledActionsForRule' }).Count | Should -Be 0
+            (& $script:Read '09-intune-windows-hello').State | Should -Be 'enabled'
+            @(& $script:Read '09-intune-app-protection-policies' | Where-Object { $_.IsAssigned }).Count | Should -Be 1
+            @(& $script:Read '09-intune-feature-update-profiles')[0].Assignments | Should -Be 1
+        }
+
+        It 'feeds the endpoint checks from the same folder' {
+            $profilePath = Join-Path $script:Root 'endpoint-profile.json'
+            '{ "version": 1, "identityModel": "cloud-only", "platforms": ["windows", "macOS", "iOS"], "byod": "mam", "licenses": ["BusinessPremium", "Intune", "MDEBusiness"] }' | Set-Content -LiteralPath $profilePath
+            $run = Invoke-PostureChecks -Evidence $script:R.Folder -Domain endpoint -ProfilePath $profilePath -OutputPath (Join-Path $script:Root 'endpoint-checks') -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by['EP-002'].status | Should -Be 'fail' -Because $by['EP-002'].reason
+            @($by['EP-002'].affected | ForEach-Object { $_.name }) | Should -Be @('silent enablement', 'TPM startup authentication')
+            $by['EP-004'].status | Should -Be 'pass'
+            $by['EP-005'].status | Should -Be 'fail' -Because 'scheduled scan day 0 is never'
+            $by['EP-008'].status | Should -Be 'fail'
+            $by['EP-008'].affectedCount | Should -Be 18 -Because 'one rule blocks, one audits, seventeen are not configured'
+            $by['EP-009'].affectedCount | Should -Be 2
+            $by['EP-012'].status | Should -Be 'pass'
+            $by['EP-013'].status | Should -Be 'notApplicable' -Because 'the fixture profile is cloud-only'
+            $by['EP-014'].status | Should -Be 'pass'
+            $by['EP-015'].status | Should -Be 'fail' -Because 'macOS is in scope and no FileVault policy exists'
+            $by['EP-018'].status | Should -Be 'pass' -Because 'iOS has an assigned app protection policy and jailbreak detection; Android is out of scope'
         }
 
         It 'flattens roles with names and counts permanent Global Administrators' {
