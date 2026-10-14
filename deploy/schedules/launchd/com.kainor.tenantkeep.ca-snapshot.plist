@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md. -->
+<!-- Sample launchd job for spec 5.4: a solo admin's Mac takes a nightly CA snapshot at 06:30.
+     Install: cp this file ~/Library/LaunchAgents/ and run: launchctl load ~/Library/LaunchAgents/com.kainor.tenantkeep.ca-snapshot.plist
+     Sign in once interactively with Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All so the
+     token cache exists; the job reuses it until the refresh token expires (verify: cache lifetime under CA sign-in frequency). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kainor.tenantkeep.ca-snapshot</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>"$HOME/audit/bin/run-ca-snapshot.sh"</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/tenantkeep-ca-snapshot.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tenantkeep-ca-snapshot.err</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

@@ -104,7 +104,7 @@ function Invoke-Analyze {
     Install-BuildDependency -Name PSScriptAnalyzer -MinimumVersion 1.22.0
     Import-Module PSScriptAnalyzer
     $settings = Join-Path $Root 'PSScriptAnalyzerSettings.psd1'
-    $paths = @($SrcPath, (Join-Path $Root 'tests'), (Join-Path $Root '.githooks'), (Join-Path $Root 'build.ps1'))
+    $paths = @($SrcPath, (Join-Path $Root 'tests'), (Join-Path $Root '.githooks'), (Join-Path $Root 'deploy'), (Join-Path $Root 'build.ps1'))
 
     # A file that does not parse is a hard failure; Invoke-ScriptAnalyzer does not reliably report that.
     $parseErrors = foreach ($file in (Get-ChildItem -Path $paths -Recurse -Include '*.ps1', '*.psm1', '*.psd1')) {

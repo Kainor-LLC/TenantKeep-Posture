@@ -1,0 +1,68 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# Sample GitHub Action for spec 5.4: nightly Conditional Access snapshot committed to a private repo, diffed against
+# the previous commit's snapshot. The job fails on risk-relevant changes, so GitHub's own notifications carry the alert.
+#
+# Setup, once:
+#   1. An app registration with a federated credential for this repo (azure/login OIDC), granted the application
+#      permissions Policy.Read.All, Directory.Read.All, Group.Read.All with admin consent. No client secret anywhere.
+#   2. Repository secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID. Optional: TEAMS_WEBHOOK.
+#   3. This repo must be private: snapshots contain policy and group data.
+name: Conditional Access snapshot
+
+on:
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install modules
+        shell: pwsh
+        run: |
+          Install-PSResource -Name Microsoft.Graph.Authentication -Scope CurrentUser -TrustRepository -Quiet
+          Install-PSResource -Name Tenantkeep.Posture -Scope CurrentUser -TrustRepository -Quiet   # (verify) Gallery listing name once published
+
+      - name: Sign in to Graph with the workflow identity
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          # GitHub's OIDC token exchanged for a Graph token through the federated credential. (verify) exact
+          # Connect-MgGraph parameters for a federated token; the alternative is azure/login then Get-AzAccessToken.
+          $jwt = Invoke-RestMethod -Uri "$env:ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" -Headers @{ Authorization = "bearer $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN" }
+          $body = @{
+            client_id = $env:AZURE_CLIENT_ID
+            scope = 'https://graph.microsoft.com/.default'
+            grant_type = 'client_credentials'
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion = $jwt.value
+          }
+          $token = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$env:AZURE_TENANT_ID/oauth2/v2.0/token" -Body $body
+          Connect-MgGraph -AccessToken (ConvertTo-SecureString $token.access_token -AsPlainText -Force) -NoWelcome
+
+      - name: Snapshot, document, compare
+        shell: pwsh
+        env:
+          TEAMS_WEBHOOK: ${{ secrets.TEAMS_WEBHOOK }}
+        run: |
+          $params = @{ OutRoot = "$PWD/snapshots"; KeepRuns = 60; FailOnRiskRelevantChange = $true }
+          if ($env:TEAMS_WEBHOOK) { $params.TeamsWebhookUrl = $env:TEAMS_WEBHOOK }
+          ./deploy/schedules/ca-snapshot-cycle.ps1 @params
+
+      - name: Commit the snapshot
+        if: always()
+        run: |
+          git config user.name "ca-snapshot[bot]"
+          git config user.email "ca-snapshot@users.noreply.github.com"
+          git add snapshots
+          git commit -m "CA snapshot $(date -u +%Y-%m-%dT%H:%MZ)" || echo "nothing to commit"
+          git push

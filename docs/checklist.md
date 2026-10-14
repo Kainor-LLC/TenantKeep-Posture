@@ -42,10 +42,12 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] "Changed by" from the audit log (spec 7.2) needs AuditLog.Read.All and a directory audit pull per changed policy; not in the snapshot today
 
 ### 5.4 Scheduling samples
-- [ ] Azure Automation runbook sample with managed identity
-- [ ] GitHub Action sample
-- [ ] macOS launchd sample
-- [ ] Teams or email notification on risk-relevant changes
+- [x] Shared cycle script deploy/schedules/ca-snapshot-cycle.ps1: snapshot, document, compare with previous, notify, prune; tested with Export mocked (this checkpoint)
+- [x] Azure Automation runbook sample with managed identity (not run against Azure; verify module import and durable OutRoot)
+- [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
+- [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)
+- [x] Teams Workflows webhook card on risk-relevant changes; email via the scheduler's failure alerting because Mail.Send is a write scope (verify card payload against the Workflows connector)
+- [x] docs/scheduling.md
 
 ## Weeks 3 to 4: check engine and identity report
 - [ ] Check catalog schema and Pester schema test (CLAUDE.md field list)

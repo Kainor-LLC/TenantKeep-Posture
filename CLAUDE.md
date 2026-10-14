@@ -22,7 +22,7 @@ checks/                     catalog JSON, one file per domain (identity, auth, c
 baselines/                  standard, copilot-readiness, cis-m365, cis-azure, nist-csf-2, nist-800-171, cisa-scuba, iso-27001-2022, hipaa, ...
 collectors/                 Get-EntraBaseline, Get-ExchangePurviewBaseline, Get-SpoTeamsBaseline, Get-DefenderBaseline, Get-AzureBaseline, windows/Get-ADBaseline
 templates/                  the interactive HTML report (single file, inline CSS/JS, no CDN), print stylesheet
-deploy/                     Bicep -> mainTemplate.json, createUiDefinition.json, runbook wrapper, Static Web App opt-in
+deploy/                     Bicep -> mainTemplate.json, createUiDefinition.json, runbook wrapper, Static Web App opt-in; schedules/ holds the 5.4 cycle script and the runbook, GitHub Action and launchd samples
 tests/                      Pester 5.5+ (6 works); one test file per public cmdlet; catalog schema tests
 samples/                    anonymized evidence folder for tests and demos; never real tenant data
 build.ps1                   Analyze, Test, Build, Sign, Package. Sign and Package fail without the signing cert
