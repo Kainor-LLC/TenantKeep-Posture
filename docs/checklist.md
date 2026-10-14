@@ -19,11 +19,12 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Seven files per run, raw wire JSON, scope check, errors.txt, metadata with API versions (386314d)
 - [x] Name resolution: users, groups, service principals, roles, apps, locations, strengths, contexts; deleted flagged (386314d)
 - [x] group-scope: transitive count plus SHA-256 of sorted ids; UPNs only with -IncludeMembers (386314d)
-- [ ] Run against a real tenant and confirm the (verify) items: `$select=id` on transitiveMembers, `appId in (...)` batch of 15, role definitions readable with Directory.Read.All, beta-only insider risk condition
+- [x] Run against the Kainor tenant on 2026-10-13: 15 policies, 0 errors, all references resolved; `$select=id` on transitiveMembers, `appId in (...)` filter and role definitions with Directory.Read.All all confirmed. Still open: whether insider risk conditions need `-ApiVersion beta` (no such policy in the tenant)
 
 ### 5.2 New-PostureCaDocument
 - [x] Snapshot reader, resolved policy model, plain-English summary, health flags (9943dc4)
 - [x] Markdown: per-policy pages, health table, policy matrix, naming report with proposed names, locations, strengths, contexts, appendix (cebd0f8)
+- [x] Summary line reviewed against 15 real policies; session-only policies now say which session controls apply (this checkpoint)
 - [x] brand.json: prepared-by, client, colors, font, logo, confidentiality, footer, caNamePattern (cebd0f8, e459304)
 - [x] Self-contained HTML, light and dark, print stylesheet, CSP (e459304)
 - [x] PDF through headless Edge or Chrome, verified on macOS (e459304)
@@ -46,7 +47,8 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Azure Automation runbook with managed identity, blob-backed runs (download previous, upload new, prune) (this checkpoint)
 - [x] deploy/automation: Bicep (account, system identity, custom PowerShell 7.4 runtime environment, RBAC-only storage, variables, schedule, runbook shell, deployer blob role) plus deploy.ps1 (module zip upload, package import through a user-delegation SAS, Gallery dependency, runbook publish, schedule link) and Grant-ManagedIdentityGraphRole.ps1. Deployed to Kainor-LAPSlock rg-tenantkeep-dev on 2026-10-13 (this checkpoint)
 - [x] Test job on 2026-10-13: PowerShell 7.4.6 runtime, module import, Connect-AzAccount -Identity, Connect-MgGraph -Identity and the blob listing all work; the cycle stops at the scope check as designed until the roles are granted
-- [ ] First real Automation job: needs Grant-ManagedIdentityGraphRole.ps1 run by a Global Administrator (Connor), then a manual job start; verify the blob round trip of a full run
+- [x] First real Automation job on 2026-10-14 after the role grant: Completed; full snapshot and document uploaded to the ca-snapshots container (run 20261014-0332-ca)
+- [ ] Second job to confirm the download-previous-and-compare path (started 2026-10-14)
 - [ ] Dev deployment is unsigned (zip of the staged module); releases must go through Package with the signing cert
 - [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
 - [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)

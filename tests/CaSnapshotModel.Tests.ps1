@@ -114,6 +114,28 @@ Describe 'Get-PostureCaPolicySummary' {
     }
 }
 
+Describe 'Get-PostureCaSessionSummary' {
+    It 'describes session-only policies instead of calling them uncontrolled' {
+        InModuleScope Tenantkeep.Posture {
+            $base = [ordered]@{
+                state = 'enabled'
+                assignments = [ordered]@{ includeUsers = @([ordered]@{ id = 'All'; name = 'All (built-in)'; type = 'builtIn'; deleted = $false }); excludeUsers = @(); includeGroups = @(); excludeGroups = @(); includeRoles = @(); excludeRoles = @(); includeGuestsOrExternal = $null; excludeGuestsOrExternal = $null; includeServicePrincipals = @(); excludeServicePrincipals = @() }
+                targets = [ordered]@{ includeApplications = @([ordered]@{ id = 'All'; name = 'All (built-in)'; type = 'builtIn'; deleted = $false }); excludeApplications = @(); userActions = @(); authenticationContexts = @() }
+                conditions = [ordered]@{ clientAppTypes = @(); includePlatforms = @(); excludePlatforms = @(); includeLocations = @(); excludeLocations = @(); signInRiskLevels = @(); userRiskLevels = @(); insiderRiskLevels = $null; deviceFilter = $null }
+                grant = [ordered]@{ operator = $null; builtInControls = @(); authenticationStrength = $null; termsOfUse = @(); customFactors = @() }
+                session = [ordered]@{ signInFrequency = @{ isEnabled = $true; value = 4; type = 'hours'; frequencyInterval = 'timeBased' }; persistentBrowser = @{ isEnabled = $true; mode = 'never' }; applicationEnforcedRestrictions = $null; cloudAppSecurity = $null; continuousAccessEvaluation = $null; secureSignInSession = $null; disableResilienceDefaults = $null }
+            }
+            Get-PostureCaPolicySummary -Policy $base | Should -Be 'Apply session controls (sign-in frequency 4 hours, non-persistent browser) for all users, all cloud apps, any platform.'
+            $base.session = [ordered]@{ signInFrequency = $null; persistentBrowser = $null; applicationEnforcedRestrictions = $null; cloudAppSecurity = $null; continuousAccessEvaluation = $null; secureSignInSession = @{ isEnabled = $true }; disableResilienceDefaults = $null }
+            Get-PostureCaPolicySummary -Policy $base | Should -Be 'Apply session controls (token protection) for all users, all cloud apps, any platform.'
+            $base.session = [ordered]@{ signInFrequency = $null; persistentBrowser = $null; applicationEnforcedRestrictions = $null; cloudAppSecurity = $null; continuousAccessEvaluation = $null; secureSignInSession = $null; disableResilienceDefaults = $null }
+            Get-PostureCaPolicySummary -Policy $base | Should -Be 'Grant access with no controls for all users, all cloud apps, any platform.'
+            $base.conditions.includePlatforms = @('all'); $base.conditions.excludePlatforms = @('windows', 'macOS')
+            Get-PostureCaPolicySummary -Policy $base | Should -Match 'on all platforms except windows, macOS\.$'
+        }
+    }
+}
+
 Describe 'Get-PostureCaHealthFlag' {
     It 'flags <Id> with <Codes>' -ForEach @(
         @{ Id = 'p-001'; Codes = @() }

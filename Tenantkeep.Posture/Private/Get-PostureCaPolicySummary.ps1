@@ -61,7 +61,7 @@ function Get-PostureCaPolicySummary {
     $tail = [System.Collections.Generic.List[string]]::new()
     if (@($c.includePlatforms).Count -eq 0) { $tail.Add('any platform') }
     else {
-        $plat = "on $(@($c.includePlatforms) -join ', ')"
+        $plat = if (@($c.includePlatforms) -contains 'all') { 'on all platforms' } else { "on $(@($c.includePlatforms) -join ', ')" }
         if (@($c.excludePlatforms).Count -gt 0) { $plat += " except $(@($c.excludePlatforms) -join ', ')" }
         $tail.Add($plat)
     }
@@ -98,11 +98,12 @@ function Get-PostureCaPolicySummary {
     if ($g.authenticationStrength) { $actions.Add("Require $($g.authenticationStrength.name)") }
     if (@($g.termsOfUse).Count -gt 0) { $actions.Add('Require terms of use') }
     $joiner = if ($g.operator -eq 'AND') { ' and ' } else { ' or ' }
+    $sessionText = Get-PostureCaSessionSummary -Session $Policy.session
     $action = if ($actions.Count -gt 0) {
         if ($actions.Count -eq 1) { $actions[0] }
         else { $actions[0] + $joiner + (@($actions | Select-Object -Skip 1 | ForEach-Object { $_.Substring(0, 1).ToLowerInvariant() + $_.Substring(1) }) -join $joiner) }
     }
-    elseif ($Policy.session.signInFrequency -or $Policy.session.persistentBrowser -or $Policy.session.applicationEnforcedRestrictions -or $Policy.session.cloudAppSecurity) { 'Apply session controls' }
+    elseif ($sessionText) { "Apply session controls ($sessionText)" }
     else { 'Grant access with no controls' }
 
     $sentence = "$action for $whoText, $whatText, $($tail -join ', ')."
@@ -117,4 +118,39 @@ function Get-PostureCaPolicySummary {
 
     $prefix = switch ($Policy.state) { 'reportOnly' { 'Report-only: ' } 'disabled' { 'Disabled: ' } default { '' } }
     return $prefix + $sentence
+}
+
+function Get-PostureCaSessionSummary {
+    <#
+    .SYNOPSIS
+        Short description of a policy's session controls, or $null when it has none: "sign-in frequency 4 hours, non-persistent browser, token protection".
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter()] [AllowNull()] [System.Collections.IDictionary] $Session
+    )
+
+    $ErrorActionPreference = 'Stop'
+    if ($null -eq $Session) { return $null }
+    $parts = [System.Collections.Generic.List[string]]::new()
+    $sf = $Session['signInFrequency']
+    if ($sf -and (Get-PostureValue $sf 'isEnabled')) {
+        $parts.Add($(if ((Get-PostureValue $sf 'frequencyInterval') -eq 'everyTime') { 'sign-in frequency every time' } else { "sign-in frequency $(Get-PostureValue $sf 'value') $(Get-PostureValue $sf 'type')" }))
+    }
+    $pb = $Session['persistentBrowser']
+    if ($pb -and (Get-PostureValue $pb 'isEnabled')) {
+        $parts.Add($(if ((Get-PostureValue $pb 'mode') -eq 'never') { 'non-persistent browser' } else { 'persistent browser' }))
+    }
+    $aer = $Session['applicationEnforcedRestrictions']
+    if ($aer -and (Get-PostureValue $aer 'isEnabled')) { $parts.Add('app-enforced restrictions') }
+    $cas = $Session['cloudAppSecurity']
+    if ($cas -and (Get-PostureValue $cas 'isEnabled')) { $parts.Add('Defender for Cloud Apps') }
+    $cae = $Session['continuousAccessEvaluation']
+    if ($cae) { $parts.Add("continuous access evaluation $(Get-PostureValue $cae 'mode')") }
+    $tp = $Session['secureSignInSession']
+    if ($tp -and (Get-PostureValue $tp 'isEnabled')) { $parts.Add('token protection') }
+    if ($Session['disableResilienceDefaults']) { $parts.Add('resilience defaults off') }
+    if ($parts.Count -eq 0) { return $null }
+    return ($parts -join ', ')
 }
