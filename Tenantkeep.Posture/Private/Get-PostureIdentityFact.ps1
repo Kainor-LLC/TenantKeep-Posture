@@ -20,7 +20,7 @@ function Get-PostureIdentityFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ minGlobalAdmins = 2; maxGlobalAdmins = 5; credentialExpiryWarningDays = 30; riskyUserMaxAgeDays = 7; inactiveGuestDays = 90 }
+    $t = @{ minGlobalAdmins = 2; maxGlobalAdmins = 5; credentialExpiryWarningDays = 30; riskyUserMaxAgeDays = 7; inactiveGuestDays = 90; maxActivationHours = 8 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
 
     $load = {
@@ -98,7 +98,26 @@ function Get-PostureIdentityFact {
             @($bg | Where-Object { $_.AccountEnabled -eq $false } | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = 'break-glass account is disabled' } }))
     }
 
-    $notEvaluated['ID-006'] = 'PIM role management policies are not collected yet (planned A.1 addition).'
+    $pim = & $load '04-pim-role-policies'
+    if ($null -eq $pim) { & $missing 'ID-006' '04-pim-role-policies' }
+    elseif (@($pim).Count -eq 0) { $notEvaluated['ID-006'] = 'No PIM role management policies were returned (Entra ID P2 and PIM needed).' }
+    else {
+        $topRoles = @('Global Administrator', 'Privileged Role Administrator', 'Security Administrator', 'Conditional Access Administrator')
+        $maxHours = [double]$(if ($t.ContainsKey('maxActivationHours')) { $t.maxActivationHours } else { 8 })
+        $checked = @($pim | Where-Object { $_.Role -in $topRoles })
+        $problems = foreach ($pol in $checked) {
+            $issues = @()
+            if (-not $pol.ActivationMfaRequired) { $issues += 'no MFA on activation' }
+            if (-not $pol.ActivationJustificationRequired) { $issues += 'no justification' }
+            if ($null -eq $pol.MaxActivationHours -or [double]$pol.MaxActivationHours -gt $maxHours) { $issues += "activation up to $(if ($null -ne $pol.MaxActivationHours) { "$($pol.MaxActivationHours)h" } else { 'unlimited' }) (max $($maxHours)h)" }
+            if ($pol.Role -eq 'Global Administrator' -and -not $pol.ApprovalRequired) { $issues += 'no approval' }
+            if ($issues.Count -gt 0) { [ordered]@{ name = $pol.Role; detail = ($issues -join ', ') } }
+        }
+        $facts.pimPolicyRolesChecked = $checked.Count
+        $facts.pimPolicyCompliantRoles = $checked.Count - @($problems).Count
+        $affected.pimPolicyProblems = @($problems)
+        if ($checked.Count -eq 0) { $notEvaluated['ID-006'] = 'None of the four top roles has a PIM policy in the collection.' }
+    }
     $notEvaluated['ID-014'] = 'Azure diagnostic settings are not collected yet (Azure collector, spec 4.13).'
 
     $authz = & $load '02-authorization-policy'

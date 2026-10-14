@@ -48,8 +48,8 @@
     },
     {
       "id": "ID-006", "domain": "identity", "title": "PIM activation settings on the top roles", "severityDefault": "High", "license": ["P2"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "maxActivationHours": 8 }, "evidence": ["role-management-policies"],
-      "pass": "facts.pimPolicyCompliantRoles >= facts.pimPolicyRolesChecked",
+      "thresholds": { "maxActivationHours": 8 }, "evidence": ["04-pim-role-policies.json"],
+      "pass": "facts.pimPolicyCompliantRoles >= facts.pimPolicyRolesChecked", "affected": "facts.pimPolicyProblems",
       "remediation": "In PIM, for Global Administrator, Privileged Role Administrator, Security Administrator and Conditional Access Administrator: require MFA on activation, require justification, cap activation at eight hours, and require approval for Global Administrator.",
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings", "deepLink": null,
       "narrative": "Eligible assignments only help if activation is harder than a click. MFA on activation stops a stolen session from elevating, a duration cap limits how long an activated role lives, and approval on Global Administrator puts a second person between an attacker and the tenant.",

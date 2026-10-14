@@ -6,6 +6,8 @@ function Invoke-PostureEntraCollection {
         groups, applications and Identity Protection, written with the audit plan's file names.
     .DESCRIPTION
         One step per file through Invoke-PostureStep: a permission failure lands in errors.txt and the run goes on.
+        Added beyond the audit plan's A.1: 04-pim-role-policies (activation rules per role), 05-per-user-mfa (legacy
+        per-user MFA state, one batched read per member; -SkipPerUserMfa on very large tenants), 08-entra-devices.
         JSON holds what Graph returned (selected properties, untouched casing); CSV holds the flat projection the
         audit plan defines. Two fallbacks: users without signInActivity when AuditLog.Read.All is missing, and plain
         role assignments when PIM schedule instances are unavailable (no P2).
@@ -17,6 +19,7 @@ function Invoke-PostureEntraCollection {
         [Parameter(Mandatory)] [string] $Folder,
         [int] $StaleDays = 90,
         [int] $RiskDetectionDays = 30,
+        [switch] $SkipPerUserMfa,
         [datetime] $AsOf = [datetime]::UtcNow
     )
 
@@ -29,6 +32,7 @@ function Invoke-PostureEntraCollection {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $cutoff = $AsOf.AddDays(-$StaleDays)
     $date = { param($s) ConvertTo-PostureUtcDateTime $s }
+    $load = { param([string] $Name) $f = Join-Path $Folder "$Name.json"; if (Test-Path -LiteralPath $f) { ConvertFrom-Json -InputObject (Get-Content -Raw -LiteralPath $f) -AsHashtable -Depth 20 } }
 
     # ---------- 1. Tenant and licensing ----------
     Invoke-PostureStep -Label 'Organization' -Folder $Folder -Script {
@@ -104,6 +108,30 @@ function Invoke-PostureEntraCollection {
         & $saveOne ([ordered]@{ source = $source; active = $a.Count; eligible = $e.Count; permanentGlobalAdmins = @($a | Where-Object { $_.Role -eq 'Global Administrator' -and $_.AssignmentType -ne 'Activated' }).Count; roleDefinitions = $defs.Count }) '04-role-assignments-summary'
     } | Out-Null
 
+    # ---------- 4b. PIM role management policies (ID-006) ----------
+    Invoke-PostureStep -Label 'PIM role policies' -Folder $Folder -Script {
+        # Policy assignments map a role to its policy; the rules carry activation MFA, justification, duration and approval. (verify) scope: RoleManagement.Read.Directory
+        $assignments = & $get "policies/roleManagementPolicyAssignments?`$filter=scopeId eq '/' and scopeType eq 'DirectoryRole'&`$expand=policy(`$expand=rules)"
+        $defs = @(& $load '04-role-definitions')
+        $roleName = @{}; foreach ($d in $defs) { $roleName[[string]$d.id] = [string]$d.displayName }
+        $flat = @($assignments | ForEach-Object {
+                $rules = @(& $v $_ 'policy.rules')
+                $rule = { param([string] $Id) @($rules | Where-Object { [string]$_.id -eq $Id }) | Select-Object -First 1 }
+                $exp = & $rule 'Expiration_EndUser_Assignment'; $en = & $rule 'Enablement_EndUser_Assignment'; $ap = & $rule 'Approval_EndUser_Assignment'
+                $duration = [string](& $v $exp 'maximumDuration')
+                $hours = $null
+                if ($duration) { try { $hours = [System.Xml.XmlConvert]::ToTimeSpan($duration).TotalHours } catch { $hours = $null } }
+                $enabled = @(& $v $en 'enabledRules')
+                [ordered]@{
+                    RoleDefinitionId = (& $v $_ 'roleDefinitionId'); Role = $roleName[[string](& $v $_ 'roleDefinitionId')]; PolicyId = (& $v $_ 'policyId')
+                    MaxActivationHours = $hours; ActivationExpirationRequired = [bool](& $v $exp 'isExpirationRequired')
+                    ActivationMfaRequired = ($enabled -contains 'MultiFactorAuthentication'); ActivationJustificationRequired = ($enabled -contains 'Justification'); ActivationTicketRequired = ($enabled -contains 'Ticketing')
+                    ApprovalRequired = [bool](& $v $ap 'setting.isApprovalRequired')
+                }
+            })
+        & $save $flat '04-pim-role-policies' $true
+    } | Out-Null
+
     # ---------- 5. Authentication method registration ----------
     Invoke-PostureStep -Label 'Auth method registration' -Folder $Folder -Script {
         $reg = & $get 'reports/authenticationMethods/userRegistrationDetails?$top=999'
@@ -172,6 +200,28 @@ function Invoke-PostureEntraCollection {
             }) '06-users-summary'
     } | Out-Null
 
+    # ---------- 6b. Legacy per-user MFA state (AU-009) ----------
+    if (-not $SkipPerUserMfa) {
+        Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -Script {
+            # One read per user, batched 20 at a time through $batch. (verify) scope: UserAuthenticationMethod.Read.All; cost at 20k users
+            $members = @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' })
+            $states = [System.Collections.Generic.List[object]]::new()
+            for ($i = 0; $i -lt $members.Count; $i += 20) {
+                $chunk = @($members[$i..([Math]::Min($i + 20, $members.Count) - 1)])
+                $requests = @(); $n = 0
+                foreach ($m in $chunk) { $requests += @{ id = [string]$n; method = 'GET'; url = "/users/$($m.Id)/authentication/requirements" }; $n++ }
+                $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'v1.0' -Single   # posture:read-only-post
+                foreach ($resp in @(& $v $batch 'responses')) {
+                    $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]
+                    $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = (& $v $resp 'status'); PerUserMfaState = (& $v $resp 'body.perUserMfaState') })
+                }
+            }
+            $rows = @($states.ToArray())
+            & $save $rows '05-per-user-mfa' $true
+            & $saveOne ([ordered]@{ Users = $rows.Count; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = @($rows | Where-Object { [int]$_.Status -ge 400 }).Count }) '05-per-user-mfa-summary'
+        } | Out-Null
+    }
+
     # ---------- 7. Groups ----------
     Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
         $groups = & $get 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999'
@@ -185,6 +235,25 @@ function Invoke-PostureEntraCollection {
                 }
             })
         & $save $flat '07-groups' $true
+    } | Out-Null
+
+    # ---------- 8. Entra devices ----------
+    Invoke-PostureStep -Label 'Entra devices' -Folder $Folder -Script {
+        $devices = & $get 'devices?$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,registrationDateTime,profileType,managementType,enrollmentType&$top=999'
+        $flat = @($devices | ForEach-Object {
+                $last = & $date (& $v $_ 'approximateLastSignInDateTime')
+                $join = switch ([string](& $v $_ 'trustType')) { 'AzureAd' { 'EntraJoined' } 'ServerAd' { 'HybridJoined' } 'Workplace' { 'Registered' } default { [string](& $v $_ 'trustType') } }
+                [ordered]@{
+                    Id = $_.id; DeviceId = (& $v $_ 'deviceId'); DisplayName = (& $v $_ 'displayName'); OperatingSystem = (& $v $_ 'operatingSystem'); OperatingSystemVersion = (& $v $_ 'operatingSystemVersion')
+                    AccountEnabled = (& $v $_ 'accountEnabled'); IsCompliant = (& $v $_ 'isCompliant'); IsManaged = (& $v $_ 'isManaged'); ApproximateLastSignInDateTime = (& $v $_ 'approximateLastSignInDateTime')
+                    RegistrationDateTime = (& $v $_ 'registrationDateTime'); ProfileType = (& $v $_ 'profileType'); ManagementType = (& $v $_ 'managementType'); EnrollmentType = (& $v $_ 'enrollmentType'); TrustType = (& $v $_ 'trustType')
+                    JoinType = $join; Stale = (-not $last -or $last -lt $cutoff)
+                }
+            })
+        & $save $flat '08-entra-devices' $true
+        $group = { param($rows, [string[]] $keys) @($rows | Group-Object -Property $keys | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count }) }
+        & $save (& $group @($flat | ForEach-Object { [pscustomobject]$_ }) @('JoinType', 'OperatingSystem')) '08-entra-devices-by-join-os' $true
+        & $save (& $group @($flat | ForEach-Object { [pscustomobject]$_ }) @('JoinType', 'Stale')) '08-entra-devices-stale' $true
     } | Out-Null
 
     # ---------- 10. Applications and service principals ----------

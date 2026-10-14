@@ -67,11 +67,12 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
 - [x] Invoke-PostureCollection with the Entra collector (A.1 sections 1, 2, 4, 5, 6, 7, 10, 11) and the CA snapshot in the same folder; users and PIM fallbacks; collection.json manifest; docs/collection.md (checkpoint E)
 - [x] First real collection against the Kainor tenant on 2026-10-14: 32 files, PIM path, 4 active and 2 eligible roles, 2 permanent Global Administrators; the only failure was the hybrid sync step without OnPremDirectorySynchronization.Read.All, now listed as an optional scope. Caught and fixed: isPrivileged is beta-only on role definitions; the Graph wrapper now surfaces Graph's error text
-- [ ] Devices and Intune (A.1 sections 8 and 9) with the devices domain; legacy sign-ins (12) optional
+- [ ] Intune (A.1 section 9) with the devices domain; legacy sign-ins (12) optional
 - [x] Identity domain: checks/identity.json (15 checks from spec 4.1) and Get-PostureIdentityFact over the A.1 files; ID-006 (PIM settings) and ID-014 (log export) stay not evaluated until their collectors exist (checkpoint F)
 - [x] Authentication domain: checks/auth.json (9 checks from spec 4.2) and Get-PostureAuthFact; AU-009 (per-user MFA) not evaluated until collected (checkpoint F)
 - [x] All three domains on the Kainor collection: 39 checks, 28 pass, 8 fail, 3 not evaluated with named reasons
-- [ ] A.1 additions the spec asks for: PIM role management policies (ID-006), legacy per-user MFA state (AU-009); Azure diagnostic settings with the Azure collector (ID-014)
+- [x] A.1 additions: PIM role management policies (ID-006), legacy per-user MFA state through batched reads (AU-009), Entra devices section 8 (checkpoint H)
+- [ ] Azure diagnostic settings with the Azure collector (ID-014)
 - [ ] (verify) SCuBA ids on the identity and auth checks; CIS ids once the terms are cleared
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken

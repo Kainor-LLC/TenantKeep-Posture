@@ -96,7 +96,7 @@ Describe 'New-PostureReport' {
             $script:Md | Should -Match '### Evidence index'
             $script:Md | Should -Match '`04-role-assignments-active.json`'
             $script:Md | Should -Match '- Hybrid sync features :: Forbidden'
-            $script:Rep.appendix.notEvaluated.id | Should -Contain 'ID-006'
+            $script:Rep.appendix.notEvaluated.id | Should -Contain 'ID-014'
         }
     }
 

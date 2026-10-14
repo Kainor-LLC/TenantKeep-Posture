@@ -56,6 +56,15 @@ function Initialize-CollectionFixture {
             @{ id = 'TemporaryAccessPass'; state = 'enabled'; isUsableOnce = $false; includeTargets = @(@{ id = 'all_users' }) }
         )
     }
+    & $w '04-pim-role-policies' @(
+        @{ Role = 'Global Administrator'; RoleDefinitionId = 'r-ga'; MaxActivationHours = 8; ActivationMfaRequired = $true; ActivationJustificationRequired = $true; ApprovalRequired = $false }
+        @{ Role = 'Privileged Role Administrator'; RoleDefinitionId = 'r-pra'; MaxActivationHours = 4; ActivationMfaRequired = $true; ActivationJustificationRequired = $true; ApprovalRequired = $true }
+        @{ Role = 'Security Administrator'; RoleDefinitionId = 'r-sec'; MaxActivationHours = 24; ActivationMfaRequired = $false; ActivationJustificationRequired = $true; ApprovalRequired = $false }
+        @{ Role = 'Conditional Access Administrator'; RoleDefinitionId = 'r-caa'; MaxActivationHours = 8; ActivationMfaRequired = $true; ActivationJustificationRequired = $true; ApprovalRequired = $false }
+        @{ Role = 'Helpdesk Administrator'; RoleDefinitionId = 'r-hd'; MaxActivationHours = 8; ActivationMfaRequired = $false; ActivationJustificationRequired = $false; ApprovalRequired = $false }
+    )
+    & $w '05-per-user-mfa-summary' @{ Users = 4; Enforced = 1; Enabled = 0; Disabled = 3; Errors = 0 }
+    & $w '05-per-user-mfa' @(@{ UserPrincipalName = 'admin2@contoso.example'; Status = 200; PerUserMfaState = 'enforced' }, @{ UserPrincipalName = 'admin1@contoso.example'; Status = 200; PerUserMfaState = 'disabled' })
     & $w '05-auth-registration-summary' @{ TotalMembers = 4; MfaRegisteredPct = 75; PasswordlessCapablePct = 50; SsprRegisteredPct = 25; Admins = 3 }
     & $w '05-auth-registration' @(
         @{ UserPrincipalName = 'breakglass01@contoso.example'; UserType = 'member'; IsAdmin = $true; MethodsRegistered = 'fido2' }

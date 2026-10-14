@@ -97,7 +97,15 @@ function Get-PostureAuthFact {
         $affected.adminsWithoutPhishingResistant = @($without | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "registered: $(if ($_.MethodsRegistered) { $_.MethodsRegistered } else { 'nothing' })" } })
     }
 
-    $notEvaluated['AU-009'] = 'Legacy per-user MFA state is not collected yet (planned A.1 addition).'
+    $perUser = & $load '05-per-user-mfa-summary'
+    $perUserRows = & $load '05-per-user-mfa'
+    if ($null -eq $perUser) { $notEvaluated['AU-009'] = '05-per-user-mfa-summary.json was not collected (skipped with -SkipPerUserMfa, or UserAuthenticationMethod.Read.All missing).' }
+    else {
+        $facts.perUserMfaEnforced = [int](& $v $perUser 'Enforced')
+        $facts.perUserMfaEnabled = [int](& $v $perUser 'Enabled')
+        $facts.perUserMfaReadErrors = [int](& $v $perUser 'Errors')
+        $affected.perUserMfaEnforced = @(@($perUserRows) | Where-Object { $_ -and $_.PerUserMfaState -in @('enforced', 'enabled') } | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "per-user MFA $($_.PerUserMfaState)" } })
+    }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('02-authentication-methods-policy.json', '05-auth-registration.json', '05-auth-registration-summary.json') }
 }

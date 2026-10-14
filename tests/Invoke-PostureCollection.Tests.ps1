@@ -36,6 +36,34 @@ BeforeAll {
             }
             '^roleManagement/directory/roleEligibilityScheduleInstances' { & $u @(@{ roleDefinitionId = 'r-sec'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'u3'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin Three'; userPrincipalName = 'admin3@contoso.example' } }); break }
             '^roleManagement/directory/roleAssignments' { & $u @(@{ roleDefinitionId = 'r-ga'; directoryScopeId = '/'; principalId = 'u1'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin One'; userPrincipalName = 'admin1@contoso.example' } }); break }
+            '^policies/roleManagementPolicyAssignments' {
+                $gaRules = @(
+                    @{ id = 'Expiration_EndUser_Assignment'; isExpirationRequired = $true; maximumDuration = 'PT8H' },
+                    @{ id = 'Enablement_EndUser_Assignment'; enabledRules = @('MultiFactorAuthentication', 'Justification') },
+                    @{ id = 'Approval_EndUser_Assignment'; setting = @{ isApprovalRequired = $false } }
+                )
+                $secRules = @(
+                    @{ id = 'Expiration_EndUser_Assignment'; isExpirationRequired = $true; maximumDuration = 'P1D' },
+                    @{ id = 'Enablement_EndUser_Assignment'; enabledRules = @('Justification') },
+                    @{ id = 'Approval_EndUser_Assignment'; setting = @{ isApprovalRequired = $false } }
+                )
+                & $u @(
+                    @{ roleDefinitionId = 'r-ga'; policyId = 'pol-ga'; policy = @{ rules = $gaRules } },
+                    @{ roleDefinitionId = 'r-sec'; policyId = 'pol-sec'; policy = @{ rules = $secRules } }
+                )
+                break
+            }
+            '^\$batch$' {
+                $reqs = ($Body | ConvertFrom-Json -AsHashtable).requests
+                @{ responses = @($reqs | ForEach-Object { @{ id = $_.id; status = 200; body = @{ perUserMfaState = $(if ($_.url -like '*/u2/*') { 'enforced' } else { 'disabled' }) } } }) }; break
+            }
+            '^devices\?' {
+                & $u @(
+                    @{ id = 'd1'; deviceId = 'dev-1'; displayName = 'LAPTOP-1'; operatingSystem = 'Windows'; operatingSystemVersion = '10.0.26100.1'; trustType = 'AzureAd'; approximateLastSignInDateTime = '2026-10-10T00:00:00Z'; isCompliant = $true; isManaged = $true; accountEnabled = $true }
+                    @{ id = 'd2'; deviceId = 'dev-2'; displayName = 'OLD-PC'; operatingSystem = 'Windows'; operatingSystemVersion = '10.0.19045.1'; trustType = 'ServerAd'; approximateLastSignInDateTime = '2025-01-01T00:00:00Z'; isCompliant = $false; isManaged = $false; accountEnabled = $true }
+                    @{ id = 'd3'; deviceId = 'dev-3'; displayName = 'MAC-1'; operatingSystem = 'MacMDM'; trustType = 'Workplace'; isCompliant = $null; isManaged = $false; accountEnabled = $true }
+                ); break
+            }
             '^reports/authenticationMethods/userRegistrationDetails' {
                 & $u @(
                     @{ userPrincipalName = 'admin1@contoso.example'; userDisplayName = 'Admin One'; userType = 'member'; isAdmin = $true; isMfaRegistered = $true; isMfaCapable = $true; isPasswordlessCapable = $true; isSsprRegistered = $true; methodsRegistered = @('passKeyDeviceBound', 'microsoftAuthenticatorPush') }
@@ -87,7 +115,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'creates a bare-stamp run folder and writes the A.1 files plus the CA snapshot' {
             Split-Path $script:R.Folder -Leaf | Should -Match '^\d{8}-\d{4}$'
-            foreach ($f in '01-organization', '01-subscribed-skus', '02-authorization-policy', '02-authentication-strengths', '04-role-assignments-active', '04-role-assignments-pim-eligible', '05-auth-registration', '05-auth-registration-summary', '06-users', '06-users-summary', '07-groups', '10-app-registrations', '10-service-principals', '10-graph-app-permissions', '10-oauth2-delegated-grants', '11-risk-detections-30d', 'policies', 'resolved-names', 'metadata', 'collection') {
+            foreach ($f in '01-organization', '01-subscribed-skus', '02-authorization-policy', '02-authentication-strengths', '04-role-assignments-active', '04-role-assignments-pim-eligible', '04-pim-role-policies', '05-auth-registration', '05-auth-registration-summary', '05-per-user-mfa', '05-per-user-mfa-summary', '06-users', '06-users-summary', '07-groups', '08-entra-devices', '08-entra-devices-by-join-os', '08-entra-devices-stale', '10-app-registrations', '10-service-principals', '10-graph-app-permissions', '10-oauth2-delegated-grants', '11-risk-detections-30d', 'policies', 'resolved-names', 'metadata', 'collection') {
                 Join-Path $script:R.Folder "$f.json" | Should -Exist
             }
             foreach ($f in '01-subscribed-skus', '04-role-assignments-active', '05-auth-registration', '06-users', '07-groups', '10-app-registrations', '10-service-principals') {
@@ -106,6 +134,37 @@ Describe 'Invoke-PostureCollection' {
             $s = & $script:Read '04-role-assignments-summary'
             $s.source | Should -Be 'pim'
             $s.permanentGlobalAdmins | Should -Be 2
+        }
+
+        It 'flattens PIM role policies with hours, MFA, justification and approval' {
+            $pim = & $script:Read '04-pim-role-policies'
+            $pim.Count | Should -Be 2
+            $ga = $pim | Where-Object Role -eq 'Global Administrator'
+            $ga.MaxActivationHours | Should -Be 8
+            $ga.ActivationMfaRequired | Should -BeTrue
+            $ga.ApprovalRequired | Should -BeFalse
+            $sec = $pim | Where-Object Role -eq 'Security Administrator'
+            $sec.MaxActivationHours | Should -Be 24
+            $sec.ActivationMfaRequired | Should -BeFalse
+        }
+
+        It 'reads per-user MFA state through batched requests and summarises it' {
+            $s = & $script:Read '05-per-user-mfa-summary'
+            $s.Users | Should -Be 3
+            $s.Enforced | Should -Be 1
+            $s.Disabled | Should -Be 2
+            (& $script:Read '05-per-user-mfa' | Where-Object UserPrincipalName -eq 'admin2@contoso.example').PerUserMfaState | Should -Be 'enforced'
+            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -like '*/$batch' -and $Method -eq 'POST' }
+        }
+
+        It 'collects Entra devices with join type and staleness' {
+            $d = & $script:Read '08-entra-devices'
+            $d.Count | Should -Be 3
+            ($d | Where-Object DisplayName -eq 'LAPTOP-1').JoinType | Should -Be 'EntraJoined'
+            ($d | Where-Object DisplayName -eq 'OLD-PC').JoinType | Should -Be 'HybridJoined'
+            ($d | Where-Object DisplayName -eq 'OLD-PC').Stale | Should -BeTrue
+            ($d | Where-Object DisplayName -eq 'MAC-1').Stale | Should -BeTrue -Because 'never signed in'
+            (& $script:Read '08-entra-devices-stale').Count | Should -BeGreaterOrEqual 2
         }
 
         It 'computes the registration summary' {
@@ -176,7 +235,8 @@ Describe 'Invoke-PostureCollection' {
         It 'falls back to plain role assignments' {
             $env:TKP_TEST_PIM = 'no'
             try {
-                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'nopim') -SkipCaSnapshot -PassThru -WarningAction SilentlyContinue
+                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'nopim') -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue
+                Join-Path $r.Folder '05-per-user-mfa-summary.json' | Should -Not -Exist
                 $s = Get-Content -Raw (Join-Path $r.Folder '04-role-assignments-summary.json') | ConvertFrom-Json
                 $s.source | Should -Be 'roleAssignments'
                 $s.active | Should -Be 1

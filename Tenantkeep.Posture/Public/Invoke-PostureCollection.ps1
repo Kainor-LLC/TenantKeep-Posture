@@ -28,6 +28,8 @@ function Invoke-PostureCollection {
         Store group member lists in the Conditional Access snapshot.
     .PARAMETER SkipCaSnapshot
         Do not write the Conditional Access snapshot into the folder.
+    .PARAMETER SkipPerUserMfa
+        Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
     .PARAMETER PassThru
         Return a summary object instead of the folder path.
     .EXAMPLE
@@ -51,6 +53,7 @@ function Invoke-PostureCollection {
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
+        [switch] $SkipPerUserMfa,
         [switch] $PassThru
     )
 
@@ -64,7 +67,7 @@ function Invoke-PostureCollection {
         'OnPremDirectorySynchronization.Read.All' = 'Hybrid sync features'
         'AuditLog.Read.All'                 = 'Users sign-in activity, Auth method registration'
         'UserAuthenticationMethod.Read.All' = 'Auth method registration'
-        'RoleManagement.Read.Directory'     = 'PIM eligible assignments'
+        'RoleManagement.Read.Directory'     = 'PIM eligible assignments, PIM role policies'
         'IdentityRiskyUser.Read.All'        = 'Risky users'
         'IdentityRiskEvent.Read.All'        = 'Risk detections'
     }
@@ -91,7 +94,7 @@ function Invoke-PostureCollection {
             $ran.Add('ConditionalAccess')
         }
         if ($Collector -contains 'Entra') {
-            $r = Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc
+            $r = Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Entra')
         }

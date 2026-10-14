@@ -36,6 +36,8 @@ Describe 'Get-PostureIdentityFact' {
         @{ Fact = 'inactiveGuests'; Expected = 2 }
         @{ Fact = 'crossTenantInboundDefaultOpen'; Expected = $true }
         @{ Fact = 'highRiskUsersUnaddressed'; Expected = 1 }
+        @{ Fact = 'pimPolicyRolesChecked'; Expected = 4 }
+        @{ Fact = 'pimPolicyCompliantRoles'; Expected = 2 }
     ) {
         InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Id.facts[$Fact] | Should -Be $Expected }
     }
@@ -47,7 +49,10 @@ Describe 'Get-PostureIdentityFact' {
             $script:Id.affected.inactiveGuests.name | Should -Be @('old_guest#EXT#@contoso.example', 'never_guest#EXT#@contoso.example')
             $script:Id.affected.appCredentialProblems.name | Should -Be @('Old App', 'Soon App')
             $script:Id.affected.highRiskUsersUnaddressed.name | Should -Be @('admin1@contoso.example')
-            $script:Id.notEvaluated.Keys | Should -Contain 'ID-006'
+            $script:Id.affected.pimPolicyProblems.name | Should -Be @('Global Administrator', 'Security Administrator')
+            ($script:Id.affected.pimPolicyProblems | Where-Object name -eq 'Global Administrator').detail | Should -Be 'no approval'
+            ($script:Id.affected.pimPolicyProblems | Where-Object name -eq 'Security Administrator').detail | Should -Match 'no MFA on activation, activation up to 24h'
+            $script:Id.notEvaluated.Keys | Should -Not -Contain 'ID-006'
             $script:Id.notEvaluated.Keys | Should -Contain 'ID-014'
             $script:Id.notEvaluated.Keys | Should -Not -Contain 'ID-015'
         }
@@ -86,6 +91,8 @@ Describe 'Get-PostureAuthFact' {
         @{ Fact = 'passwordlessCapablePct'; Expected = 50 }
         @{ Fact = 'admins'; Expected = 5 }
         @{ Fact = 'adminsWithoutPhishingResistant'; Expected = 3 }   # admin1 (push, sms), admin3 (push), auditor (Global Reader, nothing registered)
+        @{ Fact = 'perUserMfaEnforced'; Expected = 1 }
+        @{ Fact = 'perUserMfaEnabled'; Expected = 0 }
     ) {
         InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Au.facts[$Fact] | Should -Be $Expected }
     }
@@ -93,7 +100,8 @@ Describe 'Get-PostureAuthFact' {
     It 'lists admins without a phishing-resistant method, joining roles and the report' {
         InModuleScope Tenantkeep.Posture {
             $script:Au.affected.adminsWithoutPhishingResistant.name | Should -Be @('admin1@contoso.example', 'admin3@contoso.example', 'auditor@contoso.example')
-            $script:Au.notEvaluated.Keys | Should -Be @('AU-009')
+            $script:Au.notEvaluated.Keys | Should -BeNullOrEmpty
+            $script:Au.affected.perUserMfaEnforced.name | Should -Be @('admin2@contoso.example')
         }
     }
 }
@@ -112,7 +120,7 @@ Describe 'Invoke-PostureChecks for identity and auth on the fixture' {
         @{ Id = 'ID-003'; Status = 'fail' }
         @{ Id = 'ID-004'; Status = 'fail' }
         @{ Id = 'ID-005'; Status = 'pass' }
-        @{ Id = 'ID-006'; Status = 'notEvaluated' }
+        @{ Id = 'ID-006'; Status = 'fail' }
         @{ Id = 'ID-007'; Status = 'fail' }
         @{ Id = 'ID-008'; Status = 'fail' }
         @{ Id = 'ID-009'; Status = 'fail' }
@@ -130,7 +138,7 @@ Describe 'Invoke-PostureChecks for identity and auth on the fixture' {
         @{ Id = 'AU-006'; Status = 'fail' }
         @{ Id = 'AU-007'; Status = 'pass' }
         @{ Id = 'AU-008'; Status = 'fail' }
-        @{ Id = 'AU-009'; Status = 'notEvaluated' }
+        @{ Id = 'AU-009'; Status = 'fail' }
     ) {
         $script:By[$Id].status | Should -Be $Status
     }
