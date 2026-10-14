@@ -96,7 +96,10 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] SharePoint app setup script (deploy/setup/New-PostureSharePointApp.ps1): registers the PnP app with read-only delegated permissions, reuses an existing one through Graph, records sharePointClientId in the profile, prints the manual remainder. Connor asked for setup to be as automated as possible (2026-10-14); it stays outside the module because it writes to the tenant (checkpoint L1)
 - [x] First live registration on Kainor on 2026-10-14: the app was created on the first run; the profile write then failed on a tilde path, fixed in the script and in the two module cmdlets that resolved paths with GetFullPath; a rerun with -ClientId recorded it
 - [ ] (verify) admin consent landed on the Kainor app (the first PnP connect will show); AllSites.Read is enough for Get-PnPTenant on the admin site, -FullControl exists for when it is not
-- [ ] SharePoint and Teams collector (A.3) and the collaboration domain (spec 4.6) (checkpoint L2)
+- [x] SharePoint and Teams collectors (A.3 spo-* and teams-* files, plus the group lifecycle policy and ownerless groups in the Entra collector): Get-only entry points, never connect, skipped with a warning without a session; `-Collector SharePoint, Teams`, `-SkipSiteEnumeration` (checkpoint L2)
+- [x] Collaboration domain: checks/collaboration.json (14 checks from spec 4.6) and Get-PostureCollaborationFact (checkpoint L2)
+- [ ] Oversharing views from SharePoint Advanced Management reports: sites shared with Everyone except external users, active anonymous links, inactive sites (spec 4.6, SAM)
+- [ ] (verify) Teams app permission policy shape on tenants moved to app centric management; SCuBA MS.SHAREPOINT and MS.TEAMS ids on the collaboration checks
 - [ ] Defender effective state (4.11 Defender half: onboarding, sensor health, AV mode, ASR effective, EDR block mode, AIR, vulnerability management) with Get-DefenderBaseline; needs the the first customer tenant
 - [ ] Effective-state device checks waiting on reports: BitLocker and FileVault encryption report, Credential Guard and HVCI, update compliance, local admin population, recovery key access audit
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)

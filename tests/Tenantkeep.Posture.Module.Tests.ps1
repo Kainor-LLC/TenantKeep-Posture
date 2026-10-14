@@ -139,4 +139,12 @@ Describe 'Read-only guard' {
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureExoCommand.ps1')
         $src | Should -Match "ValidatePattern\('\^Get-"
     }
+
+    It 'runs PnP and Teams cmdlets only through their entry points, which accept read names only' {
+        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1'
+        $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PosturePnpCommand.ps1')
+        $src | Should -Match "ValidatePattern\('\^Get-PnP"
+        $src | Should -Match "ValidatePattern\('\^Get-\(Cs\|Team\)"
+    }
 }

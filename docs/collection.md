@@ -76,6 +76,19 @@ Invoke-PostureCollection -OutRoot ~/audit/evidence        # Entra, Intune and Ex
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
 at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
+## What the SharePoint and Teams collectors write
+
+| File | Source | Notes |
+|---|---|---|
+| `spo-tenant-settings` | Get-PnPTenant, the audit plan's property list plus a few | Sharing level, link defaults, anonymous link expiry, domain restrictions, Everyone claims, guest expiration, restricted access control, legacy auth |
+| `spo-sites` (+csv), `spo-sites-summary` | Get-PnPTenantSite -IncludeOneDriveSites -Detailed | Ownerless, anonymous-capable, labeled and restricted counts; OneDrives apart. `-SkipSiteEnumeration` at 20k OneDrives |
+| `teams-federation`, `teams-client-config`, `teams-meeting-policy-global`, `teams-guest-messaging` | the Teams tenant configurations and the Global meeting policy | Single objects |
+| `teams-external-access` (+csv), `teams-app-permission-policies` (+csv), `teams-messaging-policies` (+csv) | the policy collections | (verify) app permission policies on tenants moved to app centric management |
+
+The Entra collector adds `02-group-lifecycle-policy` and `07-groups-ownerless` (+summary) for the collaboration checks. The
+oversharing views that need SharePoint Advanced Management reports (sites shared with Everyone except external users,
+active anonymous links, inactive sites) are not collected yet.
+
 ## SharePoint and Teams setup
 
 PnP.PowerShell 3.x signs in through an Entra app registration of your own. `deploy/setup/New-PostureSharePointApp.ps1`

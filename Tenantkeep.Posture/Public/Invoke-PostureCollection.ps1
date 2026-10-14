@@ -22,8 +22,9 @@ function Invoke-PostureCollection {
         Write into this exact folder instead.
     .PARAMETER Collector
         Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions),
-        Exchange (A.2 Exchange Online and the mail DNS records). Default all three; Exchange is skipped with a warning
-        when no Connect-ExchangeOnline session exists, and refused when it was asked for by name.
+        Exchange (A.2 Exchange Online and the mail DNS records), SharePoint (A.3 tenant settings and sites through
+        PnP.PowerShell), Teams (A.3 Teams policies). Default all five; a collector whose session is missing is skipped
+        with a warning, and refused when it was asked for by name. See docs/collection.md for the sign-ins.
     .PARAMETER StaleDays
         Threshold for inactive users and devices in the summaries. Default 90.
     .PARAMETER IncludeMembers
@@ -32,6 +33,8 @@ function Invoke-PostureCollection {
         Do not write the Conditional Access snapshot into the folder.
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
+    .PARAMETER SkipSiteEnumeration
+        Skip Get-PnPTenantSite (30 minutes and more at 20k OneDrives); the ownerless-site check is then not evaluated.
     .PARAMETER SkipMailboxEnumeration
         Skip the Exchange mailbox and CAS mailbox pulls (10 to 20 minutes at 20k mailboxes); the forwarding, shared
         mailbox and per-mailbox protocol checks are then not evaluated.
@@ -48,6 +51,12 @@ function Invoke-PostureCollection {
 
         Writes the A.2 exo-* files and dns-01-mail-records into a new run folder. Needs View-Only Organization Management or equivalent.
     .EXAMPLE
+        Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
+        Connect-MicrosoftTeams
+        Invoke-PostureCollection -Collector SharePoint, Teams -SkipCaSnapshot
+
+        Writes the A.3 spo-* and teams-* files. The app registration comes from deploy/setup/New-PostureSharePointApp.ps1.
+    .EXAMPLE
         Invoke-PostureCollection -OutRoot ./evidence -PassThru | Select-Object Folder, Errors
     .OUTPUTS
         System.String, the run folder. With -PassThru, a summary object.
@@ -59,12 +68,13 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'Intune', 'Exchange')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange'),
+        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
         [switch] $SkipPerUserMfa,
         [switch] $SkipMailboxEnumeration,
+        [switch] $SkipSiteEnumeration,
         [switch] $PassThru
     )
 
@@ -92,11 +102,20 @@ function Invoke-PostureCollection {
     foreach ($scope in $optional.Keys) {
         if ($scope -notin $granted) { Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt." }
     }
-    $runExchange = $Collector -contains 'Exchange'
-    if ($runExchange -and -not (Test-PostureExoSession)) {
-        if ($PSBoundParameters.ContainsKey('Collector')) { throw 'The Exchange collector needs a connected Exchange Online session: Connect-ExchangeOnline -UserPrincipalName <reader> first. Never connects on its own.' }
-        Write-Warning 'No Exchange Online session; skipping the Exchange collector. Run Connect-ExchangeOnline first, or pass -Collector Entra,Intune to silence this.'
-        $runExchange = $false
+    # Session-bound collectors: skipped with a warning by default, refused when named. The module never connects.
+    $sessions = [ordered]@{
+        Exchange   = @{ test = { Test-PostureExoSession }; hint = 'Connect-ExchangeOnline -UserPrincipalName <reader>' }
+        SharePoint = @{ test = { Test-PosturePnpSession }; hint = 'Connect-PnPOnline -Url https://<tenant>-admin.sharepoint.com -ClientId <sharePointClientId from profile.json> -Interactive' }
+        Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
+    }
+    $run = @{}
+    foreach ($name in $sessions.Keys) {
+        $run[$name] = $Collector -contains $name
+        if ($run[$name] -and -not (& $sessions[$name].test)) {
+            if ($PSBoundParameters.ContainsKey('Collector')) { throw "The $name collector needs an open session: $($sessions[$name].hint) first. The module never connects on its own." }
+            Write-Warning "No $name session; skipping the $name collector. Run $($sessions[$name].hint) first, or name the collectors you want in -Collector to silence this."
+            $run[$name] = $false
+        }
     }
 
     $startedUtc = [datetime]::UtcNow
@@ -126,10 +145,20 @@ function Invoke-PostureCollection {
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Intune')
         }
-        if ($runExchange) {
+        if ($run.Exchange) {
             $r = Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Exchange')
+        }
+        if ($run.SharePoint) {
+            $r = Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('SharePoint')
+        }
+        if ($run.Teams) {
+            $r = Invoke-PostureTeamsCollection -Folder $folder
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('Teams')
         }
 
         $errorsPath = Join-Path $folder 'errors.txt'

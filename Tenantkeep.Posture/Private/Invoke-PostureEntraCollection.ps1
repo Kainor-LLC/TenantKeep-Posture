@@ -225,6 +225,20 @@ function Invoke-PostureEntraCollection {
     }
 
     # ---------- 7. Groups ----------
+    Invoke-PostureStep -Label 'Group lifecycle policy' -Folder $Folder -Script {
+        # Spec 4.6: the Microsoft 365 group expiration policy. One policy per tenant, or none.
+        $p = @(& $get 'groupLifecyclePolicies')
+        & $saveOne $(if ($p.Count -gt 0) { [ordered]@{ Present = $true; GroupLifetimeInDays = (& $v $p[0] 'groupLifetimeInDays'); ManagedGroupTypes = (& $v $p[0] 'managedGroupTypes'); AlternateNotificationEmails = (& $v $p[0] 'alternateNotificationEmails') } } else { [ordered]@{ Present = $false } }) '02-group-lifecycle-policy'
+    } | Out-Null
+
+    Invoke-PostureStep -Label 'Ownerless Microsoft 365 groups' -Folder $Folder -Script {
+        # Owners expanded with ids only; a group with none is a team or site nobody can administer.
+        $unified = & $get 'groups?$filter=groupTypes/any(c:c eq ''Unified'')&$select=id,displayName,createdDateTime,visibility&$expand=owners($select=id)'
+        $rows = @($unified | Where-Object { @(& $v $_ 'owners').Count -eq 0 } | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); CreatedDateTime = (& $v $_ 'createdDateTime'); Visibility = (& $v $_ 'visibility') } })
+        & $save $rows '07-groups-ownerless' $true
+        & $saveOne ([ordered]@{ UnifiedGroups = @($unified).Count; Ownerless = $rows.Count }) '07-groups-ownerless-summary'
+    } | Out-Null
+
     Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
         $groups = & $get 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999'
         $flat = @($groups | ForEach-Object {

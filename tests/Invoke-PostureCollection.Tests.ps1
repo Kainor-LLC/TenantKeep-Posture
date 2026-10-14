@@ -83,6 +83,8 @@ BeforeAll {
                 )
                 break
             }
+            '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
+            '^groups\?\$filter=groupTypes' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; createdDateTime = '2024-01-01T00:00:00Z'; visibility = 'Private'; owners = @(@{ id = 'u1' }) }, @{ id = 'grp9'; displayName = 'Orphaned Project'; createdDateTime = '2023-05-01T00:00:00Z'; visibility = 'Private'; owners = @() }); break }
             '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }); break }
             '^groups/.*/transitiveMembers' { & $u @(); break }
             '^applications\?' { & $u @(@{ id = 'a1'; appId = 'app-1'; displayName = 'Old App'; signInAudience = 'AzureADMyOrg'; passwordCredentials = @(@{ endDateTime = '2024-01-01T00:00:00Z' }, @{ endDateTime = '2030-01-01T00:00:00Z' }); keyCredentials = @() }); break }
@@ -234,6 +236,14 @@ Describe 'Invoke-PostureCollection' {
             $by['EP-014'].status | Should -Be 'pass'
             $by['EP-015'].status | Should -Be 'fail' -Because 'macOS is in scope and no FileVault policy exists'
             $by['EP-018'].status | Should -Be 'pass' -Because 'iOS has an assigned app protection policy and jailbreak detection; Android is out of scope'
+        }
+
+        It 'records the group expiration policy and the ownerless Microsoft 365 groups' {
+            (& $script:Read '02-group-lifecycle-policy').ManagedGroupTypes | Should -Be 'All'
+            $o = @(& $script:Read '07-groups-ownerless')
+            $o.Count | Should -Be 1
+            $o[0].DisplayName | Should -Be 'Orphaned Project'
+            (& $script:Read '07-groups-ownerless-summary').UnifiedGroups | Should -Be 2
         }
 
         It 'flattens roles with names and counts permanent Global Administrators' {
