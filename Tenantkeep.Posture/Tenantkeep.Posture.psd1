@@ -23,8 +23,8 @@
     PrivateData = @{
         PSData = @{
             Tags         = @('Microsoft365', 'EntraID', 'ConditionalAccess', 'Security', 'Posture', 'Audit', 'PSEdition_Core', 'MacOS', 'Linux', 'Windows')
-            LicenseUri   = 'https://github.com/kainor/tenantkeep-posture/blob/main/LICENSE.md'
-            ProjectUri   = 'https://github.com/kainor/tenantkeep-posture'
+            LicenseUri   = 'https://github.com/kainorllc/tenantkeep-posture/blob/main/LICENSE.md'
+            ProjectUri   = 'https://github.com/kainorllc/tenantkeep-posture'
             ReleaseNotes = 'Scaffold. Export-PostureCaSnapshot.'
             Prerelease   = 'alpha'
         }
