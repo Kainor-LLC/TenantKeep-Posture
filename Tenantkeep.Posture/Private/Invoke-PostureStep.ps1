@@ -5,7 +5,7 @@ function Invoke-PostureStep {
         Runs one collection step. A failure is logged to errors.txt in the run folder and the run continues.
     .DESCRIPTION
         Mirrors Invoke-Step from the audit plan's Appendix A. Permission errors on one endpoint must not abort a
-        whole snapshot. Returns the step's output, or $null on failure.
+        whole snapshot. Returns the step's output; on failure it returns nothing, so callers wrap the call in @().
     #>
     [CmdletBinding()]
     param(
@@ -23,6 +23,6 @@ function Invoke-PostureStep {
         $message = $_.Exception.Message
         Write-Warning "$Label failed: $message"
         Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message"
-        return $null
+        return
     }
 }

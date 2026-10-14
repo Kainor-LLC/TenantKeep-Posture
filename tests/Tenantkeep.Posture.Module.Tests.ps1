@@ -87,36 +87,47 @@ Describe 'Public cmdlet <Name>' -ForEach $script:PublicNames -AllowNullOrEmptyFo
 
 Describe 'Read-only guard' {
     BeforeAll {
+        # Guards look at code only: block comments (comment-based help carries Connect-MgGraph examples) and line comments are stripped.
         $script:ModuleFiles = Get-ChildItem -Path $script:ModuleRoot -Recurse -Filter '*.ps1'
+        $script:CodeLines = foreach ($f in $script:ModuleFiles) {
+            $code = [regex]::Replace((Get-Content -Path $f.FullName -Raw), '(?s)<#.*?#>', '')
+            $n = 0
+            foreach ($line in ($code -split "\r?\n")) {
+                $n++
+                $stripped = $line -replace '(?<![''"])#(?!\s*posture:).*$', ''
+                [pscustomobject]@{ Filename = $f.Name; LineNumber = $n; Line = $line; Code = $stripped }
+            }
+        }
+        function Find-Code([string] $Pattern, [string] $ExcludeFile) {
+            $script:CodeLines | Where-Object { $_.Filename -ne $ExcludeFile -and $_.Code -match $Pattern }
+        }
     }
 
     It 'never calls a Graph cmdlet that writes' {
-        $hits = $script:ModuleFiles | Select-String -Pattern '\b(New|Set|Remove|Update|Add|Confirm|Reset|Revoke|Restore|Start|Stop|Clear|Grant|Invoke)-Mg(?!GraphRequest\b|Context\b)[A-Za-z]+'
+        $hits = Find-Code '\b(New|Set|Remove|Update|Add|Confirm|Reset|Revoke|Restore|Start|Stop|Clear|Grant|Invoke)-Mg(?!GraphRequest\b|Context\b)[A-Za-z]+'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
     It 'calls Invoke-MgGraphRequest only inside the wrapper' {
-        $hits = $script:ModuleFiles | Where-Object Name -ne 'Invoke-PostureGraphRequest.ps1' |
-            Select-String -Pattern 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest'
+        $hits = Find-Code 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest' 'Invoke-PostureGraphRequest.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
     It 'never issues a non-GET request except an annotated query-style POST' {
-        $hits = $script:ModuleFiles | Where-Object Name -ne 'Invoke-PostureGraphRequest.ps1' |
-            Select-String -Pattern "-Method\s+['`"]?(POST|PATCH|PUT|DELETE)" |
-            Where-Object { $_.Line -match 'PATCH|PUT|DELETE' -or $_.Line -notmatch 'posture:read-only-post' }
+        $hits = Find-Code "-Method\s+['`"]?(POST|PATCH|PUT|DELETE)" 'Invoke-PostureGraphRequest.ps1' |
+            Where-Object { $_.Code -match 'PATCH|PUT|DELETE' -or $_.Line -notmatch 'posture:read-only-post' }
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
     It 'pins the API version on every wrapper call' {
-        $hits = $script:ModuleFiles | Where-Object Name -ne 'Invoke-PostureGraphRequest.ps1' |
-            Select-String -Pattern 'Invoke-PostureGraphRequest' |
-            Where-Object { $_.Line -notmatch '-ApiVersion' -and $_.Line -notmatch '^\s*\.|^\s*#' }
+        $hits = Find-Code 'Invoke-PostureGraphRequest\b' 'Invoke-PostureGraphRequest.ps1' |
+            Where-Object { $_.Code -notmatch '-ApiVersion' }
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
     It 'never calls Connect-MgGraph from module code' {
-        $hits = $script:ModuleFiles | Select-String -Pattern '^\s*Connect-MgGraph'
-        $hits | Should -BeNullOrEmpty
+        # A call at statement position. Error text that tells the user how to reconnect is fine.
+        $hits = Find-Code '(^|[;{|(&])\s*Connect-Mg'
+        $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 }

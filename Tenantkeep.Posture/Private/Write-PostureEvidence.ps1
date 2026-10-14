@@ -26,8 +26,9 @@ function Write-PostureEvidence {
     $ErrorActionPreference = 'Stop'
 
     $path = Join-Path $Folder "$Name.json"
-    $data = if ($AsArray) { @($InputObject) } else { $InputObject }
-    $json = $data | ConvertTo-Json -Depth 20 -AsArray:$AsArray
+    # -InputObject keeps an empty collection as [] instead of writing an empty file.
+    $data = if ($AsArray) { , @($InputObject) } else { $InputObject }
+    $json = ConvertTo-Json -InputObject $data -Depth 20
     [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
 
     if ($Csv -and $AsArray) {

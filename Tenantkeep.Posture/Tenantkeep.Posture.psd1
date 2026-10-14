@@ -15,7 +15,7 @@
     )
 
     # Maintained by build.ps1 from the Public/ folder. Keep in sync by hand for Import-Module from src/.
-    FunctionsToExport = @()
+    FunctionsToExport = @('Export-PostureCaSnapshot')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
