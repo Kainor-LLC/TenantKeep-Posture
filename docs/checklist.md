@@ -77,7 +77,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken
 - [ ] New-PostureProfile wizard
 - [x] New-PostureReport G1: report model (weighted score with the method stated, headline numbers, domain scorecards, top risks, four recommendation buckets, admins table, CA matrix, appendix), Markdown output, -Client folder, checks.json beside it; Kainor scores 81 (B) over 36 checks (checkpoint G1)
-- [ ] New-PostureReport G2: self-contained interactive HTML (templates/report.css, report.js), executive mode toggle, check detail drawer, print view, PDF
+- [x] New-PostureReport G2: self-contained interactive HTML (templates/report.css, report.js, CSP default-src none), eleven views with the uncollected ones shown as such, checks explorer with filters and search, check detail drawer with the exception snippet and CSV export, executive mode toggle, print view, PDF; verified on the Kainor report (checkpoint G2)
 - [ ] findings.csv export (Export-PostureFindings), portal deep links, trend across runs
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 

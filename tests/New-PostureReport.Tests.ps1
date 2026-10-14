@@ -29,8 +29,8 @@ Describe 'New-PostureReport' {
             $script:Rep = $script:R.Report
         }
 
-        It 'writes checks.json and report.md' {
-            @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.md')
+        It 'writes checks.json, report.html and report.md' {
+            @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.html', 'report.md')
             (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 39
         }
 
@@ -100,10 +100,62 @@ Describe 'New-PostureReport' {
         }
     }
 
+    Context 'Html' {
+        BeforeAll { $script:Html = Get-Content -Raw -LiteralPath ($script:R.Files | Where-Object { $_ -like '*report.html' }) }
+
+        It 'is one self-contained file: inline CSS and JS, no remote resources, data embedded as JSON' {
+            $script:Html | Should -Match '^<!DOCTYPE html>'
+            $script:Html | Should -Match '<style>'
+            $script:Html | Should -Match '<script>'
+            $script:Html | Should -Not -Match '(src|<link[^>]*href)="https?://'
+            $script:Html | Should -Not -Match '<script[^>]*src='
+            $script:Html | Should -Match "default-src 'none'"
+            $results = [regex]::Match($script:Html, '<script type="application/json" id="data-results">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
+            $results.Count | Should -Be 39
+            $catalog = [regex]::Match($script:Html, '<script type="application/json" id="data-catalog">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
+            $catalog.'CA-002'.remediation | Should -Not -BeNullOrEmpty
+        }
+
+        It 'renders every view server-side with the navigation' {
+            foreach ($id in 'overview', 'domains', 'checks', 'admins', 'exposure', 'copilot', 'ca', 'recommendations', 'trend', 'licensing', 'appendix') {
+                $script:Html | Should -Match "<section class=`"view( active)?`" id=`"$id`""
+                $script:Html | Should -Match "<a href=`"#$id`""
+            }
+            $script:Html | Should -Match '<section class="view active" id="overview">'
+            $script:Html | Should -Match 'Not collected yet\.'
+            ([regex]::Matches($script:Html, '<tr data-check="')).Count | Should -BeGreaterThan 39 -Because 'rows appear in the scorecards and the explorer'
+            $script:Html | Should -Match '<button type="button" id="toggle-exec"'
+            $script:Html | Should -Match 'class="tech"'
+            $script:Html | Should -Match '@media print'
+            $script:Html | Should -Match '<aside id="drawer"'
+        }
+
+        It 'encodes brand text and keeps the executive template flag on the body' {
+            $script:Html | Should -Match '<body data-template="Full">'
+            $script:Html | Should -Match 'Prepared by Example MSP for Contoso Ltd\.'
+            $script:Html | Should -Match '<footer class="doc">Prepared by Example MSP</footer>'
+            $script:Html | Should -Match '<td class="on">Phishing-resistant MFA</td>'
+        }
+    }
+
+    Context 'Pdf' {
+        It 'prints the HTML through a headless browser' {
+            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { '/fake/msedge' }
+            Mock -ModuleName Tenantkeep.Posture Start-Process {
+                $pdf = ($ArgumentList | Where-Object { $_ -like '--print-to-pdf=*' }) -replace '^--print-to-pdf=', ''
+                Set-Content -LiteralPath $pdf -Value '%PDF-1.7 fake'
+                [pscustomobject]@{ ExitCode = 0 }
+            }
+            $r = New-PostureReport -Evidence $script:Ev -Format Pdf -OutputPath (Join-Path $script:Root 'pdf') -PassThru
+            @($r.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.json', '.pdf')
+        }
+    }
+
     Context 'executive template and edge cases' {
         It 'hides technical columns in the executive template' {
             $r = New-PostureReport -Evidence $script:Ev -Template Executive -OutputPath (Join-Path $script:Root 'exec') -PassThru
             $md = Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.md' })
+            (Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.html' })) | Should -Match '<body data-template="Executive">'
             $md | Should -Match '\| Check \| Title \| Status \| Severity \|\n'
             $md | Should -Not -Match '\| Check \| Title \| Status \| Severity \| License \| Detail \|'
             $md | Should -Match 'Executive template'

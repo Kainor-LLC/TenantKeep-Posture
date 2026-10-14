@@ -3,7 +3,8 @@ function New-PostureReport {
     <#
     .SYNOPSIS
         Renders the posture report (spec 3 and 7) from an evidence folder: runs the catalog, writes checks.json, and
-        writes the report as Markdown and, in a later step, the self-contained HTML.
+        writes the report as a self-contained interactive HTML file and as Markdown. PDF prints the HTML through a
+        headless Edge or Chrome.
     .DESCRIPTION
         Reads only local files. The report carries the posture score with its method, the headline numbers, one
         scorecard per domain, the top risks, recommendations in the audit plan's four buckets, the administrators
@@ -20,7 +21,7 @@ function New-PostureReport {
     .PARAMETER Template
         Executive (cover, summary, scorecards, recommendations) or Full. Default Full.
     .PARAMETER Format
-        Markdown for now. Default Markdown.
+        One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
     .PARAMETER OutputPath
         Folder for report.<ext> and checks.json. Default: the evidence folder.
     .PARAMETER PassThru
@@ -45,7 +46,7 @@ function New-PostureReport {
         [string] $Baseline = 'standard',
         [string[]] $CustomChecks = @(),
         [ValidateSet('Executive', 'Full')] [string] $Template = 'Full',
-        [ValidateSet('Markdown')] [string[]] $Format = @('Markdown'),
+        [ValidateSet('Html', 'Markdown', 'Pdf')] [string[]] $Format = @('Html', 'Markdown'),
         [string] $OutputPath,
         [switch] $PassThru
     )
@@ -83,15 +84,25 @@ function New-PostureReport {
         [System.IO.File]::WriteAllText($checksPath, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
         $written.Add($checksPath)
     }
-    foreach ($f in $Format) {
+    $formats = [System.Collections.Generic.List[string]]::new([string[]]$Format)
+    if ($formats -contains 'Pdf' -and $formats -notcontains 'Html') { $formats.Insert(0, 'Html') }
+    $htmlPath = $null
+    foreach ($f in @('Html', 'Markdown')) {
+        if ($formats -notcontains $f) { continue }
         $ext, $content = switch ($f) {
+            'Html' { 'html', (ConvertTo-PostureReportHtml -Report $report) }
             'Markdown' { 'md', (ConvertTo-PostureReportMarkdown -Report $report) }
         }
         $path = Join-Path $outFolder "report.$ext"
         if ($PSCmdlet.ShouldProcess($path, "Write $f report")) {
             [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
             $written.Add($path)
+            if ($f -eq 'Html') { $htmlPath = $path }
         }
+    }
+    if ($formats -contains 'Pdf' -and $htmlPath) {
+        $pdfPath = Join-Path $outFolder 'report.pdf'
+        if ($PSCmdlet.ShouldProcess($pdfPath, 'Print HTML to PDF with a headless browser')) { $written.Add((Export-PostureHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath)) }
     }
 
     Write-Verbose "Score $($report.score.value) ($($report.score.grade)); $($run.counts.fail) failed check(s)"
