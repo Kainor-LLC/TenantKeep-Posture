@@ -93,6 +93,31 @@ BeforeAll {
             '^oauth2PermissionGrants' { & $u @(@{ clientId = 'sp1'; consentType = 'AllPrincipals'; resourceId = 'sp-graph'; scope = 'User.Read openid' }); break }
             '^identityProtection/riskyUsers' { throw 'Authorization_RequestDenied: Insufficient privileges to complete the operation.'; break }
             '^identityProtection/riskDetections' { & $u @(@{ userPrincipalName = 'user1@contoso.example'; riskEventType = 'anonymizedIPAddress'; riskLevel = 'medium'; riskState = 'atRisk'; activityDateTime = '2026-10-10T00:00:00Z'; ipAddress = '203.0.113.9'; location = @{ countryOrRegion = 'US' } }); break }
+            '^deviceManagement/managedDevices' {
+                & $u @(
+                    @{ id = 'm1'; deviceName = 'LAPTOP-1'; userPrincipalName = 'admin1@contoso.example'; operatingSystem = 'Windows'; osVersion = '10.0.26100.1'; complianceState = 'compliant'; managementAgent = 'mdm'; joinType = 'azureADJoined'; autopilotEnrolled = $true; isEncrypted = $true; azureADDeviceId = 'dev-1' },
+                    @{ id = 'm2'; deviceName = 'OLD-PC'; userPrincipalName = 'user1@contoso.example'; operatingSystem = 'Windows'; osVersion = '10.0.19045.1'; complianceState = 'noncompliant'; managementAgent = 'mdm'; joinType = 'hybridAzureADJoined'; autopilotEnrolled = $false; isEncrypted = $false; azureADDeviceId = 'dev-2' },
+                    @{ id = 'm3'; deviceName = 'MAC-1'; userPrincipalName = 'user1@contoso.example'; operatingSystem = 'macOS'; osVersion = '15.1'; complianceState = 'compliant'; managementAgent = 'mdm'; joinType = 'azureADRegistered'; autopilotEnrolled = $false; isEncrypted = $true; azureADDeviceId = 'dev-3' }
+                ); break
+            }
+            '^deviceManagement/windowsAutopilotDeviceIdentities' { & $u @(@{ serialNumber = 'SN1'; manufacturer = 'Dell'; model = 'Latitude'; enrollmentState = 'enrolled'; managedDeviceId = 'm1' }); break }
+            '^deviceManagement/deviceCompliancePolicies' { & $u @(@{ id = 'cp1'; displayName = 'Windows compliance'; '@odata.type' = '#microsoft.graph.windows10CompliancePolicy'; assignments = @(@{ id = 'a1' }) }); break }
+            '^deviceManagement/deviceConfigurations' { & $u @(@{ id = 'dc1'; displayName = 'Wi-Fi'; '@odata.type' = '#microsoft.graph.windowsWifiConfiguration'; assignments = @() }); break }
+            '^deviceManagement/configurationPolicies' {
+                & $u @(
+                    @{ id = 'sc1'; name = 'AV baseline'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityAntivirus'; templateDisplayName = 'Microsoft Defender Antivirus' }; settingCount = 12; assignments = @(@{ id = 'a' }) },
+                    @{ id = 'sc2'; name = 'BitLocker'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityDiskEncryption'; templateDisplayName = 'BitLocker' }; settingCount = 8; assignments = @(@{ id = 'a' }) },
+                    @{ id = 'sc3'; name = 'LAPS'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityAccountProtection'; templateDisplayName = 'Local admin password solution (Windows LAPS)' }; settingCount = 4; assignments = @(@{ id = 'a' }) },
+                    @{ id = 'sc4'; name = 'Firewall draft'; platforms = 'windows10'; technologies = 'mdm'; templateReference = @{ templateFamily = 'endpointSecurityFirewall'; templateDisplayName = 'Firewall' }; settingCount = 3; assignments = @() }
+                ); break
+            }
+            '^deviceAppManagement/mobileApps' { & $u @(@{ id = 'app1'; displayName = 'Company Portal'; publisher = 'Microsoft'; '@odata.type' = '#microsoft.graph.winGetApp' }); break }
+            '^deviceManagement/applePushNotificationCertificate$' { @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
+            '^deviceAppManagement/vppTokens' { & $u @(@{ organizationName = 'Contoso'; appleId = 'apple@contoso.example'; state = 'valid'; expirationDateTime = '2027-06-01T00:00:00Z' }); break }
+            '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }); break }
+            '^deviceManagement/mobileThreatDefenseConnectors' { & $u @(@{ id = 'mde'; partnerState = 'available'; windowsEnabled = $true; macEnabled = $true; lastHeartbeatDateTime = '2026-10-13T00:00:00Z' }); break }
+            '^deviceManagement/managedDeviceCleanupSettings$' { @{ deviceInactivityBeforeRetirementInDays = 90 }; break }
+            '^informationProtection/bitlocker/recoveryKeys' { & $u @(@{ id = 'k1'; deviceId = 'dev-1'; volumeType = 'operatingSystemVolume' }, @{ id = 'k2'; deviceId = 'dev-1'; volumeType = 'fixedDataVolume' }); break }
             '^identity/conditionalAccess/policies$' { & $u @(); break }
             '^identity/conditionalAccess/namedLocations$' { & $u @(); break }
             '^identity/conditionalAccess/authenticationContextClassReferences$' { & $u @(); break }
@@ -121,7 +146,25 @@ Describe 'Invoke-PostureCollection' {
             foreach ($f in '01-subscribed-skus', '04-role-assignments-active', '05-auth-registration', '06-users', '07-groups', '10-app-registrations', '10-service-principals') {
                 Join-Path $script:R.Folder "$f.csv" | Should -Exist
             }
-            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra')
+            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune')
+            foreach ($f in '09-intune-managed-devices', '09-intune-summary-compliance', '09-intune-summary-windows-builds', '09-autopilot-devices', '09-intune-compliance-policies', '09-intune-config-profiles-templates', '09-intune-config-profiles-settings-catalog', '09-intune-apps', '09-apple-push-cert', '09-apple-vpp-tokens', '09-intune-enrollment-restrictions', '09-intune-mde-connector', '09-intune-device-cleanup', '08-bitlocker-keys-by-device', '08-bitlocker-keys-summary') {
+                Join-Path $script:R.Folder "$f.json" | Should -Exist
+            }
+        }
+
+        It 'collects Intune devices, policies by template family, restrictions, the connector and BitLocker key presence' {
+            $m = & $script:Read '09-intune-managed-devices'
+            $m.Count | Should -Be 3
+            ($m | Where-Object DeviceName -eq 'LAPTOP-1').AutopilotEnrolled | Should -BeTrue
+            (& $script:Read '09-intune-summary-compliance' | Where-Object Name -eq 'Windows, noncompliant').Count | Should -Be 1
+            $sc = & $script:Read '09-intune-config-profiles-settings-catalog'
+            ($sc | Where-Object Name -eq 'LAPS').TemplateFamily | Should -Be 'endpointSecurityAccountProtection'
+            ($sc | Where-Object Name -eq 'Firewall draft').Assignments | Should -Be 0
+            (& $script:Read '09-intune-enrollment-restrictions')[0].windowsPersonalBlocked | Should -BeTrue
+            (& $script:Read '09-intune-mde-connector')[0].PartnerState | Should -Be 'available'
+            (& $script:Read '09-intune-device-cleanup').Enabled | Should -BeTrue
+            (& $script:Read '08-bitlocker-keys-summary').DevicesWithKeys | Should -Be 1
+            (& $script:Read '08-bitlocker-keys-by-device')[0].Keys | Should -Be 2
         }
 
         It 'flattens roles with names and counts permanent Global Administrators' {
@@ -214,7 +257,7 @@ Describe 'Invoke-PostureCollection' {
         It 'writes collection.json with tenant, scopes, api versions and the file list, and keeps the CA metadata separate' {
             $m = & $script:Read 'collection'
             $m.tenantId | Should -Be 'tenant-guid'
-            $m.collectors | Should -Be @('ConditionalAccess', 'Entra')
+            $m.collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune')
             $m.graphApiVersions | Should -Be @('beta', 'v1.0') -Because 'the per-user MFA batch is the one beta call'
             $m.files | Should -Contain '06-users.csv'
             $m.errorCount | Should -Be 1
@@ -225,9 +268,20 @@ Describe 'Invoke-PostureCollection' {
             @($script:W | Where-Object { $_ -like '*IdentityRiskyUser.Read.All*' }).Count | Should -Be 1
         }
 
-        It 'feeds the CA checks from the same folder' {
-            $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca -PassThru
-            $r.results.Count | Should -Be 15
+        It 'feeds the CA and devices checks from the same folder' {
+            $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
+            $r.results.Count | Should -Be 29
+            $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
+            $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
+            $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
+            $d['DEV-009'].status | Should -Be 'pass'
+            $d['DEV-010'].status | Should -Be 'fail' -Because 'firewall is unassigned and ASR and EDR are missing'
+            $d['DEV-010'].affected.name | Should -Be @('firewall', 'attackSurfaceReduction', 'endpointDetectionAndResponse')
+            $d['DEV-011'].status | Should -Be 'pass'
+            $d['DEV-012'].status | Should -Be 'pass'
+            $d['DEV-013'].status | Should -Be 'pass'
+            $d['DEV-002'].status | Should -Be 'pass' -Because 'stale devices exist but the cleanup rule is on'
+            $d['DEV-008'].status | Should -Be 'fail' -Because 'the push certificate expires within 60 days of the run'
         }
     }
 
@@ -235,7 +289,7 @@ Describe 'Invoke-PostureCollection' {
         It 'falls back to plain role assignments' {
             $env:TKP_TEST_PIM = 'no'
             try {
-                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'nopim') -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue
+                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'nopim') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue
                 Join-Path $r.Folder '05-per-user-mfa-summary.json' | Should -Not -Exist
                 $s = Get-Content -Raw (Join-Path $r.Folder '04-role-assignments-summary.json') | ConvertFrom-Json
                 $s.source | Should -Be 'roleAssignments'

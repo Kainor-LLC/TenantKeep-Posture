@@ -67,7 +67,10 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
 - [x] Invoke-PostureCollection with the Entra collector (A.1 sections 1, 2, 4, 5, 6, 7, 10, 11) and the CA snapshot in the same folder; users and PIM fallbacks; collection.json manifest; docs/collection.md (checkpoint E)
 - [x] First real collection against the Kainor tenant on 2026-10-14: 32 files, PIM path, 4 active and 2 eligible roles, 2 permanent Global Administrators; the only failure was the hybrid sync step without OnPremDirectorySynchronization.Read.All, now listed as an optional scope. Caught and fixed: isPrivileged is beta-only on role definitions; the Graph wrapper now surfaces Graph's error text
-- [ ] Intune (A.1 section 9) with the devices domain; legacy sign-ins (12) optional
+- [x] Intune collector (A.1 section 9 plus the 4.4 additions: enrollment restrictions, endpoint security policy families, MDE connector, cleanup rule, BitLocker key presence) (checkpoint I)
+- [x] Devices domain: checks/devices.json (14 checks from spec 4.4) and Get-PostureDevicesFact (checkpoint I)
+- [ ] First real Intune collection on Kainor: needs the five Intune scopes plus BitLockerKey.ReadBasic.All (Connor); several beta endpoints are (verify) until then
+- [ ] Legacy sign-ins (A.1 section 12), optional
 - [x] Identity domain: checks/identity.json (15 checks from spec 4.1) and Get-PostureIdentityFact over the A.1 files; ID-006 (PIM settings) and ID-014 (log export) stay not evaluated until their collectors exist (checkpoint F)
 - [x] Authentication domain: checks/auth.json (9 checks from spec 4.2) and Get-PostureAuthFact; AU-009 (per-user MFA) not evaluated until collected (checkpoint F)
 - [x] All three domains on the Kainor collection: 39 checks, 28 pass, 8 fail, 3 not evaluated with named reasons

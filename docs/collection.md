@@ -23,8 +23,24 @@ run continues.
 | `policies`, `named-locations`, `auth-strengths`, `auth-context`, `resolved-names`, `group-scope`, `metadata` | Export-PostureCaSnapshot into the same folder | The CA checks and documents read these |
 | `collection` | run manifest: tenant, account, scopes, API versions, files, errors | `metadata.json` stays the CA snapshot's own |
 
-Not yet collected here: Intune (A.1 section 9, with the devices domain), legacy sign-ins (section 12), Exchange and
-Purview (A.2), SharePoint and Teams (A.3), Maester (A.4).
+## What the Intune collector writes
+
+| File | Source | Notes |
+|---|---|---|
+| `09-intune-managed-devices` (+csv), `09-intune-summary-os-agent-join`, `09-intune-summary-compliance`, `09-intune-summary-windows-builds` | managedDevices (beta, for joinType and autopilotEnrolled) | |
+| `09-autopilot-devices` (+csv) | windowsAutopilotDeviceIdentities | |
+| `09-intune-compliance-policies`, `09-intune-config-profiles-templates`, `09-intune-config-profiles-settings-catalog`, `09-intune-apps` (+csv) | compliance policies, device configurations, configurationPolicies (beta) with template family and assignment counts, mobile apps | Endpoint security policies are settings catalog policies with a `TemplateFamily` |
+| `09-apple-push-cert`, `09-apple-vpp-tokens` (+csv) | APNs certificate, VPP tokens | Expiry feeds DEV-008 |
+| `09-intune-enrollment-restrictions` (+csv) | deviceEnrollmentConfigurations (beta) | Per-platform personal enrollment blocked (verify the newer per-platform shape) |
+| `09-intune-mde-connector` (+csv) | mobileThreatDefenseConnectors (beta) | (verify) partner identification |
+| `09-intune-device-cleanup` | managedDeviceCleanupSettings (beta) | (verify) endpoint |
+| `08-bitlocker-keys-by-device` (+csv), `08-bitlocker-keys-summary` | informationProtection/bitlocker/recoveryKeys, ids only | Key presence per device; the key material is never read |
+
+Scopes: DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All,
+DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLockerKey.ReadBasic.All.
+
+Not yet collected: legacy sign-ins (section 12), Exchange and Purview (A.2), SharePoint and Teams (A.3), Maester
+(A.4), Defender effective state (spec 4.11).
 
 ## Scopes
 

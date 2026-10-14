@@ -4,7 +4,7 @@ function Invoke-PostureCollection {
     .SYNOPSIS
         Collects evidence from the tenant into one run folder with the audit plan's file names (spec 6, Appendix A).
     .DESCRIPTION
-        Read-only. Today the Entra collector (A.1 identity sections): organization and licensing, tenant-wide
+        Read-only. The Entra collector (A.1 identity sections): organization and licensing, tenant-wide
         policies, privileged roles active and PIM-eligible, authentication method registration, users, groups,
         app registrations and service principals with credential expiry, Graph application permissions, delegated
         grants, Identity Protection. The Conditional Access snapshot (spec 5.1) is written into the same folder, so
@@ -21,7 +21,7 @@ function Invoke-PostureCollection {
     .PARAMETER OutputFolder
         Write into this exact folder instead.
     .PARAMETER Collector
-        Which collectors to run. Entra for now.
+        Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions). Default both.
     .PARAMETER StaleDays
         Threshold for inactive users and devices in the summaries. Default 90.
     .PARAMETER IncludeMembers
@@ -49,7 +49,7 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra')] [string[]] $Collector = @('Entra'),
+        [ValidateSet('Entra', 'Intune')] [string[]] $Collector = @('Entra', 'Intune'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
@@ -70,6 +70,11 @@ function Invoke-PostureCollection {
         'RoleManagement.Read.Directory'     = 'PIM eligible assignments, PIM role policies'
         'IdentityRiskyUser.Read.All'        = 'Risky users'
         'IdentityRiskEvent.Read.All'        = 'Risk detections'
+        'DeviceManagementManagedDevices.Read.All' = 'Intune managed devices, Autopilot'
+        'DeviceManagementConfiguration.Read.All'  = 'Intune compliance and configuration policies, enrollment restrictions, cleanup rule'
+        'DeviceManagementServiceConfig.Read.All'  = 'Apple push certificate, MDE connector'
+        'DeviceManagementApps.Read.All'           = 'Intune apps, Apple VPP tokens'
+        'BitLockerKey.ReadBasic.All'              = 'BitLocker recovery key presence'
     }
     $granted = @($context.Scopes)
     foreach ($scope in $optional.Keys) {
@@ -97,6 +102,11 @@ function Invoke-PostureCollection {
             $r = Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Entra')
+        }
+        if ($Collector -contains 'Intune') {
+            $r = Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('Intune')
         }
 
         $errorsPath = Join-Path $folder 'errors.txt'
