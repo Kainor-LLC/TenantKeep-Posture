@@ -71,7 +71,8 @@ function Invoke-PostureEntraCollection {
 
     # ---------- 4. Privileged roles ----------
     Invoke-PostureStep -Label 'Role assignments' -Folder $Folder -Script {
-        $defs = & $get 'roleManagement/directory/roleDefinitions?$select=id,displayName,isBuiltIn,isPrivileged,templateId'
+        # isPrivileged is beta-only on unifiedRoleDefinition; v1.0 rejects it in $select.
+        $defs = & $get 'roleManagement/directory/roleDefinitions?$select=id,displayName,isBuiltIn,templateId'
         $roleName = @{}; foreach ($d in $defs) { $roleName[[string]$d.id] = [string]$d.displayName }
         $files.Add((Write-PostureEvidence -Folder $Folder -Name '04-role-definitions' -InputObject $defs -AsArray))
         $flatten = {
@@ -100,7 +101,7 @@ function Invoke-PostureEntraCollection {
         $a = @(& $flatten $active $false); $e = @(& $flatten $eligibleRows $true)
         & $save $a '04-role-assignments-active' $true
         & $save $e '04-role-assignments-pim-eligible' $true
-        & $saveOne ([ordered]@{ source = $source; active = $a.Count; eligible = $e.Count; permanentGlobalAdmins = @($a | Where-Object { $_.Role -eq 'Global Administrator' -and $_.AssignmentType -ne 'Activated' }).Count; privilegedRoleDefinitions = @($defs | Where-Object { & $v $_ 'isPrivileged' }).Count }) '04-role-assignments-summary'
+        & $saveOne ([ordered]@{ source = $source; active = $a.Count; eligible = $e.Count; permanentGlobalAdmins = @($a | Where-Object { $_.Role -eq 'Global Administrator' -and $_.AssignmentType -ne 'Activated' }).Count; roleDefinitions = $defs.Count }) '04-role-assignments-summary'
     } | Out-Null
 
     # ---------- 5. Authentication method registration ----------

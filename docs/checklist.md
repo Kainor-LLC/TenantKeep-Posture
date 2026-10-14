@@ -66,7 +66,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] CA fact provider from a snapshot folder; verified on the sample (13 of 15 fail as designed) and on the Kainor tenant (12 pass, 2 fail, 1 not evaluated) (this checkpoint)
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
 - [x] Invoke-PostureCollection with the Entra collector (A.1 sections 1, 2, 4, 5, 6, 7, 10, 11) and the CA snapshot in the same folder; users and PIM fallbacks; collection.json manifest; docs/collection.md (checkpoint E)
-- [ ] First real collection against the Kainor tenant (needs the longer Connect-MgGraph scope list; Connor)
+- [x] First real collection against the Kainor tenant on 2026-10-14: 32 files, PIM path, 4 active and 2 eligible roles, 2 permanent Global Administrators; the only failure was the hybrid sync step without OnPremDirectorySynchronization.Read.All, now listed as an optional scope. Caught and fixed: isPrivileged is beta-only on role definitions; the Graph wrapper now surfaces Graph's error text
 - [ ] Devices and Intune (A.1 sections 8 and 9) with the devices domain; legacy sign-ins (12) optional
 - [ ] Identity and authentication domains: fact providers from the A.1 evidence files, then checks/identity.json and checks/auth.json
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)

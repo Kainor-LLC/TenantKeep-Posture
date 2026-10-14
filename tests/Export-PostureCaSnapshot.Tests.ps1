@@ -225,6 +225,23 @@ Describe 'Export-PostureCaSnapshot' {
         }
     }
 
+    Context 'Graph error text' {
+        It 'surfaces the Graph error message and the request in the thrown exception' {
+            Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest {
+                $ex = [System.Exception]::new('Response status code does not indicate success: BadRequest (Bad Request).')
+                $rec = [System.Management.Automation.ErrorRecord]::new($ex, 'x', 'InvalidOperation', $null)
+                $rec.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('GET https://x HTTP/1.1 400 Bad Request' + "`n`n" + '{"error":{"code":"BadRequest","message":"Could not find a property named ''isPrivileged''"}}')
+                throw $rec
+            }
+            InModuleScope Tenantkeep.Posture {
+                $message = try { Invoke-PostureGraphRequest -Uri 'roleManagement/directory/roleDefinitions?$select=isPrivileged' -ApiVersion v1.0; 'no throw' } catch { $_.Exception.Message }
+                $message | Should -Match 'BadRequest'
+                $message | Should -Match ([regex]::Escape('[GET https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$select=isPrivileged]'))
+                $message | Should -Match "Could not find a property named 'isPrivileged'"
+            }
+        }
+    }
+
     Context 'scope check' {
         It 'refuses to run without a Graph session' {
             Mock -ModuleName Tenantkeep.Posture Get-MgContext { $null }

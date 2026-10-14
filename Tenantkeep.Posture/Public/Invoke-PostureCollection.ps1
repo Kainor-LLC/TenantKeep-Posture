@@ -13,7 +13,8 @@ function Invoke-PostureCollection {
         Requires an existing Graph session with Policy.Read.All, Directory.Read.All and Group.Read.All. Optional
         scopes unlock more: User.Read.All and AuditLog.Read.All (sign-in activity, registration report),
         UserAuthenticationMethod.Read.All (registration report), RoleManagement.Read.Directory (PIM),
-        IdentityRiskyUser.Read.All and IdentityRiskEvent.Read.All (Identity Protection). Missing ones are reported
+        OnPremDirectorySynchronization.Read.All (hybrid sync features), IdentityRiskyUser.Read.All and
+        IdentityRiskEvent.Read.All (Identity Protection). Missing ones are reported
         with the steps they would unlock. Never connects on its own.
     .PARAMETER OutRoot
         Root folder for evidence. Default: ~/audit/evidence. The run folder <yyyyMMdd-HHmm> is created under it.
@@ -30,7 +31,7 @@ function Invoke-PostureCollection {
     .PARAMETER PassThru
         Return a summary object instead of the folder path.
     .EXAMPLE
-        Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All -NoWelcome
+        Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All -NoWelcome
         Invoke-PostureCollection
 
         Writes ~/audit/evidence/<stamp>/ with the A.1 files and the CA snapshot.
@@ -60,6 +61,7 @@ function Invoke-PostureCollection {
     $context = Assert-PostureGraphScope -RequiredScope $core
     $optional = [ordered]@{
         'User.Read.All'                     = 'Users'
+        'OnPremDirectorySynchronization.Read.All' = 'Hybrid sync features'
         'AuditLog.Read.All'                 = 'Users sign-in activity, Auth method registration'
         'UserAuthenticationMethod.Read.All' = 'Auth method registration'
         'RoleManagement.Read.Directory'     = 'PIM eligible assignments'

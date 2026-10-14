@@ -39,7 +39,17 @@ function Invoke-PostureGraphRequest {
         $params = @{ Uri = $next; Method = $Method; OutputType = 'HashTable'; ErrorAction = 'Stop' }
         if ($Body) { $params.Body = ($Body | ConvertTo-Json -Depth 20 -Compress); $params.ContentType = 'application/json' }
         Write-Verbose "$Method $next"
-        $response = Invoke-MgGraphRequest @params
+        try { $response = Invoke-MgGraphRequest @params }
+        catch {
+            # The SDK's message is only the status; Graph's own error text is in the response body.
+            $detail = $(if ($_.ErrorDetails) { [string]$_.ErrorDetails.Message } else { '' })
+            $graphMessage = $null
+            $i = $detail.IndexOf('{"error"')
+            if ($i -ge 0) { try { $graphMessage = (ConvertFrom-Json $detail.Substring($i)).error.message } catch { $graphMessage = $null } }
+            $what = "$Method $next"
+            if ($graphMessage) { throw "$($_.Exception.Message) [$what] $graphMessage" }
+            throw "$($_.Exception.Message) [$what]"
+        }
 
         if ($Single -or -not $response.ContainsKey('value')) { return $response }
 
