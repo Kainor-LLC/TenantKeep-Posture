@@ -14,7 +14,8 @@
       3. Import the Tenantkeep.Posture module and Microsoft.Graph.Authentication into the account's PowerShell 7.4
          module list (verify: contentLink flow in Bicep, spec 6).
       4. Variables: TENANTKEEP_OUTROOT (durable path), optional TEAMS_WEBHOOK (encrypted), optional BREAK_GLASS
-         (comma-separated UPNs).
+         (comma-separated UPNs), optional EMAIL_TO (comma-separated) and EMAIL_FROM (a mailbox in the tenant; grant
+         the identity Mail.Send and restrict it to that mailbox with an Exchange application access policy).
       5. Schedule: daily. Add an alert rule on job failure; -FailOnRiskRelevantChange makes a risky night a failed job,
          which is how email alerting works without the module sending mail.
 #>
@@ -26,6 +27,8 @@ $ErrorActionPreference = 'Stop'
 $outRoot = Get-AutomationVariable -Name 'TENANTKEEP_OUTROOT'
 $webhook = try { Get-AutomationVariable -Name 'TEAMS_WEBHOOK' } catch { $null }
 $breakGlass = try { (Get-AutomationVariable -Name 'BREAK_GLASS') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } } catch { @() }
+$emailTo = try { (Get-AutomationVariable -Name 'EMAIL_TO') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } } catch { @() }
+$emailFrom = try { Get-AutomationVariable -Name 'EMAIL_FROM' } catch { $null }
 
 Connect-MgGraph -Identity -NoWelcome
 Import-Module Tenantkeep.Posture
@@ -39,4 +42,5 @@ if (-not (Test-Path $cycle)) {
 $params = @{ OutRoot = $outRoot; KeepRuns = 90; FailOnRiskRelevantChange = $true }
 if ($webhook) { $params.TeamsWebhookUrl = $webhook }
 if ($breakGlass) { $params.BreakGlass = $breakGlass }
+if ($emailTo -and $emailFrom) { $params.EmailTo = $emailTo; $params.EmailFrom = $emailFrom }
 & $cycle @params

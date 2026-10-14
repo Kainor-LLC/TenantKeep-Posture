@@ -5,7 +5,8 @@
 # Setup, once:
 #   1. An app registration with a federated credential for this repo (azure/login OIDC), granted the application
 #      permissions Policy.Read.All, Directory.Read.All, Group.Read.All with admin consent. No client secret anywhere.
-#   2. Repository secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID. Optional: TEAMS_WEBHOOK.
+#   2. Repository secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID. Optional: TEAMS_WEBHOOK, EMAIL_TO, EMAIL_FROM (Graph
+#      sendMail; the app then also needs Mail.Send restricted to that mailbox).
 #   3. This repo must be private: snapshots contain policy and group data.
 name: Conditional Access snapshot
 
@@ -53,9 +54,12 @@ jobs:
         shell: pwsh
         env:
           TEAMS_WEBHOOK: ${{ secrets.TEAMS_WEBHOOK }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
           $params = @{ OutRoot = "$PWD/snapshots"; KeepRuns = 60; FailOnRiskRelevantChange = $true }
           if ($env:TEAMS_WEBHOOK) { $params.TeamsWebhookUrl = $env:TEAMS_WEBHOOK }
+          if ($env:EMAIL_TO -and $env:EMAIL_FROM) { $params.EmailTo = $env:EMAIL_TO -split ','; $params.EmailFrom = $env:EMAIL_FROM }
           ./deploy/schedules/ca-snapshot-cycle.ps1 @params
 
       - name: Commit the snapshot

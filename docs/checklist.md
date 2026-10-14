@@ -46,7 +46,8 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Azure Automation runbook sample with managed identity (not run against Azure; verify module import and durable OutRoot)
 - [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
 - [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)
-- [x] Teams Workflows webhook card on risk-relevant changes; email via the scheduler's failure alerting because Mail.Send is a write scope (verify card payload against the Workflows connector)
+- [x] Teams Workflows webhook card on risk-relevant changes (verify card payload against the Workflows connector)
+- [x] Email, opt-in, customer-side: Graph sendMail with Mail.Send scoped by an application access policy, or the customer's SMTP relay; report attached; -EmailAlways for a digest (this checkpoint). SMTP path is built but not exercised end to end (verify)
 - [x] docs/scheduling.md
 
 ## Weeks 3 to 4: check engine and identity report
@@ -61,6 +62,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 See spec section 9 for weeks 5 to 12 and v1.1. Not broken down until weeks 3 to 4 are underway.
 
 ## Open decisions and verifications
+- Kainor-hosted email relay (Connor, 2026-10-13): not built. It would be the first data path out of the customer's environment besides the license check and contradicts CLAUDE.md and spec 11. If it ships, it carries a count and a link only, is opt-in, and the privacy statement changes. Decide before the licensed tier (weeks 11 to 12).
 - Gallery packaging of checks/, baselines/ and templates/ as sibling folders inside the module (verify)
 - PowerShell Gallery terms for non-open-source modules (verify, spec 6)
 - Automation module contentLink flow in Bicep (verify, spec 6)

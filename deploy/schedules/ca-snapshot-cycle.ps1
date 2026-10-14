@@ -11,15 +11,26 @@
       1. Export-PostureCaSnapshot into <OutRoot>/<stamp>-ca
       2. New-PostureCaDocument for the new snapshot
       3. Compare-PostureCaSnapshot against the newest earlier <stamp>-ca folder, when one exists
-      4. Post the risk-relevant changes to a Teams Workflows webhook, when -TeamsWebhookUrl is set and there are any
+      4. Notify, when there are risk-relevant changes (or always, with -EmailAlways):
+           Teams Workflows webhook card, when -TeamsWebhookUrl is set
+           email with ca-changes.html attached, when -EmailTo and -EmailFrom are set, through Graph sendMail
+           (needs Mail.Send on the identity, opt-in) or an SMTP relay (-EmailMethod Smtp)
       5. Delete the oldest runs beyond -KeepRuns, when -KeepRuns is greater than 0
 
     Returns a summary object. With -FailOnRiskRelevantChange it throws at the end when the comparison found
-    risk-relevant changes, so the scheduler's job fails and its own alerting fires. The module never sends mail:
-    Mail.Send is a write scope and the module is read-only.
+    risk-relevant changes, so the scheduler's job fails and its own alerting fires too. Every send goes to the
+    customer's own services; see ca-notifications.ps1.
 .EXAMPLE
     Connect-MgGraph -Identity -NoWelcome
     ./ca-snapshot-cycle.ps1 -OutRoot /mnt/snapshots -TeamsWebhookUrl $env:TEAMS_WEBHOOK -FailOnRiskRelevantChange
+.EXAMPLE
+    ./ca-snapshot-cycle.ps1 -OutRoot ~/audit/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example
+
+    Emails through Graph as ca-monitor@contoso.example when a risk-relevant change appears. The identity needs Mail.Send.
+.EXAMPLE
+    ./ca-snapshot-cycle.ps1 -OutRoot ~/audit/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example -EmailMethod Smtp -SmtpServer smtp.contoso.example -SmtpCredential $cred -EmailAlways
+
+    Daily digest through the customer's SMTP relay, sent even when nothing is risk-relevant.
 #>
 [CmdletBinding()]
 param(
@@ -29,6 +40,14 @@ param(
     [string] $NamePattern,
     [switch] $IncludeMembers,
     [string] $TeamsWebhookUrl,
+    [string[]] $EmailTo,
+    [string] $EmailFrom,
+    [ValidateSet('Graph', 'Smtp')] [string] $EmailMethod = 'Graph',
+    [string] $SmtpServer,
+    [int] $SmtpPort = 587,
+    [pscredential] $SmtpCredential,
+    [bool] $SmtpUseTls = $true,
+    [switch] $EmailAlways,
     [ValidateRange(0, 10000)] [int] $KeepRuns = 0,
     [switch] $FailOnRiskRelevantChange
 )
@@ -37,6 +56,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 if (-not (Get-Module -Name Tenantkeep.Posture)) { Import-Module Tenantkeep.Posture -ErrorAction Stop }
+. (Join-Path $PSScriptRoot 'ca-notifications.ps1')
+if ($EmailTo -and -not $EmailFrom) { throw '-EmailFrom is required with -EmailTo.' }
 
 $optional = @{}
 if ($Brand) { $optional.Brand = $Brand }
@@ -67,28 +88,29 @@ else {
     Write-Information 'No earlier snapshot under OutRoot; nothing to compare. The next run will diff against this one.' -InformationAction Continue
 }
 
-# 4. Notify (Teams Workflows webhook, Adaptive Card payload) (verify: Workflows webhook accepts this shape; the
-#    older Office 365 connector webhooks are retired)
-if ($comparison -and $comparison.HasRiskRelevantChanges -and $TeamsWebhookUrl) {
-    $facts = @($comparison.Diff.risk | Select-Object -First 15 | ForEach-Object { @{ title = $_.rule; value = "$($_.subject): $($_.detail)" } })
-    $card = @{
-        type        = 'message'
-        attachments = @(@{
-                contentType = 'application/vnd.microsoft.card.adaptive'
-                content     = @{
-                    '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'
-                    type      = 'AdaptiveCard'
-                    version   = '1.4'
-                    body      = @(
-                        @{ type = 'TextBlock'; size = 'Large'; weight = 'Bolder'; text = "Conditional Access: $($comparison.RiskRelevantCount) risk-relevant change(s)" }
-                        @{ type = 'TextBlock'; wrap = $true; text = "Between $($previous.Name) and $(Split-Path $newFolder -Leaf). Report: ca-changes.html in the snapshot folder." }
-                        @{ type = 'FactSet'; facts = $facts }
-                    )
-                }
-            })
+# 4. Notify
+$notified = @()
+if ($comparison) {
+    $risky = $comparison.HasRiskRelevantChanges
+    $beforeName = $previous.Name
+    $afterName = Split-Path $newFolder -Leaf
+    if ($risky -and $TeamsWebhookUrl) {
+        Send-CaTeamsCard -WebhookUrl $TeamsWebhookUrl -Comparison $comparison -BeforeName $beforeName -AfterName $afterName
+        $notified += 'teams'
+        Write-Information 'Posted the risk-relevant changes to Teams.' -InformationAction Continue
     }
-    $null = Invoke-RestMethod -Method Post -Uri $TeamsWebhookUrl -ContentType 'application/json' -Body ($card | ConvertTo-Json -Depth 12)
-    Write-Information 'Posted the risk-relevant changes to Teams.' -InformationAction Continue
+    if ($EmailTo -and ($risky -or $EmailAlways)) {
+        $tenantLabel = [string]$comparison.Diff.after.tenantId
+        if ($Brand) { $clientName = (Get-Content -Raw -LiteralPath $Brand | ConvertFrom-Json).client.name; if ($clientName) { $tenantLabel = $clientName } }
+        $content = Get-CaChangeNotificationContent -Comparison $comparison -BeforeName $beforeName -AfterName $afterName -TenantLabel $tenantLabel
+        $html = @($comparison.Files | Where-Object { $_ -like '*.html' })
+        $mailParams = @{ To = $EmailTo; From = $EmailFrom; Subject = $content.Subject; HtmlBody = $content.Body; AttachmentPath = $html; Method = $EmailMethod; SmtpUseTls = $SmtpUseTls; SmtpPort = $SmtpPort }
+        if ($SmtpServer) { $mailParams.SmtpServer = $SmtpServer }
+        if ($SmtpCredential) { $mailParams.SmtpCredential = $SmtpCredential }
+        Send-CaChangeEmail @mailParams
+        $notified += "email:$($EmailMethod.ToLowerInvariant())"
+        Write-Information "Emailed $($EmailTo -join ', ') through $EmailMethod." -InformationAction Continue
+    }
 }
 
 # 5. Prune
@@ -111,6 +133,7 @@ $result = [pscustomobject]@{
     ChangeReports          = $(if ($comparison) { $comparison.Files } else { @() })
     RiskRelevantCount      = $(if ($comparison) { $comparison.RiskRelevantCount } else { 0 })
     HasRiskRelevantChanges = [bool]($comparison -and $comparison.HasRiskRelevantChanges)
+    Notified               = $notified
     Pruned                 = $pruned
 }
 if ($FailOnRiskRelevantChange -and $result.HasRiskRelevantChanges) {

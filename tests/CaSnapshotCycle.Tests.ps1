@@ -64,6 +64,39 @@ Describe 'ca-snapshot-cycle.ps1' {
         Should -Invoke Invoke-RestMethod -Times 0 -Exactly -Scope It
     }
 
+    It 'emails through Graph on risk when -EmailTo is set, with the report attached' {
+        $out = Join-Path $script:Root 'email'
+        New-Item -ItemType Directory -Path $out -Force | Out-Null
+        Copy-Item -Path $script:Fx.Before -Destination (Join-Path $out '20260101-0000-ca') -Recurse
+        Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Mail.Send') } }
+        Mock Invoke-MgGraphRequest { Set-Content -LiteralPath $env:TKP_TEST_POSTED -Value $Body; $null }
+        Remove-Item -LiteralPath $env:TKP_TEST_POSTED -ErrorAction SilentlyContinue
+        $r = & $script:Cycle -OutRoot $out -EmailTo 'secops@contoso.example' -EmailFrom 'ca-monitor@contoso.example' -InformationAction SilentlyContinue -WarningAction SilentlyContinue
+        $r.Notified | Should -Be @('email:graph')
+        Should -Invoke Invoke-MgGraphRequest -Times 1 -Exactly -ParameterFilter { $Uri -like '*/users/ca-monitor%40contoso.example/sendMail' }
+        $payload = Get-Content -Raw -LiteralPath $env:TKP_TEST_POSTED | ConvertFrom-Json
+        $payload.message.subject | Should -Match '^Conditional Access: 9 risk-relevant change\(s\) \(00000000-aaaa'
+        $payload.message.attachments[0].name | Should -Be 'ca-changes.html'
+    }
+
+    It 'does not email a quiet night unless -EmailAlways' {
+        $out = Join-Path $script:Root 'quiet'
+        New-Item -ItemType Directory -Path $out -Force | Out-Null
+        Copy-Item -Path $script:Fx.After -Destination (Join-Path $out '20260101-0000-ca') -Recurse
+        Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Mail.Send') } }
+        Mock Invoke-MgGraphRequest { $null }
+        $r = & $script:Cycle -OutRoot $out -EmailTo 'secops@contoso.example' -EmailFrom 'm@contoso.example' -InformationAction SilentlyContinue
+        $r.HasRiskRelevantChanges | Should -BeFalse
+        $r.Notified | Should -BeNullOrEmpty
+        Should -Invoke Invoke-MgGraphRequest -Times 0 -Exactly -Scope It
+        $r2 = & $script:Cycle -OutRoot $out -EmailTo 'secops@contoso.example' -EmailFrom 'm@contoso.example' -EmailAlways -InformationAction SilentlyContinue
+        $r2.Notified | Should -Be @('email:graph')
+    }
+
+    It 'requires -EmailFrom with -EmailTo' {
+        { & $script:Cycle -OutRoot (Join-Path $script:Root 'nofrom') -EmailTo 'a@contoso.example' } | Should -Throw '*-EmailFrom is required*'
+    }
+
     It 'prunes the oldest runs beyond KeepRuns' {
         $out = Join-Path $script:Root 'prune'
         New-Item -ItemType Directory -Path $out -Force | Out-Null
