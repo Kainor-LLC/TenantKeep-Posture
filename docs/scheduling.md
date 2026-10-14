@@ -72,6 +72,15 @@ Application permissions for the managed identity or the app registration: `Polic
 3. Teams gets a card and email goes out with the report attached, whichever are configured.
 4. With `-FailOnRiskRelevantChange`, the job fails and the scheduler's own notification goes out too.
 
+## After granting the identity's Graph roles
+
+The sandbox caches the managed identity's token. A job that lands in a sandbox whose token was issued before the
+grant fails at the scope check with "Graph session is missing scope(s)" even though the roles are in place, while
+a job in a fresh sandbox succeeds. Seen on the dev account on 2026-10-14: job 1 after the grant completed, job 2
+failed on the stale token, with the download of the previous run working in both. The cached token expires on
+its own (managed identity tokens live up to 24 hours), so leave the nightly schedule alone rather than restarting
+jobs by hand. (verify) exact sandbox token cache lifetime.
+
 ## Things to verify on first deployment
 
 - Automation: deployed and import verified through `deploy/automation/deploy.ps1` (custom 7.4 runtime environment; system environments stop at 7.2). Still to verify on the first job: `Connect-MgGraph -Identity`, the Az version in the runtime, the blob round trip.

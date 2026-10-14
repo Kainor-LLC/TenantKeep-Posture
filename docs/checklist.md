@@ -48,7 +48,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] deploy/automation: Bicep (account, system identity, custom PowerShell 7.4 runtime environment, RBAC-only storage, variables, schedule, runbook shell, deployer blob role) plus deploy.ps1 (module zip upload, package import through a user-delegation SAS, Gallery dependency, runbook publish, schedule link) and Grant-ManagedIdentityGraphRole.ps1. Deployed to Kainor-LAPSlock rg-tenantkeep-dev on 2026-10-13 (this checkpoint)
 - [x] Test job on 2026-10-13: PowerShell 7.4.6 runtime, module import, Connect-AzAccount -Identity, Connect-MgGraph -Identity and the blob listing all work; the cycle stops at the scope check as designed until the roles are granted
 - [x] First real Automation job on 2026-10-14 after the role grant: Completed; full snapshot and document uploaded to the ca-snapshots container (run 20261014-0332-ca)
-- [ ] Second job to confirm the download-previous-and-compare path (started 2026-10-14)
+- [x] Second job on 2026-10-14 downloaded the previous run from blob, then failed at the scope check on a cached pre-grant identity token (documented in docs/scheduling.md); the compare itself still needs one job in a fresh sandbox to confirm end to end
 - [ ] Dev deployment is unsigned (zip of the staged module); releases must go through Package with the signing cert
 - [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
 - [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)
