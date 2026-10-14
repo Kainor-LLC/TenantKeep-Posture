@@ -1,6 +1,9 @@
 # local notes with tenant and account details (CLAUDE.md: never commit)
 CLAUDE.local.md
 
+# separate product spec, not part of this repo
+docs/oncall-app-spec.md
+
 # build output
 out/
 *.nupkg
