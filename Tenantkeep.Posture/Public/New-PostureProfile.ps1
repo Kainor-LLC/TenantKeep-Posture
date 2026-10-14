@@ -166,7 +166,7 @@ function New-PostureProfile {
         $ok = Read-PostureAnswer -Question "Overwrite ${Path}?" -Choices @('yes', 'no') -Default 'yes'
         if ($ok -ne 'yes') { Write-Warning 'Not written.'; if ($PassThru) { return $written }; return $null }
     }
-    $full = [System.IO.Path]::GetFullPath($Path)
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)   # expands ~ too
     if ($PSCmdlet.ShouldProcess($full, 'Write profile.json')) {
         $dir = Split-Path $full -Parent
         if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }

@@ -29,6 +29,9 @@
     Display name of the app registration. Default: Tenantkeep Posture (SharePoint read-only).
 .PARAMETER ProfilePath
     profile.json to update with sharePointClientId.
+.PARAMETER ClientId
+    An existing registration's Application (client) id. Skips the registration and only records it and prints the
+    remaining steps; for a rerun without a Graph session, or an app registered by hand.
 .PARAMETER FullControl
     Request SharePoint AllSites.FullControl delegated instead of AllSites.Read. Still delegated, still bound by the
     user's rights; only needed when tenant settings reads are denied with AllSites.Read (verify).
@@ -48,6 +51,7 @@ param(
     [Parameter(Mandatory)] [ValidatePattern('^[A-Za-z0-9-]+\.onmicrosoft\.com$')] [string] $Tenant,
     [string] $ApplicationName = 'Tenantkeep Posture (SharePoint read-only)',
     [string] $ProfilePath,
+    [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
     [switch] $FullControl,
     [switch] $DeviceLogin
 )
@@ -62,11 +66,11 @@ Import-Module PnP.PowerShell -ErrorAction Stop
 $sharePointPermissions = @($(if ($FullControl) { 'AllSites.FullControl' } else { 'AllSites.Read' }))
 $graphPermissions = @('User.Read', 'Sites.Read.All', 'Group.Read.All')
 
-# 2. Reuse an existing registration when a Graph session can see it.
-$clientId = $null
+# 2. Reuse an existing registration: the one given, or one a Graph session can see by name.
 $ctx = $null
-if (Get-Command Get-MgContext -ErrorAction SilentlyContinue) { $ctx = Get-MgContext }
-if ($ctx -and @($ctx.Scopes) -contains 'Application.Read.All') {
+if ($clientId) { Write-Host "Using the existing registration $clientId; nothing created." }
+elseif (Get-Command Get-MgContext -ErrorAction SilentlyContinue) { $ctx = Get-MgContext }
+if (-not $clientId -and $ctx -and @($ctx.Scopes) -contains 'Application.Read.All') {
     $escaped = $ApplicationName -replace "'", "''"
     $found = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$escaped'&`$select=appId,displayName" -OutputType HashTable).value)
     if ($found.Count -gt 0) {
@@ -81,7 +85,11 @@ if (-not $clientId) {
         Write-Host "Registering '$ApplicationName' in $Tenant. A browser window will ask you to sign in, then to grant admin consent."
         $registerParams = @{ ApplicationName = $ApplicationName; Tenant = $Tenant; SharePointDelegatePermissions = $sharePointPermissions; GraphDelegatePermissions = $graphPermissions }
         if ($DeviceLogin) { $registerParams.DeviceLogin = $true }
-        $result = Register-PnPEntraIDAppForInteractiveLogin @registerParams
+        try { $result = Register-PnPEntraIDAppForInteractiveLogin @registerParams }
+        catch {
+            if ($_.Exception.Message -match 'already exist') { throw "An app named '$ApplicationName' already exists. Rerun with -ClientId <its Application (client) ID>, or with a Graph session that has Application.Read.All so it is found by name." }
+            throw
+        }
         # The cmdlet's output shape has changed between releases; take the ClientId from whichever property carries it, or from the text.
         foreach ($name in 'AzureAppId/ClientId', 'ClientId', 'AppId') {
             if ($null -ne $result -and $result.PSObject.Properties[$name] -and $result.$name) { $clientId = [string]$result.$name; break }
@@ -98,7 +106,7 @@ if (-not $clientId) {
 
 # 4. Record it.
 if ($ProfilePath) {
-    $full = [System.IO.Path]::GetFullPath($ProfilePath)
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProfilePath)   # expands ~ and relative paths; .NET file APIs know neither
     $orgProfile = if (Test-Path -LiteralPath $full) { Get-Content -Raw -LiteralPath $full | ConvertFrom-Json -AsHashtable -Depth 10 } else { [ordered]@{ version = 1 } }
     $orgProfile['sharePointClientId'] = $clientId
     $orgProfile['updatedUtc'] = [datetime]::UtcNow.ToString('o')

@@ -75,7 +75,7 @@ function New-PostureReport {
     $run.moduleVersion = $script:ModuleVersion
     $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template
 
-    $outFolder = [System.IO.Path]::GetFullPath($(if ($OutputPath) { $OutputPath } else { $evidencePath }))
+    $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } else { $evidencePath }))   # expands ~ too
 
     $written = [System.Collections.Generic.List[string]]::new()
     $checksPath = Join-Path $outFolder 'checks.json'

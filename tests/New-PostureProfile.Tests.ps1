@@ -71,6 +71,17 @@ Describe 'New-PostureProfile' {
             $j.createdUtc | Should -Be $before
         }
 
+        It 'expands a tilde in -Path, because the file writer does not' {
+            $rel = "~/.tkp-test-$([guid]::NewGuid().ToString('n'))"
+            $expected = Join-Path $HOME ($rel.Substring(2)) 'profile.json'
+            try {
+                $out = New-PostureProfile -Path "$rel/profile.json" -NonInteractive -ClientName 'Tilde' -SharePointClientId '89ebfc90-bbac-49ad-a8f3-b81a29737495'
+                $out | Should -Be $expected
+                (Get-Content -Raw $expected | ConvertFrom-Json).sharePointClientId | Should -Be '89ebfc90-bbac-49ad-a8f3-b81a29737495'
+            }
+            finally { Remove-Item -LiteralPath (Join-Path $HOME ($rel.Substring(2))) -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+
         It 'detects licenses from an evidence folder' {
             $ev = Join-Path $script:Root 'evidence'
             New-Item -ItemType Directory -Path $ev | Out-Null
