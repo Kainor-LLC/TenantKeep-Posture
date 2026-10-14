@@ -99,7 +99,7 @@ function ConvertTo-PostureCaPolicyModel {
         $strength = $null
         if ($strengthId) {
             $ref = Resolve-PostureCaRef -Snapshot $Snapshot -Id ([string]$strengthId) -ExpectedType 'authenticationStrength'
-            $strength = [ordered]@{ id = $ref.id; name = $ref.name; deleted = $ref.deleted; allowedCombinations = @() }
+            $strength = [ordered]@{ id = $ref.id; name = $ref.name; type = 'authenticationStrength'; deleted = $ref.deleted; allowedCombinations = @() }
             if ($strengthById.ContainsKey([string]$strengthId)) {
                 $strength.allowedCombinations = & $list (Get-PostureValue $strengthById[[string]$strengthId] 'allowedCombinations')
             }

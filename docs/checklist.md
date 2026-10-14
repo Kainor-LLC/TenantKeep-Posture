@@ -32,10 +32,11 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] "Changed by" from the audit log on the CA page (spec 7.2) once Compare exists
 
 ### 5.3 Compare-PostureCaSnapshot
-- [ ] Added, removed, renamed, state changed, modified; field-level before and after with resolved names
-- [ ] Named location, auth strength and auth context changes
-- [ ] Scope drift from group hashes; member-level diff when both snapshots have members
-- [ ] Risk-relevant changes called out at the top (the eight rules in 5.3)
+- [x] Added, removed, renamed, state changed, modified; field-level before and after with resolved names (engine, this checkpoint)
+- [x] Named location, auth strength and auth context changes (engine)
+- [x] Scope drift from group hashes; member-level diff when both snapshots have members (engine)
+- [x] Risk-relevant change rules: the seven from 5.3 plus enabledPolicyRemoved; -BreakGlass list or name heuristic (engine)
+- [ ] Field-level diff covers the resolved model; a Graph property outside the model (new in a later API version) is not diffed (verify whether a raw fallback is wanted)
 - [ ] Markdown and HTML change report, email-ready
 - [ ] Non-zero exit code when risk-relevant changes exist
 
