@@ -99,3 +99,9 @@ footer.doc { border-top: 1px solid var(--line); color: var(--muted); font-size: 
   .scroll { overflow: visible; }
   tr { break-inside: avoid; page-break-inside: avoid; }
 }
+/* change report */
+table.diff td.before { color: var(--err); }
+table.diff td.after { color: var(--ok); }
+table.risk td:first-child { font-weight: 600; color: var(--err); white-space: nowrap; }
+.added { color: var(--ok); }
+.removed { color: var(--err); }

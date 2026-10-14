@@ -32,13 +32,14 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] "Changed by" from the audit log on the CA page (spec 7.2) once Compare exists
 
 ### 5.3 Compare-PostureCaSnapshot
-- [x] Added, removed, renamed, state changed, modified; field-level before and after with resolved names (engine, this checkpoint)
-- [x] Named location, auth strength and auth context changes (engine)
-- [x] Scope drift from group hashes; member-level diff when both snapshots have members (engine)
-- [x] Risk-relevant change rules: the seven from 5.3 plus enabledPolicyRemoved; -BreakGlass list or name heuristic (engine)
+- [x] Added, removed, renamed, state changed, modified; field-level before and after with resolved names (935b730)
+- [x] Named location, auth strength and auth context changes (935b730)
+- [x] Scope drift from group hashes; member-level diff when both snapshots have members (935b730)
+- [x] Risk-relevant change rules: the seven from 5.3 plus enabledPolicyRemoved; -BreakGlass list or name heuristic (935b730)
 - [ ] Field-level diff covers the resolved model; a Graph property outside the model (new in a later API version) is not diffed (verify whether a raw fallback is wanted)
-- [ ] Markdown and HTML change report, email-ready
-- [ ] Non-zero exit code when risk-relevant changes exist
+- [x] Markdown and HTML change report, email-ready, risk-relevant changes first (this checkpoint)
+- [x] Non-zero exit code when risk-relevant changes exist: -FailOnRiskRelevantChange throws after writing the report; verified with pwsh -Command (this checkpoint)
+- [ ] "Changed by" from the audit log (spec 7.2) needs AuditLog.Read.All and a directory audit pull per changed policy; not in the snapshot today
 
 ### 5.4 Scheduling samples
 - [ ] Azure Automation runbook sample with managed identity

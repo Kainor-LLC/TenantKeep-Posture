@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1) and `New-PostureCaDocument` (spec 5.2: Markdown, self-contained HTML, PDF through a headless Edge or Chrome). Next: `Compare-PostureCaSnapshot` (5.3).
+Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF through a headless Edge or Chrome) and `Compare-PostureCaSnapshot` (5.3: change report with risk-relevant changes first). Next: scheduling samples (5.4). Progress: [docs/checklist.md](docs/checklist.md).
 
 ## Use
 
@@ -18,6 +18,8 @@ Export-PostureCaSnapshot                       # writes ~/audit/evidence/<yyyyMM
 Export-PostureCaSnapshot -IncludeMembers       # also stores group member UPNs
 New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -NamePattern '^CA-\d{3}-'   # ca-document.md and .html next to the snapshot
 New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -Format Pdf -Brand ./brand.json  # adds ca-document.pdf via headless Edge or Chrome
+Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                              # ca-changes.md and .html, risk-relevant changes first
+Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
 ```
 
 ## Develop

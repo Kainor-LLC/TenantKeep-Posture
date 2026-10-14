@@ -7,66 +7,8 @@ BeforeAll {
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-diff-$([guid]::NewGuid().ToString('n'))"
     $script:BeforeDir = Join-Path $script:Root 'before'
     $script:AfterDir = Join-Path $script:Root 'after'
-    Copy-Item -Path $script:Sample -Destination $script:BeforeDir -Recurse
-    Copy-Item -Path $script:Sample -Destination $script:AfterDir -Recurse
-
-    $load = { param($dir, $name) Get-Content -Raw -LiteralPath (Join-Path $dir "$name.json") | ConvertFrom-Json -AsHashtable -Depth 30 }
-    $save = { param($dir, $name, $obj) ConvertTo-Json -InputObject $obj -Depth 30 | Set-Content -LiteralPath (Join-Path $dir "$name.json") }
-
-    # Before: give group 201 a member list so member-level diff is exercised.
-    $g = & $load $script:BeforeDir 'group-scope'
-    ($g | Where-Object groupId -eq '22222222-2222-2222-2222-222222222201').members = @(
-        @{ id = 'm1'; type = 'user'; displayName = 'Member One'; userPrincipalName = 'one@contoso.example' }
-        @{ id = 'm2'; type = 'user'; displayName = 'Member Two'; userPrincipalName = 'two@contoso.example' }
-    )
-    & $save $script:BeforeDir 'group-scope' $g
-
-    # After: the changes the diff and the risk rules must see.
-    $policies = & $load $script:AfterDir 'policies'
-    $byId = @{}; foreach ($p in $policies) { $byId[$p.id] = $p }
-    $byId['p-001'].conditions.users.excludeUsers = @('11111111-1111-1111-1111-111111111111')               # break-glass 02 removed
-    $byId['p-001'].grantControls.authenticationStrength = @{ id = '00000000-0000-0000-0000-000000000002'; displayName = 'Multifactor authentication' }  # weakened
-    $byId['p-002'].state = 'disabled'                                                                        # enabled -> disabled
-    $byId['p-002'].conditions.users.excludeGroups += '22222222-2222-2222-2222-222222222203'                 # exclusion added to MFA policy
-    $byId['p-003'].displayName = 'CA-008-Users-Block legacy authentication'                                 # rename only
-    $byId['p-005'].grantControls.builtInControls = @('mfa')                                                 # compliance removed
-    $byId['p-005'].modifiedDateTime = '2026-10-12T10:00:00Z'
-    $new = @{
-        id = 'p-009'; displayName = 'CA-009-Users-Require MFA for admin portals'; state = 'enabled'
-        createdDateTime = '2026-10-12T09:00:00Z'; modifiedDateTime = '2026-10-12T09:00:00Z'
-        conditions = @{ users = @{ includeUsers = @('All'); excludeUsers = @(); includeGroups = @('22222222-2222-2222-2222-222222222299'); excludeGroups = @(); includeRoles = @(); excludeRoles = @() }; applications = @{ includeApplications = @('MicrosoftAdminPortals'); excludeApplications = @(); includeUserActions = @() }; clientAppTypes = @('all') }
-        grantControls = @{ operator = 'OR'; builtInControls = @('mfa') }
-    }
-    $policies = @($policies | Where-Object { $_.id -ne 'p-008' }) + @($new)                                 # p-008 removed, p-009 added
-    & $save $script:AfterDir 'policies' $policies
-
-    $names = & $load $script:AfterDir 'resolved-names'
-    $names['00000000-0000-0000-0000-000000000002'] = @{ displayName = 'Multifactor authentication'; type = 'authenticationStrength'; deleted = $false }
-    $names['MicrosoftAdminPortals'] = @{ displayName = 'Microsoft Admin Portals (built-in app group)'; type = 'builtIn'; deleted = $false }
-    & $save $script:AfterDir 'resolved-names' $names
-
-    $locs = & $load $script:AfterDir 'named-locations'
-    ($locs | Where-Object id -eq '55555555-5555-5555-5555-555555555501').ipRanges += @{ '@odata.type' = '#microsoft.graph.iPv4CidrRange'; cidrAddress = '198.51.100.0/24' }
-    $locs += @{ '@odata.type' = '#microsoft.graph.ipNamedLocation'; id = '55555555-5555-5555-5555-555555555503'; displayName = 'Branch VPN'; isTrusted = $true; ipRanges = @(@{ '@odata.type' = '#microsoft.graph.iPv4CidrRange'; cidrAddress = '192.0.2.0/24' }) }
-    & $save $script:AfterDir 'named-locations' $locs
-
-    $str = & $load $script:AfterDir 'auth-strengths'
-    ($str | Where-Object id -eq '00000000-0000-0000-0000-000000000004').allowedCombinations += 'password,sms'
-    & $save $script:AfterDir 'auth-strengths' $str
-
-    $g = & $load $script:AfterDir 'group-scope'
-    ($g | Where-Object groupId -eq '22222222-2222-2222-2222-222222222201').members = @(
-        @{ id = 'm2'; type = 'user'; displayName = 'Member Two'; userPrincipalName = 'two@contoso.example' }
-        @{ id = 'm3'; type = 'user'; displayName = 'Member Three'; userPrincipalName = 'three@contoso.example' }
-    )
-    ($g | Where-Object groupId -eq '22222222-2222-2222-2222-222222222201').memberHash = 'changed'
-    $big = $g | Where-Object groupId -eq '22222222-2222-2222-2222-222222222202'
-    $big.memberCount = 350; $big.memberHash = 'changed-too'
-    & $save $script:AfterDir 'group-scope' $g
-
-    $meta = & $load $script:AfterDir 'metadata'
-    $meta.timestampUtc = '2026-10-14T09:05:00.0000000Z'
-    & $save $script:AfterDir 'metadata' $meta
+    . (Join-Path $PSScriptRoot 'Fixtures' 'CaDiffFixture.ps1')
+    $null = Initialize-CaDiffFixture -Root $script:Root -Sample $script:Sample
 
     InModuleScope Tenantkeep.Posture -Parameters @{ B = $script:BeforeDir; A = $script:AfterDir } {
         $script:Diff = Compare-PostureCaModel -Before (Import-PostureCaSnapshot -Path $B) -After (Import-PostureCaSnapshot -Path $A)
