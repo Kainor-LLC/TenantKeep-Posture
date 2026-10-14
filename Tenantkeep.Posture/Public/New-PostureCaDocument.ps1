@@ -15,7 +15,8 @@ function New-PostureCaDocument {
     .PARAMETER OutputPath
         Folder for the output files. Default: the snapshot folder. Files are named ca-document.<ext>.
     .PARAMETER Format
-        Markdown. Html and Pdf follow in a later step. Default: Markdown.
+        One or more of Markdown, Html, Pdf. Default: Markdown and Html. Pdf prints the HTML through a headless
+        Microsoft Edge or Google Chrome (spec 6) and always writes the HTML file too.
     .PARAMETER NamePattern
         Regex the policy names must match for the naming report. Falls back to caNamePattern in brand.json.
     .PARAMETER Brand
@@ -35,7 +36,7 @@ function New-PostureCaDocument {
     .EXAMPLE
         New-PostureCaDocument -Snapshot ~/audit/evidence/20261013-0905-ca
 
-        Writes ca-document.md into the snapshot folder and returns its path.
+        Writes ca-document.md and ca-document.html into the snapshot folder and returns their paths.
     .EXAMPLE
         New-PostureCaDocument -Snapshot ./snap -OutputPath ./out -Brand ./clients/contoso/brand.json -NamePattern '^CA-\d{3}-'
 
@@ -50,7 +51,7 @@ function New-PostureCaDocument {
     param(
         [Parameter(Mandatory, Position = 0)] [ValidateNotNullOrEmpty()] [string] $Snapshot,
         [string] $OutputPath,
-        [ValidateSet('Markdown')] [string[]] $Format = @('Markdown'),
+        [ValidateSet('Markdown', 'Html', 'Pdf')] [string[]] $Format = @('Markdown', 'Html'),
         [string] $NamePattern,
         [string] $Brand,
         [ValidateRange(0, 100000)] [int] $ExclusionGroupThreshold = 25,
@@ -123,15 +124,28 @@ function New-PostureCaDocument {
     if (-not (Test-Path -LiteralPath $outFolder)) { New-Item -ItemType Directory -Path $outFolder -Force | Out-Null }
     $outFolder = (Resolve-Path -LiteralPath $outFolder).Path
 
+    $formats = [System.Collections.Generic.List[string]]::new([string[]]$Format)
+    if ($formats -contains 'Pdf' -and $formats -notcontains 'Html') { $formats.Insert(0, 'Html') }
+
     $written = [System.Collections.Generic.List[string]]::new()
-    foreach ($f in $Format) {
+    $htmlPath = $null
+    foreach ($f in @('Markdown', 'Html')) {
+        if ($formats -notcontains $f) { continue }
         $ext, $content = switch ($f) {
             'Markdown' { 'md', (ConvertTo-PostureCaMarkdown -Document $document) }
+            'Html' { 'html', (ConvertTo-PostureCaHtml -Document $document) }
         }
         $path = Join-Path $outFolder "ca-document.$ext"
         if ($PSCmdlet.ShouldProcess($path, "Write $f document")) {
             [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
             $written.Add($path)
+            if ($f -eq 'Html') { $htmlPath = $path }
+        }
+    }
+    if ($formats -contains 'Pdf' -and $htmlPath) {
+        $pdfPath = Join-Path $outFolder 'ca-document.pdf'
+        if ($PSCmdlet.ShouldProcess($pdfPath, 'Print HTML to PDF with a headless browser')) {
+            $written.Add((Export-PostureHtmlToPdf -HtmlPath $htmlPath -PdfPath $pdfPath))
         }
     }
 

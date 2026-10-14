@@ -19,10 +19,11 @@ Describe 'New-PostureCaDocument' {
             $script:Md = Get-Content -Raw -LiteralPath $script:Result.Files[0]
         }
 
-        It 'writes ca-document.md into OutputPath and returns it' {
-            $script:Result.Files.Count | Should -Be 1
+        It 'writes ca-document.md and ca-document.html into OutputPath by default' {
+            $script:Result.Files.Count | Should -Be 2
             $script:Result.Files[0] | Should -Be (Join-Path $script:Out 'ca-document.md')
-            $script:Result.Files[0] | Should -Exist
+            $script:Result.Files[1] | Should -Be (Join-Path $script:Out 'ca-document.html')
+            $script:Result.Files | Should -Exist
         }
 
         It 'has every tenant-level section and one section per policy' -ForEach @(
@@ -157,12 +158,116 @@ Describe 'New-PostureCaDocument' {
         }
 
         It 'defaults OutputPath to the snapshot folder and honours -WhatIf' {
-            New-PostureCaDocument -Snapshot $script:Sample -WhatIf
+            New-PostureCaDocument -Snapshot $script:Sample -Format Markdown, Html, Pdf -WhatIf
             Join-Path $script:Sample 'ca-document.md' | Should -Not -Exist
+            Join-Path $script:Sample 'ca-document.html' | Should -Not -Exist
+            Join-Path $script:Sample 'ca-document.pdf' | Should -Not -Exist
         }
 
         It 'rejects a folder that is not a snapshot' {
             { New-PostureCaDocument -Snapshot $script:Out } | Should -Throw '*Not a CA snapshot folder*'
+        }
+    }
+}
+
+Describe 'New-PostureCaDocument HTML and PDF' {
+    Context 'Html' {
+        BeforeAll {
+            $script:HtmlResult = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'html') -Format Markdown, Html -NamePattern $script:Pattern -PassThru
+            $script:Html = Get-Content -Raw -LiteralPath ($script:HtmlResult.Files | Where-Object { $_ -like '*.html' })
+        }
+
+        It 'writes both files' {
+            $script:HtmlResult.Files.Count | Should -Be 2
+            @($script:HtmlResult.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.md')
+        }
+
+        It 'is self-contained: inline CSS, no scripts, no remote resources' {
+            $script:Html | Should -Match '^<!DOCTYPE html>'
+            $script:Html | Should -Match '<style>'
+            $script:Html | Should -Not -Match '<script'
+            $script:Html | Should -Not -Match '(src|href)="https?://'
+            $script:Html | Should -Not -Match '@import'
+            $script:Html | Should -Match "default-src 'none'"
+        }
+
+        It 'carries light and dark themes and a print stylesheet' {
+            $script:Html | Should -Match 'prefers-color-scheme: dark'
+            $script:Html | Should -Match '@media print'
+        }
+
+        It 'has every section and one article per policy' {
+            foreach ($id in 'summary', 'health', 'matrix', 'naming', 'coverage', 'policies', 'locations', 'strengths', 'contexts', 'appendix') {
+                $script:Html | Should -Match "<section id=`"$id`""
+            }
+            ([regex]::Matches($script:Html, '<article class="policy"')).Count | Should -Be 8
+        }
+
+        It 'encodes names and marks deleted references' {
+            $script:Html | Should -Match '<span class="deleted">&lt;deleted group 22222222-2222-2222-2222-222222222299&gt;</span>'
+            $script:Html | Should -Match 'device\.deviceOwnership -eq &quot;Company&quot;'
+            $script:Html | Should -Not -Match '<deleted group'
+        }
+
+        It 'fills matrix cells and links them to the policy' {
+            $script:Html | Should -Match '<td class="on">Phishing-resistant MFA</td>'
+            $script:Html | Should -Match '<a href="#p-ca-001-admins-require-phishing-resistant-mfa">'
+            $script:Html | Should -Match '<article class="policy" id="p-ca-001-admins-require-phishing-resistant-mfa">'
+        }
+
+        It 'applies brand colors, font and an inlined logo' {
+            $dir = Join-Path $script:Out 'html-brand'
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            $logo = Join-Path $dir 'logo.svg'
+            Set-Content -LiteralPath $logo -Value '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'
+            $brand = Join-Path $dir 'brand.json'
+            @{ preparedBy = @{ name = 'Example MSP'; logo = $logo }; client = @{ name = 'Contoso Ltd' }; colors = @{ primary = '#123456'; accent = '#abcdef' }; font = 'Georgia, serif' } | ConvertTo-Json | Set-Content -LiteralPath $brand
+            $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath $dir -Format Html -Brand $brand -PassThru
+            $html = Get-Content -Raw -LiteralPath $r.Files[0]
+            $html | Should -Match '--primary: #123456; --accent: #abcdef; --font: Georgia, serif;'
+            $html | Should -Match '<img class="logo" alt="logo" src="data:image/svg\+xml;base64,'
+            $html | Should -Match '<title>Conditional Access documentation: Contoso Ltd</title>'
+            $html | Should -Not -Match 'https?://'
+        }
+
+        It 'rejects an unsafe brand color instead of injecting it' {
+            $dir = Join-Path $script:Out 'html-badcolor'
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            $brand = Join-Path $dir 'brand.json'
+            @{ colors = @{ primary = 'red; } </style><script>alert(1)</script>' } } | ConvertTo-Json | Set-Content -LiteralPath $brand
+            $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath $dir -Format Html -Brand $brand -PassThru
+            $html = Get-Content -Raw -LiteralPath $r.Files[0]
+            $html | Should -Not -Match '<script'
+            $html | Should -Match '--primary: #1F3A5F;'
+        }
+    }
+
+    Context 'Pdf' {
+        It 'prints the HTML through a headless browser and returns all three files' {
+            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { '/fake/msedge' }
+            Mock -ModuleName Tenantkeep.Posture Start-Process {
+                $pdf = ($ArgumentList | Where-Object { $_ -like '--print-to-pdf=*' }) -replace '^--print-to-pdf=', ''
+                Set-Content -LiteralPath $pdf -Value '%PDF-1.7 fake'
+                [pscustomobject]@{ ExitCode = 0 }
+            }
+            $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'pdf') -Format Markdown, Pdf -PassThru
+            @($r.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.md', '.pdf')
+            Should -Invoke -ModuleName Tenantkeep.Posture Start-Process -Times 1 -Exactly -ParameterFilter {
+                $FilePath -eq '/fake/msedge' -and $ArgumentList -contains '--headless=new' -and $ArgumentList -contains '--no-pdf-header-footer' -and ($ArgumentList -join ' ') -match 'file:///.*ca-document\.html'
+            }
+        }
+
+        It 'fails plainly when no browser is installed, after writing the HTML' {
+            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { $null }
+            $dir = Join-Path $script:Out 'pdf-nobrowser'
+            { New-PostureCaDocument -Snapshot $script:Sample -OutputPath $dir -Format Pdf } | Should -Throw '*No headless browser found*'
+            Join-Path $dir 'ca-document.html' | Should -Exist
+        }
+
+        It 'surfaces a non-zero browser exit code' {
+            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { '/fake/chrome' }
+            Mock -ModuleName Tenantkeep.Posture Start-Process { [pscustomobject]@{ ExitCode = 21 } }
+            { New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'pdf-fail') -Format Pdf } | Should -Throw '*exited with code 21*'
         }
     }
 }

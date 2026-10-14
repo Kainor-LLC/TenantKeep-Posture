@@ -105,6 +105,14 @@ function Invoke-Analyze {
     Import-Module PSScriptAnalyzer
     $settings = Join-Path $Root 'PSScriptAnalyzerSettings.psd1'
     $paths = @($SrcPath, (Join-Path $Root 'tests'), (Join-Path $Root '.githooks'), (Join-Path $Root 'build.ps1'))
+
+    # A file that does not parse is a hard failure; Invoke-ScriptAnalyzer does not reliably report that.
+    $parseErrors = foreach ($file in (Get-ChildItem -Path $paths -Recurse -Include '*.ps1', '*.psm1', '*.psd1')) {
+        $tokens = $null; $errors = $null
+        $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+        foreach ($e in @($errors)) { "$($file.FullName):$($e.Extent.StartLineNumber):$($e.Extent.StartColumnNumber) $($e.Message)" }
+    }
+    if ($parseErrors) { $parseErrors | Write-Host; throw "$(@($parseErrors).Count) parse error(s)." }
     $results = foreach ($p in $paths) { Invoke-ScriptAnalyzer -Path $p -Recurse -Settings $settings }
     if ($results) {
         $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 200 | Write-Host
@@ -139,7 +147,7 @@ function Invoke-Build {
     if (Test-Path $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     Copy-Item -Path (Join-Path $SrcPath '*') -Destination $stage -Recurse -Exclude '.gitkeep'
-    foreach ($data in 'checks', 'baselines') {
+    foreach ($data in 'checks', 'baselines', 'templates') {
         $src = Join-Path $Root $data
         if (Test-Path $src) { Copy-Item -Path $src -Destination (Join-Path $stage $data) -Recurse -Exclude '.gitkeep' }
     }
