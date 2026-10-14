@@ -1,0 +1,9 @@
+{
+  "name": "standard",
+  "description": "Product default: Microsoft's own recommendations plus the catalog defaults. Every check in scope, catalog severities and thresholds.",
+  "checks": ["*"],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": []
+}

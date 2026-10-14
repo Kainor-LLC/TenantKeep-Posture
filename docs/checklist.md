@@ -58,9 +58,10 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] docs/scheduling.md
 
 ## Weeks 3 to 4: check engine and identity report
-- [ ] Check catalog schema and Pester schema test (CLAUDE.md field list)
-- [ ] checks/ca.json from spec 4.3, then identity and auth domains
-- [ ] Invoke-PostureChecks with baseline, profile, exceptions.json
+- [x] Check catalog schema (checks/README.md) and the catalog test over every shipped file; loader rejects a missing field, bad severity, duplicate id (this checkpoint)
+- [x] Expression evaluator for pass rules: own parser, no Invoke-Expression; facts.* and thresholds.* only (this checkpoint)
+- [x] Invoke-PostureChecks and Get-PostureCheckCatalog with baseline (name or path), profile.json, exceptions.json (check-level and object-level, expiry), custom check folders, checks.json output; baselines/standard.json (this checkpoint)
+- [ ] checks/ca.json from spec 4.3 with the CA fact provider; then identity and auth domains
 - [ ] New-PostureProfile wizard
 - [ ] Interactive HTML report renderer (templates/), findings.csv export, portal deep links
 - [ ] Coverage findings page in the CA document fed from the engine
