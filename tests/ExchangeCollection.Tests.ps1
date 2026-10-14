@@ -88,6 +88,18 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
         }
     }
 
+    Context 'second process into the same folder' {
+        It 'keeps the collectors and start time of the manifest already there' {
+            $env:TKP_EXO_CONNECTED = '1'; $env:TKP_EXO_FAIL = '0'
+            $folder = Join-Path $script:Root 'run-merge'
+            $first = Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+            $second = Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $second.Collectors | Should -Be @('Entra', 'Exchange')
+            $second.Manifest.timestampUtc | Should -Be $first.Manifest.timestampUtc
+            (Get-Content -Raw (Join-Path $folder 'collection.json') | ConvertFrom-Json).collectors | Should -Be @('Entra', 'Exchange')
+        }
+    }
+
     Context 'not connected' {
         BeforeAll { $env:TKP_EXO_CONNECTED = '0'; $env:TKP_EXO_FAIL = '0' }
 

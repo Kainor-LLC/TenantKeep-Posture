@@ -13,9 +13,12 @@
       1. Checks for PnP.PowerShell 3.x.
       2. If a Graph session with Application.Read.All is open, looks for an app with the same name and reuses it.
       3. Otherwise registers the app through Register-PnPEntraIDAppForInteractiveLogin with delegated permissions only:
-         SharePoint AllSites.Read, Graph User.Read, Sites.Read.All, Group.Read.All (verify: tenant settings reads
-         through Get-PnPTenant may need AllSites.FullControl delegated; use -FullControl if the first collection is
-         denied). A browser window signs you in and then asks for admin consent.
+         SharePoint AllSites.FullControl, Graph User.Read, Sites.Read.All, Group.Read.All. Delegated FullControl is
+         what the tenant admin reads (Get-PnPTenant, Get-PnPTenantSite) need; AllSites.Read was denied on a live
+         tenant on 2026-10-14. Delegated means the app can do nothing the signed-in reader cannot. A browser window
+         signs you in and then asks for admin consent.
+      3b. With -ClientId and a Graph session holding Application.ReadWrite.All, adds the SharePoint permission to the
+         existing registration instead (for an app registered with AllSites.Read), and prints the consent link.
       4. Writes sharePointClientId into profile.json when -ProfilePath is given, so the collection hint and the
          docs show the right command.
       5. Prints what is left to do by hand.
@@ -32,9 +35,9 @@
 .PARAMETER ClientId
     An existing registration's Application (client) id. Skips the registration and only records it and prints the
     remaining steps; for a rerun without a Graph session, or an app registered by hand.
-.PARAMETER FullControl
-    Request SharePoint AllSites.FullControl delegated instead of AllSites.Read. Still delegated, still bound by the
-    user's rights; only needed when tenant settings reads are denied with AllSites.Read (verify).
+.PARAMETER ReadOnlyPermission
+    Request SharePoint AllSites.Read instead of AllSites.FullControl. Enough for site content reads, not for the tenant
+    admin settings the collaboration checks need.
 .PARAMETER DeviceLogin
     Use the device code flow instead of a browser window.
 .EXAMPLE
@@ -52,7 +55,7 @@ param(
     [string] $ApplicationName = 'Tenantkeep Posture (SharePoint read-only)',
     [string] $ProfilePath,
     [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
-    [switch] $FullControl,
+    [switch] $ReadOnlyPermission,
     [switch] $DeviceLogin
 )
 
@@ -63,13 +66,13 @@ $pnp = Get-Module -ListAvailable PnP.PowerShell | Sort-Object Version -Descendin
 if (-not $pnp -or $pnp.Version.Major -lt 3) { throw 'PnP.PowerShell 3.x is required: Install-Module PnP.PowerShell -Scope CurrentUser' }
 Import-Module PnP.PowerShell -ErrorAction Stop
 
-$sharePointPermissions = @($(if ($FullControl) { 'AllSites.FullControl' } else { 'AllSites.Read' }))
+$sharePointPermissions = @($(if ($ReadOnlyPermission) { 'AllSites.Read' } else { 'AllSites.FullControl' }))
 $graphPermissions = @('User.Read', 'Sites.Read.All', 'Group.Read.All')
 
 # 2. Reuse an existing registration: the one given, or one a Graph session can see by name.
 $ctx = $null
+if (Get-Command Get-MgContext -ErrorAction SilentlyContinue) { $ctx = Get-MgContext }
 if ($clientId) { Write-Host "Using the existing registration $clientId; nothing created." }
-elseif (Get-Command Get-MgContext -ErrorAction SilentlyContinue) { $ctx = Get-MgContext }
 if (-not $clientId -and $ctx -and @($ctx.Scopes) -contains 'Application.Read.All') {
     $escaped = $ApplicationName -replace "'", "''"
     $found = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/applications?`$filter=displayName eq '$escaped'&`$select=appId,displayName" -OutputType HashTable).value)
@@ -104,6 +107,33 @@ if (-not $clientId) {
     else { return }
 }
 
+# 3b. Add the SharePoint permission to an existing registration when a Graph session can write applications.
+$consentNeeded = $false
+if ($clientId -and $ctx -and @($ctx.Scopes) -contains 'Application.ReadWrite.All') {
+    $spoResource = '00000003-0000-0ff1-ce00-000000000000'   # Office 365 SharePoint Online
+    $app = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/applications?`$filter=appId eq '$clientId'&`$select=id,requiredResourceAccess" -OutputType HashTable).value)
+    if ($app.Count -eq 0) { throw "No application with appId $clientId in this tenant." }
+    $spoSp = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$spoResource'&`$select=oauth2PermissionScopes" -OutputType HashTable).value)
+    if ($spoSp.Count -eq 0) { throw 'The SharePoint Online service principal is not in this tenant.' }
+    $required = @($app[0].requiredResourceAccess)
+    $spoEntry = $required | Where-Object { $_.resourceAppId -eq $spoResource } | Select-Object -First 1
+    if (-not $spoEntry) { $spoEntry = @{ resourceAppId = $spoResource; resourceAccess = @() }; $required += $spoEntry }
+    $changed = $false
+    foreach ($perm in $sharePointPermissions) {
+        $scope = $spoSp[0].oauth2PermissionScopes | Where-Object { $_.value -eq $perm } | Select-Object -First 1
+        if (-not $scope) { throw "SharePoint Online exposes no delegated permission named $perm." }
+        if (@($spoEntry.resourceAccess | Where-Object { $_.id -eq $scope.id }).Count -eq 0) {
+            $spoEntry.resourceAccess = @($spoEntry.resourceAccess) + @(@{ id = $scope.id; type = 'Scope' }); $changed = $true
+        }
+    }
+    if ($changed -and $PSCmdlet.ShouldProcess($clientId, "Add delegated $($sharePointPermissions -join ', ') to the registration")) {
+        $null = Invoke-MgGraphRequest -Method PATCH -Uri "https://graph.microsoft.com/v1.0/applications/$($app[0].id)" -Body @{ requiredResourceAccess = $required } -ContentType 'application/json'
+        Write-Host "Added $($sharePointPermissions -join ', ') to the registration; admin consent is needed again."
+        $consentNeeded = $true
+    }
+    elseif (-not $changed) { Write-Host "The registration already requests $($sharePointPermissions -join ', ')." }
+}
+
 # 4. Record it.
 if ($ProfilePath) {
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ProfilePath)   # expands ~ and relative paths; .NET file APIs know neither
@@ -120,7 +150,7 @@ if ($ProfilePath) {
 $short = $Tenant -replace '\.onmicrosoft\.com$', ''
 Write-Host ''
 Write-Host 'Remaining steps, by hand:'
-Write-Host "  1. Admin consent. If the consent page did not appear or you declined it, open:"
+Write-Host "  1. Admin consent. $(if ($consentNeeded) { 'The permission list changed, so grant consent again:' } else { 'If the consent page did not appear or you declined it, open:' })"
 Write-Host "     https://login.microsoftonline.com/$Tenant/adminconsent?client_id=$clientId"
 Write-Host '  2. The account that runs the collection needs the SharePoint Administrator role (Global Reader does not reach the tenant admin settings). Assign it through PIM if you have it.'
 Write-Host '  3. If a Conditional Access policy blocks unknown apps or requires a compliant device, the app sign-in is subject to it like any other; run from a device that passes.'

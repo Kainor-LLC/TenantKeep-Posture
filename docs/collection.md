@@ -92,17 +92,45 @@ active anonymous links, inactive sites) are not collected yet.
 ## SharePoint and Teams setup
 
 PnP.PowerShell 3.x signs in through an Entra app registration of your own. `deploy/setup/New-PostureSharePointApp.ps1`
-creates it with read-only delegated permissions (SharePoint AllSites.Read; Graph User.Read, Sites.Read.All,
-Group.Read.All), asks for admin consent, writes `sharePointClientId` into profile.json and prints the steps that
+creates it with delegated permissions only (SharePoint AllSites.FullControl, which the tenant admin reads need and
+which delegated means bound by the reader's own rights; Graph User.Read, Sites.Read.All, Group.Read.All), asks for admin consent, writes `sharePointClientId` into profile.json and prints the steps that
 stay manual: consent if it was declined, the SharePoint Administrator role for the reading account, Conditional
 Access on the new app, and the connect commands. It is a tenant write and lives outside the module for that reason;
-run it once per tenant as an admin who can register apps. Delete the registration to revoke everything.
+run it once per tenant as an admin who can register apps. Delete the registration to revoke everything. With `-ClientId` and a Graph session holding Application.ReadWrite.All it
+adds the SharePoint permission to an existing registration instead of creating one.
 
 ```powershell
 ./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
 Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
 Connect-MicrosoftTeams
 ```
+
+On macOS, `Connect-MicrosoftTeams` with a browser fails with a kernel32.dll load error (MicrosoftTeams 7.9.0 on
+PowerShell 7.6, confirmed 2026-10-14). Two ways around it, both outside the module: `Connect-MicrosoftTeams
+-UseDeviceAuthentication`, or tokens from the Azure CLI:
+
+```powershell
+az login --tenant <tenant id> --allow-no-subscriptions
+$graph = az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv
+$teams = az account get-access-token --resource 48ac35b8-9aa8-4d74-927d-1f4a14a0b239 --query accessToken -o tsv
+Connect-MicrosoftTeams -AccessTokens @($graph, $teams)
+```
+
+The same Azure CLI session can sign Exchange Online in without a browser, which also avoids a second macOS problem:
+once PnP.PowerShell and MicrosoftTeams are loaded in a session, `Connect-ExchangeOnline` with a browser throws
+PlatformNotSupportedException (observed 2026-10-14 on macOS 27 with ExchangeOnlineManagement 3.10). Connect Exchange
+first in that session, or:
+
+```powershell
+$exo = az account get-access-token --resource https://outlook.office365.com --query accessToken -o tsv
+Connect-ExchangeOnline -AccessToken $exo -Organization contoso.onmicrosoft.com -ShowBanner:$false
+```
+
+That token path hit a further assembly conflict on the same machine (Microsoft.IdentityModel.Tokens versions). The
+dependable arrangement on macOS is two processes: one with Graph, PnP and Teams running `-Collector Entra, Intune,
+SharePoint, Teams`, then a fresh process with Exchange Online alone running `-Collector Exchange -SkipCaSnapshot
+-OutputFolder <the same folder>`. The manifest keeps the collectors and start time of the first run, so the folder
+reads as one collection.
 
 ## Scopes
 

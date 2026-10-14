@@ -163,15 +163,21 @@ function Invoke-PostureCollection {
 
         $errorsPath = Join-Path $folder 'errors.txt'
         $errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })   # @( ) outside the if: an empty array inside it unrolls to null
+        # Collectors may run in separate processes into one folder (the Exchange, PnP and Teams modules do not share a
+        # process on macOS); a manifest already there keeps its collectors and start time.
+        $previous = $null
+        $manifestPath = Join-Path $folder 'collection.json'
+        if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
+        $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
         $manifest = [ordered]@{
             product          = 'Tenantkeep.Posture'
             moduleVersion    = $script:ModuleVersion
-            collectors       = $ran.ToArray()
+            collectors       = $allCollectors
             tenantId         = $context.TenantId
             account          = $context.Account
             authType         = $context.AuthType
             scopes           = @($granted | Sort-Object)
-            timestampUtc     = $startedUtc.ToString('o')
+            timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
             completedUtc     = [datetime]::UtcNow.ToString('o')
             graphApiVersions = @($script:GraphApiVersionsUsed | Sort-Object)
             staleDays        = $StaleDays
@@ -183,7 +189,7 @@ function Invoke-PostureCollection {
         if ($errors.Count -gt 0) { Write-Warning "$($errors.Count) step(s) failed; see $errorsPath" }
 
         if ($PassThru) {
-            return [pscustomobject]@{ Folder = $folder; Collectors = $ran.ToArray(); Files = $files.ToArray(); Errors = $errors; Manifest = $manifest }
+            return [pscustomobject]@{ Folder = $folder; Collectors = $allCollectors; Files = $files.ToArray(); Errors = $errors; Manifest = $manifest }
         }
         return $folder
     }

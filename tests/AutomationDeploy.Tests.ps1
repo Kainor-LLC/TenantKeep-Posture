@@ -60,10 +60,11 @@ Describe 'deploy scripts' {
         [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) | Out-Null
         @($errors).Count | Should -Be 0
         $src | Should -Match 'SupportsShouldProcess'
-        $src | Should -Match 'AllSites\.Read'
+        $src | Should -Match 'AllSites\.FullControl'
+        $src | Should -Match 'ReadOnlyPermission'
         $src | Should -Not -Match 'ApplicationPermissions' -Because 'delegated only; application permissions would outlive the signed-in user'
         $src | Should -Match 'GraphDelegatePermissions = \$graphPermissions'
-        $src | Should -Not -Match '\.ReadWrite'
+        $src | Should -Match '\$graphPermissions = @\(''User\.Read'', ''Sites\.Read\.All'', ''Group\.Read\.All''\)' -Because 'the Graph permissions the app requests are reads; Application.ReadWrite.All is the admin session scope for updating the registration, not an app permission'
         $src | Should -Match 'adminconsent\?client_id='
         $src | Should -Match 'SharePoint Administrator'
         $src | Should -Match 'sharePointClientId'
