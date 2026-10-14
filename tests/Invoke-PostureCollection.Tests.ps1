@@ -283,6 +283,8 @@ Describe 'Invoke-PostureCollection' {
             $d['DEV-013'].status | Should -Be 'pass'
             $d['DEV-002'].status | Should -Be 'pass' -Because 'stale devices exist but the cleanup rule is on'
             $d['DEV-008'].status | Should -Be 'fail' -Because 'the push certificate expires within 60 days of the run'
+            $rep = New-PostureReport -Evidence $script:R.Folder -OutputPath (Join-Path $script:Root 'rep') -Format Markdown -PassThru
+            $rep.Report.headline.intuneCompliancePct | Should -Be 66.7 -Because 'two of three devices with a known state are compliant'
         }
     }
 

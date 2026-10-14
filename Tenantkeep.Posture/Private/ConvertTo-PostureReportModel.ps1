@@ -82,12 +82,13 @@ function ConvertTo-PostureReportModel {
     # Headline numbers (spec 3). Null means not collected yet.
     $authFacts = if ($Run.domains['auth']) { $Run.domains['auth'].facts } else { @{} }
     $idFacts = if ($Run.domains['identity']) { $Run.domains['identity'].facts } else { @{} }
+    $devFacts = if ($Run.domains['devices']) { $Run.domains['devices'].facts } else { @{} }
     $admins = [double](& $v $authFacts 'admins'); $without = [double](& $v $authFacts 'adminsWithoutPhishingResistant')
     $headline = [ordered]@{
         mfaRegisteredPct         = & $v $authFacts 'mfaRegisteredPct'
         adminsPhishingResistantPct = $(if ($admins -gt 0) { [Math]::Round(100.0 * ($admins - $without) / $admins, 1) } else { $null })
         permanentGlobalAdmins    = & $v $idFacts 'globalAdmins'
-        intuneCompliancePct      = $null
+        intuneCompliancePct      = & $v $devFacts 'intuneCompliancePct'
         externalExposure         = $null
         copilotReadinessPct      = $null
     }
