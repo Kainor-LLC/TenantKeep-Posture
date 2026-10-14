@@ -21,82 +21,82 @@ Set-StrictMode -Version Latest
 
 # Everything below runs inside one try so a failure reports where it happened: Automation only surfaces the message.
 try {
-Write-Output "step: read variables (PowerShell $($PSVersionTable.PSVersion))"
-$getVar = { param([string] $Name) try { [string](Get-AutomationVariable -Name $Name) } catch { '' } }
-$containerUrl = (& $getVar 'TENANTKEEP_CONTAINER_URL').Trim('"')
-if (-not $containerUrl) { throw 'Automation variable TENANTKEEP_CONTAINER_URL is not set.' }
-$keepRuns = [int]((& $getVar 'TENANTKEEP_KEEP_RUNS') -replace '[^0-9]', '0')
-$webhook = (& $getVar 'TEAMS_WEBHOOK').Trim('"')
-$emailTo = @(((& $getVar 'EMAIL_TO').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-$emailFrom = (& $getVar 'EMAIL_FROM').Trim('"')
-$breakGlass = @(((& $getVar 'BREAK_GLASS').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    Write-Output "step: read variables (PowerShell $($PSVersionTable.PSVersion))"
+    $getVar = { param([string] $Name) try { [string](Get-AutomationVariable -Name $Name) } catch { '' } }
+    $containerUrl = (& $getVar 'TENANTKEEP_CONTAINER_URL').Trim('"')
+    if (-not $containerUrl) { throw 'Automation variable TENANTKEEP_CONTAINER_URL is not set.' }
+    $keepRuns = [int]((& $getVar 'TENANTKEEP_KEEP_RUNS') -replace '[^0-9]', '0')
+    $webhook = (& $getVar 'TEAMS_WEBHOOK').Trim('"')
+    $emailTo = @(((& $getVar 'EMAIL_TO').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $emailFrom = (& $getVar 'EMAIL_FROM').Trim('"')
+    $breakGlass = @(((& $getVar 'BREAK_GLASS').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
-$uri = [uri]$containerUrl
-$accountName = $uri.Host.Split('.')[0]
-$containerName = $uri.AbsolutePath.Trim('/')
+    $uri = [uri]$containerUrl
+    $accountName = $uri.Host.Split('.')[0]
+    $containerName = $uri.AbsolutePath.Trim('/')
 
-Write-Output "step: sign in (account $accountName, container $containerName)"
-$null = Connect-AzAccount -Identity
-Connect-MgGraph -Identity -NoWelcome
-Write-Output "step: import module"
-Import-Module Tenantkeep.Posture
-Write-Output "module $((Get-Module Tenantkeep.Posture).Version) from $((Get-Module Tenantkeep.Posture).Path)"
-$storage = New-AzStorageContext -StorageAccountName $accountName -UseConnectedAccount
+    Write-Output "step: sign in (account $accountName, container $containerName)"
+    $null = Connect-AzAccount -Identity
+    Connect-MgGraph -Identity -NoWelcome
+    Write-Output "step: import module"
+    Import-Module Tenantkeep.Posture
+    Write-Output "module $((Get-Module Tenantkeep.Posture).Version) from $((Get-Module Tenantkeep.Posture).Path)"
+    $storage = New-AzStorageContext -StorageAccountName $accountName -UseConnectedAccount
 
-$work = Join-Path ([System.IO.Path]::GetTempPath()) 'tenantkeep-ca'
-if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
-New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $work = Join-Path ([System.IO.Path]::GetTempPath()) 'tenantkeep-ca'
+    if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
 
-# Previous run: the newest '<stamp>-ca/' prefix in the container.
-Write-Output 'step: list previous runs'
-$blobs = @(Get-AzStorageBlob -Container $containerName -Context $storage)
-$runNames = @($blobs | ForEach-Object { ($_.Name -split '/')[0] } | Where-Object { $_ -match '^\d{8}-\d{4}-ca$' } | Sort-Object -Unique)
-if ($runNames.Count -gt 0) {
-    $latest = $runNames[-1]
-    $target = Join-Path $work $latest
-    New-Item -ItemType Directory -Path $target -Force | Out-Null
-    foreach ($b in ($blobs | Where-Object { $_.Name -like "$latest/*" })) {
-        $null = Get-AzStorageBlobContent -Blob $b.Name -Container $containerName -Context $storage -Destination (Join-Path $target (Split-Path $b.Name -Leaf)) -Force
+    # Previous run: the newest '<stamp>-ca/' prefix in the container.
+    Write-Output 'step: list previous runs'
+    $blobs = @(Get-AzStorageBlob -Container $containerName -Context $storage)
+    $runNames = @($blobs | ForEach-Object { ($_.Name -split '/')[0] } | Where-Object { $_ -match '^\d{8}-\d{4}-ca$' } | Sort-Object -Unique)
+    if ($runNames.Count -gt 0) {
+        $latest = $runNames[-1]
+        $target = Join-Path $work $latest
+        New-Item -ItemType Directory -Path $target -Force | Out-Null
+        foreach ($b in ($blobs | Where-Object { $_.Name -like "$latest/*" })) {
+            $null = Get-AzStorageBlobContent -Blob $b.Name -Container $containerName -Context $storage -Destination (Join-Path $target (Split-Path $b.Name -Leaf)) -Force
+        }
+        Write-Output "Downloaded previous run $latest"
     }
-    Write-Output "Downloaded previous run $latest"
-}
 
-$cycle = Join-Path (Split-Path (Get-Module Tenantkeep.Posture).Path) 'schedules' 'ca-snapshot-cycle.ps1'
-if (-not (Test-Path $cycle)) { $cycle = Join-Path $PSScriptRoot 'ca-snapshot-cycle.ps1' }
+    $cycle = Join-Path (Split-Path (Get-Module Tenantkeep.Posture).Path) 'schedules' 'ca-snapshot-cycle.ps1'
+    if (-not (Test-Path $cycle)) { $cycle = Join-Path $PSScriptRoot 'ca-snapshot-cycle.ps1' }
 
-$params = @{ OutRoot = $work; KeepRuns = 0 }
-if ($webhook) { $params.TeamsWebhookUrl = $webhook }
-if ($breakGlass.Count -gt 0) { $params.BreakGlass = $breakGlass }
-if ($emailTo.Count -gt 0 -and $emailFrom) { $params.EmailTo = $emailTo; $params.EmailFrom = $emailFrom }
+    $params = @{ OutRoot = $work; KeepRuns = 0 }
+    if ($webhook) { $params.TeamsWebhookUrl = $webhook }
+    if ($breakGlass.Count -gt 0) { $params.BreakGlass = $breakGlass }
+    if ($emailTo.Count -gt 0 -and $emailFrom) { $params.EmailTo = $emailTo; $params.EmailFrom = $emailFrom }
 
-Write-Output "step: run cycle $cycle"
-$result = $null
-$failure = $null
-try { $result = & $cycle @params }
-catch { $failure = $_; Write-Output "cycle failed: $($_.Exception.Message)`n$($_.ScriptStackTrace)" }
+    Write-Output "step: run cycle $cycle"
+    $result = $null
+    $failure = $null
+    try { $result = & $cycle @params }
+    catch { $failure = $_; Write-Output "cycle failed: $($_.Exception.Message)`n$($_.ScriptStackTrace)" }
 
-# Upload whatever the cycle produced, even on failure, so the evidence survives.
-foreach ($folder in (Get-ChildItem -Path $work -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}-ca$' -and $_.Name -notin $runNames })) {
-    foreach ($f in (Get-ChildItem -Path $folder.FullName -File)) {
-        $null = Set-AzStorageBlobContent -File $f.FullName -Container $containerName -Blob "$($folder.Name)/$($f.Name)" -Context $storage -Force
+    # Upload whatever the cycle produced, even on failure, so the evidence survives.
+    foreach ($folder in (Get-ChildItem -Path $work -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}-ca$' -and $_.Name -notin $runNames })) {
+        foreach ($f in (Get-ChildItem -Path $folder.FullName -File)) {
+            $null = Set-AzStorageBlobContent -File $f.FullName -Container $containerName -Blob "$($folder.Name)/$($f.Name)" -Context $storage -Force
+        }
+        Write-Output "Uploaded run $($folder.Name)"
     }
-    Write-Output "Uploaded run $($folder.Name)"
-}
 
-if ($keepRuns -gt 0) {
-    # @( ) around the whole pipeline: Sort-Object -Unique hands back a scalar for a single run, and strict mode has no .Count on that.
-    $all = @(@($runNames) + @(Get-ChildItem -Path $work -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}-ca$' } | ForEach-Object { $_.Name }) | Sort-Object -Unique)
-    foreach ($old in ($all | Select-Object -First ([Math]::Max(0, $all.Count - $keepRuns)))) {
-        foreach ($b in ($blobs | Where-Object { $_.Name -like "$old/*" })) { Remove-AzStorageBlob -Blob $b.Name -Container $containerName -Context $storage -Force }
-        Write-Output "Pruned run $old"
+    if ($keepRuns -gt 0) {
+        # @( ) around the whole pipeline: Sort-Object -Unique hands back a scalar for a single run, and strict mode has no .Count on that.
+        $all = @(@($runNames) + @(Get-ChildItem -Path $work -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}-ca$' } | ForEach-Object { $_.Name }) | Sort-Object -Unique)
+        foreach ($old in ($all | Select-Object -First ([Math]::Max(0, $all.Count - $keepRuns)))) {
+            foreach ($b in ($blobs | Where-Object { $_.Name -like "$old/*" })) { Remove-AzStorageBlob -Blob $b.Name -Container $containerName -Context $storage -Force }
+            Write-Output "Pruned run $old"
+        }
     }
-}
 
-if ($failure) { throw $failure }
-if ($result -and $result.HasRiskRelevantChanges) {
-    throw "$($result.RiskRelevantCount) risk-relevant Conditional Access change(s). Report uploaded to $containerName/$(Split-Path $result.Snapshot -Leaf)/ca-changes.html"
-}
-$result
+    if ($failure) { throw $failure }
+    if ($result -and $result.HasRiskRelevantChanges) {
+        throw "$($result.RiskRelevantCount) risk-relevant Conditional Access change(s). Report uploaded to $containerName/$(Split-Path $result.Snapshot -Leaf)/ca-changes.html"
+    }
+    $result
 }
 catch {
     Write-Error "Runbook failed: $($_.Exception.Message)`nat $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)" -ErrorAction Continue
