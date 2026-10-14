@@ -10,20 +10,24 @@ function Assert-PostureGraphScope {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [Parameter(Mandatory)] [string[]] $RequiredScope
+        [string[]] $RequiredScope = @(),
+        [string[]] $AnyOfScope = @()
     )
 
     $ErrorActionPreference = 'Stop'
 
     $context = Get-MgContext
     if (-not $context) {
-        throw "No Microsoft Graph session. Run: Connect-MgGraph -Scopes $($RequiredScope -join ', ') -NoWelcome"
+        throw "No Microsoft Graph session. Run: Connect-MgGraph -Scopes $(@(@($RequiredScope) + @($AnyOfScope)) -join ', ') -NoWelcome"
     }
 
     $granted = @($context.Scopes)
     $missing = @($RequiredScope | Where-Object { $_ -notin $granted })
     if ($missing.Count -gt 0) {
         throw "Graph session is missing scope(s): $($missing -join ', '). Reconnect with: Connect-MgGraph -Scopes $($RequiredScope -join ', ') -NoWelcome"
+    }
+    if ($AnyOfScope.Count -gt 0 -and @($AnyOfScope | Where-Object { $_ -in $granted }).Count -eq 0) {
+        throw "Graph session needs one of: $($AnyOfScope -join ', '). Reconnect with: Connect-MgGraph -Scopes $($AnyOfScope[0]) -NoWelcome"
     }
 
     return @{

@@ -50,6 +50,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] First real Automation job on 2026-10-14 after the role grant: Completed; full snapshot and document uploaded to the ca-snapshots container (run 20261014-0332-ca)
 - [x] Second job on 2026-10-14 downloaded the previous run from blob, then failed at the scope check on a cached pre-grant identity token (documented in docs/scheduling.md)
 - [x] Third job on 2026-10-14 ran the full cycle in Automation: previous run downloaded, new snapshot, compare, ca-changes.md and .html uploaded (run 20261014-0336-ca). Spec 5.4 Automation path confirmed end to end
+- [x] After the check engine: module redeployed to the dev account and a job uploaded checks.json with the run (20261014-0423-ca)
 - [ ] Dev deployment is unsigned (zip of the staged module); releases must go through Package with the signing cert
 - [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
 - [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)
@@ -65,7 +66,8 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] CA fact provider from a snapshot folder; verified on the sample (13 of 15 fail as designed) and on the Kainor tenant (12 pass, 2 fail, 1 not evaluated) (this checkpoint)
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
 - [ ] Identity and authentication domains: fact providers from the A.1 evidence files, then checks/identity.json and checks/auth.json
-- [ ] New-PostureProfile wizard (spec 10.2); until then profile.json is hand-written
+- [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
+- [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken
 - [ ] New-PostureProfile wizard
 - [ ] Interactive HTML report renderer (templates/), findings.csv export, portal deep links
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
