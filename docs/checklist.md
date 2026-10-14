@@ -86,6 +86,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] findings.csv export (Export-PostureFindings), portal deep links, trend across runs
 - [x] Exchange Online collector (A.2 exo-01 to exo-10 plus attack simulations and the mail DNS records with MTA-STS and TLS-RPT): one Get-only entry point, never connects, skipped with a warning without a session; `-Collector Exchange`, `-SkipMailboxEnumeration` (checkpoint J)
 - [x] Email domain: checks/email.json (21 checks from spec 4.10; the inbox-rule check waits for an audit search collector) and Get-PostureEmailFact; MDO delivery checks covered by a third-party gateway from the profile, DNS, forwarding, protocol and audit checks evaluated regardless (checkpoint J)
+- [x] First real Exchange collection on Kainor on 2026-10-14: 87 files across all three collectors, 0 errors; email domain 16 pass, 4 fail (no EOP or MDO preset policy, MTA-STS and TLS-RPT unpublished, POP and IMAP on by default per mailbox), 1 not evaluated (attack simulation without the scope). All five domains: 74 checks, 56 pass, 14 fail, 3 not evaluated, 1 not applicable. Caught and fixed: the evidence root is now a full provider path, so a tilde or relative root works from a script
 - [ ] Inbox rules forwarding externally (spec 4.10) through an audit search, not Get-InboxRule
 - [ ] (verify) SCuBA MS.EXO ids on the email checks; CIS ids once the terms are cleared
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)

@@ -16,7 +16,9 @@ function New-PostureEvidenceFolder {
     $ErrorActionPreference = 'Stop'
 
     $stamp = $Timestamp.ToString('yyyyMMdd-HHmm')
-    $folder = Join-Path $OutRoot $(if ($Suffix) { "$stamp-$Suffix" } else { $stamp })
+    # A full provider path: ~ and relative roots are expanded here, because the evidence writer uses .NET file APIs that know neither.
+    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutRoot)
+    $folder = Join-Path $root $(if ($Suffix) { "$stamp-$Suffix" } else { $stamp })
     if ($PSCmdlet.ShouldProcess($folder, 'Create evidence folder')) {
         New-Item -ItemType Directory -Path $folder -Force | Out-Null
         if (-not $NoTranscript) {
