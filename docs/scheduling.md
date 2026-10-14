@@ -56,7 +56,8 @@ Application permissions for the managed identity or the app registration: `Polic
 | `-OutRoot` | Durable folder holding `<yyyyMMdd-HHmm>-ca` runs. The previous run is the newest other folder in it. |
 | `-Brand` | brand.json for the document and the change report. |
 | `-BreakGlass` | UPNs or names of the break-glass accounts; default is the name heuristic. |
-| `-NamePattern` | Naming convention regex for the document. |
+| `-NamePattern` | Naming convention regex for the document and the naming check. |
+| `-Baseline`, `-Profile`, `-Exceptions` | Inputs for the checks (spec 10): baseline name or path, profile.json, exceptions.json. Passed to the document's coverage page and to checks.json. |
 | `-IncludeMembers` | Store group member lists so the diff shows who joined or left an exclusion group. |
 | `-TeamsWebhookUrl` | Teams Workflows webhook. Receives an Adaptive Card with the risk-relevant changes. (verify) payload shape against the Workflows connector |
 | `-EmailTo`, `-EmailFrom` | Recipients and the sender mailbox. Turns email on. |

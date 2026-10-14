@@ -28,7 +28,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] brand.json: prepared-by, client, colors, font, logo, confidentiality, footer, caNamePattern (cebd0f8, e459304)
 - [x] Self-contained HTML, light and dark, print stylesheet, CSP (e459304)
 - [x] PDF through headless Edge or Chrome, verified on macOS (e459304)
-- [-] Coverage findings page: placeholder until the check engine ships (weeks 3 to 4); checks are catalog data, not renderer code
+- [x] Coverage findings page: New-PostureCaDocument runs the 15 CA checks on its snapshot with the same thresholds, -Baseline, -Profile and -Exceptions; the cycle writes checks.json next to the snapshot (weeks 3 to 4 checkpoint C)
 - [ ] Policy matrix column set configurable from brand.json or profile (spec 5.2 says configurable; today only -MatrixColumn)
 - [ ] "Changed by" from the audit log on the CA page (spec 7.2) once Compare exists
 
@@ -68,7 +68,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] New-PostureProfile wizard (spec 10.2); until then profile.json is hand-written
 - [ ] New-PostureProfile wizard
 - [ ] Interactive HTML report renderer (templates/), findings.csv export, portal deep links
-- [ ] Coverage findings page in the CA document fed from the engine
+- [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 
 ## Later weeks
 See spec section 9 for weeks 5 to 12 and v1.1. Not broken down until weeks 3 to 4 are underway.

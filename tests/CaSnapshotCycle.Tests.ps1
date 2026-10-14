@@ -37,6 +37,8 @@ Describe 'ca-snapshot-cycle.ps1' {
         $r.HasRiskRelevantChanges | Should -BeFalse
         @($r.Documents).Count | Should -Be 2
         @($r.ChangeReports).Count | Should -Be 0
+        $r.Checks | Should -Exist
+        $r.CheckCounts.fail | Should -BeGreaterThan 0
     }
 
     It 'compares with the previous run, posts to Teams and fails the job on risk' {

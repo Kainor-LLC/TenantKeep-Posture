@@ -72,8 +72,32 @@ function ConvertTo-PostureCaMarkdown {
 
     & $line '## Coverage findings'
     & $line
-    & $line 'The Conditional Access checks from the posture catalog (legacy auth blocked, MFA for all users, phishing-resistant strength for admins, risk policies, device compliance, break-glass exclusions and the rest) are evaluated by `Invoke-PostureChecks` and rendered here once the check engine ships. This document covers configuration and health, not coverage.'
-    & $line
+    if ($d.coverage) {
+        $run = $d.coverage.run; $cc = $run.counts
+        & $line "Catalog $($run.catalogVersion), baseline $($run.baseline). Pass $($cc.pass), fail $($cc.fail), not evaluated $($cc.notEvaluated), not applicable $($cc.notApplicable), accepted risk $($cc.acceptedRisk), covered by a third party $($cc.coveredBy)."
+        & $line
+        $statusLabel = @{ pass = 'Pass'; fail = 'Fail'; notEvaluated = 'Not evaluated'; notApplicable = 'Not applicable'; acceptedRisk = 'Accepted risk'; coveredBy = 'Covered by' }
+        $rows = foreach ($r in $run.results) {
+            $detail = if ($r.affectedCount -gt 0) { (@($r.affected | ForEach-Object { $_.name }) -join ', ') } elseif ($r.reason) { $r.reason } else { '' }
+            , @($r.id, $r.title, $statusLabel[$r.status], $r.severity, $detail)
+        }
+        & $table @('Check', 'Title', 'Status', 'Severity', 'Detail') @($rows)
+        $failed = @($run.results | Where-Object { $_.status -eq 'fail' })
+        if ($failed.Count -gt 0) {
+            & $line '### What to fix'
+            & $line
+            foreach ($r in $failed) {
+                $t = $d.coverage.text[$r.id]
+                & $line "**$($r.id) $(& $esc $r.title)** ($($r.severity))"
+                & $line
+                & $line (& $esc $t.narrative)
+                & $line
+                & $line "Remediation: $(& $esc $t.remediation) [Learn]($($t.learn))"
+                & $line
+            }
+        }
+    }
+    else { & $line 'Checks were skipped for this document (-SkipChecks). Run Invoke-PostureChecks on the snapshot for the coverage findings.'; & $line }
 
     & $line '## Policies'
     & $line

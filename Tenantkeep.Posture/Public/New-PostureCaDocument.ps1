@@ -31,6 +31,14 @@ function New-PostureCaDocument {
         Template for proposed names in the naming report. Tokens: {seq}, {persona}, {action}, {name}.
     .PARAMETER MatrixColumn
         Subset of matrix columns: allUsers, adminRoles, guests, workloadIdentities, allApps, office365, adminPortals, registerSecurityInfo.
+    .PARAMETER Baseline
+        Baseline for the Coverage findings page (name under baselines/ or a path). Default: standard.
+    .PARAMETER ProfilePath
+        profile.json for the Coverage findings page (alias -Profile): licenses, platforms, break-glass accounts, thresholds.
+    .PARAMETER Exceptions
+        exceptions.json for the Coverage findings page: accepted risk per check or per object.
+    .PARAMETER SkipChecks
+        Leave the Coverage findings page out instead of running the Conditional Access checks on the snapshot.
     .PARAMETER PassThru
         Return the document model and the written file paths instead of the file paths alone.
     .EXAMPLE
@@ -59,6 +67,10 @@ function New-PostureCaDocument {
         [ValidateRange(0, 3650)] [int] $DisabledDays = 90,
         [string] $ProposedNameFormat = 'CA-{seq}-{persona}-{action}',
         [string[]] $MatrixColumn,
+        [string] $Baseline = 'standard',
+        [Alias('Profile')] [string] $ProfilePath,
+        [string] $Exceptions,
+        [switch] $SkipChecks,
         [switch] $PassThru
     )
 
@@ -118,6 +130,22 @@ function New-PostureCaDocument {
         namedLocations = @($snap.NamedLocations)
         authStrengths  = @($snap.AuthStrengths)
         authContexts   = @($snap.AuthContexts)
+    }
+
+    # Coverage findings: the spec 4.3 checks, evaluated by the engine with the same thresholds this document uses.
+    $document.coverage = $null
+    if (-not $SkipChecks) {
+        $profileModel = Import-PostureProfile -Path $ProfilePath
+        if (-not $profileModel.thresholds) { $profileModel.thresholds = @{} }
+        foreach ($pair in @(@('maxExclusionGroupMembers', $ExclusionGroupThreshold), @('reportOnlyMaxDays', $ReportOnlyDays), @('disabledMaxDays', $DisabledDays))) {
+            if (-not $profileModel.thresholds.Contains($pair[0])) { $profileModel.thresholds[$pair[0]] = $pair[1] }
+        }
+        if ($NamePattern -and -not $profileModel.thresholds.Contains('namePattern')) { $profileModel.thresholds['namePattern'] = $NamePattern }
+        $catalog = Import-PostureCheckCatalog
+        $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline (Import-PostureBaseline -Baseline $Baseline) -OrgProfile $profileModel -Exception @(Import-PostureException -Path $Exceptions) -Evidence $snap.Path -Domain @('ca')
+        $text = @{}
+        foreach ($c in $catalog.checks) { $text[[string]$c['id']] = @{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn'] } }
+        $document.coverage = [ordered]@{ run = $run; text = $text }
     }
 
     $outFolder = if ($OutputPath) { $OutputPath } else { $snap.Path }

@@ -105,3 +105,9 @@ table.diff td.after { color: var(--ok); }
 table.risk td:first-child { font-weight: 600; color: var(--err); white-space: nowrap; }
 .added { color: var(--ok); }
 .removed { color: var(--err); }
+/* check statuses */
+.status { font-weight: 600; white-space: nowrap; }
+.status.pass { color: var(--ok); }
+.status.fail { color: var(--err); }
+.status.notEvaluated, .status.notApplicable { color: var(--muted); }
+.status.acceptedRisk, .status.coveredBy { color: var(--warn); }

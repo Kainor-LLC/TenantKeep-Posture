@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF through a headless Edge or Chrome) and `Compare-PostureCaSnapshot` (5.3: change report with risk-relevant changes first). Next: scheduling samples (5.4). Progress: [docs/checklist.md](docs/checklist.md).
+Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), and the check engine with the 15 Conditional Access checks (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`). Next: identity and authentication domains. Progress: [docs/checklist.md](docs/checklist.md).
 
 ## Use
 
@@ -20,6 +20,8 @@ New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -NamePattern '^CA-\d
 New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -Format Pdf -Brand ./brand.json  # adds ca-document.pdf via headless Edge or Chrome
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                              # ca-changes.md and .html, risk-relevant changes first
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
+Invoke-PostureChecks -Evidence ~/audit/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
+Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
 ```
 
 ## Develop

@@ -26,6 +26,33 @@ Describe 'New-PostureCaDocument' {
             $script:Result.Files | Should -Exist
         }
 
+        It 'renders the Coverage findings page from the engine with statuses and remediation' {
+            $cov = $script:Result.Document.coverage
+            $cov.run.results.Count | Should -Be 15
+            ($cov.run.results | Where-Object id -eq 'CA-007').status | Should -Be 'fail'
+            $script:Md | Should -Match '\| CA-007 \| Exclusion groups under the size threshold \| Fail \| High \| CA-Exclude-MFA-Legacy \|'
+            $script:Md | Should -Match '\| CA-001 \| Legacy authentication blocked \| Pass \| Critical \|'
+            $script:Md | Should -Match '### What to fix'
+            $script:Md | Should -Match '\*\*CA-002 MFA required for all users\*\* \(Critical\)'
+            $script:Md | Should -Match 'Remediation: .*\[Learn\]\(https://learn\.microsoft\.com/'
+            ($cov.run.results | Where-Object id -eq 'CA-015').status | Should -Be 'fail' -Because 'the document name pattern flows into the checks and two sample policies break it'
+            ($cov.run.results | Where-Object id -eq 'CA-015').affectedCount | Should -Be 2
+        }
+
+        It 'leaves the page out with -SkipChecks' {
+            $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'skip') -Format Markdown -SkipChecks -PassThru
+            $r.Document.coverage | Should -BeNullOrEmpty
+            Get-Content -Raw -LiteralPath $r.Files[0] | Should -Match 'Checks were skipped'
+        }
+
+        It 'passes exceptions through to the coverage page' {
+            $ex = Join-Path $script:Out 'doc-exceptions.json'
+            @(@{ check = 'CA-007'; object = 'CA-Exclude-MFA-Legacy'; justification = 'Legacy app'; owner = 'J. Smith'; approver = 'CISO'; expires = '2027-03-31' }) | ConvertTo-Json | Set-Content $ex
+            $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'exc') -Format Markdown -Exceptions $ex -PassThru
+            ($r.Document.coverage.run.results | Where-Object id -eq 'CA-007').status | Should -Be 'acceptedRisk'
+            Get-Content -Raw -LiteralPath $r.Files[0] | Should -Match '\| CA-007 \| .* \| Accepted risk \| High \| Accepted risk for 1 object'
+        }
+
         It 'has every tenant-level section and one section per policy' -ForEach @(
             '## Summary', '## Health flags', '## Policy matrix', '## Naming convention', '## Coverage findings', '## Policies',
             '## Named locations', '## Authentication strengths', '## Authentication context', '## Appendix: snapshot',
@@ -186,7 +213,7 @@ Describe 'New-PostureCaDocument HTML and PDF' {
             $script:Html | Should -Match '^<!DOCTYPE html>'
             $script:Html | Should -Match '<style>'
             $script:Html | Should -Not -Match '<script'
-            $script:Html | Should -Not -Match '(src|href)="https?://'
+            $script:Html | Should -Not -Match '(src|<link[^>]*href)="https?://'
             $script:Html | Should -Not -Match '@import'
             $script:Html | Should -Match "default-src 'none'"
         }
@@ -196,11 +223,13 @@ Describe 'New-PostureCaDocument HTML and PDF' {
             $script:Html | Should -Match '@media print'
         }
 
-        It 'has every section and one article per policy' {
+        It 'has every section, one article per policy, and the coverage table' {
             foreach ($id in 'summary', 'health', 'matrix', 'naming', 'coverage', 'policies', 'locations', 'strengths', 'contexts', 'appendix') {
                 $script:Html | Should -Match "<section id=`"$id`""
             }
-            ([regex]::Matches($script:Html, '<article class="policy"')).Count | Should -Be 8
+            ([regex]::Matches($script:Html, '<article class="policy" id=')).Count | Should -Be 8
+            $script:Html | Should -Match '<td><code>CA-007</code></td><td>Exclusion groups under the size threshold</td><td><span class="status fail">Fail</span></td>'
+            $script:Html | Should -Match '<h3>What to fix</h3>'
         }
 
         It 'encodes names and marks deleted references' {
@@ -227,7 +256,7 @@ Describe 'New-PostureCaDocument HTML and PDF' {
             $html | Should -Match '--primary: #123456; --accent: #abcdef; --font: Georgia, serif;'
             $html | Should -Match '<img class="logo" alt="logo" src="data:image/svg\+xml;base64,'
             $html | Should -Match '<title>Conditional Access documentation: Contoso Ltd</title>'
-            $html | Should -Not -Match 'https?://'
+            $html | Should -Not -Match '(src|<link[^>]*href)="https?://'
         }
 
         It 'rejects an unsafe brand color instead of injecting it' {

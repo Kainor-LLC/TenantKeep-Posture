@@ -131,7 +131,30 @@ function ConvertTo-PostureCaHtml {
 
     # Coverage
     & $w '<section id="coverage"><h2>Coverage findings</h2>'
-    & $w '<p>The Conditional Access checks from the posture catalog (legacy auth blocked, MFA for all users, phishing-resistant strength for admins, risk policies, device compliance, break-glass exclusions and the rest) are evaluated by <code>Invoke-PostureChecks</code> and rendered here once the check engine ships. This document covers configuration and health, not coverage.</p>'
+    if ($d.coverage) {
+        $run = $d.coverage.run; $cc = $run.counts
+        & $w "<p>Catalog $(& $h $run.catalogVersion), baseline $(& $h $run.baseline).</p><div class=`"stats`">"
+        foreach ($pair in @(@('Pass', $cc.pass), @('Fail', $cc.fail), @('Not evaluated', $cc.notEvaluated), @('Not applicable', $cc.notApplicable), @('Accepted risk', $cc.acceptedRisk), @('Covered by', $cc.coveredBy))) {
+            & $w "<div class=`"stat`"><div class=`"n`">$($pair[1])</div><div class=`"l`">$($pair[0])</div></div>"
+        }
+        & $w '</div>'
+        $statusLabel = @{ pass = 'Pass'; fail = 'Fail'; notEvaluated = 'Not evaluated'; notApplicable = 'Not applicable'; acceptedRisk = 'Accepted risk'; coveredBy = 'Covered by' }
+        & $w '<table class="checks"><thead><tr><th>Check</th><th>Title</th><th>Status</th><th>Severity</th><th>Detail</th></tr></thead><tbody>'
+        foreach ($r in $run.results) {
+            $detail = if ($r.affectedCount -gt 0) { (@($r.affected | ForEach-Object { $_.name }) -join ', ') } elseif ($r.reason) { $r.reason } else { '' }
+            & $w "<tr><td><code>$(& $h $r.id)</code></td><td>$(& $h $r.title)</td><td><span class=`"status $(& $h $r.status)`">$(& $h $statusLabel[$r.status])</span></td><td>$(& $h $r.severity)</td><td>$(& $h $detail)</td></tr>"
+        }
+        & $w '</tbody></table>'
+        $failed = @($run.results | Where-Object { $_.status -eq 'fail' })
+        if ($failed.Count -gt 0) {
+            & $w '<h3>What to fix</h3>'
+            foreach ($r in $failed) {
+                $t = $d.coverage.text[$r.id]
+                & $w "<article class=`"policy`"><h4>$(& $h $r.id) $(& $h $r.title) ($(& $h $r.severity))</h4><p>$(& $h $t.narrative)</p><p><strong>Remediation.</strong> $(& $h $t.remediation) <a href=`"$(& $h $t.learn)`">Learn</a></p></article>"
+            }
+        }
+    }
+    else { & $w '<p>Checks were skipped for this document (-SkipChecks). Run Invoke-PostureChecks on the snapshot for the coverage findings.</p>' }
     & $w '</section>'
 
     # Policies

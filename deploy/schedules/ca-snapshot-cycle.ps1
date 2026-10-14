@@ -9,7 +9,7 @@
 
     Steps:
       1. Export-PostureCaSnapshot into <OutRoot>/<stamp>-ca
-      2. New-PostureCaDocument for the new snapshot
+      2. New-PostureCaDocument for the new snapshot, with the Coverage findings page, and checks.json next to it
       3. Compare-PostureCaSnapshot against the newest earlier <stamp>-ca folder, when one exists
       4. Notify, when there are risk-relevant changes (or always, with -EmailAlways):
            Teams Workflows webhook card, when -TeamsWebhookUrl is set
@@ -38,6 +38,9 @@ param(
     [string] $Brand,
     [string[]] $BreakGlass,
     [string] $NamePattern,
+    [string] $Baseline = 'standard',
+    [Alias('Profile')] [string] $ProfilePath,
+    [string] $Exceptions,
     [switch] $IncludeMembers,
     [string] $TeamsWebhookUrl,
     [string[]] $EmailTo,
@@ -61,6 +64,9 @@ if ($EmailTo -and -not $EmailFrom) { throw '-EmailFrom is required with -EmailTo
 
 $optional = @{}
 if ($Brand) { $optional.Brand = $Brand }
+$checkInputs = @{ Baseline = $Baseline }
+if ($ProfilePath) { $checkInputs.ProfilePath = $ProfilePath }
+if ($Exceptions) { $checkInputs.Exceptions = $Exceptions }
 
 # 1. Snapshot
 $snapshot = Export-PostureCaSnapshot -OutRoot $OutRoot -IncludeMembers:$IncludeMembers -PassThru
@@ -68,9 +74,11 @@ $newFolder = $snapshot.Folder
 Write-Information "Snapshot: $newFolder ($($snapshot.PolicyCount) policies, $($snapshot.Errors) error(s))" -InformationAction Continue
 
 # 2. Document
-$docParams = @{ Snapshot = $newFolder } + $optional
+$docParams = @{ Snapshot = $newFolder } + $optional + $checkInputs
 if ($NamePattern) { $docParams.NamePattern = $NamePattern }
 $documents = @(New-PostureCaDocument @docParams)
+$checks = Invoke-PostureChecks -Evidence $newFolder -Domain ca @checkInputs -PassThru
+Write-Information "Checks: pass $($checks.counts.pass), fail $($checks.counts.fail), not evaluated $($checks.counts.notEvaluated)" -InformationAction Continue
 
 # 3. Compare with the previous run
 $previous = Get-ChildItem -Path $OutRoot -Directory |
@@ -130,6 +138,8 @@ $result = [pscustomobject]@{
     Snapshot               = $newFolder
     Previous               = $(if ($previous) { $previous.FullName } else { $null })
     Documents              = $documents
+    Checks                 = (Join-Path $newFolder 'checks.json')
+    CheckCounts            = $checks.counts
     ChangeReports          = $(if ($comparison) { $comparison.Files } else { @() })
     RiskRelevantCount      = $(if ($comparison) { $comparison.RiskRelevantCount } else { 0 })
     HasRiskRelevantChanges = [bool]($comparison -and $comparison.HasRiskRelevantChanges)
