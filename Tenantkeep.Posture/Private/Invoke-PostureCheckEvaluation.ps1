@@ -109,6 +109,10 @@ function Invoke-PostureCheckEvaluation {
         $df = $domainFacts[$d]
         if (-not $df -or -not $df['available']) { $result.status = 'notEvaluated'; $result.reason = $(if ($df) { [string]$df['reason'] } else { 'No facts for this domain.' }); $result; continue }
         $result.evidence = @(@($c['evidence']) + @($df['evidence']) | Select-Object -Unique)
+        # A provider may rule a specific check out with a reason (for example: no naming pattern configured).
+        if ($df.Contains('notEvaluated') -and $df['notEvaluated'] -and $df['notEvaluated'].Contains($id)) {
+            $result.status = 'notEvaluated'; $result.reason = [string]$df['notEvaluated'][$id]; $result; continue
+        }
         try {
             $passed = Invoke-PostureExpression -Expression ([string]$c['pass']) -Context @{ facts = $df['facts']; thresholds = $thresholds }
         }

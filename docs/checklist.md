@@ -61,7 +61,11 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Check catalog schema (checks/README.md) and the catalog test over every shipped file; loader rejects a missing field, bad severity, duplicate id (this checkpoint)
 - [x] Expression evaluator for pass rules: own parser, no Invoke-Expression; facts.* and thresholds.* only (this checkpoint)
 - [x] Invoke-PostureChecks and Get-PostureCheckCatalog with baseline (name or path), profile.json, exceptions.json (check-level and object-level, expiry), custom check folders, checks.json output; baselines/standard.json (this checkpoint)
-- [ ] checks/ca.json from spec 4.3 with the CA fact provider; then identity and auth domains
+- [x] checks/ca.json: the 15 checks from spec 4.3 with narrative, remediation, Learn link, NIST CSF 2 / ISO 27001 / CMMC / SCuBA references; CIS left empty pending the terms check (this checkpoint)
+- [x] CA fact provider from a snapshot folder; verified on the sample (13 of 15 fail as designed) and on the Kainor tenant (12 pass, 2 fail, 1 not evaluated) (this checkpoint)
+- [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
+- [ ] Identity and authentication domains: fact providers from the A.1 evidence files, then checks/identity.json and checks/auth.json
+- [ ] New-PostureProfile wizard (spec 10.2); until then profile.json is hand-written
 - [ ] New-PostureProfile wizard
 - [ ] Interactive HTML report renderer (templates/), findings.csv export, portal deep links
 - [ ] Coverage findings page in the CA document fed from the engine
