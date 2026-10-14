@@ -32,16 +32,13 @@ function ConvertTo-PostureCaPolicyModel {
 
     if (-not $PSBoundParameters.ContainsKey('AsOf')) {
         $stamp = Get-PostureValue $Snapshot.Metadata 'timestampUtc'
-        $AsOf = if ($stamp) { [System.DateTimeOffset]::Parse($stamp, [cultureinfo]::InvariantCulture).UtcDateTime } else { [datetime]::UtcNow }
+        $AsOf = if ($stamp) { ConvertTo-PostureUtcDateTime $stamp } else { [datetime]::UtcNow }
     }
 
+    # The leading comma keeps an empty result an array; a bare @() unrolls to nothing on return.
     $refs = {
         param([object] $Ids, [string] $Type)
-        @(foreach ($id in @($Ids)) { if ($id) { Resolve-PostureCaRef -Snapshot $Snapshot -Id ([string]$id) -ExpectedType $Type } })
-    }
-    $parseDate = {
-        param([object] $Text)
-        if ($Text) { [System.DateTimeOffset]::Parse([string]$Text, [cultureinfo]::InvariantCulture).UtcDateTime } else { $null }
+        , @(foreach ($id in @($Ids)) { if ($id) { Resolve-PostureCaRef -Snapshot $Snapshot -Id ([string]$id) -ExpectedType $Type } })
     }
     # Graph omits empty lists; @($null) would be a one-element array, so lists go through here.
     $list = { param([object] $Value) , @(@($Value) | Where-Object { $null -ne $_ }) }
@@ -129,8 +126,8 @@ function ConvertTo-PostureCaPolicyModel {
             name        = [string](Get-PostureValue $p 'displayName')
             state       = $state
             stateLabel  = $stateLabel
-            created     = & $parseDate (Get-PostureValue $p 'createdDateTime')
-            modified    = & $parseDate (Get-PostureValue $p 'modifiedDateTime')
+            created     = ConvertTo-PostureUtcDateTime (Get-PostureValue $p 'createdDateTime')
+            modified    = ConvertTo-PostureUtcDateTime (Get-PostureValue $p 'modifiedDateTime')
             assignments = $assignments
             targets     = $targets
             conditions  = $conditions

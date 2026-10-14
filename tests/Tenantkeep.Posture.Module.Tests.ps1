@@ -80,8 +80,10 @@ Describe 'Public cmdlet <Name>' -ForEach $script:PublicNames -AllowNullOrEmptyFo
         Join-Path $PSScriptRoot "$Name.Tests.ps1" | Should -Exist
     }
 
-    It 'verifies Graph scopes before any Graph call' {
-        $script:Source | Should -Match 'Assert-PostureGraphScope'
+    It 'verifies Graph scopes before any Graph call, when it calls Graph' {
+        $callsGraph = $script:Source -match 'Invoke-PostureGraphRequest|Get-Mg[A-Z]'
+        if ($callsGraph) { $script:Source | Should -Match 'Assert-PostureGraphScope' }
+        else { $script:Source | Should -Not -Match 'Assert-PostureGraphScope' -Because 'a cmdlet that reads only local files must not demand a Graph session' }
     }
 }
 

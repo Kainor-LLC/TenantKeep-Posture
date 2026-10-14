@@ -73,10 +73,22 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
         }
     }
 
-    It 'parses dates as UTC' {
+    It 'parses dates as UTC regardless of the machine time zone' {
         InModuleScope Tenantkeep.Posture {
             $script:ById['p-001'].modified.Kind | Should -Be 'Utc'
-            $script:ById['p-001'].modified.ToString('yyyy-MM-dd') | Should -Be '2026-01-15'
+            $script:ById['p-001'].modified.ToString('yyyy-MM-dd HH:mm') | Should -Be '2026-01-15 09:30'
+            $script:ById['p-003'].created.ToString('yyyy-MM-dd HH:mm') | Should -Be '2025-03-04 10:10'
+        }
+    }
+
+    It 'normalises strings, local DateTimes and DateTimeOffsets to UTC' {
+        InModuleScope Tenantkeep.Posture {
+            (ConvertTo-PostureUtcDateTime '2025-03-04T10:10:00Z').ToString('HH:mm') | Should -Be '10:10'
+            (ConvertTo-PostureUtcDateTime '2025-03-04T10:10:00+02:00').ToString('HH:mm') | Should -Be '08:10'
+            $local = [datetime]::new(2025, 3, 4, 10, 10, 0, [System.DateTimeKind]::Utc).ToLocalTime()
+            (ConvertTo-PostureUtcDateTime $local).ToString('HH:mm') | Should -Be '10:10'
+            (ConvertTo-PostureUtcDateTime ([System.DateTimeOffset]::Parse('2025-03-04T10:10:00-05:00'))).ToString('HH:mm') | Should -Be '15:10'
+            ConvertTo-PostureUtcDateTime $null | Should -BeNullOrEmpty
         }
     }
 

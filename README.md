@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release scaffold. First cmdlet: `Export-PostureCaSnapshot` (spec section 5.1).
+Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1) and `New-PostureCaDocument` (spec 5.2, Markdown). Next: HTML output, then `Compare-PostureCaSnapshot` (5.3).
 
 ## Use
 
@@ -16,6 +16,7 @@ Import-Module ./Tenantkeep.Posture
 Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All -NoWelcome
 Export-PostureCaSnapshot                       # writes ~/audit/evidence/<yyyyMMdd-HHmm>-ca/
 Export-PostureCaSnapshot -IncludeMembers       # also stores group member UPNs
+New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -NamePattern '^CA-\d{3}-'   # ca-document.md next to the snapshot
 ```
 
 ## Develop
