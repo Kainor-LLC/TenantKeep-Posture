@@ -65,3 +65,5 @@ PSScriptAnalyzerSettings.psd1
 ## Current phase
 
 See `docs/posture-spec.md` section 9. Start with the CA snapshot, document and diff (section 5). First deliverable: `Export-PostureCaSnapshot`.
+
+Progress is tracked in `docs/checklist.md`, one line per deliverable with its commit. Update it in the same commit as every checkpoint.
