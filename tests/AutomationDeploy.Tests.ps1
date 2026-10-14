@@ -53,6 +53,22 @@ Describe 'deploy scripts' {
         Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'automation-runbook.ps1') | Should -Match "'schedules' 'ca-snapshot-cycle.ps1'"
     }
 
+    It 'the SharePoint app setup script asks for delegated read permissions only, supports WhatIf and prints the manual steps' {
+        $path = Join-Path $PSScriptRoot '..' 'deploy' 'setup' 'New-PostureSharePointApp.ps1'
+        $src = Get-Content -Raw $path
+        $tokens = $null; $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) | Out-Null
+        @($errors).Count | Should -Be 0
+        $src | Should -Match 'SupportsShouldProcess'
+        $src | Should -Match 'AllSites\.Read'
+        $src | Should -Not -Match 'ApplicationPermissions' -Because 'delegated only; application permissions would outlive the signed-in user'
+        $src | Should -Match 'GraphDelegatePermissions = \$graphPermissions'
+        $src | Should -Not -Match '\.ReadWrite'
+        $src | Should -Match 'adminconsent\?client_id='
+        $src | Should -Match 'SharePoint Administrator'
+        $src | Should -Match 'sharePointClientId'
+    }
+
     It 'the grant script refuses without the admin scopes' {
         Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All') } }
         { & (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' } | Should -Throw '*missing AppRoleAssignment.ReadWrite.All*'

@@ -18,6 +18,8 @@ function New-PostureProfile {
         Detect licenses from the signed-in Graph session (Organization.Read.All or Directory.Read.All).
     .PARAMETER NonInteractive
         Ask nothing; write parameters over existing values over defaults.
+    .PARAMETER SharePointClientId
+        Application (client) id of the Entra app the SharePoint and Teams collector signs in with; deploy/setup/New-PostureSharePointApp.ps1 writes it.
     .PARAMETER Force
         Overwrite without asking, in interactive mode, when the file exists.
     .PARAMETER PassThru
@@ -58,6 +60,7 @@ function New-PostureProfile {
         [ValidateSet('executive', 'technical', 'auditor')] [string] $Audience,
         [ValidateSet('one-off', 'monthly', 'quarterly')] [string] $Cadence,
         [string] $ClientName,
+        [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $SharePointClientId,
         [switch] $Force,
         [switch] $PassThru
     )
@@ -80,6 +83,7 @@ function New-PostureProfile {
         audience              = 'technical'
         cadence               = 'quarterly'
         breakGlass            = @()
+        sharePointClientId    = $null
     }
 
     # Existing file: its answers become the defaults.
@@ -107,6 +111,7 @@ function New-PostureProfile {
     if ($PSBoundParameters.ContainsKey('Frameworks')) { $defaults.frameworks = @($Frameworks | Where-Object { $_ -ne 'none' }) }
     if ($Thresholds) { foreach ($k in $Thresholds.Keys) { $defaults.thresholds[[string]$k] = $Thresholds[$k] } }
     if ($PSBoundParameters.ContainsKey('BreakGlass')) { $defaults.breakGlass = @($BreakGlass) }
+    if ($SharePointClientId) { $defaults.sharePointClientId = $SharePointClientId }
     if ($Audience) { $defaults.audience = $Audience }
     if ($Cadence) { $defaults.cadence = $Cadence }
 

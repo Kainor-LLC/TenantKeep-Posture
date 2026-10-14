@@ -127,9 +127,9 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'never calls Connect-MgGraph or Connect-ExchangeOnline from module code' {
+    It 'never connects or registers apps from module code' {
         # A call at statement position. Error text that tells the user how to reconnect is fine.
-        $hits = Find-Code '(^|[;{|(&])\s*Connect-(Mg|ExchangeOnline|IPPSSession)'
+        $hits = Find-Code '(^|[;{|(&])\s*(Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)|Register-PnP)'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 

@@ -76,6 +76,21 @@ Invoke-PostureCollection -OutRoot ~/audit/evidence        # Entra, Intune and Ex
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
 at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
+## SharePoint and Teams setup
+
+PnP.PowerShell 3.x signs in through an Entra app registration of your own. `deploy/setup/New-PostureSharePointApp.ps1`
+creates it with read-only delegated permissions (SharePoint AllSites.Read; Graph User.Read, Sites.Read.All,
+Group.Read.All), asks for admin consent, writes `sharePointClientId` into profile.json and prints the steps that
+stay manual: consent if it was declined, the SharePoint Administrator role for the reading account, Conditional
+Access on the new app, and the connect commands. It is a tenant write and lives outside the module for that reason;
+run it once per tenant as an admin who can register apps. Delete the registration to revoke everything.
+
+```powershell
+./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
+Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
+Connect-MicrosoftTeams
+```
+
 ## Scopes
 
 Required: Policy.Read.All, Directory.Read.All, Group.Read.All. Optional, each unlocking the steps named above:
