@@ -2,13 +2,13 @@
 function New-PostureEvidenceFolder {
     <#
     .SYNOPSIS
-        Creates <OutRoot>/<yyyyMMdd-HHmm>-<Suffix>/ and starts a transcript in it (audit plan Appendix A convention).
+        Creates <OutRoot>/<yyyyMMdd-HHmm>[-<Suffix>]/ and starts a transcript in it (audit plan Appendix A convention).
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
     param(
         [Parameter(Mandatory)] [string] $OutRoot,
-        [Parameter(Mandatory)] [string] $Suffix,
+        [string] $Suffix,
         [datetime] $Timestamp = (Get-Date),
         [switch] $NoTranscript
     )
@@ -16,7 +16,7 @@ function New-PostureEvidenceFolder {
     $ErrorActionPreference = 'Stop'
 
     $stamp = $Timestamp.ToString('yyyyMMdd-HHmm')
-    $folder = Join-Path $OutRoot "$stamp-$Suffix"
+    $folder = Join-Path $OutRoot $(if ($Suffix) { "$stamp-$Suffix" } else { $stamp })
     if ($PSCmdlet.ShouldProcess($folder, 'Create evidence folder')) {
         New-Item -ItemType Directory -Path $folder -Force | Out-Null
         if (-not $NoTranscript) {

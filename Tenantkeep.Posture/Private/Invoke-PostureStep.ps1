@@ -21,6 +21,7 @@ function Invoke-PostureStep {
     }
     catch {
         $message = $_.Exception.Message
+        Write-Verbose "$Label failed at $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)"
         Write-Warning "$Label failed: $message"
         Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message"
         return

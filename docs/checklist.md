@@ -65,6 +65,9 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] checks/ca.json: the 15 checks from spec 4.3 with narrative, remediation, Learn link, NIST CSF 2 / ISO 27001 / CMMC / SCuBA references; CIS left empty pending the terms check (this checkpoint)
 - [x] CA fact provider from a snapshot folder; verified on the sample (13 of 15 fail as designed) and on the Kainor tenant (12 pass, 2 fail, 1 not evaluated) (this checkpoint)
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
+- [x] Invoke-PostureCollection with the Entra collector (A.1 sections 1, 2, 4, 5, 6, 7, 10, 11) and the CA snapshot in the same folder; users and PIM fallbacks; collection.json manifest; docs/collection.md (checkpoint E)
+- [ ] First real collection against the Kainor tenant (needs the longer Connect-MgGraph scope list; Connor)
+- [ ] Devices and Intune (A.1 sections 8 and 9) with the devices domain; legacy sign-ins (12) optional
 - [ ] Identity and authentication domains: fact providers from the A.1 evidence files, then checks/identity.json and checks/auth.json
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken

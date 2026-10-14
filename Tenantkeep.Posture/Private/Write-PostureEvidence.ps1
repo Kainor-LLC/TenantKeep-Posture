@@ -26,16 +26,23 @@ function Write-PostureEvidence {
     $ErrorActionPreference = 'Stop'
 
     $path = Join-Path $Folder "$Name.json"
-    # -InputObject keeps an empty collection as [] instead of writing an empty file.
-    $data = if ($AsArray) { , @($InputObject) } else { $InputObject }
+    # -InputObject keeps an empty collection as [] instead of writing an empty file; nulls never make it into a list.
+    $items = @(@($InputObject) | Where-Object { $null -ne $_ })
+    $data = if ($AsArray) { , $items } else { $InputObject }
+    if ($null -eq $data) { $data = @{} }
     $json = ConvertTo-Json -InputObject $data -Depth 20
     [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
 
     if ($Csv -and $AsArray) {
-        @($InputObject) | Export-Csv -Path (Join-Path $Folder "$Name.csv") -NoTypeInformation
+        $csvPath = Join-Path $Folder "$Name.csv"
+        if ($items.Count -eq 0) { [System.IO.File]::WriteAllText($csvPath, '', [System.Text.UTF8Encoding]::new($false)) }
+        else {
+            # Export-Csv wants objects with properties; dictionaries make it throw a null reference.
+            @($items | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]$_ } else { $_ } }) | Export-Csv -Path $csvPath -NoTypeInformation
+        }
     }
 
-    $count = if ($AsArray) { @($InputObject).Count } else { 1 }
+    $count = if ($AsArray) { $items.Count } else { 1 }
     if (-not $Quiet) { Write-Host ('{0,-42} {1,7:N0}' -f "$Name.json", $count) }
     return $path
 }

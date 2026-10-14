@@ -22,6 +22,8 @@ Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                  
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
 Invoke-PostureChecks -Evidence ~/audit/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
+Invoke-PostureCollection -OutRoot ~/audit/evidence                                            # A.1 identity evidence plus the CA snapshot in one run folder
+New-PostureProfile -Path ~/audit/profile.json -FromGraph                                      # the org profile the checks read
 ```
 
 ## Develop

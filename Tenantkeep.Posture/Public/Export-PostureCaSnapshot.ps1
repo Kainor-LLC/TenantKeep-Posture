@@ -24,6 +24,9 @@ function Export-PostureCaSnapshot {
         schema exposes, such as insider risk conditions (verify). Snapshots compared later should use the same version.
     .PARAMETER OutRoot
         Root folder for evidence. Default: ~/audit/evidence, the audit plan's convention. The run folder is created under it.
+    .PARAMETER OutputFolder
+        Write into this exact folder instead of creating <OutRoot>/<stamp>-ca. Used by Invoke-PostureCollection so one
+        run folder holds every domain's evidence.
     .PARAMETER IncludeMembers
         Also store the transitive member list (id, type, display name, UPN) of every referenced group in group-scope.json.
     .PARAMETER ApiVersion
@@ -48,6 +51,7 @@ function Export-PostureCaSnapshot {
     [OutputType([string], [pscustomobject])]
     param(
         [Parameter()] [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
+        [string] $OutputFolder,
         [switch] $IncludeMembers,
         [ValidateSet('v1.0', 'beta')] [string] $ApiVersion = 'v1.0',
         [switch] $PassThru
@@ -60,7 +64,11 @@ function Export-PostureCaSnapshot {
     $context = Assert-PostureGraphScope -RequiredScope $requiredScopes
 
     $startedUtc = [datetime]::UtcNow
-    $folder = New-PostureEvidenceFolder -OutRoot $OutRoot -Suffix 'ca'
+    $folder = if ($OutputFolder) {
+        New-Item -ItemType Directory -Path $OutputFolder -Force | Out-Null
+        (Resolve-Path -LiteralPath $OutputFolder).Path
+    }
+    else { New-PostureEvidenceFolder -OutRoot $OutRoot -Suffix 'ca' }
     $script:GraphApiVersionsUsed.Clear()
     Write-Verbose "Writing CA snapshot to $folder"
 
@@ -149,6 +157,6 @@ function Export-PostureCaSnapshot {
         return $folder
     }
     finally {
-        try { Stop-Transcript | Out-Null } catch { Write-Verbose 'No transcript to stop.' }
+        if (-not $OutputFolder) { try { Stop-Transcript | Out-Null } catch { Write-Verbose 'No transcript to stop.' } }
     }
 }
