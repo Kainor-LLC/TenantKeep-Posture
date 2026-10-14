@@ -1,0 +1,192 @@
+// Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+// Customer-hosted nightly Conditional Access monitoring (spec 5.4 / 11 option B, dev slice).
+// Automation account with a system-assigned identity, a storage account for snapshots (RBAC only, no shared keys),
+// the variables the runbook reads, the daily schedule, and the runbook shell. Runbook content and the module are
+// uploaded by deploy.ps1 because ARM cannot carry inline runbook content.
+targetScope = 'resourceGroup'
+
+@description('Short name used in resource names. Lowercase letters and digits.')
+@minLength(3)
+@maxLength(12)
+param baseName string = 'tenantkeep'
+
+@description('Environment suffix: dev, test, prod.')
+@allowed(['dev', 'test', 'prod'])
+param envName string = 'dev'
+
+param location string = resourceGroup().location
+
+@description('Daily run time, UTC, HH:mm.')
+param scheduleTimeUtc string = '02:15'
+
+@description('Runs to keep in the container. 0 keeps everything.')
+param keepRuns int = 90
+
+@description('Teams Workflows webhook URL. Empty disables Teams.')
+@secure()
+param teamsWebhookUrl string = ''
+
+@description('Comma-separated recipients. Empty disables email.')
+param emailTo string = ''
+
+@description('Sender mailbox for Graph sendMail. The identity needs Mail.Send restricted to this mailbox.')
+param emailFrom string = ''
+
+@description('Comma-separated break-glass UPNs. Empty uses the name heuristic.')
+param breakGlass string = ''
+
+param tags object = {
+  product: 'Tenantkeep Posture'
+  component: 'ca-monitor'
+}
+
+param now string = utcNow('yyyy-MM-dd')
+
+@description('Object id of whoever runs the deployment; gets blob data access so deploy.ps1 can upload the module. Empty skips it.')
+param deployerObjectId string = deployer().objectId
+
+var suffix = toLower(uniqueString(resourceGroup().id, baseName, envName))
+var storageName = toLower('st${take(baseName, 8)}${take(suffix, 10)}')
+var automationName = 'aa-${baseName}-${envName}'
+var containerName = 'ca-snapshots'
+var blobEndpoint = 'https://${storageName}.blob.${environment().suffixes.storage}/'
+var runbookName = 'Invoke-CaSnapshotCycle'
+var runtimeEnvironmentName = 'tenantkeep-ps74'
+var scheduleName = 'ca-snapshot-nightly'
+var firstRun = dateTimeAdd('${now}T${scheduleTimeUtc}:00Z', 'P1D')
+var blobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageName
+  location: location
+  tags: tags
+  kind: 'StorageV2'
+  sku: { name: 'Standard_LRS' }
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    supportsHttpsTrafficOnly: true
+    accessTier: 'Hot'
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: { enabled: true, days: 30 }
+  }
+}
+
+resource snapshots 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: containerName
+  properties: { publicAccess: 'None' }
+}
+
+resource modules 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'modules'
+  properties: { publicAccess: 'None' }
+}
+
+resource automation 'Microsoft.Automation/automationAccounts@2023-11-01' = {
+  name: automationName
+  location: location
+  tags: tags
+  identity: { type: 'SystemAssigned' }
+  properties: {
+    sku: { name: 'Basic' }
+    publicNetworkAccess: true
+    disableLocalAuth: true
+  }
+}
+
+resource blobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storage.id, automation.id, blobDataContributor)
+  scope: storage
+  properties: {
+    roleDefinitionId: blobDataContributor
+    principalId: automation.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource deployerBlobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
+  name: guid(storage.id, deployerObjectId, blobDataContributor)
+  scope: storage
+  properties: {
+    roleDefinitionId: blobDataContributor
+    principalId: deployerObjectId
+  }
+}
+
+var variables = [
+  { name: 'TENANTKEEP_CONTAINER_URL', value: '"${blobEndpoint}${containerName}"', encrypted: false }
+  { name: 'TENANTKEEP_KEEP_RUNS', value: string(keepRuns), encrypted: false }
+  { name: 'TEAMS_WEBHOOK', value: '"${teamsWebhookUrl}"', encrypted: true }
+  { name: 'EMAIL_TO', value: '"${emailTo}"', encrypted: false }
+  { name: 'EMAIL_FROM', value: '"${emailFrom}"', encrypted: false }
+  { name: 'BREAK_GLASS', value: '"${breakGlass}"', encrypted: false }
+]
+
+resource automationVariables 'Microsoft.Automation/automationAccounts/variables@2023-11-01' = [for v in variables: {
+  parent: automation
+  name: v.name
+  properties: {
+    value: v.value
+    isEncrypted: v.encrypted
+  }
+}]
+
+// System runtime environments stop at PowerShell 7.2; the module needs 7.4, so the account gets its own.
+resource runtimeEnvironment 'Microsoft.Automation/automationAccounts/runtimeEnvironments@2023-05-15-preview' = {
+  parent: automation
+  name: runtimeEnvironmentName
+  location: location
+  properties: {
+    runtime: { language: 'PowerShell', version: '7.4' }
+    defaultPackages: { az: '12.3.0' } // (verify) Az version offered for 7.4 runtimes
+    description: 'PowerShell 7.4 with Az, for Tenantkeep Posture'
+  }
+}
+
+resource runbook 'Microsoft.Automation/automationAccounts/runbooks@2023-05-15-preview' = {
+  parent: automation
+  name: runbookName
+  location: location
+  tags: tags
+  properties: {
+    runbookType: 'PowerShell'
+    runtimeEnvironment: runtimeEnvironment.name
+    logProgress: false
+    logVerbose: false
+    description: 'Nightly Conditional Access snapshot, document, diff and notify. Content uploaded by deploy.ps1.'
+  }
+}
+
+resource schedule 'Microsoft.Automation/automationAccounts/schedules@2023-11-01' = {
+  parent: automation
+  name: scheduleName
+  properties: {
+    frequency: 'Day'
+    interval: 1
+    startTime: firstRun
+    timeZone: 'Etc/UTC'
+    description: 'Daily at ${scheduleTimeUtc} UTC'
+  }
+}
+
+// The schedule is linked to the runbook by deploy.ps1 after the content is published; ARM refuses to link an
+// unpublished runbook.
+
+output automationAccountName string = automation.name
+output automationPrincipalId string = automation.identity.principalId
+output storageAccountName string = storage.name
+output containerUrl string = '${blobEndpoint}${containerName}'
+output modulesContainerUrl string = '${blobEndpoint}modules'
+output runbookName string = runbook.name
+output scheduleName string = schedule.name
+output runtimeEnvironmentName string = runtimeEnvironment.name
+output firstRunUtc string = firstRun

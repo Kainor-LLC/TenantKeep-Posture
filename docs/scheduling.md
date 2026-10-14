@@ -24,9 +24,25 @@ environment besides the license check, so if it ever ships it carries a count an
 
 | Scheduler | Identity | Snapshots live in | Alert path | Sample |
 |---|---|---|---|---|
-| Azure Automation runbook | System-assigned managed identity with application permissions | Storage account file share or blob mounted to the sandbox | Teams webhook, plus an alert rule on job failure | `deploy/schedules/automation-runbook.ps1` |
+| Azure Automation runbook | System-assigned managed identity with application permissions | Blob container; the runbook downloads the previous run and uploads the new one | Teams webhook or email, plus an alert rule on job failure | `deploy/automation/` (Bicep, deploy.ps1, grant script) and `deploy/schedules/automation-runbook.ps1` |
 | GitHub Action | App registration with a federated credential (OIDC), no secret | A private repo, one commit per run | Teams webhook, plus GitHub's failed-workflow notification | `deploy/schedules/github-action.yml` |
 | macOS launchd | The admin's own delegated sign-in, token cache reused | `~/audit/evidence` | Teams webhook, plus the `.err` log | `deploy/schedules/launchd/` |
+
+## Deploying the Automation variant
+
+```powershell
+az login --tenant <tenant id>
+./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -Location centralus -WhatIf     # preview
+./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -Location centralus -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example
+# then, once, as a Global Administrator:
+Connect-MgGraph -TenantId <tenant id> -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All
+./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <printed id> -IncludeMailSend
+az automation runbook start -g rg-tenantkeep-dev --automation-account-name aa-tenantkeep-dev -n Invoke-CaSnapshotCycle
+```
+
+The deployer needs Owner (or Contributor plus User Access Administrator) on the resource group; the template grants
+the deployer blob data access so the module zip can be uploaded, and the account's identity Storage Blob Data
+Contributor on the snapshots. Dev deployments upload an unsigned zip of the staged module; releases are signed.
 
 ## Permissions
 
@@ -58,6 +74,6 @@ Application permissions for the managed identity or the app registration: `Polic
 
 ## Things to verify on first deployment
 
-- Automation: PowerShell 7.4 runtime module import for Tenantkeep.Posture and Microsoft.Graph.Authentication; the Bicep `contentLink` flow (spec 6).
+- Automation: deployed and import verified through `deploy/automation/deploy.ps1` (custom 7.4 runtime environment; system environments stop at 7.2). Still to verify on the first job: `Connect-MgGraph -Identity`, the Az version in the runtime, the blob round trip.
 - GitHub: the federated credential token exchange in the sample; `azure/login` plus `Get-AzAccessToken -ResourceTypeName MSGraph` is the alternative.
 - launchd: how long the cached refresh token survives under the tenant's own sign-in frequency policy.

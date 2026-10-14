@@ -151,6 +151,12 @@ function Invoke-Build {
         $src = Join-Path $Root $data
         if (Test-Path $src) { Copy-Item -Path $src -Destination (Join-Path $stage $data) -Recurse -Exclude '.gitkeep' }
     }
+    # The scheduling scripts ship inside the module so a runbook can find them next to the manifest.
+    $schedules = Join-Path $Root 'deploy' 'schedules'
+    if (Test-Path $schedules) {
+        New-Item -ItemType Directory -Path (Join-Path $stage 'schedules') -Force | Out-Null
+        Copy-Item -Path (Join-Path $schedules '*.ps1') -Destination (Join-Path $stage 'schedules')
+    }
 
     # The export list is derived from Public/, so the manifest can never drift from the source tree.
     $publicFunctions = @(Get-ChildItem -Path (Join-Path $stage 'Public') -Filter '*.ps1' | Select-Object -ExpandProperty BaseName | Sort-Object)

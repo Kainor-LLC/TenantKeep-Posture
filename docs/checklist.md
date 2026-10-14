@@ -43,7 +43,10 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 
 ### 5.4 Scheduling samples
 - [x] Shared cycle script deploy/schedules/ca-snapshot-cycle.ps1: snapshot, document, compare with previous, notify, prune; tested with Export mocked (this checkpoint)
-- [x] Azure Automation runbook sample with managed identity (not run against Azure; verify module import and durable OutRoot)
+- [x] Azure Automation runbook with managed identity, blob-backed runs (download previous, upload new, prune) (this checkpoint)
+- [x] deploy/automation: Bicep (account, system identity, custom PowerShell 7.4 runtime environment, RBAC-only storage, variables, schedule, runbook shell, deployer blob role) plus deploy.ps1 (module zip upload, package import through a user-delegation SAS, Gallery dependency, runbook publish, schedule link) and Grant-ManagedIdentityGraphRole.ps1. Deployed to Kainor-LAPSlock rg-tenantkeep-dev on 2026-10-13 (this checkpoint)
+- [ ] First Automation job: needs Grant-ManagedIdentityGraphRole.ps1 run by a Global Administrator (Connor), then a manual job start; verify Connect-MgGraph -Identity, Az 12.3 in the 7.4 runtime, and the blob round trip
+- [ ] Dev deployment is unsigned (zip of the staged module); releases must go through Package with the signing cert
 - [x] GitHub Action sample with a federated credential (verify the token exchange; azure/login is the alternative)
 - [x] macOS launchd sample reusing the admin's token cache (verify cache lifetime under sign-in frequency)
 - [x] Teams Workflows webhook card on risk-relevant changes (verify card payload against the Workflows connector)
