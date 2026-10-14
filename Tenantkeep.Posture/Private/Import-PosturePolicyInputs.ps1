@@ -40,6 +40,7 @@ function Import-PostureProfile {
     $ErrorActionPreference = 'Stop'
     $model = [ordered]@{
         present               = $false
+        clientName            = $null
         licenses              = @()
         platforms             = @()
         identityModel         = $null

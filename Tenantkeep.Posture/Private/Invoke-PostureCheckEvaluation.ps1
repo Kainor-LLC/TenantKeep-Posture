@@ -161,6 +161,18 @@ function Invoke-PostureCheckEvaluation {
     $counts = [ordered]@{}
     foreach ($s in 'pass', 'fail', 'notEvaluated', 'notApplicable', 'acceptedRisk', 'coveredBy') { $counts[$s] = @($results | Where-Object { $_.status -eq $s }).Count }
 
+    # Per-domain facts travel with the run so a report can show headline numbers from the same evaluation.
+    $domains = [ordered]@{}
+    foreach ($d in ($domainFacts.Keys | Sort-Object)) {
+        $df = $domainFacts[$d]
+        $domains[$d] = [ordered]@{
+            available = [bool]$df['available']
+            reason    = $(if ($df.Contains('reason')) { [string]$df['reason'] } else { $null })
+            facts     = $(if ($df['available']) { $df['facts'] } else { @{} })
+            evidence  = @($(if ($df.Contains('evidence')) { $df['evidence'] } else { @() }))
+        }
+    }
+
     return [ordered]@{
         catalogVersion = $Catalog.version
         baseline       = $Baseline.name
@@ -168,7 +180,7 @@ function Invoke-PostureCheckEvaluation {
         evidence       = $Evidence
         evaluatedUtc   = $AsOf.ToString('o')
         counts         = $counts
-        domains        = [ordered]@{}
+        domains        = $domains
         results        = @($results)
     }
 }

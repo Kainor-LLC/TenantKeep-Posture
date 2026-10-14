@@ -76,7 +76,9 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken
 - [ ] New-PostureProfile wizard
-- [ ] Interactive HTML report renderer (templates/), findings.csv export, portal deep links
+- [x] New-PostureReport G1: report model (weighted score with the method stated, headline numbers, domain scorecards, top risks, four recommendation buckets, admins table, CA matrix, appendix), Markdown output, -Client folder, checks.json beside it; Kainor scores 81 (B) over 36 checks (checkpoint G1)
+- [ ] New-PostureReport G2: self-contained interactive HTML (templates/report.css, report.js), executive mode toggle, check detail drawer, print view, PDF
+- [ ] findings.csv export (Export-PostureFindings), portal deep links, trend across runs
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 
 ## Later weeks

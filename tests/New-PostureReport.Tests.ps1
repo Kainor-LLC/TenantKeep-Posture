@@ -1,0 +1,129 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
+
+BeforeAll {
+    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
+    $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-report-$([guid]::NewGuid().ToString('n'))"
+    $script:Ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'evidence')
+    # The CA snapshot sits in the same folder, as Invoke-PostureCollection writes it.
+    Copy-Item -Path (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot' '*.json') -Destination $script:Ev
+    @{ tenantId = 'tenant-guid'; account = 'reader@contoso.example'; collectors = @('ConditionalAccess', 'Entra'); timestampUtc = '2026-10-14T01:00:00Z'; scopes = @('Directory.Read.All'); graphApiVersions = @('v1.0'); errors = @('Hybrid sync features :: Forbidden') } | ConvertTo-Json | Set-Content (Join-Path $script:Ev 'collection.json')
+    @(@{ id = 'tenant-guid'; displayName = 'Contoso' }) | ConvertTo-Json | Set-Content (Join-Path $script:Ev '01-organization.json')
+    $script:Client = Join-Path $script:Root 'client'
+    New-Item -ItemType Directory -Path $script:Client | Out-Null
+    @{ preparedBy = @{ name = 'Example MSP' }; client = @{ name = 'Contoso Ltd' }; footer = 'Prepared by Example MSP' } | ConvertTo-Json | Set-Content (Join-Path $script:Client 'brand.json')
+    $null = New-PostureProfile -Path (Join-Path $script:Client 'profile.json') -NonInteractive -Licenses P1, P2 -Platforms windows, macOS -BreakGlass 'breakglass01@contoso.example' -Thresholds @{ namePattern = '^CA-\d{3}-' }
+    @(@{ check = 'ID-013'; justification = 'Open collaboration by policy'; owner = 'CISO'; approver = 'CISO'; expires = '2027-12-31' }) | ConvertTo-Json | Set-Content (Join-Path $script:Client 'exceptions.json')
+}
+
+AfterAll {
+    if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -Recurse -Force }
+}
+
+Describe 'New-PostureReport' {
+    Context 'full template with a client folder' {
+        BeforeAll {
+            $script:R = New-PostureReport -Evidence $script:Ev -Client $script:Client -OutputPath (Join-Path $script:Root 'out') -PassThru
+            $script:Md = Get-Content -Raw -LiteralPath ($script:R.Files | Where-Object { $_ -like '*report.md' })
+            $script:Rep = $script:R.Report
+        }
+
+        It 'writes checks.json and report.md' {
+            @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.md')
+            (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 39
+        }
+
+        It 'scores with the stated method and grades it' {
+            $s = $script:Rep.score
+            $s.possible | Should -BeGreaterThan 0
+            $s.value | Should -Be ([Math]::Round(100.0 * $s.earned / $s.possible))
+            $s.grade | Should -BeIn @('A', 'B', 'C', 'D', 'F')
+            $s.method | Should -Match 'Critical 4, High 3, Medium 2, Low 1'
+            $script:Md | Should -Match "\*\*Posture score $($s.value) \($($s.grade)\)\.\*\*"
+        }
+
+        It 'computes headline numbers from the same run and marks the rest not collected' {
+            $h = $script:Rep.headline
+            $h.mfaRegisteredPct | Should -Be 75
+            $h.adminsPhishingResistantPct | Should -Be 40
+            $h.permanentGlobalAdmins | Should -Be 4
+            $h.intuneCompliancePct | Should -BeNullOrEmpty
+            $script:Md | Should -Match '\| 75% \| 40% \| 4 \| not collected yet \| not collected yet \| not collected yet \|'
+        }
+
+        It 'has one scorecard per collected domain and names the rest' {
+            @($script:Rep.domains | ForEach-Object { $_.key }) | Should -Be @('identity', 'auth', 'ca')
+            ($script:Rep.domains | Where-Object key -eq 'ca').checks[0].status | Should -Be 'fail' -Because 'failures sort first'
+            $script:Rep.domainsNotCollected.label | Should -Contain 'Devices'
+            $script:Md | Should -Match '### Identity and privileged access'
+            $script:Md | Should -Match 'Not collected yet: Devices, Endpoint security'
+        }
+
+        It 'lists top risks by severity and buckets recommendations' {
+            $script:Rep.topRisks.Count | Should -Be 5
+            $script:Rep.topRisks[0].severity | Should -Be 'Critical'
+            $script:Rep.recommendations['Stop the bleeding'].id | Should -Contain 'CA-002'
+            $script:Rep.recommendations['Later'].id | Should -Contain 'CA-014'
+            $script:Md | Should -Match '### Stop the bleeding'
+            $script:Md | Should -Match '\*\*CA-002 MFA required for all users\*\* \(Critical, ca, needs P1\)'
+        }
+
+        It 'applies the client folder: brand, profile and exceptions' {
+            $script:Rep.title | Should -Be 'Microsoft security posture report: Contoso Ltd'
+            $script:Md | Should -Match 'Prepared by Example MSP for Contoso Ltd\.'
+            ($script:Rep.results | Where-Object id -eq 'ID-013').status | Should -Be 'acceptedRisk'
+            ($script:Rep.results | Where-Object id -eq 'CA-015').status | Should -Be 'fail' -Because 'the profile name pattern reached the CA facts'
+            $script:Rep.appendix.profileAnswers.licenses | Should -Be @('P1', 'P2')
+            $script:Md | Should -Match '\| ID-013 \|  \| Open collaboration by policy \| CISO \| CISO \| 2027-12-31 \| no \|'
+        }
+
+        It 'builds the admins table from roles, registration and users' {
+            $a = $script:Rep.admins
+            $a.Count | Should -Be 6
+            $ga = $a | Where-Object upn -eq 'admin2@contoso.example'
+            $ga.permanent | Should -Be @('Global Administrator')
+            $ga.strongestMethod | Should -Be 'Phishing-resistant'
+            $ga.synced | Should -BeTrue
+            ($a | Where-Object upn -eq 'admin3@contoso.example').eligible | Should -Be @('Security Administrator')
+            ($a | Where-Object type -eq 'servicePrincipal').strongestMethod | Should -Be 'n/a'
+            $script:Md | Should -Match '\| Admin Two \| user \| Global Administrator \|  \| Phishing-resistant \| 2026-10-01 \| yes \| 0 \|'
+        }
+
+        It 'includes the CA matrix and the appendix with evidence index and errors' {
+            $script:Rep.ca.policies.Count | Should -Be 8
+            $script:Md | Should -Match '\| Policy \| All users \| Admin roles \|'
+            $script:Md | Should -Match '### Evidence index'
+            $script:Md | Should -Match '`04-role-assignments-active.json`'
+            $script:Md | Should -Match '- Hybrid sync features :: Forbidden'
+            $script:Rep.appendix.notEvaluated.id | Should -Contain 'ID-006'
+        }
+    }
+
+    Context 'executive template and edge cases' {
+        It 'hides technical columns in the executive template' {
+            $r = New-PostureReport -Evidence $script:Ev -Template Executive -OutputPath (Join-Path $script:Root 'exec') -PassThru
+            $md = Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.md' })
+            $md | Should -Match '\| Check \| Title \| Status \| Severity \|\n'
+            $md | Should -Not -Match '\| Check \| Title \| Status \| Severity \| License \| Detail \|'
+            $md | Should -Match 'Executive template'
+            $r.Report.clientName | Should -Be 'Contoso' -Because 'without a brand or profile the organization display name is used'
+        }
+
+        It 'works on a bare CA snapshot folder' {
+            $snap = Join-Path $script:Root 'snap'
+            Copy-Item -Path (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot') -Destination $snap -Recurse
+            $r = New-PostureReport -Evidence $snap -PassThru
+            @($r.Report.domains | ForEach-Object { $_.key }) | Should -Be @('ca')
+            $r.Report.headline.mfaRegisteredPct | Should -BeNullOrEmpty
+            $r.Report.admins.Count | Should -Be 0
+            Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.md' }) | Should -Match 'Role assignments were not collected'
+        }
+
+        It 'honours -WhatIf and rejects a missing folder' {
+            New-PostureReport -Evidence $script:Ev -OutputPath (Join-Path $script:Root 'whatif') -WhatIf
+            Join-Path $script:Root 'whatif' 'report.md' | Should -Not -Exist
+            { New-PostureReport -Evidence (Join-Path $script:Root 'nope') } | Should -Throw '*Evidence folder not found*'
+        }
+    }
+}
