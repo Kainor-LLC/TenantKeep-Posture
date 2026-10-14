@@ -87,6 +87,15 @@ Describe 'Invoke-PostureCheckEvaluation' {
         }
     }
 
+    It 'treats a third-party category set to none as not covered' {
+        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+            $p = Import-PostureProfile
+            $p.present = $true; $p.thirdParty = @{ mfa = 'none' }
+            $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $p -Evidence $Ev -FactProvider $script:Provider
+            ($run.results | Where-Object id -eq 'TS-004').status | Should -Be 'pass'
+        }
+    }
+
     It 'applies the baseline: selection, per-check thresholds, severity override' {
         InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Strict -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $script:Provider

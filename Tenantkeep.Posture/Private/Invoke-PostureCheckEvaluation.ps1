@@ -94,7 +94,7 @@ function Invoke-PostureCheckEvaluation {
             $cat, $vendor = ([string]$cb).Split(':', 2)
             if ($OrgProfile.thirdParty -and $OrgProfile.thirdParty.Contains($cat)) {
                 $have = [string]$OrgProfile.thirdParty[$cat]
-                if ($have -and ($vendor -eq '*' -or $vendor -eq $have)) { $covered = "$cat`:$have"; break }
+                if ($have -and $have -ne 'none' -and ($vendor -eq '*' -or $vendor -eq $have)) { $covered = "$cat`:$have"; break }
             }
         }
         if ($covered) { $result.status = 'coveredBy'; $result.coveredBy = $covered; $result.reason = "Covered by $($covered.Split(':')[1]) per the profile; verify there."; $result; continue }
