@@ -203,22 +203,24 @@ function Invoke-PostureEntraCollection {
     # ---------- 6b. Legacy per-user MFA state (AU-009) ----------
     if (-not $SkipPerUserMfa) {
         Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -Script {
-            # One read per user, batched 20 at a time through $batch. (verify) scope: UserAuthenticationMethod.Read.All; cost at 20k users
+            # One read per user, batched 20 at a time through $batch. authentication/requirements is beta-only (confirmed 2026-10-14).
+            # (verify) scope: UserAuthenticationMethod.Read.All; cost at 20k users
             $members = @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' })
             $states = [System.Collections.Generic.List[object]]::new()
             for ($i = 0; $i -lt $members.Count; $i += 20) {
                 $chunk = @($members[$i..([Math]::Min($i + 20, $members.Count) - 1)])
                 $requests = @(); $n = 0
                 foreach ($m in $chunk) { $requests += @{ id = [string]$n; method = 'GET'; url = "/users/$($m.Id)/authentication/requirements" }; $n++ }
-                $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'v1.0' -Single   # posture:read-only-post
+                $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'beta' -Single   # posture:read-only-post
                 foreach ($resp in @(& $v $batch 'responses')) {
                     $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]
-                    $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = (& $v $resp 'status'); PerUserMfaState = (& $v $resp 'body.perUserMfaState') })
+                    $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = (& $v $resp 'status'); PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
                 }
             }
             $rows = @($states.ToArray())
             & $save $rows '05-per-user-mfa' $true
-            & $saveOne ([ordered]@{ Users = $rows.Count; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = @($rows | Where-Object { [int]$_.Status -ge 400 }).Count }) '05-per-user-mfa-summary'
+            $failed = @($rows | Where-Object { [int]$_.Status -ge 400 })
+            & $saveOne ([ordered]@{ Users = $rows.Count; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = $failed.Count; FirstError = $(if ($failed.Count -gt 0) { "$($failed[0].Status) $($failed[0].Error)" } else { $null }) }) '05-per-user-mfa-summary'
         } | Out-Null
     }
 

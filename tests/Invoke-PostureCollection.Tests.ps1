@@ -154,7 +154,7 @@ Describe 'Invoke-PostureCollection' {
             $s.Enforced | Should -Be 1
             $s.Disabled | Should -Be 2
             (& $script:Read '05-per-user-mfa' | Where-Object UserPrincipalName -eq 'admin2@contoso.example').PerUserMfaState | Should -Be 'enforced'
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -like '*/$batch' -and $Method -eq 'POST' }
+            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/$batch' -and $Method -eq 'POST' } -Because 'authentication/requirements exists only in beta'
         }
 
         It 'collects Entra devices with join type and staleness' {
@@ -215,7 +215,7 @@ Describe 'Invoke-PostureCollection' {
             $m = & $script:Read 'collection'
             $m.tenantId | Should -Be 'tenant-guid'
             $m.collectors | Should -Be @('ConditionalAccess', 'Entra')
-            $m.graphApiVersions | Should -Be @('v1.0')
+            $m.graphApiVersions | Should -Be @('beta', 'v1.0') -Because 'the per-user MFA batch is the one beta call'
             $m.files | Should -Contain '06-users.csv'
             $m.errorCount | Should -Be 1
             (& $script:Read 'metadata').snapshotType | Should -Be 'conditional-access'

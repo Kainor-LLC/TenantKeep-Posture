@@ -100,6 +100,9 @@ function Get-PostureAuthFact {
     $perUser = & $load '05-per-user-mfa-summary'
     $perUserRows = & $load '05-per-user-mfa'
     if ($null -eq $perUser) { $notEvaluated['AU-009'] = '05-per-user-mfa-summary.json was not collected (skipped with -SkipPerUserMfa, or UserAuthenticationMethod.Read.All missing).' }
+    elseif ([int](& $v $perUser 'Users') -gt 0 -and [int](& $v $perUser 'Errors') -ge [int](& $v $perUser 'Users')) {
+        $notEvaluated['AU-009'] = "Every per-user MFA read failed ($(& $v $perUser 'FirstError')); the state is unknown."
+    }
     else {
         $facts.perUserMfaEnforced = [int](& $v $perUser 'Enforced')
         $facts.perUserMfaEnabled = [int](& $v $perUser 'Enabled')

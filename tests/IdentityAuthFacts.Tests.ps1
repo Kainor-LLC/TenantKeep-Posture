@@ -97,6 +97,15 @@ Describe 'Get-PostureAuthFact' {
         InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Au.facts[$Fact] | Should -Be $Expected }
     }
 
+    It 'marks AU-009 not evaluated when every per-user MFA read failed' {
+        InModuleScope Tenantkeep.Posture -Parameters @{ Root = $script:Root } {
+            $dir = Join-Path $Root 'mfa-errors'; New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            @{ Users = 5; Enforced = 0; Enabled = 0; Disabled = 0; Errors = 5; FirstError = "400 Resource not found for the segment 'requirements'." } | ConvertTo-Json | Set-Content (Join-Path $dir '05-per-user-mfa-summary.json')
+            $f = Get-PostureAuthFact -Evidence $dir
+            $f.notEvaluated['AU-009'] | Should -Match "Every per-user MFA read failed \(400 Resource not found"
+        }
+    }
+
     It 'lists admins without a phishing-resistant method, joining roles and the report' {
         InModuleScope Tenantkeep.Posture {
             $script:Au.affected.adminsWithoutPhishingResistant.name | Should -Be @('admin1@contoso.example', 'admin3@contoso.example', 'auditor@contoso.example')
