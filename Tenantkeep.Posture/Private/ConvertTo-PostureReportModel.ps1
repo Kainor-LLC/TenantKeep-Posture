@@ -195,7 +195,7 @@ function ConvertTo-PostureReportModel {
         $c = $byId[$r.id]
         $recommendations[$bucketOf[[string]$r.severity]] += , [ordered]@{
             id = $r.id; title = $r.title; severity = $r.severity; domain = $r.domain; affectedCount = $r.affectedCount
-            remediation = [string]$c['remediation']; learn = [string]$c['learn']; license = @($c['license'])
+            remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license'])
         }
     }
 
@@ -254,7 +254,7 @@ function ConvertTo-PostureReportModel {
     }
 
     $catalogText = [ordered]@{}
-    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']) } }
+    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']) } }
 
     $collection = & $load 'collection'
     $tenantId = $(if ($collection) { & $v $collection 'tenantId' } else { & $v (& $load 'metadata') 'tenantId' })

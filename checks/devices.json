@@ -1,103 +1,435 @@
 {
   "domain": "devices",
   "checks": [
-    { "id": "DEV-001", "domain": "devices", "title": "Intune compliance rate at target", "severityDefault": "High", "license": ["Intune"], "applicableWhen": {}, "coveredBy": ["mdm:*"],
-      "thresholds": { "minCompliancePct": 0 }, "evidence": ["09-intune-managed-devices.json", "09-intune-summary-compliance.json"],
-      "pass": "facts.intuneCompliancePct >= thresholds.minCompliancePct", "affected": "facts.noncompliantDevices",
+    {
+      "id": "DEV-001",
+      "domain": "devices",
+      "title": "Intune compliance rate at target",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "minCompliancePct": 0
+      },
+      "evidence": [
+        "09-intune-managed-devices.json",
+        "09-intune-summary-compliance.json"
+      ],
+      "pass": "facts.intuneCompliancePct >= thresholds.minCompliancePct",
+      "affected": "facts.noncompliantDevices",
       "remediation": "Set the target in the profile and work the non-compliant list: fix the device, retire it, or correct the compliance policy that is wrong. Compliance feeds Conditional Access (CA-005), so every non-compliant device is either blocked or, if the policy is not enforced yet, unprotected.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-get-started", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-get-started",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/compliance",
       "narrative": "The compliance rate is the fraction of managed devices meeting the policy: encrypted, current, protected, healthy. It is what the compliant-device Conditional Access control enforces, so the number is both a hygiene measure and the size of the population a device-based policy would lock out. The per-platform split is in the facts.",
-      "frameworks": { "nist-csf-2": "PR.PS-01", "iso27001": "A.8.1", "cmmc": "CM.L2-3.4.1", "cisa-scuba": "" } },
-    { "id": "DEV-002", "domain": "devices", "title": "No stale Entra devices, or a cleanup rule is on", "severityDefault": "Medium", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["08-entra-devices.json", "09-intune-device-cleanup.json"],
-      "pass": "facts.staleEntraDevices == 0 || facts.deviceCleanupRuleEnabled", "affected": "facts.staleEntraDevices",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-002",
+      "domain": "devices",
+      "title": "No stale Entra devices, or a cleanup rule is on",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "08-entra-devices.json",
+        "09-intune-device-cleanup.json"
+      ],
+      "pass": "facts.staleEntraDevices == 0 || facts.deviceCleanupRuleEnabled",
+      "affected": "facts.staleEntraDevices",
       "remediation": "Enable the Intune device cleanup rule (DEV-013) at 90 days or less, and run a one-time cleanup of the stale Entra device objects listed, disabling first and deleting after a grace period.",
-      "learn": "https://learn.microsoft.com/entra/identity/devices/manage-stale-devices", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/devices/manage-stale-devices",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
       "narrative": "A device object that has not signed in for months still satisfies device-based Conditional Access if someone can use its credential, and it inflates every device count the report relies on. Stale objects are the inventory debt that makes join-type and compliance numbers unreliable.",
-      "frameworks": { "nist-csf-2": "ID.AM-01", "iso27001": "A.5.9", "cmmc": "CM.L2-3.4.1", "cisa-scuba": "" } },
-    { "id": "DEV-003", "domain": "devices", "title": "Join type mix: hybrid share within target", "severityDefault": "Low", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "maxHybridJoinedPct": 100 }, "evidence": ["08-entra-devices-by-join-os.json"],
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.5.9",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-003",
+      "domain": "devices",
+      "title": "Join type mix: hybrid share within target",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxHybridJoinedPct": 100
+      },
+      "evidence": [
+        "08-entra-devices-by-join-os.json"
+      ],
       "pass": "facts.hybridJoinedPct <= thresholds.maxHybridJoinedPct",
       "remediation": "Set the target in the profile as the Entra-join migration progresses. New and refreshed devices should be Entra joined with Autopilot; hybrid join stays only for devices that need on-premises resources the cloud cannot yet provide.",
-      "learn": "https://learn.microsoft.com/entra/identity/devices/concept-directory-join", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/devices/concept-directory-join",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
       "narrative": "Entra joined, hybrid joined and registered devices get different controls and different attack surfaces. The mix is reported here so the trend is visible across runs; the threshold lets a migration set its own pace.",
-      "frameworks": { "nist-csf-2": "ID.AM-01", "iso27001": "A.5.9", "cmmc": "", "cisa-scuba": "" } },
-    { "id": "DEV-004", "domain": "devices", "title": "Autopilot share of the Windows fleet at target", "severityDefault": "Low", "license": ["Intune"], "applicableWhen": { "platforms": ["windows"] }, "coveredBy": [],
-      "thresholds": { "minAutopilotPct": 0 }, "evidence": ["09-intune-managed-devices.json", "09-autopilot-devices.json"],
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.5.9",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-004",
+      "domain": "devices",
+      "title": "Autopilot share of the Windows fleet at target",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minAutopilotPct": 0
+      },
+      "evidence": [
+        "09-intune-managed-devices.json",
+        "09-autopilot-devices.json"
+      ],
       "pass": "facts.autopilotPct >= thresholds.minAutopilotPct",
       "remediation": "Register new hardware with Autopilot at purchase through the OEM or reseller, import existing hardware hashes for devices due a reset, and set the target in the profile for the refresh cycle.",
-      "learn": "https://learn.microsoft.com/autopilot/overview", "deepLink": null,
+      "learn": "https://learn.microsoft.com/autopilot/overview",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/windowsAutopilotDevices",
       "narrative": "Autopilot-provisioned devices arrive Entra joined, enrolled and policy-bound before a user touches them. The share of the Windows fleet that came through Autopilot is a proxy for how much of it was built to the standard rather than migrated into it.",
-      "frameworks": { "nist-csf-2": "PR.PS-01", "iso27001": "A.8.9", "cmmc": "", "cisa-scuba": "" } },
-    { "id": "DEV-005", "domain": "devices", "title": "BitLocker recovery keys escrowed for every Windows device", "severityDefault": "High", "license": [], "applicableWhen": { "platforms": ["windows"] }, "coveredBy": [],
-      "thresholds": { "minBitLockerEscrowedPct": 100 }, "evidence": ["08-entra-devices.json", "08-bitlocker-keys-by-device.json"],
-      "pass": "facts.bitlockerEscrowedPct >= thresholds.minBitLockerEscrowedPct", "affected": "facts.windowsDevicesWithoutBitLockerKey",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.9",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-005",
+      "domain": "devices",
+      "title": "BitLocker recovery keys escrowed for every Windows device",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minBitLockerEscrowedPct": 100
+      },
+      "evidence": [
+        "08-entra-devices.json",
+        "08-bitlocker-keys-by-device.json"
+      ],
+      "pass": "facts.bitlockerEscrowedPct >= thresholds.minBitLockerEscrowedPct",
+      "affected": "facts.windowsDevicesWithoutBitLockerKey",
       "remediation": "Deploy an Intune disk encryption policy with silent enablement and recovery key backup to Entra for all Windows devices, then confirm the devices listed have escrowed a key. Devices encrypted before the policy may need the key re-backed up with manage-bde or a remediation script.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/BitLockerKeys",
       "narrative": "A Windows device without an escrowed recovery key is either unencrypted or encrypted with a key nobody holds, and the difference only shows up when the disk needs recovering. Key presence in Entra is the one signal that both encryption happened and the organisation can get the data back.",
-      "frameworks": { "nist-csf-2": "PR.DS-01", "iso27001": "A.8.24", "cmmc": "SC.L2-3.13.16", "cisa-scuba": "" } },
-    { "id": "DEV-006", "domain": "devices", "title": "FileVault enabled on every managed Mac", "severityDefault": "High", "license": ["Intune"], "applicableWhen": { "platforms": ["macOS"] }, "coveredBy": ["mdm:*"],
-      "thresholds": { "minMacEncryptedPct": 100 }, "evidence": ["09-intune-managed-devices.json"],
-      "pass": "facts.macEncryptedPct >= thresholds.minMacEncryptedPct", "affected": "facts.macsNotEncrypted",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-006",
+      "domain": "devices",
+      "title": "FileVault enabled on every managed Mac",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "macOS"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "minMacEncryptedPct": 100
+      },
+      "evidence": [
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "facts.macEncryptedPct >= thresholds.minMacEncryptedPct",
+      "affected": "facts.macsNotEncrypted",
       "remediation": "Deploy an Intune FileVault disk encryption policy with personal recovery key escrow and rotation after reveal, and require encryption in the macOS compliance policy. Escrow state per Mac is not in the device record; (verify) the encryption report once the Intune reports collector exists.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices-filevault", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices-filevault",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/encryptionReport",
       "narrative": "A lost MacBook without FileVault is a readable disk. Intune reports whether each managed Mac is encrypted; escrow of the recovery key is the second half, so that a locked-out user does not become a wiped machine.",
-      "frameworks": { "nist-csf-2": "PR.DS-01", "iso27001": "A.8.24", "cmmc": "SC.L2-3.13.16", "cisa-scuba": "" } },
-    { "id": "DEV-007", "domain": "devices", "title": "No Windows 10 devices left in the fleet", "severityDefault": "High", "license": ["Intune"], "applicableWhen": { "platforms": ["windows"] }, "coveredBy": [],
-      "thresholds": {}, "evidence": ["09-intune-summary-windows-builds.json"],
-      "pass": "facts.windows10Devices == 0", "affected": "facts.windows10Devices",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-007",
+      "domain": "devices",
+      "title": "No Windows 10 devices left in the fleet",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-summary-windows-builds.json"
+      ],
+      "pass": "facts.windows10Devices == 0",
+      "affected": "facts.windows10Devices",
       "remediation": "Upgrade or replace the devices listed. Windows 10 reached end of support in October 2025; a device still on it needs Extended Security Updates or it is unpatched. Use the Windows build summary to size the refresh.",
-      "learn": "https://learn.microsoft.com/windows/whats-new/extended-security-updates", "deepLink": null,
+      "learn": "https://learn.microsoft.com/windows/whats-new/extended-security-updates",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/mDMDevicesPreview",
       "narrative": "An unsupported operating system gets no security fixes. Every Windows 10 device without ESU is a known-vulnerable endpoint on the network, and the count is the first thing an auditor or an insurer asks about.",
-      "frameworks": { "nist-csf-2": "PR.PS-02", "iso27001": "A.8.8", "cmmc": "SI.L2-3.14.1", "cisa-scuba": "" } },
-    { "id": "DEV-008", "domain": "devices", "title": "Apple push certificate and VPP tokens well before expiry", "severityDefault": "High", "license": ["Intune"], "applicableWhen": { "platforms": ["macOS", "iOS"] }, "coveredBy": ["mdm:*"],
-      "thresholds": { "minAppleCertDays": 60 }, "evidence": ["09-apple-push-cert.json", "09-apple-vpp-tokens.json"],
-      "pass": "facts.applePushCertPresent && facts.applePushCertDays >= thresholds.minAppleCertDays && facts.vppTokensExpiringSoon == 0", "affected": "facts.appleExpiry",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-02",
+        "iso27001": "A.8.8",
+        "cmmc": "SI.L2-3.14.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-008",
+      "domain": "devices",
+      "title": "Apple push certificate and VPP tokens well before expiry",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "macOS",
+          "iOS"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "minAppleCertDays": 60
+      },
+      "evidence": [
+        "09-apple-push-cert.json",
+        "09-apple-vpp-tokens.json"
+      ],
+      "pass": "facts.applePushCertPresent && facts.applePushCertDays >= thresholds.minAppleCertDays && facts.vppTokensExpiringSoon == 0",
+      "affected": "facts.appleExpiry",
       "remediation": "Renew the Apple push certificate with the same Apple ID it was created with (a different ID means re-enrolling every Apple device), renew VPP tokens in Apple Business Manager, and put both dates in the team calendar with a 60-day reminder.",
-      "learn": "https://learn.microsoft.com/mem/intune/enrollment/apple-mdm-push-certificate-get", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/enrollment/apple-mdm-push-certificate-get",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/appleEnrollment",
       "narrative": "When the Apple push certificate lapses, every iPhone, iPad and Mac silently stops receiving management. If it is renewed with a different Apple ID, all of them must be re-enrolled by hand. It expires yearly and the person who created it has often left.",
-      "frameworks": { "nist-csf-2": "PR.PS-01", "iso27001": "A.8.9", "cmmc": "", "cisa-scuba": "" } },
-    { "id": "DEV-009", "domain": "devices", "title": "Personal Windows devices blocked from enrollment", "severityDefault": "Medium", "license": ["Intune"], "applicableWhen": { "byod": ["none", "mam"] }, "coveredBy": [],
-      "thresholds": {}, "evidence": ["09-intune-enrollment-restrictions.json"],
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.9",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-009",
+      "domain": "devices",
+      "title": "Personal Windows devices blocked from enrollment",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "byod": [
+          "none",
+          "mam"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-enrollment-restrictions.json"
+      ],
       "pass": "facts.windowsPersonalEnrollmentBlocked",
       "remediation": "In Intune enrollment device platform restrictions, block personally owned Windows devices in the default restriction, and only allow them for a named group if the BYOD stance in the profile changes to MDM.",
-      "learn": "https://learn.microsoft.com/mem/intune/enrollment/enrollment-restrictions-set", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/enrollment/enrollment-restrictions-set",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/deviceEnrollmentRestrictions",
       "narrative": "With personal Windows enrollment open, anyone with a work account can enroll their home PC, which then counts as managed, may satisfy compliance, and pulls corporate data onto hardware nobody controls. The restriction keeps the managed fleet the organisation's own.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.1", "cmmc": "AC.L2-3.1.18", "cisa-scuba": "" } },
-    { "id": "DEV-010", "domain": "devices", "title": "Endpoint security policies present and assigned", "severityDefault": "High", "license": ["Intune"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["09-intune-config-profiles-settings-catalog.json"],
-      "pass": "facts.endpointSecurityFamiliesAssigned >= facts.endpointSecurityFamiliesRequired", "affected": "facts.endpointSecurityFamiliesMissing",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-010",
+      "domain": "devices",
+      "title": "Endpoint security policies present and assigned",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json"
+      ],
+      "pass": "facts.endpointSecurityFamiliesAssigned >= facts.endpointSecurityFamiliesRequired",
+      "affected": "facts.endpointSecurityFamiliesMissing",
       "remediation": "Create and assign an Intune endpoint security policy for each missing type: antivirus, disk encryption, firewall, attack surface reduction rules, and endpoint detection and response. Start from Microsoft's recommended settings and assign to all devices by platform.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/overview",
       "narrative": "The five endpoint security policy types are how Intune tells devices to run Defender properly, encrypt the disk, keep the firewall on, block the common attack techniques and report to Defender for Endpoint. A missing type means that control is whatever the device defaulted to.",
-      "frameworks": { "nist-csf-2": "PR.PS-01", "iso27001": "A.8.7", "cmmc": "SI.L2-3.14.2", "cisa-scuba": "" } },
-    { "id": "DEV-011", "domain": "devices", "title": "Windows LAPS policy assigned", "severityDefault": "High", "license": ["Intune"], "applicableWhen": { "platforms": ["windows"] }, "coveredBy": [],
-      "thresholds": {}, "evidence": ["09-intune-config-profiles-settings-catalog.json"],
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L2-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-011",
+      "domain": "devices",
+      "title": "Windows LAPS policy assigned",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json"
+      ],
       "pass": "facts.lapsPoliciesAssigned >= 1",
       "remediation": "Enable Windows LAPS in Entra device settings, then assign an Intune account protection policy for Local admin password solution to all Windows devices: back up to Entra, rotate after use, 30-day maximum age. (verify) the template display name matched by the fact.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/windows-laps-policy", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/windows-laps-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/accountProtection",
       "narrative": "Without LAPS every Windows device shares the same local administrator password, or has one nobody knows. Either way a single compromised machine gives lateral movement to all of them. LAPS makes each password unique, rotated and retrievable only through an audited read.",
-      "frameworks": { "nist-csf-2": "PR.AA-01", "iso27001": "A.5.17", "cmmc": "IA.L2-3.5.7", "cisa-scuba": "" } },
-    { "id": "DEV-012", "domain": "devices", "title": "Defender for Endpoint connector enabled in Intune", "severityDefault": "High", "license": ["MDE1", "MDE2", "MDEBusiness"], "applicableWhen": {}, "coveredBy": ["edr:*"],
-      "thresholds": {}, "evidence": ["09-intune-mde-connector.json"],
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-012",
+      "domain": "devices",
+      "title": "Defender for Endpoint connector enabled in Intune",
+      "severityDefault": "High",
+      "license": [
+        "MDE1",
+        "MDE2",
+        "MDEBusiness"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-mde-connector.json"
+      ],
       "pass": "facts.mdeConnectorEnabled",
       "remediation": "In Intune endpoint security, open the Microsoft Defender for Endpoint connector, enable the connection for Windows and macOS (and Linux where managed), and turn on compliance policy evaluation on device risk. The Defender portal must have the Intune connection enabled too.",
-      "learn": "https://learn.microsoft.com/mem/intune/protect/advanced-threat-protection-configure", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/protect/advanced-threat-protection-configure",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/mdeConnector",
       "narrative": "The connector is what lets Intune onboard devices to Defender for Endpoint automatically and use device risk in compliance. Without it, onboarding is manual and a device under attack still reports compliant.",
-      "frameworks": { "nist-csf-2": "DE.CM-01", "iso27001": "A.8.16", "cmmc": "SI.L2-3.14.6", "cisa-scuba": "" } },
-    { "id": "DEV-013", "domain": "devices", "title": "Device cleanup rule enabled", "severityDefault": "Low", "license": ["Intune"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["09-intune-device-cleanup.json"],
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-013",
+      "domain": "devices",
+      "title": "Device cleanup rule enabled",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-device-cleanup.json"
+      ],
       "pass": "facts.deviceCleanupRuleEnabled",
       "remediation": "In Intune devices, device cleanup rules, enable the rule and set the inactivity period to 90 days or less so retired and forgotten devices leave the console on their own.",
-      "learn": "https://learn.microsoft.com/mem/intune/remote-actions/devices-wipe", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/remote-actions/devices-wipe",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/deviceCleanup",
       "narrative": "Without a cleanup rule, every device that was ever enrolled stays in the console, and the compliance and encryption percentages drift toward meaningless. The rule is a one-time setting that keeps the inventory honest.",
-      "frameworks": { "nist-csf-2": "ID.AM-01", "iso27001": "A.5.9", "cmmc": "", "cisa-scuba": "" } },
-    { "id": "DEV-014", "domain": "devices", "title": "Linux endpoints enrolled in Intune", "severityDefault": "Medium", "license": ["Intune"], "applicableWhen": { "platforms": ["linux"] }, "coveredBy": ["mdm:*"],
-      "thresholds": { "minLinuxDevices": 0 }, "evidence": ["09-intune-summary-os-agent-join.json"],
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.5.9",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-014",
+      "domain": "devices",
+      "title": "Linux endpoints enrolled in Intune",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "linux"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "minLinuxDevices": 0
+      },
+      "evidence": [
+        "09-intune-summary-os-agent-join.json"
+      ],
       "pass": "facts.linuxManagedDevices >= thresholds.minLinuxDevices",
       "remediation": "Enroll supported Linux desktops in Intune, deploy Defender for Endpoint on Linux through it, and set a target count in the profile. Where enrollment is not possible, record the alternative management in the profile so the gap is documented rather than invisible.",
-      "learn": "https://learn.microsoft.com/mem/intune/fundamentals/deployment-guide-platform-linux", "deepLink": null,
+      "learn": "https://learn.microsoft.com/mem/intune/fundamentals/deployment-guide-platform-linux",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/mDMDevicesPreview",
       "narrative": "Linux desktops are usually the developers' machines with the most access and the least management. The count enrolled is reported here because zero is the common answer, and at scale zero is a finding.",
-      "frameworks": { "nist-csf-2": "ID.AM-01", "iso27001": "A.8.1", "cmmc": "CM.L2-3.4.1", "cisa-scuba": "" } }
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    }
   ]
 }

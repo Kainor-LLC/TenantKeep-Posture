@@ -23,7 +23,7 @@
       "affected": "facts.subscriptionsAtTenantRoot",
       "remediation": "Create a management group hierarchy (platform, landing zones, sandbox) and move every subscription under it, so policy and role assignments inherit.",
       "learn": "https://learn.microsoft.com/azure/governance/management-groups/overview",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_ManagementGroups/ManagementGroupBrowseBlade/~/MGBrowse_overview",
       "narrative": "A subscription at the tenant root inherits nothing: no benchmark, no policy, no standing-access rules. Management groups are where those are set once.",
       "frameworks": {
         "nist-csf-2": "GV.PO-01",
@@ -53,7 +53,7 @@
       "affected": "facts.subscriptionsWithoutMcsb",
       "remediation": "Enable Defender for Cloud on the listed subscriptions, or assign the benchmark initiative at the management group so new subscriptions inherit it.",
       "learn": "https://learn.microsoft.com/azure/defender-for-cloud/concept-regulatory-compliance",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/EnvironmentSettings",
       "narrative": "The benchmark is the policy set behind Azure Secure Score and every Defender for Cloud recommendation. A subscription without it is unevaluated, not clean.",
       "frameworks": {
         "nist-csf-2": "ID.RA-01",
@@ -84,7 +84,7 @@
       "affected": "facts.defenderPlanGaps",
       "remediation": "Turn on the Defender plan for each listed subscription and resource type: Servers, Storage, Key Vault, Databases, Containers, App Service, APIs, and Resource Manager everywhere.",
       "learn": "https://learn.microsoft.com/azure/defender-for-cloud/enable-all-plans",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/EnvironmentSettings",
       "narrative": "The plans are the paid detections: runtime threat detection on VMs, malware scanning on storage, anomalous Key Vault access. Off on a subscription that holds the resource is the finding; off elsewhere is fine and noted.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
@@ -113,7 +113,7 @@
       "pass": "facts.defenderCspmSubscriptions > 0",
       "remediation": "Enable Defender CSPM on the subscriptions where attack paths, permissions creep and unused-permission findings are wanted.",
       "learn": "https://learn.microsoft.com/azure/defender-for-cloud/concept-cloud-security-posture-management",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/EnvironmentSettings",
       "narrative": "Defender CSPM adds attack path analysis and the identity findings Entra Permissions Management used to carry. Without it those rows are not evaluated.",
       "frameworks": {
         "nist-csf-2": "ID.RA-05",
@@ -143,7 +143,7 @@
       "affected": "facts.subscriptionsWithoutSecurityContact",
       "remediation": "Set a security contact email on each listed subscription with alert notifications for high severity and above, and the Owner role notified.",
       "learn": "https://learn.microsoft.com/azure/defender-for-cloud/configure-email-notifications",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/EnvironmentSettings",
       "narrative": "Defender for Cloud alerts that nobody is emailed about sit in the portal. The contact is who finds out.",
       "frameworks": {
         "nist-csf-2": "RS.CO-02",
@@ -173,7 +173,7 @@
       "affected": "facts.subscriptionsWithoutActivityLogExport",
       "remediation": "Add a diagnostic setting on each listed subscription that sends the activity log categories to the Log Analytics workspace or Sentinel, with a year or more of retention there.",
       "learn": "https://learn.microsoft.com/azure/azure-monitor/essentials/activity-log",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Monitoring/AzureMonitoringBrowseBlade/~/activityLog",
       "narrative": "The activity log holds every control-plane change and is kept 90 days on its own. The export is what makes an investigation older than that possible.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
@@ -204,7 +204,7 @@
       "affected": "facts.vaultsWithoutDeleteLock",
       "remediation": "Apply a CanNotDelete lock to each listed vault, or to its resource group.",
       "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.KeyVault%2Fvaults",
       "narrative": "A Key Vault or backup vault deleted by mistake, or by an attacker with Contributor, is the outage and the ransomware scenario in one. The lock is cheap.",
       "frameworks": {
         "nist-csf-2": "PR.DS-11",
@@ -234,7 +234,7 @@
       "affected": "facts.subscriptionsWithoutOwnPolicy",
       "remediation": "Assign the organisation's own policies (deny public IPs, deny public storage, require encryption, allowed locations) at the management group.",
       "learn": "https://learn.microsoft.com/azure/governance/policy/overview",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Policy/PolicyMenuBlade/~/Assignments",
       "narrative": "The benchmark audits. The organisation's own deny policies are what stop a misconfiguration from being created at all.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -265,7 +265,7 @@
       "pass": "facts.taggedPct >= thresholds.minTaggedPct",
       "remediation": "Enforce the owner and environment tags with a policy that inherits them from the resource group, then tag the resource groups.",
       "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/tag-resources",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseAll",
       "narrative": "A resource with no owner tag is a resource nobody will answer for when the finding lands. Tags are the join key between the posture report and the people.",
       "frameworks": {
         "nist-csf-2": "ID.AM-01",
@@ -295,7 +295,7 @@
       "affected": "facts.orphanedResources",
       "remediation": "Delete the unattached disks, unused public IPs, NICs without a VM and empty resource groups, or document why each stays.",
       "learn": "https://learn.microsoft.com/azure/advisor/advisor-cost-recommendations",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Expert/AdvisorMenuBlade/~/Cost",
       "narrative": "Orphans cost money and carry data: an unattached disk still holds the VM's contents. The counts are the clean-up list.",
       "frameworks": {
         "nist-csf-2": "ID.AM-01",
@@ -328,7 +328,7 @@
       "affected": "facts.ownerProblems",
       "remediation": "Reduce standing Owners to three or fewer named cloud-only accounts per subscription; everyone else gets Contributor or an eligible PIM assignment.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/best-practices",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "Owner on a subscription is full control including the right to grant it. Owners inherited from the root or a management group count too; synced accounts tie the subscription's fate to on-premises AD.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -360,7 +360,7 @@
       "affected": "facts.standingRootOrMgAdmins",
       "remediation": "Remove the standing assignments at the root and management group scopes and make them eligible through PIM for Azure resources.",
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-resource-roles-assign-roles",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/azurerbac",
       "narrative": "A permanent Owner at the root scope owns every subscription that exists and every one created later. Eligible is the only acceptable state for that role.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -391,7 +391,7 @@
       "affected": "facts.guestRoleAssignments",
       "remediation": "Remove the guest assignments, or record each as an object-level exception with the partner and the reason.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/role-assignments-external-users",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "A guest with an Azure role is a partner's account, governed by the partner's MFA and lifecycle, with rights in your subscription.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -424,7 +424,7 @@
       "affected": "facts.servicePrincipalOwnersOrContributors",
       "remediation": "Record each listed service principal as an exception with its purpose, prefer a managed identity over an app secret, and scope it to a resource group rather than the subscription.",
       "learn": "https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "A service principal with Contributor is a credential that can rebuild the subscription. Pipelines need it; the question is which ones and at what scope.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -454,7 +454,7 @@
       "affected": "facts.orphanedRoleAssignments",
       "remediation": "Delete the assignments whose principal no longer exists.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/troubleshooting",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "An assignment to a deleted principal is noise now and a grant to whoever recreates the object id later. They accumulate with every leaver.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -484,7 +484,7 @@
       "affected": "facts.customRolesWithWildcard",
       "remediation": "Rewrite the listed custom roles with explicit actions; a role that grants * is Owner with a different name.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/custom-roles",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "Wildcard actions in a custom role defeat the point of the custom role and hide an Owner-equivalent grant from every review that looks for Owner.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -514,7 +514,7 @@
       "affected": "facts.classicAdministrators",
       "remediation": "Remove the listed Co-Administrators and Service Administrators; the role type was retired in 2024 and anything left is unmanaged access.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/classic-administrators",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "Classic administrators sit outside RBAC and PIM. Microsoft retired the type; a tenant that still has them has access nobody reviews.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -545,7 +545,7 @@
       "pass": "facts.userAssignmentsAtResourceScope <= thresholds.maxUserResourceScopeAssignments",
       "remediation": "Replace per-user assignments on individual resources with group assignments at resource group scope; the count is the trend to drive down.",
       "learn": "https://learn.microsoft.com/azure/role-based-access-control/best-practices",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Billing/SubscriptionsBladeV1",
       "narrative": "Hundreds of per-user grants on individual resources are unreviewable. Groups at resource group scope are the maintainable shape.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -575,7 +575,7 @@
       "affected": "facts.keyVaultsOffModel",
       "remediation": "Switch each listed vault to RBAC authorisation, enable purge protection and soft delete, and disable public network access or set the firewall default to deny.",
       "learn": "https://learn.microsoft.com/azure/key-vault/general/security-features",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.KeyVault%2Fvaults",
       "narrative": "Key Vault holds the secrets everything else depends on. Access policies are the legacy model nobody reviews; purge protection is what stops an attacker deleting the keys for good.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -605,7 +605,7 @@
       "affected": "facts.storageAccountsOffModel",
       "remediation": "Disable shared key access and anonymous blob access on each listed account, require HTTPS and TLS 1.2; move clients to Entra authentication or SAS tokens scoped and dated.",
       "learn": "https://learn.microsoft.com/azure/storage/common/security-recommendations",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Storage%2FStorageAccounts",
       "narrative": "A storage account key is a password to every byte in the account, and anonymous blob access is the classic public-bucket leak. Both are off by one switch each.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -635,7 +635,7 @@
       "affected": "facts.sqlServersWithLocalAuth",
       "remediation": "Enable Entra-only authentication on each listed SQL server once the applications use managed identities or Entra logins.",
       "learn": "https://learn.microsoft.com/azure/azure-sql/database/authentication-azure-ad-only-authentication",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Sql%2Fservers",
       "narrative": "SQL authentication is a password in a connection string. Entra-only removes it as a path, the same move as disabling shared keys on storage.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -666,7 +666,7 @@
       "pass": "facts.azureManagementCaPolicies > 0",
       "remediation": "Create a Conditional Access policy that targets Windows Azure Service Management API (Microsoft Azure Management) for all users and requires MFA or a phishing-resistant strength and a compliant device.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-old-require-mfa-azure-mgmt",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
       "narrative": "The portal, CLI and ARM API are all the management plane. A policy on all cloud apps covers it; a tenant with app-specific policies often leaves it out.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",

@@ -201,7 +201,7 @@ function ConvertTo-PostureReportHtml {
         $items = @($r.recommendations[$bucket])
         & $w "<div class=`"bucket`"><h3>$(& $h $bucket) <span class=`"tech`">($($items.Count))</span></h3>"
         if ($items.Count -eq 0) { & $w '<p>Nothing in this bucket.</p>' }
-        foreach ($x in $items) { & $w "<div class=`"rec`"><div class=`"title`"><a href=`"#checks`" data-check=`"$(& $h $x.id)`">$(& $h $x.id) $(& $h $x.title)</a> <span class=`"sev $(& $h $x.severity)`">$(& $h $x.severity)</span> <span class=`"tech`">$(& $h $x.domain)$(if ($x.license.Count -gt 0) { ", needs $(& $h ($x.license -join ' or '))" })$(if ($x.affectedCount -gt 0) { ", $($x.affectedCount) affected" })</span></div><div>$(& $h $x.remediation) <a href=`"$(& $h $x.learn)`">Learn</a></div></div>" }
+        foreach ($x in $items) { $portal = $(if ($x.deepLink) { ' <a href="' + (& $h $x.deepLink) + '">Open in portal</a>' } else { '' }); & $w "<div class=`"rec`"><div class=`"title`"><a href=`"#checks`" data-check=`"$(& $h $x.id)`">$(& $h $x.id) $(& $h $x.title)</a> <span class=`"sev $(& $h $x.severity)`">$(& $h $x.severity)</span> <span class=`"tech`">$(& $h $x.domain)$(if ($x.license.Count -gt 0) { ", needs $(& $h ($x.license -join ' or '))" })$(if ($x.affectedCount -gt 0) { ", $($x.affectedCount) affected" })</span></div><div>$(& $h $x.remediation) <a href=`"$(& $h $x.learn)`">Learn</a>$portal</div></div>" }
         & $w '</div>'
     }
     & $w '</section>'

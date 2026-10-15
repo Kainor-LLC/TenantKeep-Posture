@@ -2,139 +2,399 @@
   "domain": "identity",
   "checks": [
     {
-      "id": "ID-001", "domain": "identity", "title": "Global Administrator count between two and five", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "minGlobalAdmins": 2, "maxGlobalAdmins": 5 }, "evidence": ["04-role-assignments-active.json"],
-      "pass": "facts.globalAdmins >= thresholds.minGlobalAdmins && facts.globalAdmins <= thresholds.maxGlobalAdmins", "affected": "facts.globalAdmins",
+      "id": "ID-001",
+      "domain": "identity",
+      "title": "Global Administrator count between two and five",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minGlobalAdmins": 2,
+        "maxGlobalAdmins": 5
+      },
+      "evidence": [
+        "04-role-assignments-active.json"
+      ],
+      "pass": "facts.globalAdmins >= thresholds.minGlobalAdmins && facts.globalAdmins <= thresholds.maxGlobalAdmins",
+      "affected": "facts.globalAdmins",
       "remediation": "Reduce permanent Global Administrators to the break-glass accounts plus at most a few named people. Move day-to-day administration to least-privilege roles and make the remaining Global Administrator assignments eligible in PIM with approval and a time limit.",
-      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "Every Global Administrator is a full tenant takeover away from any phishing kit or malware on that person's machine. Microsoft recommends fewer than five, and two is the floor because the break-glass accounts hold the role. Counts above that usually come from convenience assignments that nobody revisited.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "MS.AAD.7.1v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.AAD.7.1v1"
+      }
     },
     {
-      "id": "ID-002", "domain": "identity", "title": "No permanent privileged assignments outside break-glass", "severityDefault": "High", "license": ["P2"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["04-role-assignments-active.json", "04-role-assignments-pim-eligible.json"],
-      "pass": "facts.permanentPrivilegedOutsideBreakGlass == 0", "affected": "facts.permanentPrivilegedOutsideBreakGlass",
+      "id": "ID-002",
+      "domain": "identity",
+      "title": "No permanent privileged assignments outside break-glass",
+      "severityDefault": "High",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "04-role-assignments-active.json",
+        "04-role-assignments-pim-eligible.json"
+      ],
+      "pass": "facts.permanentPrivilegedOutsideBreakGlass == 0",
+      "affected": "facts.permanentPrivilegedOutsideBreakGlass",
       "remediation": "Convert each permanent privileged assignment listed to a PIM eligible assignment with activation MFA, justification, a maximum duration of eight hours or less, and approval for Global Administrator. Keep only the break-glass accounts permanent.",
-      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-configure", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-configure",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/aadmigratedroles",
       "narrative": "A standing privileged role is a standing target. Eligible assignments mean the role exists only for the hours it is activated, every activation is logged with a reason, and an attacker who lands in the account outside that window gets a normal user. This is what Entra ID P2 is for.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "MS.AAD.7.4v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.AAD.7.4v1"
+      }
     },
     {
-      "id": "ID-003", "domain": "identity", "title": "No administrators synced from on-premises AD", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["04-role-assignments-active.json"],
-      "pass": "facts.adminsSyncedFromOnPrem == 0", "affected": "facts.adminsSyncedFromOnPrem",
+      "id": "ID-003",
+      "domain": "identity",
+      "title": "No administrators synced from on-premises AD",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "04-role-assignments-active.json"
+      ],
+      "pass": "facts.adminsSyncedFromOnPrem == 0",
+      "affected": "facts.adminsSyncedFromOnPrem",
       "remediation": "Create cloud-only accounts for the administrators listed, assign the roles to those, and remove the roles from the synced accounts. Cloud-only admin accounts do not inherit an on-premises compromise.",
-      "learn": "https://learn.microsoft.com/entra/architecture/protect-m365-from-on-premises-attacks", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/architecture/protect-m365-from-on-premises-attacks",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "A synced account's password and status are controlled from on-premises Active Directory. If a domain controller falls, every synced administrator falls with it, and the attacker reaches the cloud without touching it. Microsoft's guidance for protecting Microsoft 365 from on-premises attacks starts with cloud-only privileged accounts.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "MS.AAD.7.3v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.AAD.7.3v1"
+      }
     },
     {
-      "id": "ID-004", "domain": "identity", "title": "Administrator accounts are unlicensed, separate identities", "severityDefault": "Medium", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["04-role-assignments-active.json", "06-users.json"],
-      "pass": "facts.adminsWithLicenses == 0", "affected": "facts.adminsWithLicenses",
+      "id": "ID-004",
+      "domain": "identity",
+      "title": "Administrator accounts are unlicensed, separate identities",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "04-role-assignments-active.json",
+        "06-users.json"
+      ],
+      "pass": "facts.adminsWithLicenses == 0",
+      "affected": "facts.adminsWithLicenses",
       "remediation": "Give each administrator a separate admin account with no mailbox and no Microsoft 365 license, used only for administration. Remove the roles from the daily-use licensed account.",
-      "learn": "https://learn.microsoft.com/microsoft-365/admin/add-users/about-admin-roles", "deepLink": null,
+      "learn": "https://learn.microsoft.com/microsoft-365/admin/add-users/about-admin-roles",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "An administrator who reads mail and browses with the same account exposes the role to every phishing message and drive-by download. A separate, unlicensed admin account has no mailbox to phish and no Office session to hijack. Licenses on it are the tell that it doubles as a daily account.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.6", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.6",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-005", "domain": "identity", "title": "Break-glass accounts exist, are cloud-only and enabled", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["06-users.json"],
-      "pass": "facts.breakGlassAccounts >= 1 && facts.breakGlassSynced == 0 && facts.breakGlassDisabled == 0", "affected": "facts.breakGlassProblems",
+      "id": "ID-005",
+      "domain": "identity",
+      "title": "Break-glass accounts exist, are cloud-only and enabled",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "06-users.json"
+      ],
+      "pass": "facts.breakGlassAccounts >= 1 && facts.breakGlassSynced == 0 && facts.breakGlassDisabled == 0",
+      "affected": "facts.breakGlassProblems",
       "remediation": "Create two cloud-only emergency access accounts with long random passwords stored offline, exclude them from every Conditional Access policy that blocks (CA-012), assign Global Administrator permanently, and alert on any sign-in. Name them in the profile so the checks recognise them.",
-      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "When MFA, federation or a policy misfire locks every administrator out, the break-glass accounts are the only way back in. They must be cloud-only so an on-premises outage cannot take them, enabled so they work, and excluded from blocking policies so the lockout does not apply to them.",
-      "frameworks": { "nist-csf-2": "RC.RP-01", "iso27001": "A.5.30", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "RC.RP-01",
+        "iso27001": "A.5.30",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-006", "domain": "identity", "title": "PIM activation settings on the top roles", "severityDefault": "High", "license": ["P2"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "maxActivationHours": 8 }, "evidence": ["04-pim-role-policies.json"],
-      "pass": "facts.pimPolicyCompliantRoles >= facts.pimPolicyRolesChecked", "affected": "facts.pimPolicyProblems",
+      "id": "ID-006",
+      "domain": "identity",
+      "title": "PIM activation settings on the top roles",
+      "severityDefault": "High",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxActivationHours": 8
+      },
+      "evidence": [
+        "04-pim-role-policies.json"
+      ],
+      "pass": "facts.pimPolicyCompliantRoles >= facts.pimPolicyRolesChecked",
+      "affected": "facts.pimPolicyProblems",
       "remediation": "In PIM, for Global Administrator, Privileged Role Administrator, Security Administrator and Conditional Access Administrator: require MFA on activation, require justification, cap activation at eight hours, and require approval for Global Administrator.",
-      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/quickStart",
       "narrative": "Eligible assignments only help if activation is harder than a click. MFA on activation stops a stolen session from elevating, a duration cap limits how long an activated role lives, and approval on Global Administrator puts a second person between an attacker and the tenant.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "MS.AAD.7.6v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.AAD.7.6v1"
+      }
     },
     {
-      "id": "ID-007", "domain": "identity", "title": "No service principal holds Global Administrator", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["04-role-assignments-active.json"],
-      "pass": "facts.servicePrincipalsWithGlobalAdmin == 0", "affected": "facts.servicePrincipalsWithRoles",
+      "id": "ID-007",
+      "domain": "identity",
+      "title": "No service principal holds Global Administrator",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "04-role-assignments-active.json"
+      ],
+      "pass": "facts.servicePrincipalsWithGlobalAdmin == 0",
+      "affected": "facts.servicePrincipalsWithRoles",
       "remediation": "Replace Global Administrator on any service principal with the specific Graph application permissions or the narrowest directory role the workload needs. Review every service principal listed and record the owner and purpose of each role it keeps.",
-      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "A service principal with a directory role is an administrator with no MFA, no sign-in frequency and usually a secret somewhere in a pipeline. Global Administrator on one of them is the most direct path from a leaked secret to full tenant control.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-008", "domain": "identity", "title": "User consent limited to admin consent or verified low-impact apps", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["02-authorization-policy.json"],
+      "id": "ID-008",
+      "domain": "identity",
+      "title": "User consent limited to admin consent or verified low-impact apps",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
       "pass": "facts.userConsentMode != 'all'",
       "remediation": "In Enterprise applications, consent and permissions, set user consent to Do not allow, or to Allow for verified publishers for selected permissions only. Enable the admin consent workflow (ID-009) so users have a path to request access.",
-      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-user-consent", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-user-consent",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/UserSettings",
       "narrative": "Consent phishing asks a user to approve an app that reads their mail and files. If users can consent to any permission, one click gives the attacker a persistent OAuth grant that survives password changes and MFA. Restricting consent closes the door; the workflow keeps legitimate requests moving.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.3", "cmmc": "AC.L2-3.1.2", "cisa-scuba": "MS.AAD.5.2v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": "MS.AAD.5.2v1"
+      }
     },
     {
-      "id": "ID-009", "domain": "identity", "title": "Admin consent workflow enabled with reviewers", "severityDefault": "Medium", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["02-admin-consent-request-policy.json"],
+      "id": "ID-009",
+      "domain": "identity",
+      "title": "Admin consent workflow enabled with reviewers",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-admin-consent-request-policy.json"
+      ],
       "pass": "facts.adminConsentWorkflowEnabled && facts.adminConsentReviewers >= 1",
       "remediation": "Enable the admin consent request workflow and name at least two reviewers who hold a role able to grant consent. Set request expiry and reviewer notifications.",
-      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-admin-consent-workflow", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-admin-consent-workflow",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/AdminConsentSettings",
       "narrative": "Once user consent is restricted, users need a way to ask. Without the workflow they ask by email or not at all, and administrators grant tenant-wide consent to get them unblocked, which is worse than the user consent that was removed.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.3", "cmmc": "", "cisa-scuba": "MS.AAD.5.4v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "",
+        "cisa-scuba": "MS.AAD.5.4v1"
+      }
     },
     {
-      "id": "ID-010", "domain": "identity", "title": "No expired or soon-to-expire application credentials", "severityDefault": "Medium", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "credentialExpiryWarningDays": 30 }, "evidence": ["10-app-registrations.json"],
-      "pass": "facts.appCredentialsExpired == 0 && facts.appCredentialsExpiringSoon == 0", "affected": "facts.appCredentialProblems",
+      "id": "ID-010",
+      "domain": "identity",
+      "title": "No expired or soon-to-expire application credentials",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "credentialExpiryWarningDays": 30
+      },
+      "evidence": [
+        "10-app-registrations.json"
+      ],
+      "pass": "facts.appCredentialsExpired == 0 && facts.appCredentialsExpiringSoon == 0",
+      "affected": "facts.appCredentialProblems",
       "remediation": "For each app listed, remove expired secrets and certificates, rotate the ones expiring soon, and record an owner. Prefer certificates or federated credentials over secrets, and alert on expiry from the registration owner's calendar or a monitoring job.",
-      "learn": "https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
       "narrative": "An expired credential on a live integration is an outage waiting for the next token refresh. Expired credentials left in place also hide which ones are actually in use. Thirty days is the window in which rotation can be scheduled rather than done in an incident.",
-      "frameworks": { "nist-csf-2": "PR.AA-01", "iso27001": "A.5.17", "cmmc": "IA.L2-3.5.10", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-011", "domain": "identity", "title": "High-privilege application permissions justified", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["10-graph-app-permissions.json"],
-      "pass": "facts.highPrivilegeAppPermissions == 0", "affected": "facts.highPrivilegeAppPermissions",
+      "id": "ID-011",
+      "domain": "identity",
+      "title": "High-privilege application permissions justified",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-graph-app-permissions.json"
+      ],
+      "pass": "facts.highPrivilegeAppPermissions == 0",
+      "affected": "facts.highPrivilegeAppPermissions",
       "remediation": "For each grant listed, confirm the workload still exists and needs that permission; replace tenant-wide permissions with resource-specific consent or a narrower permission; remove the rest. Record the surviving grants as exceptions with an owner and a review date.",
-      "learn": "https://learn.microsoft.com/graph/permissions-reference", "deepLink": null,
+      "learn": "https://learn.microsoft.com/graph/permissions-reference",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "An application permission applies to every mailbox, site or user in the tenant with no user present. Directory.ReadWrite.All or Mail.ReadWrite on a forgotten app is a complete data exfiltration path that bypasses Conditional Access entirely. Each one should have a name next to it.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.3", "cmmc": "AC.L2-3.1.5", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-012", "domain": "identity", "title": "No guests inactive beyond the threshold", "severityDefault": "Medium", "license": ["P1"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "inactiveGuestDays": 90 }, "evidence": ["06-users.json", "06-users-summary.json"],
-      "pass": "facts.inactiveGuests == 0", "affected": "facts.inactiveGuests",
+      "id": "ID-012",
+      "domain": "identity",
+      "title": "No guests inactive beyond the threshold",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "inactiveGuestDays": 90
+      },
+      "evidence": [
+        "06-users.json",
+        "06-users-summary.json"
+      ],
+      "pass": "facts.inactiveGuests == 0",
+      "affected": "facts.inactiveGuests",
       "remediation": "Remove or disable the guests listed, and put an access review on guest access so inactive guests are removed on a schedule rather than by hand. Entra ID Governance can automate the removal.",
-      "learn": "https://learn.microsoft.com/entra/id-governance/access-reviews-overview", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/id-governance/access-reviews-overview",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "A guest who has not signed in for months still holds whatever was shared with them, under an identity another organisation controls. Inactive guests are the longest-lived access in most tenants and the least looked at.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.5.18", "cmmc": "AC.L2-3.1.1", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-013", "domain": "identity", "title": "Cross-tenant inbound access reviewed, not default-open", "severityDefault": "Medium", "license": [], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": {}, "evidence": ["02-cross-tenant-access-defaults.json"],
+      "id": "ID-013",
+      "domain": "identity",
+      "title": "Cross-tenant inbound access reviewed, not default-open",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-cross-tenant-access-defaults.json"
+      ],
       "pass": "!facts.crossTenantInboundDefaultOpen",
       "remediation": "Review the inbound B2B collaboration defaults: restrict which external users and groups can be invited and to which applications, decide whether to trust external MFA and device claims, and add per-partner settings for the organisations you work with. Record the decision as an exception if the open default is intentional.",
-      "learn": "https://learn.microsoft.com/entra/external-id/cross-tenant-access-overview", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/external-id/cross-tenant-access-overview",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/CrossTenantAccessSettings",
       "narrative": "The default cross-tenant settings allow any external user to be invited to any application. That is fine for an organisation that has decided it, and a gap for one that never looked. The check fails on the untouched default so the decision gets made.",
-      "frameworks": { "nist-csf-2": "GV.SC-04", "iso27001": "A.5.19", "cmmc": "AC.L2-3.1.20", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "GV.SC-04",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
     },
     {
-      "id": "ID-014", "domain": "identity", "title": "Sign-in and audit logs exported to Log Analytics or a SIEM", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": ["siem:*"],
-      "thresholds": {}, "evidence": ["azure-diagnostic-settings"],
+      "id": "ID-014",
+      "domain": "identity",
+      "title": "Sign-in and audit logs exported to Log Analytics or a SIEM",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "siem:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "azure-diagnostic-settings"
+      ],
       "pass": "facts.logExportConfigured",
       "remediation": "Add a diagnostic setting on Entra ID that sends SignInLogs, AuditLogs, NonInteractiveUserSignInLogs and RiskyUsers to a Log Analytics workspace or your SIEM, with retention beyond the 30 days the portal keeps.",
-      "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/howto-integrate-activity-logs-with-azure-monitor-logs", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/howto-integrate-activity-logs-with-azure-monitor-logs",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/DiagnosticSettings",
       "narrative": "Entra keeps sign-in logs for seven to thirty days depending on license. An incident discovered later than that has no evidence to investigate. Exporting the logs is a one-time setting and the difference between knowing what happened and guessing.",
-      "frameworks": { "nist-csf-2": "DE.CM-01", "iso27001": "A.8.15", "cmmc": "AU.L2-3.3.1", "cisa-scuba": "MS.AAD.8.x" }
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": "MS.AAD.8.x"
+      }
     },
     {
-      "id": "ID-015", "domain": "identity", "title": "No high-risk users left unaddressed", "severityDefault": "High", "license": ["P2"], "applicableWhen": {}, "coveredBy": [],
-      "thresholds": { "riskyUserMaxAgeDays": 7 }, "evidence": ["11-risky-users.json"],
-      "pass": "facts.highRiskUsersUnaddressed == 0", "affected": "facts.highRiskUsersUnaddressed",
+      "id": "ID-015",
+      "domain": "identity",
+      "title": "No high-risk users left unaddressed",
+      "severityDefault": "High",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "riskyUserMaxAgeDays": 7
+      },
+      "evidence": [
+        "11-risky-users.json"
+      ],
+      "pass": "facts.highRiskUsersUnaddressed == 0",
+      "affected": "facts.highRiskUsersUnaddressed",
       "remediation": "Investigate each user listed in Identity Protection: confirm compromise or dismiss the risk, reset the password, revoke sessions, and enable the user-risk policy (CA-004) so future high-risk users are remediated automatically.",
-      "learn": "https://learn.microsoft.com/entra/id-protection/howto-identity-protection-investigate-risk", "deepLink": null,
+      "learn": "https://learn.microsoft.com/entra/id-protection/howto-identity-protection-investigate-risk",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers",
       "narrative": "A user flagged high risk has leaked credentials or attacker-pattern sign-ins. A week without action means either nobody is watching the report or the user-risk policy is missing. Either way the account is still usable by whoever triggered the detection.",
-      "frameworks": { "nist-csf-2": "RS.MA-01", "iso27001": "A.5.24", "cmmc": "IR.L2-3.6.1", "cisa-scuba": "MS.AAD.2.1v1" }
+      "frameworks": {
+        "nist-csf-2": "RS.MA-01",
+        "iso27001": "A.5.24",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": "MS.AAD.2.1v1"
+      }
     }
   ]
 }

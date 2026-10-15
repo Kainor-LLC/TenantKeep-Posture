@@ -21,7 +21,7 @@
       "pass": "facts.inactiveMemberPct <= thresholds.maxInactiveMemberPct",
       "remediation": "Disable or remove the enabled accounts that have not signed in within the stale window, or automate it with a leaver workflow. Service and shared mailbox accounts belong blocked from sign-in, not left as users.",
       "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/howto-manage-inactive-user-accounts",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "An enabled account nobody uses is an account nobody watches. The share of enabled members with no sign-in in the stale window is the backlog the leaver process left behind.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",
@@ -47,7 +47,7 @@
       "pass": "facts.privilegedRoleReviews > 0",
       "remediation": "Create a recurring access review (quarterly or better) on the privileged role assignments in PIM, with the role members or their managers as reviewers and automatic removal on no response.",
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-create-roles-and-resource-roles-review",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/Controls",
       "narrative": "Privileged roles accrete. A recurring review is the only control that removes an admin role nobody asked to keep. Entra P2 includes it; most tenants that have it have never run one.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -73,7 +73,7 @@
       "pass": "facts.guests == 0 || facts.guestReviews > 0",
       "remediation": "Create a recurring review of guest users, reviewed by the group or team owners who invited them, with removal on no response.",
       "learn": "https://learn.microsoft.com/entra/id-governance/manage-guest-access-with-access-reviews",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/Controls",
       "narrative": "Guests arrive for a project and stay. A recurring review puts the decision in front of the person who knows whether the project is still running.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -99,7 +99,7 @@
       "pass": "facts.guests == 0 || facts.accessPackages > 0",
       "remediation": "Put the recurring guest and cross-team access requests behind access packages with an approver and an expiry, so invitations stop being ad hoc.",
       "learn": "https://learn.microsoft.com/entra/id-governance/entitlement-management-overview",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/elmEntitlement",
       "narrative": "Entitlement management is the licensed way to make access requestable, approved and time-bound. A tenant with guests and no packages is granting access by hand.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -125,7 +125,7 @@
       "pass": "facts.joinerWorkflow && facts.leaverWorkflow",
       "remediation": "Enable a joiner workflow (welcome, group membership, temporary access pass) and a leaver workflow (disable, remove licences and groups, delete after a period) in Lifecycle Workflows.",
       "learn": "https://learn.microsoft.com/entra/id-governance/what-are-lifecycle-workflows",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/LifecycleWorkflows",
       "narrative": "The leaver workflow is what makes the deprovisioning SLA true without a ticket. It needs the Governance licence, which the tenant has.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",
@@ -152,7 +152,7 @@
       "pass": "facts.roleAssignableGroups == 0 || facts.pimManagedGroups > 0",
       "remediation": "Bring the role-assignable groups under PIM for Groups so membership is eligible and activated with MFA and justification, not permanent.",
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/concept-pim-for-groups",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/quickStart",
       "narrative": "A role-assignable group carries admin roles to everyone in it. Permanent membership in such a group is a permanent admin, however the role itself is configured.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -179,7 +179,7 @@
       "affected": "facts.passwordSsoApps",
       "remediation": "Move the listed applications to SAML or OpenID Connect; password vaulting means a shared credential the user never sees and Conditional Access never evaluates at the app.",
       "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/what-is-single-sign-on",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "The protocol mix across enterprise applications says how much of the estate Conditional Access really governs. Password SSO is a stored credential, not federation.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -206,7 +206,7 @@
       "affected": "facts.samlCertsExpiringSoon",
       "remediation": "Roll the signing certificate on each listed application and update the service provider, before the expiry date in the detail.",
       "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/tutorial-manage-certificates-for-federated-single-sign-on",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "An expired SAML certificate is an outage for every user of that application, usually discovered on a Monday morning. The expiry calendar in the report lists these with the other expiring secrets.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -235,7 +235,7 @@
       "pass": "facts.members < thresholds.adminUnitScaleUsers || facts.administrativeUnits > 0",
       "remediation": "Create administrative units for the business units or regions and scope the helpdesk and user administrator roles to them.",
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/administrative-units",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AdminUnitManagementBlade",
       "narrative": "Above a thousand users, a tenant-wide helpdesk administrator can reset the password of anyone in the company. Administrative units scope that to the people the helpdesk actually supports.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -260,7 +260,7 @@
       "affected": "facts.enterpriseAppsWithoutOwner",
       "remediation": "Assign at least one owner to each listed application; owners receive the certificate expiry notices and answer for the access the application grants.",
       "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-app-owners",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "An ownerless application is one nobody renews, reviews or removes. The owner is who the expiry notice goes to.",
       "frameworks": {
         "nist-csf-2": "GV.RR-02",
@@ -286,7 +286,7 @@
       "pass": "facts.hrProvisioningConnectors > 0",
       "remediation": "Connect the HR system (Workday, SuccessFactors, or the API-driven inbound provisioning app for any other) so accounts are created and disabled from the source of truth. If provisioning runs another way, record it as an accepted exception with the mechanism named.",
       "learn": "https://learn.microsoft.com/entra/identity/app-provisioning/inbound-provisioning-api-concepts",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "When HR is the source of truth, a leaver is disabled the day HR says so. The check looks for a known HR connector by name and cannot see a custom integration; an exception documents one. (verify) connector names.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",

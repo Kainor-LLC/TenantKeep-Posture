@@ -25,7 +25,7 @@
       "affected": "facts.baselinesMissing",
       "remediation": "Create and assign the three security baselines from Endpoint security, on the current baseline version, and re-run after each baseline refresh.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/security-baselines",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/securityBaselines",
       "narrative": "The baselines carry several hundred hardening settings Microsoft maintains. Without them a tenant depends on whatever a custom profile happened to include. Version currency is not checked here yet.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -59,7 +59,7 @@
       "affected": "facts.bitlockerGaps",
       "remediation": "In the assigned disk encryption policy require device encryption, set XTS-AES 256 for the OS drive, hide the warning for other encryption so enablement is silent, require TPM at startup, and require the recovery key to be backed up to Entra before BitLocker turns on.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/diskEncryption",
       "narrative": "A lost laptop with no encryption is a breach; with encryption and no escrowed key it is a brick with no way back. Silent enablement is what makes the policy reach every device rather than the ones whose users clicked through.",
       "frameworks": {
         "nist-csf-2": "PR.DS-01",
@@ -93,7 +93,7 @@
       "affected": "facts.firewallProfilesOff",
       "remediation": "Assign a firewall policy that enables the firewall on all three profiles, with inbound connections blocked by default.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-firewall-policy",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/firewall",
       "narrative": "The host firewall is what stands between a laptop on hotel Wi-Fi and lateral movement. A profile left unmanaged can be turned off by any local admin or a legacy GPO.",
       "frameworks": {
         "nist-csf-2": "PR.IR-01",
@@ -126,7 +126,7 @@
       "pass": "facts.lapsBackupToEntra && facts.lapsResetAfterUse",
       "remediation": "Assign an account protection LAPS policy with the backup directory set to Entra ID and a post-authentication action that resets the password.",
       "learn": "https://learn.microsoft.com/windows-server/identity/laps/laps-overview",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/accountProtection",
       "narrative": "A shared local administrator password is the oldest lateral movement path there is. LAPS gives every device its own, stored where it can be audited and rotated after each use.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",
@@ -161,7 +161,7 @@
       "affected": "facts.avGaps",
       "remediation": "Assign an antivirus policy from the Microsoft Defender Antivirus template with real-time and cloud-delivered protection on, PUA set to block, automatic sample submission, and a weekly scheduled scan.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
       "narrative": "Defender's defaults are good; a policy makes them stick and makes them auditable. Cloud protection is where the detection logic actually lives, so a device with it off is running last year's engine.",
       "frameworks": {
         "nist-csf-2": "PR.PS-05",
@@ -197,7 +197,7 @@
       "pass": "facts.tamperProtection",
       "remediation": "In the Windows Security Experience policy set tamper protection to enabled (the value is 0 in the settings catalog) and assign it to all Windows devices.",
       "learn": "https://learn.microsoft.com/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
       "narrative": "Malware that lands with admin rights first turns off the antivirus. Tamper protection takes that option away from everything except Intune and the Defender portal.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -233,7 +233,7 @@
       "pass": "facts.networkProtectionBlock",
       "remediation": "Set network protection to block in the antivirus or attack surface reduction policy.",
       "learn": "https://learn.microsoft.com/defender-endpoint/network-protection",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/attackSurfaceReduction",
       "narrative": "Network protection blocks outbound connections to known malicious hosts from any process, not only the browser. In audit mode it reports and lets the traffic through.",
       "frameworks": {
         "nist-csf-2": "PR.IR-01",
@@ -272,7 +272,7 @@
       "affected": "facts.asrRulesNotBlocking",
       "remediation": "Assign an attack surface reduction policy that sets every rule to block (warn is accepted where Microsoft offers it). Rules still in audit need a dated plan recorded as an exception; raise the threshold in the profile while it runs.",
       "learn": "https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-reference",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/attackSurfaceReduction",
       "narrative": "ASR rules stop the techniques phishing payloads use: Office spawning processes, scripts launching downloaded executables, credential theft from LSASS. Audit mode generates events and stops nothing. The effective state per device is a later collector; this is the policy.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -309,7 +309,7 @@
       "affected": "facts.asrExclusions",
       "remediation": "Remove exclusions that are no longer needed and record the rest as object-level exceptions with an owner and a reason.",
       "learn": "https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-deployment-implement#exclude-files-and-folders-from-asr-rules",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/attackSurfaceReduction",
       "narrative": "An exclusion turns the rules off for a path. Attackers know the common ones.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -342,7 +342,7 @@
       "pass": "facts.smartScreenShell && facts.smartScreenNoOverride",
       "remediation": "Set SmartScreen for the shell (Explorer) to enabled and prevent users from overriding file warnings, in a settings catalog or endpoint protection policy.",
       "learn": "https://learn.microsoft.com/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configurationProfiles",
       "narrative": "SmartScreen checks downloaded files and installers against reputation before they run. The override setting is what stops a user from clicking Run anyway.",
       "frameworks": {
         "nist-csf-2": "PR.PS-05",
@@ -377,7 +377,7 @@
       "pass": "facts.officeMacroBlockApps >= thresholds.minOfficeMacroApps",
       "remediation": "Deploy the Office ADMX-backed setting Block macros from running in Office files from the Internet for Word, Excel and PowerPoint at least, through a settings catalog policy or the Office cloud policy service.",
       "learn": "https://learn.microsoft.com/deployoffice/security/internet-macros-blocked",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configurationProfiles",
       "narrative": "Microsoft blocks internet macros by default since 2022, but a user or an old GPO can turn that back on. A policy makes it enforced.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -410,7 +410,7 @@
       "pass": "facts.windowsHelloEnabled",
       "remediation": "Enable Windows Hello for Business in the tenant-wide enrollment settings or an identity protection policy, with a PIN minimum length and biometrics allowed.",
       "learn": "https://learn.microsoft.com/windows/security/identity-protection/hello-for-business/",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/windowsHelloForBusiness",
       "narrative": "Hello for Business replaces the password at the device with a key bound to the TPM. It is the phishing-resistant method most users can have today.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -447,7 +447,7 @@
       "pass": "facts.windowsHelloCloudTrust",
       "remediation": "Set Use cloud trust for on-premises authentication in the Windows Hello for Business policy and create the Kerberos server object in Active Directory.",
       "learn": "https://learn.microsoft.com/windows/security/identity-protection/hello-for-business/deploy/hybrid-cloud-kerberos-trust",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/windowsHelloForBusiness",
       "narrative": "Without cloud Kerberos trust, hybrid-joined devices need certificates or key trust to reach on-premises resources after a Hello sign-in, which is where most hybrid Hello deployments stall.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -482,7 +482,7 @@
       "pass": "facts.updateRingsAssigned > 0 && facts.updateQualityDeadlineSet && facts.featureUpdateProfileAssigned",
       "remediation": "Assign an update ring with a quality update deadline within the threshold and a grace period, and a feature update profile that pins the Windows version in service. Update compliance per device is a later collector.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/windows-update-for-business-configure",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/windowsUpdateRings",
       "narrative": "A ring without a deadline is a suggestion. The deadline is what gets the patch installed on the laptop that never reboots.",
       "frameworks": {
         "nist-csf-2": "PR.PS-02",
@@ -515,7 +515,7 @@
       "pass": "facts.macFileVaultPolicy && facts.macFileVaultEscrow",
       "remediation": "Assign a macOS disk encryption or settings catalog policy that enables FileVault and escrows the personal recovery key to Intune.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices-filevault",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/diskEncryption",
       "narrative": "Same reasoning as BitLocker: the policy makes encryption universal and the escrow makes recovery possible. Rotation after a reveal is an effective-state check for later.",
       "frameworks": {
         "nist-csf-2": "PR.DS-01",
@@ -548,7 +548,7 @@
       "pass": "facts.macGatekeeper && facts.macFirewall && facts.macSip",
       "remediation": "Enforce Gatekeeper and the application firewall through the settings catalog, and require System Integrity Protection in the macOS compliance policy.",
       "learn": "https://learn.microsoft.com/mem/intune/protect/compliance-policy-create-mac-os",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configurationProfiles",
       "narrative": "Gatekeeper and SIP are on by default and can be turned off by any admin user, which on most Macs is the user. The compliance policy is what notices.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -581,7 +581,7 @@
       "pass": "facts.macPlatformSso",
       "remediation": "Deploy the Platform SSO extension through a settings catalog policy with the Enterprise SSO plug-in, in Secure Enclave key or password sync mode.",
       "learn": "https://learn.microsoft.com/mem/intune/configuration/platform-sso-macos",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configurationProfiles",
       "narrative": "Platform SSO gives the Mac a device-bound credential the way Hello does on Windows, and makes the local account follow the Entra password. The mode in use is not recorded yet.",
       "frameworks": {
         "nist-csf-2": "PR.AA-03",
@@ -616,7 +616,7 @@
       "affected": "facts.mobilePlatformsWithoutJailbreakDetection",
       "remediation": "Assign an app protection policy for each mobile platform in scope and a compliance policy that blocks jailbroken or rooted devices.",
       "learn": "https://learn.microsoft.com/mem/intune/apps/app-protection-policy",
-      "deepLink": null,
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Apps/MainMenu/~/appProtectionPolicies",
       "narrative": "App protection is what keeps company data inside managed apps on a phone the company does not own. Jailbreak detection is the compliance signal Conditional Access needs for the corporate ones. The check applies whenever a mobile platform is in scope, whatever the stated BYOD stance: phones reach mail either way.",
       "frameworks": {
         "nist-csf-2": "PR.DS-01",
@@ -650,7 +650,7 @@
       "affected": "facts.devicesNotOnboarded",
       "remediation": "Onboard the listed devices: assign the Intune EDR policy with the Defender connector to every Windows, macOS and Linux device and check the devices that still report no sensor.",
       "learn": "https://learn.microsoft.com/defender-endpoint/onboarding",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/machines",
       "narrative": "Policy state said every device gets the EDR policy; this is the share that actually reports to Defender. The gap between the two is the finding the spec asks for. Joined on the Entra device id.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
@@ -681,7 +681,7 @@
       "affected": "facts.mdeSensorUnhealthy",
       "remediation": "Investigate each listed device: inactive usually means retired without offboarding, impaired means a proxy or firewall blocking the sensor.",
       "learn": "https://learn.microsoft.com/defender-endpoint/fix-unhealthy-sensors",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/machines?tab=health",
       "narrative": "An onboarded device whose sensor is silent is unprotected and still counts as covered in every dashboard. Seven days is Microsoft's own inactive threshold.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
@@ -712,7 +712,7 @@
       "affected": "facts.avNotActive",
       "remediation": "Put Defender Antivirus back in active mode on the listed devices; passive mode belongs only to a documented migration from another antivirus, with a dated plan recorded as an exception.",
       "learn": "https://learn.microsoft.com/defender-endpoint/microsoft-defender-antivirus-compatibility",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/machines",
       "narrative": "Passive mode means another product is the antivirus and Defender only observes. Disabled means nothing is. Both are invisible in policy state, which says the antivirus settings are configured.",
       "frameworks": {
         "nist-csf-2": "PR.PS-05",
@@ -743,7 +743,7 @@
       "affected": "facts.asrEffectiveBelowTarget",
       "remediation": "For each listed rule, find the devices the assessment counts as non-compliant: a conflicting policy, a pending reboot, or the rule in audit on that device.",
       "learn": "https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-deployment-operationalize",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/security-recommendations",
       "narrative": "The policy check says the rules are set to block; the secure configuration assessment says which devices are actually enforcing each rule. Both views are in the report.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -774,7 +774,7 @@
       "affected": "facts.defenderCoreBelowTarget",
       "remediation": "Find the devices the assessment counts as non-compliant for each listed control; local overrides and third-party antivirus are the usual causes.",
       "learn": "https://learn.microsoft.com/defender-vulnerability-management/tvm-security-recommendation",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/security-recommendations",
       "narrative": "Effective state for the controls that matter most: tamper protection, real-time protection, cloud-delivered protection, network protection, as the devices report them rather than as the policy says.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -803,7 +803,7 @@
       "pass": "facts.criticalCvesOver30d == 0",
       "remediation": "Patch or mitigate the critical CVEs published more than 30 days ago; the top list names the software and the device counts.",
       "learn": "https://learn.microsoft.com/defender-vulnerability-management/tvm-weaknesses",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/vulnerabilities",
       "narrative": "Critical means a working exploit path. Thirty days after publication is past any reasonable patch cycle. Defender Vulnerability Management counts them per device; the summary counts distinct CVEs and devices.",
       "frameworks": {
         "nist-csf-2": "ID.RA-01",
@@ -833,7 +833,7 @@
       "pass": "facts.incidentsOpenOver7DaysUnassigned == 0",
       "remediation": "Assign every active incident to an analyst and close or classify the old ones; set an alert tuning rule for the recurring false positives.",
       "learn": "https://learn.microsoft.com/defender-xdr/manage-incidents",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/incidents",
       "narrative": "An unassigned incident older than a week is one nobody is working. It says more about the operation than any single detection.",
       "frameworks": {
         "nist-csf-2": "RS.MA-01",

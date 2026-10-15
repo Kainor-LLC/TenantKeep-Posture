@@ -16,7 +16,7 @@
       "pass": "facts.siemInPlace",
       "remediation": "Name the SIEM in the profile's third-party controls and route the Entra sign-in and audit logs, the Microsoft 365 audit log, Intune and Defender into it. Microsoft Sentinel counts; so does any other with the connectors in place.",
       "learn": "https://learn.microsoft.com/azure/sentinel/data-connectors-reference",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Security_Insights/WorkspaceSelectorBlade",
       "narrative": "Without a SIEM the logs live in each portal for their default retention and nobody correlates them. The answer comes from the profile; the Azure collector will later confirm the diagnostic settings behind it.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
@@ -40,7 +40,7 @@
       "pass": "facts.backupDecisionRecorded",
       "remediation": "Decide and record it in the profile's third-party controls: Microsoft 365 Backup, a third-party product, or accepted risk with the reasoning. Any named answer passes; none does not.",
       "learn": "https://learn.microsoft.com/microsoft-365/backup/backup-overview",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/#/backup",
       "narrative": "Microsoft keeps the service running; it does not restore what a user or an attacker deleted beyond the retention windows. The decision is the control, whichever way it goes.",
       "frameworks": {
         "nist-csf-2": "RC.RP-01",
@@ -66,7 +66,7 @@
       "pass": "facts.breakGlassTestedRecently",
       "remediation": "Sign in with each break-glass account, confirm the Conditional Access exclusions and the alert on its use, and record the date in the profile's operations answers.",
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "A break-glass account that has not been tested is a password in a safe that may no longer open the door. Twice a year is the common bar.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",
@@ -90,7 +90,7 @@
       "pass": "facts.messageCenterOwnerNamed",
       "remediation": "Name the person or team that reads the Microsoft 365 Message Center weekly and turns retirements and changes into tickets; record it in the profile's operations answers.",
       "learn": "https://learn.microsoft.com/microsoft-365/admin/manage/message-center",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/#/MessageCenter",
       "narrative": "Microsoft retires features and changes defaults on a schedule published in the Message Center. An unread Message Center is how a tenant learns about a change from its users.",
       "frameworks": {
         "nist-csf-2": "GV.RR-02",
@@ -115,7 +115,7 @@
       "pass": "facts.secureScoreAtOrAboveAverage",
       "remediation": "Work the not-implemented Secure Score controls by score impact, listed in the scores section with Microsoft's own remediation text. Where this report marks a control covered by a third party, Secure Score will still count it against you.",
       "learn": "https://learn.microsoft.com/defender-xdr/microsoft-secure-score",
-      "deepLink": null,
+      "deepLink": "https://security.microsoft.com/securescore",
       "narrative": "Secure Score is Microsoft's view and it moves when Microsoft changes the weights. It is reported here beside the posture score, with the differences explained, and never as the grade.",
       "frameworks": {
         "nist-csf-2": "ID.IM-01",
@@ -145,7 +145,7 @@
       "affected": "facts.expiringWithinWarning",
       "remediation": "Renew each listed item before its date: rotate the application credential, roll the SAML certificate, renew the Apple push certificate or VPP token. The full calendar is in the facts, soonest first.",
       "learn": "https://learn.microsoft.com/entra/identity-platform/howto-add-credentials",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
       "narrative": "One calendar for every expiry that takes a service down: application secrets, SAML signing certificates, the Apple push certificate, VPP tokens. Entra Connect and domain renewals join it when their collectors exist.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
@@ -177,7 +177,7 @@
       "pass": "facts.entraConnectHealthEnabled",
       "remediation": "Install the Entra Connect Health agent on the sync server and domain controllers and route its alerts to a monitored mailbox or the SIEM.",
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/whatis-azure-ad-connect-health",
-      "deepLink": null,
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_ADHybridHealth/AadCloudServiceMenuBlade/~/SyncServicesList",
       "narrative": "Sync stops quietly. Connect Health is the alert that says passwords stopped flowing before the helpdesk queue does. Read through Azure once the Azure collector exists.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",

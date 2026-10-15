@@ -33,6 +33,7 @@ Describe 'Shipped check catalog' {
                 $c.remediation.Length | Should -BeGreaterThan 30 -Because "$($c.id) needs real remediation"
                 $c.learn | Should -Match '^https://learn\.microsoft\.com/'
                 foreach ($k in $c.frameworks.Keys) { ([string]$c.frameworks[$k]).Length | Should -BeLessThan 40 -Because 'framework fields hold identifiers, never benchmark text' }
+                $c.deepLink | Should -Match '^https://' -Because 'every check links to the portal page where the setting lives'
             }
         }
 

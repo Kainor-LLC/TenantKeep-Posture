@@ -115,7 +115,7 @@ function ConvertTo-PostureReportMarkdown {
         foreach ($x in $items) {
             & $line "**$($x.id) $(& $esc $x.title)** ($($x.severity), $($x.domain)$(if ($x.license.Count -gt 0) { ", needs $($x.license -join ' or ')" }))"
             & $line
-            & $line "$(& $esc $x.remediation) [Learn]($($x.learn))"
+            & $line "$(& $esc $x.remediation) [Learn]($($x.learn))$(if ($x.deepLink) { " [Portal]($($x.deepLink))" })"
             & $line
         }
     }

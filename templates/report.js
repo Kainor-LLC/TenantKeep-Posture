@@ -64,7 +64,7 @@
       '<p><span class="status ' + esc(r.status) + '">' + esc(r.status) + '</span> <span class="sev ' + esc(r.severity) + '">' + esc(r.severity) + '</span> <span class="tech">domain ' + esc(r.domain) + '</span></p>' +
       (r.reason ? '<p>' + esc(r.reason) + '</p>' : '') +
       '<h4>Why it matters</h4><p>' + esc(c.narrative) + '</p>' +
-      '<h4>Remediation</h4><p>' + esc(c.remediation) + (c.learn ? ' <a href="' + esc(c.learn) + '">Learn</a>' : '') + '</p>' +
+      '<h4>Remediation</h4><p>' + esc(c.remediation) + (c.learn ? ' <a href="' + esc(c.learn) + '">Learn</a>' : '') + (c.deepLink ? ' <a href="' + esc(c.deepLink) + '">Open in portal</a>' : '') + '</p>' +
       ((c.license && c.license.length) ? '<p class="tech">Needs ' + esc(c.license.join(' or ')) + '</p>' : '') +
       (fw ? '<p class="tech">Frameworks: ' + fw + '</p>' : '') +
       (affected ? '<h4>Affected (' + r.affected.length + ')</h4><ul class="affected">' + affected + '</ul><button type="button" id="export-affected">Export CSV</button>' : '') +

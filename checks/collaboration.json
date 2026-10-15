@@ -16,7 +16,7 @@
       "pass": "facts.tenantSharingLevelOk",
       "remediation": "Set the SharePoint and OneDrive external sharing level to Existing guests or New and existing guests. Anyone links are for organisations that have decided to accept unauthenticated access and track it.",
       "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "Anyone links need no sign-in, so the link is the credential: forwarded, pasted into a chat, indexed from a document, it keeps working. Guest sharing keeps an identity on every access.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -42,7 +42,7 @@
       "pass": "facts.anonymousLinksControlled",
       "remediation": "If Anyone links stay on, require them to expire within 30 days and set the file and folder link default to View.",
       "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off#change-the-organization-level-external-sharing-setting",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "An Anyone link without an expiry lives until someone finds and removes it. Expiry puts a bound on the exposure of every link ever created.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -66,7 +66,7 @@
       "pass": "facts.defaultLinkSpecificPeopleView",
       "remediation": "Set the default sharing link type to Specific people and the default permission to View, so the open option is a deliberate choice each time.",
       "learn": "https://learn.microsoft.com/sharepoint/change-default-sharing-link",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "The default is what most people pick. Specific people with View makes the common case the safe case; Edit for everyone in the organisation makes every share an overshare.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -95,7 +95,7 @@
       "pass": "facts.sharingDomainRestricted",
       "remediation": "Set an allow list of partner domains, or a block list of the consumer domains, under sharing domain restrictions.",
       "learn": "https://learn.microsoft.com/sharepoint/restricted-domains-sharing",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "The profile says external collaboration is locked or governed. Without a domain list, governed means a guest from any domain, including personal mailboxes.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -120,7 +120,7 @@
       "affected": "facts.everyoneClaimsShown",
       "remediation": "Hide the Everyone claims from the people picker in the SharePoint tenant settings, then find the sites that already grant them.",
       "learn": "https://learn.microsoft.com/powershell/module/sharepoint-online/set-spotenant",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "A site shared with Everyone except external users is shared with every account in the tenant, and with Copilot. Hiding the claim stops new ones; the existing grants are the oversharing report the licensed tier adds.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -146,7 +146,7 @@
       "pass": "facts.guestExpirationOk",
       "remediation": "Turn on guest access expiration with 60 days or less. Owners renew the guests who still need access.",
       "learn": "https://learn.microsoft.com/sharepoint/manage-security-groups#guest-expiration",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "Guests outlive projects. Expiration is the only automatic removal SharePoint and OneDrive offer without an access review licence.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -172,7 +172,7 @@
       "affected": "facts.ownerless",
       "remediation": "Assign owners to each listed site and group; turn on the ownerless group policy so Microsoft 365 asks active members to take ownership.",
       "learn": "https://learn.microsoft.com/microsoft-365/solutions/microsoft-365-groups-ownerless-groups-teams",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Nobody can approve access, review sharing or delete an ownerless site. They accumulate when the owner leaves and the offboarding does not reassign them.",
       "frameworks": {
         "nist-csf-2": "GV.RR-02",
@@ -198,7 +198,7 @@
       "pass": "facts.restrictedAccessControlEnabled",
       "remediation": "Enable restricted access control at the tenant level, then apply it to the sites whose content should stay inside a group.",
       "learn": "https://learn.microsoft.com/sharepoint/restricted-access-control",
-      "deepLink": null,
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=settings&modern=true",
       "narrative": "Restricted access control binds a site to a security group regardless of how the content was shared. It is the fix for oversharing that cannot be unwound link by link.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -224,7 +224,7 @@
       "pass": "facts.groupExpirationPolicy",
       "remediation": "Create the group expiration policy for all groups with a lifetime of 180 or 365 days; active groups renew themselves.",
       "learn": "https://learn.microsoft.com/entra/identity/users/groups-lifecycle",
-      "deepLink": null,
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/General",
       "narrative": "Teams and sites created for a quarter stay forever without it. Expiration with automatic renewal on activity removes only the ones nobody uses.",
       "frameworks": {
         "nist-csf-2": "GV.RR-02",
@@ -248,7 +248,7 @@
       "pass": "!facts.teamsFederationOpen",
       "remediation": "In external access, allow only specific external domains, or turn external access off. Record the business reason as an exception if open federation is required.",
       "learn": "https://learn.microsoft.com/microsoftteams/trusted-organizations-external-meetings-chat",
-      "deepLink": null,
+      "deepLink": "https://admin.teams.microsoft.com/company-wide-settings/external-communications",
       "narrative": "Open federation lets any Teams tenant start a chat with your users, which is the delivery path for Teams phishing. An allow list keeps the partners and drops the rest.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -272,7 +272,7 @@
       "pass": "facts.teamsConsumerBlocked",
       "remediation": "Turn off communication with Teams personal accounts and Skype users in external access.",
       "learn": "https://learn.microsoft.com/microsoftteams/communicate-with-users-in-teams-for-personal-use",
-      "deepLink": null,
+      "deepLink": "https://admin.teams.microsoft.com/company-wide-settings/external-communications",
       "narrative": "Personal accounts have no tenant behind them to hold accountable. Blocking them removes the cheapest impersonation path.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -297,7 +297,7 @@
       "pass": "facts.teamsGuestAccessGoverned",
       "remediation": "Keep guest access on only with guest expiration enforced; otherwise turn it off in the Teams guest access settings.",
       "learn": "https://learn.microsoft.com/microsoftteams/guest-access",
-      "deepLink": null,
+      "deepLink": "https://admin.teams.microsoft.com/company-wide-settings/guest-configuration",
       "narrative": "Guests in Teams reach the files behind every channel they are in. Governed means they leave on a schedule unless someone renews them.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -321,7 +321,7 @@
       "pass": "facts.lobbyForExternal && !facts.anonymousCanStartMeeting",
       "remediation": "In the global meeting policy, admit only people in the organisation automatically and do not let anonymous users start meetings.",
       "learn": "https://learn.microsoft.com/microsoftteams/who-can-bypass-meeting-lobby",
-      "deepLink": null,
+      "deepLink": "https://admin.teams.microsoft.com/policies/meetings",
       "narrative": "Everyone bypassing the lobby means a leaked meeting link is an open door. Anonymous join itself is often needed; the lobby is what makes it safe.",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
@@ -345,7 +345,7 @@
       "pass": "facts.thirdPartyAppsRestricted",
       "remediation": "In the global app permission policy (or app centric management) allow specific third-party apps rather than all.",
       "learn": "https://learn.microsoft.com/microsoftteams/app-centric-management",
-      "deepLink": null,
+      "deepLink": "https://admin.teams.microsoft.com/policies/manage-apps",
       "narrative": "A Teams app is an OAuth grant plus a surface inside every chat. Allowing all third-party apps lets any user consent to any of them. (verify) app centric management replaces this policy on newer tenants.",
       "frameworks": {
         "nist-csf-2": "GV.SC-04",
