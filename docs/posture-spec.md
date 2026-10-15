@@ -687,7 +687,7 @@ Free tier: product branding, "Prepared with Posture" footer, Identity and CA dom
 
 ## 8. Packaging and pricing options
 
-Licensing mechanism: the LAPSlock entitlement function, keyed to the MSP's or org's tenant GUID. No license keys. The module checks once a month.
+Licensing mechanism (revised 2026-10-15): a signed licence file per tenant, verified offline by the module (docs/licensing.md). Issued by the Stripe webhook function in the Kainor tenant (repo kainorllc/tenantkeep-licensing, private). Tiers map to two licence values: `ca` for Tenantkeep CA, `full` for Pro, Organisation and MSP; the plan name travels as a record field. MSP client tenants get one licence file each.
 
 | Tier | Monthly | Annual (about two months free) | Includes |
 |---|---|---|---|
