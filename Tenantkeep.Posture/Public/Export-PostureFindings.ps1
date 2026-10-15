@@ -14,6 +14,8 @@ function Export-PostureFindings {
         checks.json, or a folder holding one (an evidence folder after Invoke-PostureChecks or New-PostureReport).
     .PARAMETER OutputPath
         Where to write findings.csv. Default: next to the checks.json.
+    .PARAMETER LicensePath
+        Tenantkeep licence file; the same lookup as New-PostureReport. Findings from unlicensed domains are left out and every row carries the licence id.
     .PARAMETER Merge
         An earlier findings.csv whose Owner, Status, Effort and Dependency survive for the same IDs.
     .PARAMETER IncludePassed
@@ -34,6 +36,7 @@ function Export-PostureFindings {
         [Parameter(Mandatory, Position = 0)] [ValidateNotNullOrEmpty()] [string] $Path,
         [string] $OutputPath,
         [string] $Merge,
+        [string] $LicensePath,
         [switch] $IncludePassed,
         [switch] $PassThru
     )
@@ -47,6 +50,10 @@ function Export-PostureFindings {
     $run = Get-Content -Raw -LiteralPath $checksPath | ConvertFrom-Json -AsHashtable -Depth 20
     $catalog = Import-PostureCheckCatalog
     $byId = @{}; foreach ($c in $catalog.checks) { $byId[[string]$c['id']] = $c }
+    # The licence is verified here too, not read back from checks.json (docs/licensing.md, Hardening).
+    $entitlement = Confirm-PostureEntitlement -Entitlement (Get-PostureEntitlement -Evidence (Split-Path $checksPath -Parent) -LicensePath $LicensePath)
+    $run.results = Limit-PostureResultsToEntitlement -Results @($run.results) -Entitlement $entitlement
+    $licenceLabel = $(if ($entitlement.licensed -and $entitlement.licence) { [string]$entitlement.licence.licenceId } elseif ($entitlement.licensed) { [string]$entitlement.source } else { 'unlicensed' })
 
     $labels = @{ identity = 'Identity and privileged access'; auth = 'Authentication methods'; ca = 'Conditional Access'; devices = 'Devices'; endpoint = 'Endpoint security'; email = 'Email security'; purview = 'Data protection'; collaboration = 'Collaboration and oversharing'; copilot = 'Copilot readiness'; governance = 'Governance and lifecycle'; operations = 'Operations and monitoring'; azure = 'Azure'; hybrid = 'Hybrid identity and on-premises AD' }
     $score = @{ Critical = 5; High = 4; Medium = 3; Low = 2 }
@@ -87,6 +94,7 @@ function Export-PostureFindings {
             'Remediation'    = $(if ($c) { [string]$c['remediation'] } else { '' })
             'Learn'          = $(if ($c) { [string]$c['learn'] } else { '' })
             'Checked'        = [string]$r.checkedUtc
+            'Licence'        = $licenceLabel
         }
     }
     $rows = @($rows | Sort-Object { -[int]$_.Risk }, { $_.ID })

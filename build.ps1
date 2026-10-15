@@ -4,7 +4,9 @@
 .SYNOPSIS
   Build script for Tenantkeep.Posture.
 .DESCRIPTION
-  Tasks: Analyze, Test, Build, Sign, Package, Catalog (the public catalog page for the website). Sign and Package refuse to run without a code-signing certificate.
+  Tasks: Analyze, Test, Build, Sign, Integrity, Package, Catalog (the public catalog page for the website). Sign refuses to run without a
+  code-signing certificate; Integrity needs the licence signing key (PEM or Key Vault) and writes the signed integrity.json the module
+  checks at import (docs/licensing.md, Hardening); Package refuses to run without it.
   Authenticode signing is Windows-only; Analyze, Test and Build run everywhere.
 .EXAMPLE
   ./build.ps1 -Task Analyze, Test
@@ -20,7 +22,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Package', 'Clean', 'Catalog')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Integrity', 'Package', 'Clean', 'Catalog')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -30,7 +32,13 @@ param(
     [switch] $SkipInstall,
 
     # Catalog task only: where catalog.md and catalog.html land. Default: out/.
-    [string] $CatalogPath
+    [string] $CatalogPath,
+
+    # Integrity task: the licence signing key that signs integrity.json. A PEM path (TENANTKEEP_LICENCE_KEY) or a Key Vault key.
+    [string] $LicenseKeyPath = $env:TENANTKEEP_LICENCE_KEY,
+    [string] $LicenseKeyId   = 'kainor-2026-10',
+    [string] $VaultName,
+    [string] $KeyName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -229,10 +237,40 @@ function Invoke-Sign {
     Write-Host "Signed $($files.Count) file(s)"
 }
 
+function Invoke-Integrity {
+    param([string] $Stage)
+    Write-Task 'Integrity'
+    if (-not $Stage) { $Stage = Join-Path $OutRoot $ModuleName (Get-ModuleVersion) }
+    if (-not (Test-Path -LiteralPath (Join-Path $Stage "$ModuleName.psd1"))) { throw "No staged module at $Stage; run Build first." }
+    Import-Module (Join-Path $SrcPath "$ModuleName.psd1") -Force
+    $m = Get-Module $ModuleName
+    if ($VaultName -and $KeyName) {
+        $vault = $VaultName; $key = $KeyName
+        $signer = {
+            param([byte[]] $bytes)
+            $digest = [System.Security.Cryptography.SHA256]::HashData($bytes)
+            $raw = & az keyvault key sign --vault-name $vault --name $key --algorithm ES256 --digest ([Convert]::ToBase64String($digest)) --output json 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "az keyvault key sign failed: $raw" }
+            $b64 = ([string](($raw | ConvertFrom-Json).signature)).Replace('-', '+').Replace('_', '/'); while ($b64.Length % 4) { $b64 += '=' }   # (verify) field name and encoding
+            , [Convert]::FromBase64String($b64)
+        }.GetNewClosure()
+        $path = & $m { param($Root, $KeyId, $Signer) New-PostureIntegrityManifest -ModuleRoot $Root -KeyId $KeyId -Signer $Signer } $Stage $LicenseKeyId $signer
+    }
+    else {
+        if (-not $LicenseKeyPath) { throw 'Integrity needs the licence signing key: -LicenseKeyPath (or TENANTKEEP_LICENCE_KEY), or -VaultName and -KeyName.' }
+        if (-not (Test-Path -LiteralPath $LicenseKeyPath -PathType Leaf)) { throw "Licence signing key not found: $LicenseKeyPath" }
+        $path = & $m { param($Root, $KeyId, $Pem) New-PostureIntegrityManifest -ModuleRoot $Root -KeyId $KeyId -PrivateKeyPath $Pem } $Stage $LicenseKeyId $LicenseKeyPath
+    }
+    $state = & $m { param($Root) Test-PostureIntegrity -ModuleRoot $Root } $Stage
+    if ($state.state -ne 'release') { throw "Integrity manifest written but the staged module does not verify as a release: $($state.detail)" }
+    Write-Host "Integrity manifest: $path ($state.detail)"
+}
+
 function Invoke-Package {
     param([string] $Stage)
     Write-Task 'Package'
     $version = Get-ModuleVersion
+    if (-not (Test-Path -LiteralPath (Join-Path $OutRoot $ModuleName $version 'integrity.json'))) { throw 'No integrity.json in the staged module; run Integrity before Package.' }
     $zip = Join-Path $OutRoot "$ModuleName-$version.zip"
     if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -Path (Join-Path $OutRoot $ModuleName) -DestinationPath $zip
@@ -248,7 +286,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Package', 'Catalog')) {
+foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Integrity', 'Package', 'Catalog')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -256,6 +294,7 @@ foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Package', 'Catalo
         'Test' { Invoke-Test }
         'Build' { $stage = Invoke-Build }
         'Sign' { Invoke-Sign -Stage $stage }
+        'Integrity' { Invoke-Integrity -Stage $stage }
         'Package' { Invoke-Package -Stage $stage }
         'Catalog' { Invoke-Catalog }
     }

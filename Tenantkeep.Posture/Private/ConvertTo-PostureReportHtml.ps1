@@ -49,7 +49,8 @@ function ConvertTo-PostureReportHtml {
     & $w "<h1>$(& $h $r.title)</h1>"
     $prepared = [string]$b.preparedBy.name; if ($b.client.name) { $prepared += " for $($b.client.name)" }
     if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) { & $w "<div class=`"banner`">Licence: $(& $h $(if ($r.licence.reason) { $r.licence.reason } else { 'not licensed' }))</div>" }
-    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Tenant $(if ($r.tenantName) { & $h "$($r.tenantName) " })<code>$(& $h $r.tenantId)</code>. Evidence collected $(& $fmtDate $r.collectedUtc). Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $(& $h $r.appendix.moduleVersion), catalog $(& $h $r.appendix.catalogVersion), baseline $(& $h $r.appendix.baseline).$(if ($r.licence -and $r.licence.licensed) { " Licensed to $(& $h $r.licence.customer), $(& $h $r.licence.tier) tier, until $(& $fmtDate $r.licence.expiresUtc)." })</div>"
+    if ($r.build -and $r.build.state -eq 'modified') { & $w "<div class=`"banner`">$(& $h $r.build.detail) This report was not produced by an intact Tenantkeep release.</div>" }
+    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Tenant $(if ($r.tenantName) { & $h "$($r.tenantName) " })<code>$(& $h $r.tenantId)</code>. Evidence collected $(& $fmtDate $r.collectedUtc). Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $(& $h $r.appendix.moduleVersion), catalog $(& $h $r.appendix.catalogVersion), baseline $(& $h $r.appendix.baseline).$(if ($r.licence -and $r.licence.licensed) { " Licensed to $(& $h $r.licence.customer), $(& $h $r.licence.tier) tier, until $(& $fmtDate $r.licence.expiresUtc)." })$(if ($r.build) { " $(& $h $r.build.detail)" })</div>"
     if ($b.confidentiality) { & $w "<div class=`"confidential`">$(& $h $b.confidentiality)</div>" }
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export checks CSV</button></div></header>'
 
@@ -222,7 +223,7 @@ function ConvertTo-PostureReportHtml {
         & $w '</section>'
     }
     & $w '<section class="view" id="appendix"><h2>Appendix</h2><table><tbody>'
-    foreach ($pair in @(@('Catalog version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API versions', ($a.graphApiVersions -join ', ')), @('Module version', $a.moduleVersion))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }
+    foreach ($pair in @(@('Catalog version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API versions', ($a.graphApiVersions -join ', ')), @('Module version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }
     & $w '</tbody></table>'
     if ($a.profileAnswers) {
         & $w '<h3>Profile</h3><table><tbody>'

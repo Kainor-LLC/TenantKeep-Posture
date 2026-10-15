@@ -65,3 +65,41 @@ function ConvertTo-PostureEntitlementRecord {
         reason     = $(if ($Entitlement['reason']) { [string]$Entitlement['reason'] } else { $null })
     }
 }
+
+function Confirm-PostureEntitlement {
+    <#
+    .SYNOPSIS
+        Re-verifies an entitlement where it is consumed (the report model, the findings export) rather than trusting
+        the record the engine made. A licensed entitlement must still verify from its file; anything else is the free tier.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param([Parameter(Mandatory)] [System.Collections.IDictionary] $Entitlement)
+    $ErrorActionPreference = 'Stop'
+    if ([string]$Entitlement['source'] -eq 'override') {
+        $override = Get-Variable -Name PostureEntitlementOverride -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+        if ($override) { return $Entitlement }
+        return @{ licensed = $false; tier = 'none'; domains = @('ca'); reason = 'Entitlement override claimed but not set.'; source = $null; licence = $null }
+    }
+    if (-not $Entitlement['licensed']) { return $Entitlement }
+    $path = [string]$Entitlement['source']; $tenantId = [string]$(if ($Entitlement.Contains('tenantId')) { $Entitlement['tenantId'] })
+    if (-not $path -or -not $tenantId) { return @{ licensed = $false; tier = 'none'; domains = @('ca'); reason = 'Licence could not be re-verified (no file or tenant id). The Conditional Access domain is evaluated.'; source = $null; licence = $null; tenantId = $tenantId } }
+    $check = Test-PostureLicense -Path $path -TenantId $tenantId
+    if (-not $check.valid) { return @{ licensed = $false; tier = 'none'; domains = @('ca'); reason = "$($check.reason) The Conditional Access domain is evaluated."; source = $null; licence = $null; tenantId = $tenantId } }
+    $domains = $(if ($check.tier -eq 'full') { '*' } else { @('ca') })
+    return @{ licensed = $true; tier = $check.tier; domains = $domains; reason = $Entitlement['reason']; source = $path; licence = $check.licence; tenantId = $tenantId }
+}
+
+function Limit-PostureResultsToEntitlement {
+    <# .SYNOPSIS Applies an entitlement to a result list: checks outside the licensed domains become not evaluated with the licence reason. #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Results, [Parameter(Mandatory)] [System.Collections.IDictionary] $Entitlement)
+    $domains = $Entitlement['domains']
+    if ($domains -is [string] -and $domains -eq '*') { return , $Results }
+    $allowed = @($domains); $reason = "Not licensed. $($Entitlement['reason'])"
+    return , @($Results | ForEach-Object {
+            if ([string]$_['domain'] -in $allowed -or [string]$_['status'] -in @('notApplicable', 'notEvaluated')) { $_ }
+            else { $x = [ordered]@{}; foreach ($k in $_.Keys) { $x[$k] = $_[$k] }; $x['status'] = 'notEvaluated'; $x['reason'] = $reason; $x['affected'] = @(); $x['affectedCount'] = 0; $x }
+        })
+}

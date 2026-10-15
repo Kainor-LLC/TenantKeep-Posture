@@ -15,4 +15,8 @@ foreach ($file in ($private + $public)) {
     catch { throw "Failed to load $($file.FullName): $($_.Exception.Message)" }
 }
 
+# Build integrity state, printed in every report header (Test-PostureIntegrity). A failure to compute it reads as modified.
+try { $script:PostureBuildState = Test-PostureIntegrity -ModuleRoot $PSScriptRoot }
+catch { $script:PostureBuildState = @{ state = 'modified'; detail = "Modified build: integrity could not be checked ($($_.Exception.Message))."; version = $script:ModuleVersion; changed = @() } }
+
 Export-ModuleMember -Function @($public | ForEach-Object BaseName)

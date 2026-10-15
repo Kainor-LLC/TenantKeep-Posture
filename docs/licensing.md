@@ -57,6 +57,29 @@ edited module visibly unsigned; that is the detection, not a lock. There is no t
 check. What the signature guarantees is narrower and exact: a licence file cannot be forged, altered, or moved to a
 tenant it was not issued for.
 
+## Hardening
+
+Published source cannot stop someone editing the files on their own machine. What it can do is make every bypass cost
+more edits, make the result visibly tampered, and make the deliverable say so. Four layers:
+
+1. **Signed release manifest.** `build.ps1 -Task Integrity` writes `integrity.json`: the SHA-256 of every file in the
+   module, signed with the licence key family. At import the module hashes itself and records one of three build
+   states, printed in every report header and appendix:
+   `Signed release <version>` (manifest present, trusted signature, every file matches);
+   `Development build` (no manifest: a source checkout, including this repository as cloned);
+   `Modified build` (a file was changed, added or removed, or the manifest signature fails). A modified build also
+   shows a banner on the report cover. The label is a label, not a lock.
+2. **Authenticode and execution policy.** Releases are Authenticode-signed. Where the module runs unattended (the
+   Automation runbook, an MSP's jump host) set the execution policy to `AllSigned`: Windows then refuses to run an edited
+   file at all. That enforcement is the operating system's, not ours, and it costs nothing.
+3. **Attribution.** The licence id, customer and tier are in the report header and appendix, and every row of the
+   findings register carries the licence id. A report that surfaces where it should not is attributable to one licence.
+4. **Verification where it is consumed.** The engine, the report model and the findings export each verify the licence
+   from its file rather than trusting a record made earlier, so a single edit is not enough.
+
+To produce a report that reads as a signed release while developing: `./build.ps1 -Task Build, Integrity
+-LicenseKeyPath <pem>` then `Import-Module ./out/Tenantkeep.Posture/<version>/Tenantkeep.Posture.psd1`.
+
 ## Issuing (Kainor side)
 
 `deploy/licensing/New-PostureLicense.ps1` signs a licence with a local PEM (development) or through `az keyvault key

@@ -21,10 +21,18 @@ function ConvertTo-PostureReportModel {
         [string] $Template = 'Full',
         [System.Collections.IDictionary] $Previous,
         [System.Collections.IDictionary] $BaselineModel,
+        [System.Collections.IDictionary] $Entitlement,
         [datetime] $GeneratedUtc = [datetime]::UtcNow
     )
 
     $ErrorActionPreference = 'Stop'
+    # Second verification of the licence, independent of the engine's record (docs/licensing.md, Hardening).
+    if (-not $Entitlement) { $Entitlement = Get-PostureEntitlement -Evidence $Evidence }
+    $Entitlement = Confirm-PostureEntitlement -Entitlement $Entitlement
+    $Run = [ordered]@{} + $Run
+    $Run.results = Limit-PostureResultsToEntitlement -Results @($Run.results) -Entitlement $Entitlement
+    $Run.entitlement = ConvertTo-PostureEntitlementRecord -Entitlement $Entitlement
+    $buildState = $(if (Get-Variable -Name PostureBuildState -Scope Script -ValueOnly -ErrorAction SilentlyContinue) { $script:PostureBuildState } else { @{ state = 'development'; detail = 'Development build: no signed release manifest.'; version = $script:ModuleVersion; changed = @() } })
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $load = {
         param([string] $Name)
@@ -272,7 +280,8 @@ function ConvertTo-PostureReportModel {
         generatedUtc = $GeneratedUtc
         collectedUtc = $(if ($collection) { & $v $collection 'timestampUtc' } else { $null })
         collectors   = @($(if ($collection) { & $v $collection 'collectors' } else { @() }))
-        licence      = $(if ($Run.Contains('entitlement') -and $Run['entitlement']) { $Run['entitlement'] } else { $null })
+        licence      = $Run.entitlement
+        build        = [ordered]@{ state = [string]$buildState.state; detail = [string]$buildState.detail; version = [string]$buildState.version }
         score        = [ordered]@{ value = $score; grade = $grade; method = 'Weighted pass rate over evaluated checks: Critical 4, High 3, Medium 2, Low 1. Accepted risk counts as a pass and is marked. Not evaluated and not applicable checks are excluded.'; evaluated = $scored.Count; earned = $earned; possible = $possible }
         headline     = $headline
         counts       = $Run.counts
@@ -298,6 +307,8 @@ function ConvertTo-PostureReportModel {
             errors = @($(if ($collection) { & $v $collection 'errors' } else { @() }))
             notEvaluated = @($results | Where-Object { $_.status -in @('notEvaluated', 'notApplicable') } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; status = $_.status; reason = $_.reason } })
             moduleVersion = $script:ModuleVersion
+            build = [string]$buildState.detail
+            licence = $(if ($Run.entitlement.licensed) { "$($Run.entitlement.tier) tier, licence $($Run.entitlement.licenceId), $($Run.entitlement.customer), expires $($Run.entitlement.expiresUtc)" } else { "none: $($Run.entitlement.reason)" })
         }
     }
 }

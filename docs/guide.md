@@ -121,5 +121,6 @@ diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams
 ## 10. Unattended, in the customer's Azure
 
 deploy/automation deploys an Automation account with a managed identity that runs the Conditional Access cycle on a
-schedule; docs/scheduling.md walks through it. The full posture collection on a schedule and the Marketplace listing
+schedule; docs/scheduling.md walks through it. Set the execution policy to AllSigned on anything that runs the module
+unattended: releases are Authenticode-signed, so an edited file refuses to run. The full posture collection on a schedule and the Marketplace listing
 follow.
