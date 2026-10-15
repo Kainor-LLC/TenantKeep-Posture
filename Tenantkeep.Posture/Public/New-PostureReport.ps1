@@ -22,6 +22,8 @@ function New-PostureReport {
         Executive (cover, summary, scorecards, recommendations) or Full. Default Full.
     .PARAMETER Format
         One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
+    .PARAMETER LicensePath
+        Tenantkeep licence file. Default: TENANTKEEP_LICENSE, <Client>/tenantkeep.lic, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated and the report says so (docs/licensing.md).
     .PARAMETER Previous
         An earlier run's checks.json, or the folder holding one, for the Trend view: score and domain deltas, checks
         that started or stopped failing, affected counts that moved.
@@ -52,6 +54,7 @@ function New-PostureReport {
         [ValidateSet('Html', 'Markdown', 'Pdf')] [string[]] $Format = @('Html', 'Markdown'),
         [string] $Previous,
         [string] $OutputPath,
+        [string] $LicensePath,
         [switch] $PassThru
     )
 
@@ -75,7 +78,9 @@ function New-PostureReport {
     $exceptionList = @(Import-PostureException -Path $Exceptions)
     $brandModel = Import-PostureBrand -Path $Brand
 
-    $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline $baselineModel -OrgProfile $profileModel -Exception $exceptionList -Evidence $evidencePath
+    $entitlement = Get-PostureEntitlement -Evidence $evidencePath -LicensePath $LicensePath -ClientFolder $Client
+    $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline $baselineModel -OrgProfile $profileModel -Exception $exceptionList -Evidence $evidencePath -Entitlement $entitlement
+    $run.entitlement = ConvertTo-PostureEntitlementRecord -Entitlement $entitlement
     $run.moduleVersion = $script:ModuleVersion
     $previousRun = $null
     if ($Previous) {

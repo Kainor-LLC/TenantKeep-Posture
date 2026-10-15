@@ -17,7 +17,7 @@ Anything marked **(verify)** is something I'm not certain about as of this writi
 
 Not another test engine. Maester, ScubaGear and Microsoft's own tools already tell an engineer what's wrong. Nobody hands those to a client or a board. This is the deliverable: a branded, evidence-backed posture report with a findings register, a Copilot readiness section, and a "what changed since last quarter" page, generated from a read-only collection an MSP or internal team already knows how to run. Plus the piece everyone wants and nobody has: Conditional Access documented in plain English, and a diff of every CA change between two dates.
 
-It runs on the customer's machine or in their automation account. Nothing leaves except the tenant GUID for the license check, same as LAPSlock.
+It runs on the customer's machine or in their automation account. Nothing leaves. The licence is a signed file verified offline (docs/licensing.md, decided 2026-10-15).
 
 ---
 

@@ -48,7 +48,8 @@ function ConvertTo-PostureReportHtml {
     if ($logo) { & $w "<img class=`"logo`" alt=`"logo`" src=`"$logo`">" }
     & $w "<h1>$(& $h $r.title)</h1>"
     $prepared = [string]$b.preparedBy.name; if ($b.client.name) { $prepared += " for $($b.client.name)" }
-    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Tenant $(if ($r.tenantName) { & $h "$($r.tenantName) " })<code>$(& $h $r.tenantId)</code>. Evidence collected $(& $fmtDate $r.collectedUtc). Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $(& $h $r.appendix.moduleVersion), catalog $(& $h $r.appendix.catalogVersion), baseline $(& $h $r.appendix.baseline).</div>"
+    if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) { & $w "<div class=`"banner`">Licence: $(& $h $(if ($r.licence.reason) { $r.licence.reason } else { 'not licensed' }))</div>" }
+    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Tenant $(if ($r.tenantName) { & $h "$($r.tenantName) " })<code>$(& $h $r.tenantId)</code>. Evidence collected $(& $fmtDate $r.collectedUtc). Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $(& $h $r.appendix.moduleVersion), catalog $(& $h $r.appendix.catalogVersion), baseline $(& $h $r.appendix.baseline).$(if ($r.licence -and $r.licence.licensed) { " Licensed to $(& $h $r.licence.customer), $(& $h $r.licence.tier) tier, until $(& $fmtDate $r.licence.expiresUtc)." })</div>"
     if ($b.confidentiality) { & $w "<div class=`"confidential`">$(& $h $b.confidentiality)</div>" }
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export checks CSV</button></div></header>'
 

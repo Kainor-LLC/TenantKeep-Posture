@@ -19,6 +19,7 @@
         'Compare-PostureCaSnapshot',
         'Export-PostureCaSnapshot',
         'Export-PostureFindings',
+        'Get-PostureLicense',
         'Get-PostureCheckCatalog',
         'Invoke-PostureChecks',
         'Invoke-PostureCollection',

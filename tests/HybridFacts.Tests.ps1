@@ -3,6 +3,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-hybrid-$([guid]::NewGuid().ToString('n'))"
     $script:Ev = Join-Path $script:Root 'evidence'
     New-Item -ItemType Directory -Path $script:Ev -Force | Out-Null

@@ -272,6 +272,7 @@ function ConvertTo-PostureReportModel {
         generatedUtc = $GeneratedUtc
         collectedUtc = $(if ($collection) { & $v $collection 'timestampUtc' } else { $null })
         collectors   = @($(if ($collection) { & $v $collection 'collectors' } else { @() }))
+        licence      = $(if ($Run.Contains('entitlement') -and $Run['entitlement']) { $Run['entitlement'] } else { $null })
         score        = [ordered]@{ value = $score; grade = $grade; method = 'Weighted pass rate over evaluated checks: Critical 4, High 3, Medium 2, Low 1. Accepted risk counts as a pass and is marked. Not evaluated and not applicable checks are excluded.'; evaluated = $scored.Count; earned = $earned; possible = $possible }
         headline     = $headline
         counts       = $Run.counts

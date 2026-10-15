@@ -20,7 +20,8 @@ function Invoke-PostureCheckEvaluation {
         [Parameter(Mandatory)] [string] $Evidence,
         [string[]] $Domain,
         [hashtable] $FactProvider = @{},
-        [datetime] $AsOf = [datetime]::UtcNow
+        [datetime] $AsOf = [datetime]::UtcNow,
+        [System.Collections.IDictionary] $Entitlement
     )
 
     $ErrorActionPreference = 'Stop'
@@ -57,7 +58,13 @@ function Invoke-PostureCheckEvaluation {
 
     # 3. Facts per domain.
     $domainFacts = @{}
+    # Entitlement (Get-PostureEntitlement): domains outside the licensed set get no facts, so their checks read as not evaluated with the licence reason.
+    $licensedDomains = $null; $unlicensedReason = $null
+    if ($Entitlement -and $Entitlement.Contains('domains') -and -not ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')) {
+        $licensedDomains = @($Entitlement['domains']); $unlicensedReason = "Not licensed. $($Entitlement['reason'])"
+    }
     foreach ($d in @($domainThresholds.Keys)) {
+        if ($null -ne $licensedDomains -and $d -notin $licensedDomains) { $domainFacts[$d] = @{ available = $false; reason = $unlicensedReason }; continue }
         $provider = $FactProvider[$d]
         if (-not $provider) {
             $name = "Get-Posture$($d.Substring(0, 1).ToUpperInvariant() + $d.Substring(1))Fact"

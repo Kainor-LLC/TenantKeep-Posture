@@ -3,6 +3,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CheckEngineFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-engine-$([guid]::NewGuid().ToString('n'))"
     $script:Fx = Initialize-CheckEngineFixture -Root $script:Root

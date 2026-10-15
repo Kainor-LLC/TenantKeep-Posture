@@ -3,6 +3,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-purview-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $env:TKP_PV_FIXTURE = (Join-Path $PSScriptRoot 'Fixtures' 'PurviewFixture.ps1')

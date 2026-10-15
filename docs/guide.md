@@ -14,7 +14,13 @@ work from until the next run.
   Reader; Azure needs Reader and Security Reader on the subscriptions. The Graph scopes are listed in docs/collection.md.
 - One Entra app registration for SharePoint, created once by deploy/setup/New-PostureSharePointApp.ps1 (step 3).
 
-## 2. Install the module
+## 2. Install the module and place the licence
+
+The Conditional Access tools are free. The full report needs the licence file Kainor sent for your tenant: save it as
+`tenantkeep.lic` in the client folder next to profile.json, and `Get-PostureLicense -Path <file>` tells you its tier and
+expiry. docs/licensing.md explains what is checked (offline, nothing is sent).
+
+## 2a. Install the module
 
 ```powershell
 git clone https://github.com/kainorllc/tenantkeep-posture

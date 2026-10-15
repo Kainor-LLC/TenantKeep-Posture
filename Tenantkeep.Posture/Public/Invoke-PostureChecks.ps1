@@ -22,6 +22,8 @@ function Invoke-PostureChecks {
         Folders with org-specific checks in the catalog schema, rendered alongside and tagged custom.
     .PARAMETER Domain
         Limit to these domains, for example ca.
+    .PARAMETER LicensePath
+        Tenantkeep licence file. Default: TENANTKEEP_LICENSE, the profile's folder, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated (docs/licensing.md).
     .PARAMETER OutputPath
         Folder for checks.json. Default: the evidence folder.
     .PARAMETER PassThru
@@ -50,6 +52,7 @@ function Invoke-PostureChecks {
         [string[]] $CustomChecks = @(),
         [string[]] $Domain,
         [string] $OutputPath,
+        [string] $LicensePath,
         [switch] $PassThru
     )
 
@@ -64,9 +67,11 @@ function Invoke-PostureChecks {
     $profileModel = Import-PostureProfile -Path $ProfilePath
     $exceptionList = @(Import-PostureException -Path $Exceptions)
 
-    $params = @{ Catalog = $catalog; Baseline = $baselineModel; OrgProfile = $profileModel; Exception = $exceptionList; Evidence = $evidencePath }
+    $entitlement = Get-PostureEntitlement -Evidence $evidencePath -LicensePath $LicensePath -ClientFolder $(if ($ProfilePath) { Split-Path -Parent $ProfilePath })
+    $params = @{ Catalog = $catalog; Baseline = $baselineModel; OrgProfile = $profileModel; Exception = $exceptionList; Evidence = $evidencePath; Entitlement = $entitlement }
     if ($Domain) { $params.Domain = $Domain }
     $run = Invoke-PostureCheckEvaluation @params
+    $run.entitlement = ConvertTo-PostureEntitlementRecord -Entitlement $entitlement
     $run.exceptionsFile = $(if ($Exceptions) { (Resolve-Path -LiteralPath $Exceptions).Path } else { $null })
     $run.moduleVersion = $script:ModuleVersion
 

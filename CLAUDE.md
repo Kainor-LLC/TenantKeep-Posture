@@ -9,7 +9,7 @@ The full specification is in `docs/posture-spec.md`. Read it before touching any
 - **Read-only.** No cmdlet in this module writes to a tenant. No `-WhatIf` theater around writes either; there are none.
 - **Notifications live outside the module.** Teams cards and email (Graph `sendMail`, which needs the `Mail.Send` write permission the customer grants knowingly, or the customer's SMTP relay) are in `deploy/schedules/ca-notifications.ps1`, opt-in, and go only to the customer's own services. The module's read-only guard stays absolute.
 - **Delegated or managed identity only.** Never app secrets in code or config. Local runs use the signed-in admin; the Automation deployment uses a managed identity.
-- **Nothing leaves the customer's environment** except the monthly license check (tenant GUID). No telemetry, no analytics, no callbacks.
+- **Nothing leaves the customer's environment.** The licence is a signed file verified offline against public keys built into the module (`docs/licensing.md`); no licence server, no telemetry, no analytics, no callbacks. Decided 2026-10-15.
 - **Source published, not open source.** Anyone can read the code; the license forbids forks and competing use. See Licensing below.
 - **Cross-platform.** macOS is the primary dev machine. Windows-only code is confined to `collectors/windows/` (the jump-box AD collector) and clearly marked.
 - **Pin every API version** per call (Graph `v1.0` vs `beta`, Azure REST versions) and record them in the run metadata. The Graph wrapper makes `-ApiVersion` mandatory and collects the versions used into `metadata.json`.
