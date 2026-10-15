@@ -105,8 +105,17 @@ On a `Connect-AzAccount` session with Reader on the subscriptions (or the manage
 Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls per subscription are capped at
 200 subscriptions. Both go through Get-only entry points. Sign in to Graph before importing Az.Accounts in the same
 process: imported first, Az breaks `Connect-MgGraph` with "Entry point was not found" (observed 2026-10-15 on macOS). On macOS the Az browser sign-in can hit the same MSAL
-conflicts as the others; `Connect-AzAccount -UseDeviceAuthentication` or a token from the Azure CLI
-(`Connect-AzAccount -AccessToken (az account get-access-token --resource https://management.azure.com --query accessToken -o tsv) -AccountId <upn>`) work.
+conflicts as the others. What works (confirmed 2026-10-15): a token from the Azure CLI with the classic Resource
+Manager audience, handed to Az.Accounts:
+
+```powershell
+az login --tenant <tenant id>
+$arm = az account get-access-token --tenant <tenant id> --resource https://management.core.windows.net/ --query accessToken -o tsv
+Connect-AzAccount -AccessToken $arm -AccountId <upn> -Tenant <tenant id> -SkipContextPopulation
+```
+
+With the `https://management.azure.com` audience the context is created but every call fails as expired. The token
+lasts about an hour; the collector finishes well inside that on a few hundred subscriptions.
 
 | File | Source | Notes |
 |---|---|---|
