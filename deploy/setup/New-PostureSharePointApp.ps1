@@ -141,11 +141,20 @@ if ($clientId -and $ctx -and @($ctx.Scopes) -contains 'Application.ReadWrite.All
 #     fails for a public client whose only reply address is localhost (AADSTS500113); the grant object is the same thing.
 $consentGranted = $false
 if ($clientId -and $ctx -and @($ctx.Scopes) -contains 'DelegatedPermissionGrant.ReadWrite.All') {
-    $sp = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$clientId'&`$select=id" -OutputType HashTable).value)
+    $findSp = { @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$clientId'&`$select=id" -OutputType HashTable).value) }
+    $sp = @(& $findSp)   # @( ) outside the call: a one-element array unrolls on return
     if ($sp.Count -eq 0 -and $PSCmdlet.ShouldProcess($clientId, 'Create the service principal')) {
-        $sp = @(Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals' -Body @{ appId = $clientId } -ContentType 'application/json' -OutputType HashTable)
+        # A registration made seconds ago may already have a service principal (the PnP consent flow creates one) that the
+        # directory has not replicated yet: a 409 means it exists, so look again.
+        try { $sp = @(Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals' -Body @{ appId = $clientId } -ContentType 'application/json' -OutputType HashTable) }
+        catch {
+            if ($_.Exception.Message -notmatch '409|Conflict') { throw }
+            for ($i = 0; $i -lt 6 -and $sp.Count -eq 0; $i++) { Start-Sleep -Seconds 5; $sp = @(& $findSp) }
+            if ($sp.Count -eq 0) { throw "The service principal for $clientId exists but is not visible yet; rerun in a minute with -ClientId $clientId." }
+        }
     }
     $wanted = [ordered]@{ '00000003-0000-0ff1-ce00-000000000000' = $sharePointPermissions; '00000003-0000-0000-c000-000000000000' = $graphPermissions }
+    if ($sp.Count -eq 0) { Write-Host 'No service principal for the app yet (WhatIf); consent skipped.'; $wanted = [ordered]@{} }
     foreach ($resourceAppId in $wanted.Keys) {
         $resource = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$resourceAppId'&`$select=id,displayName" -OutputType HashTable).value)
         if ($resource.Count -eq 0) { continue }
