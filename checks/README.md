@@ -18,6 +18,7 @@ Every check carries, and the catalog test enforces:
 | `evidence` | Evidence files the facts come from |
 | `pass` | Expression over `facts.*` and `thresholds.*`: comparisons, `&&`, `\|\|`, `!`, parentheses |
 | `affected` | Optional: the fact that lists the affected objects, for example `facts.exclusionGroupsOverThreshold` |
+| `gate` | Optional, Copilot readiness only: `{ "code": "C1", "hard": true }`. Hard gates must all pass before the readiness page shows anything but Blocked (spec 4.7) |
 | `remediation` | What to do, in plain English |
 | `learn` | Microsoft Learn link |
 | `deepLink` | Portal deep link, or null |

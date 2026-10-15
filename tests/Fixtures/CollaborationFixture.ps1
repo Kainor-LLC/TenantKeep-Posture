@@ -25,6 +25,8 @@ function Get-CollaborationFixtureObject {
             & $o @{ Url = 'https://contoso.sharepoint.example/search'; Title = 'Search'; Template = 'SRCHCEN#0'; SharingCapability = 'Disabled'; StorageUsageCurrent = 1; LastContentModifiedDate = [datetime]'2024-01-01'; Owner = ''; GroupId = $null; SensitivityLabel = ''; LockState = 'Unlock'; RestrictedAccessControl = $false; DenyAddAndCustomizePages = 'Enabled' }
             & $o @{ Url = 'https://contoso-my.sharepoint.example/personal/admin1'; Title = 'Admin One'; Template = 'SPSPERS#10'; SharingCapability = 'ExternalUserSharingOnly'; StorageUsageCurrent = 500; LastContentModifiedDate = [datetime]'2026-10-10'; Owner = 'admin1@contoso.example'; GroupId = $null; SensitivityLabel = ''; LockState = 'Unlock'; RestrictedAccessControl = $false; DenyAddAndCustomizePages = 'Enabled' }
         }
+        'Get-PnPTenantRestrictedSearchMode' { 'Disabled' }
+        'Get-PnPTenantRestrictedSearchAllowedList' { @() }
         'Get-CsTenantFederationConfiguration' { & $o @{ Identity = 'Global'; AllowFederatedUsers = $true; AllowedDomains = 'AllowAllKnownDomains'; BlockedDomains = @(); AllowTeamsConsumer = $true; AllowPublicUsers = $false; AllowTeamsConsumerInbound = $true } }
         'Get-CsTeamsClientConfiguration' { & $o @{ Identity = 'Global'; AllowGuestUser = $true; AllowDropBox = $false; AllowBox = $false; AllowGoogleDrive = $false; AllowEmailIntoChannel = $true } }
         'Get-CsTeamsMeetingPolicy' { & $o @{ Identity = 'Global'; AllowAnonymousUsersToJoinMeeting = $true; AllowAnonymousUsersToStartMeeting = $false; AutoAdmittedUsers = 'EveryoneInCompanyExcludingGuests'; AllowExternalParticipantGiveRequestControl = $false } }

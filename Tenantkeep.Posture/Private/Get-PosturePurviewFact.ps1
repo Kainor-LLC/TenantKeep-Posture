@@ -33,7 +33,7 @@ function Get-PosturePurviewFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
     # Callers wrap the result in @( ): a one-element array unrolls on return from a scriptblock.
-    $list = { param($x) @($(if ($x -is [string]) { $x -split '[;|]' } else { @($x) }) | ForEach-Object { [string]$_ } | Where-Object { $_ }) }
+    $list = { param($x) @($(if ($x -is [string]) { $x -split '[;|,]' } else { @($x) }) | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ }) }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Purview; needs Connect-IPPSSession; check errors.txt)." } }
 
@@ -61,8 +61,10 @@ function Get-PosturePurviewFact {
         $facts.sensitivityLabels = $l.Count
         $facts.labelPoliciesEnabled = $p.Count
         $facts.labelPolicyToAllUsers = @($p | Where-Object { @(& $list $_.ExchangeLocation) -contains 'All' -or @(& $list $_.ModernGroupLocation) -contains 'All' }).Count -gt 0
-        $facts.encryptingLabels = @($l | Where-Object { $_.EncryptionEnabled -eq $true }).Count
-        $facts.containerLabels = @($l | Where-Object { $_.SiteAndGroupProtectionEnabled -eq $true -or [string]$_.ContentType -match '(?i)Site|UnifiedGroup' }).Count
+        # Get-Label exposes the switches inside Settings as '[encryptionenabled, true]' strings on some tenants and as properties on others (confirmed 2026-10-15: properties null, Settings carries them).
+        $settings = { param($x) (@(@(Get-PostureValue $x 'Settings') | ForEach-Object { [string]$_ }) -join ' ') }   # Settings is absent on older collections
+        $facts.encryptingLabels = @($l | Where-Object { $_.EncryptionEnabled -eq $true -or (& $settings $_) -match '(?i)\[encryptionenabled, ?true\]' }).Count
+        $facts.containerLabels = @($l | Where-Object { $_.SiteAndGroupProtectionEnabled -eq $true -or (& $settings $_) -match '(?i)\[siteandgroupprotectionenabled, ?true\]' -or [string](Get-PostureValue $_ 'ContentType') -match '(?i)Site|UnifiedGroup' }).Count
         $sites = & $load 'spo-sites-summary'
         $facts.labeledSites = $(if ($null -ne $sites) { [int](& $v $sites 'Labeled') } else { $null })
         if ($null -eq $sites) { $notEvaluated['PV-004'] = 'spo-sites-summary.json was not collected (SharePoint collector); labeled sites unknown.' }
@@ -111,7 +113,8 @@ function Get-PosturePurviewFact {
     $rg = & $load 'pv-08-role-groups'
     if ($null -eq $rg) { & $missing @('PV-008') 'pv-08-role-groups' }
     else {
-        $admin = @(& $rows $rg | Where-Object { [string]$_.Name -match '(?i)^(Compliance Administrator|Organization Management)$' })
+        # Purview names its role groups without spaces (ComplianceAdministrator, OrganizationManagement; confirmed 2026-10-15); Exchange uses spaces.
+        $admin = @(& $rows $rg | Where-Object { [string]$_.Name -match '(?i)^(Compliance ?Administrator|Organization ?Management)$' })
         $members = @($admin | ForEach-Object { & $list $_.Members } | Sort-Object -Unique)
         $facts.complianceAdminMembers = $members.Count
         $affected.complianceAdminMembers = @($members | ForEach-Object { [ordered]@{ name = $_; detail = 'member of Compliance Administrator or Organization Management in Purview' } })

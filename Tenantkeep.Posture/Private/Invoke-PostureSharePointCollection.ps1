@@ -34,6 +34,13 @@ function Invoke-PostureSharePointCollection {
         & $saveOne $row 'spo-tenant-settings'
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Restricted SharePoint Search' -Folder $Folder -Script {
+        # Copilot readiness C9. Get-PnPTenantRestrictedSearchMode answers Disabled or Enabled; the allow list is a separate read. (verify) cmdlet output shapes
+        $mode = @(& $pnp 'Get-PnPTenantRestrictedSearchMode')
+        $allowed = $(try { @(& $pnp 'Get-PnPTenantRestrictedSearchAllowedList') } catch { @() })
+        & $saveOne ([ordered]@{ Mode = [string]$(if ($mode.Count -gt 0) { $mode[0] } else { '' }); AllowedSites = @($allowed | Where-Object { $_ }).Count }) 'spo-restricted-search'
+    } | Out-Null
+
     if (-not $SkipSiteEnumeration) {
         Invoke-PostureStep -Label 'SharePoint sites' -Folder $Folder -Script {
             $sites = @(& $pnp 'Get-PnPTenantSite' @{ IncludeOneDriveSites = $true; Detailed = $true })
@@ -42,7 +49,7 @@ function Invoke-PostureSharePointCollection {
                         Url = [string]$_.Url; Title = [string]$_.Title; Template = [string]$_.Template; SharingCapability = [string]$_.SharingCapability; StorageUsageCurrent = $_.StorageUsageCurrent
                         LastContentModifiedDate = $_.LastContentModifiedDate; Owner = [string]$_.Owner; OwnerEmail = [string](& $prop $_ 'OwnerEmail'); OwnerLoginName = [string](& $prop $_ 'OwnerLoginName'); OwnerName = [string](& $prop $_ 'OwnerName')
                         GroupId = (& $groupId $_); SensitivityLabel = [string]$_.SensitivityLabel; LockState = [string]$_.LockState
-                        RestrictedAccessControl = $_.RestrictedAccessControl; DenyAddAndCustomizePages = [string]$_.DenyAddAndCustomizePages; IsOneDrive = ([string]$_.Template -like 'SPSPERS*')
+                        RestrictedAccessControl = $_.RestrictedAccessControl; RestrictContentOrgWideSearch = (& $prop $_ 'RestrictContentOrgWideSearch'); DenyAddAndCustomizePages = [string]$_.DenyAddAndCustomizePages; IsOneDrive = ([string]$_.Template -like 'SPSPERS*')
                         IsSystem = ([string]$_.Template -match '^(SRCHCEN|SPSMSITEHOST|APPCATALOG|POINTPUBLISHINGHUB|POINTPUBLISHINGTOPIC|EDISC|REDIRECTSITE|TEAMCHANNEL|SPSPERS|BDR|OFFILE|STS#-1)')
                     }
                 })

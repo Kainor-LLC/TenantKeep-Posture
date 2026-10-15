@@ -22,7 +22,7 @@ function Invoke-PosturePurviewCollection {
     $flat = { param($Objects, [string[]] $Props) @($Objects | Where-Object { $_ } | ForEach-Object { if ($Props) { $_ | ConvertTo-PostureFlatObject -Property $Props } else { $_ | ConvertTo-PostureFlatObject } }) }
 
     $steps = @(
-        ('Sensitivity labels', 'Get-Label', @{}, 'pv-01-sensitivity-labels', $true, @('DisplayName', 'Name', 'Guid', 'Priority', 'ContentType', 'ParentId', 'Disabled', 'Tooltip', 'EncryptionEnabled', 'EncryptionProtectionType', 'SiteAndGroupProtectionEnabled', 'SiteAndGroupProtectionPrivacy', 'WhenChanged')),
+        ('Sensitivity labels', 'Get-Label', @{}, 'pv-01-sensitivity-labels', $true, @('DisplayName', 'Name', 'Guid', 'Priority', 'ContentType', 'ParentId', 'Disabled', 'Tooltip', 'EncryptionEnabled', 'EncryptionProtectionType', 'SiteAndGroupProtectionEnabled', 'SiteAndGroupProtectionPrivacy', 'Settings', 'WhenChanged')),
         ('Label policies', 'Get-LabelPolicy', @{}, 'pv-01-label-policies', $false, @('Name', 'Enabled', 'Mode', 'Type', 'Labels', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'ModernGroupLocation', 'WhenChanged')),
         ('Auto-labeling policies', 'Get-AutoSensitivityLabelPolicy', @{}, 'pv-01-autolabel-policies', $false, @('Name', 'Enabled', 'Mode', 'ApplySensitivityLabel', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'WhenChanged')),
         ('DLP policies', 'Get-DlpCompliancePolicy', @{}, 'pv-02-dlp-policies', $true, @('Name', 'Enabled', 'Mode', 'Priority', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'TeamsLocation', 'EndpointDlpLocation', 'WhenCreated', 'WhenChanged')),

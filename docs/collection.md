@@ -116,6 +116,7 @@ Exchange carries every call.
 | File | Source | Notes |
 |---|---|---|
 | `spo-tenant-settings` | Get-PnPTenant, the audit plan's property list plus a few | Sharing level, link defaults, anonymous link expiry, domain restrictions, Everyone claims, guest expiration, restricted access control, legacy auth |
+| `spo-restricted-search` | Get-PnPTenantRestrictedSearchMode and its allow list | Copilot readiness C9 |
 | `spo-sites` (+csv), `spo-sites-summary` | Get-PnPTenantSite -IncludeOneDriveSites -Detailed | Ownerless, anonymous-capable, labeled and restricted counts; OneDrives apart. `-SkipSiteEnumeration` at 20k OneDrives |
 | `teams-federation`, `teams-client-config`, `teams-meeting-policy-global`, `teams-guest-messaging` | the Teams tenant configurations and the Global meeting policy | Single objects |
 | `teams-external-access` (+csv), `teams-app-permission-policies` (+csv), `teams-messaging-policies` (+csv) | the policy collections | (verify) app permission policies on tenants moved to app centric management |

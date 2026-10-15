@@ -1,0 +1,547 @@
+{
+  "domain": "copilot",
+  "checks": [
+    {
+      "id": "CP-001",
+      "domain": "copilot",
+      "title": "Audit log on, Copilot interactions retained",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-audit-config.json"
+      ],
+      "pass": "facts.auditLogEnabled",
+      "gate": {
+        "code": "C1",
+        "hard": true
+      },
+      "remediation": "Enable unified audit log ingestion; Copilot interactions are recorded as CopilotInteraction events once it is on.",
+      "learn": "https://learn.microsoft.com/purview/audit-copilot",
+      "deepLink": null,
+      "narrative": "Without the audit log there is no record of what Copilot read or who asked. It is the first hard gate because every later question about Copilot exposure needs it.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-002",
+      "domain": "copilot",
+      "title": "SharePoint Advanced Management available",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-subscribed-skus.json"
+      ],
+      "pass": "facts.samLicensed",
+      "gate": {
+        "code": "C2",
+        "hard": true
+      },
+      "remediation": "SharePoint Advanced Management comes with Microsoft 365 Copilot licences (verify current bundling) or as an add-on; it carries the oversharing reports and restricted access control.",
+      "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
+      "deepLink": null,
+      "narrative": "The oversharing baseline, restricted access control and restricted content discovery all sit behind this licence. Without it the stopgaps are not available.",
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-003",
+      "domain": "copilot",
+      "title": "Oversharing baseline run within 90 days",
+      "severityDefault": "High",
+      "license": [
+        "SAM"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "sam-dag-reports.json"
+      ],
+      "pass": "facts.overSharingBaselineRecent",
+      "gate": {
+        "code": "C3",
+        "hard": true
+      },
+      "remediation": "Run the data access governance reports in the SharePoint admin center (Everyone except external users, broad sharing links, external sharing) and import the export.",
+      "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
+      "deepLink": null,
+      "narrative": "The baseline is the list of sites Copilot would surface too widely. Everything after this gate works that list.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-07",
+        "iso27001": "A.5.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-004",
+      "domain": "copilot",
+      "title": "Default sharing link is Specific people",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings.json"
+      ],
+      "pass": "facts.defaultLinkSpecificPeople",
+      "gate": {
+        "code": "C4",
+        "hard": true
+      },
+      "remediation": "Set the default sharing link type to Specific people in the SharePoint sharing settings.",
+      "learn": "https://learn.microsoft.com/sharepoint/change-default-sharing-link",
+      "deepLink": null,
+      "narrative": "Organisation-wide links are what Copilot grounds on: a file shared to everyone in the organisation by default is a file Copilot will quote to anyone who asks.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-005",
+      "domain": "copilot",
+      "title": "Anonymous links disabled or expiring",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "anonymousLinkMaxDays": 30
+      },
+      "evidence": [
+        "spo-tenant-settings.json"
+      ],
+      "pass": "facts.anonymousLinksControlled",
+      "gate": {
+        "code": "C5",
+        "hard": false
+      },
+      "remediation": "Disable Anyone links, or require them to expire within 30 days.",
+      "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off",
+      "deepLink": null,
+      "narrative": "Anyone links are outside every identity control; Copilot does not surface them, but the same oversharing habit that creates them creates the internal exposure.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-006",
+      "domain": "copilot",
+      "title": "Sensitivity labels published with an encrypting top tier and container labels",
+      "severityDefault": "High",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-01-sensitivity-labels.json",
+        "pv-01-label-policies.json"
+      ],
+      "pass": "facts.labelsPublished && facts.encryptingLabels > 0 && facts.containerLabels > 0",
+      "gate": {
+        "code": "C6",
+        "hard": true
+      },
+      "remediation": "Publish the label taxonomy to all users, encrypt the top tier, and enable site and group protection on the labels.",
+      "learn": "https://learn.microsoft.com/purview/sensitivity-labels",
+      "deepLink": null,
+      "narrative": "Copilot honours labels: an encrypted file it cannot read, it cannot quote. Labels are the end state the stopgaps buy time for.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.12",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-007",
+      "domain": "copilot",
+      "title": "Restricted access control on every top-tier site",
+      "severityDefault": "Medium",
+      "license": [
+        "SAM"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-sites.json",
+        "pv-01-sensitivity-labels.json"
+      ],
+      "pass": "facts.topTierSitesWithoutRac == 0",
+      "affected": "facts.topTierSitesWithoutRac",
+      "gate": {
+        "code": "C7",
+        "hard": false
+      },
+      "remediation": "Apply restricted access control to each listed site until its access review completes; it is a stopgap, not the end state.",
+      "learn": "https://learn.microsoft.com/sharepoint/restricted-access-control",
+      "deepLink": null,
+      "narrative": "Restricted access control binds a site to a group regardless of how its content was shared. On the top tier it stops Copilot surfacing the site to anyone outside that group while owners clean up.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-008",
+      "domain": "copilot",
+      "title": "Restricted content discovery on sites pending review",
+      "severityDefault": "Medium",
+      "license": [
+        "SAM"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-sites.json"
+      ],
+      "pass": "facts.pendingSitesWithoutRcd == 0",
+      "gate": {
+        "code": "C8",
+        "hard": false
+      },
+      "remediation": "Turn on restricted content discovery for the sites the baseline flagged and nobody has reviewed yet.",
+      "learn": "https://learn.microsoft.com/sharepoint/restricted-content-discovery",
+      "deepLink": null,
+      "narrative": "Restricted content discovery hides a site from Copilot and organisation-wide search without changing permissions. (verify) PnP exposes the site flag.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-009",
+      "domain": "copilot",
+      "title": "Restricted SharePoint Search off, or on with an allow list",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-restricted-search.json"
+      ],
+      "pass": "facts.restrictedSearchOk",
+      "gate": {
+        "code": "C9",
+        "hard": false
+      },
+      "remediation": "Leave restricted SharePoint search off once the baseline is clean; while it is on, keep the allow list populated and a sunset date recorded.",
+      "learn": "https://learn.microsoft.com/sharepoint/restricted-sharepoint-search",
+      "deepLink": null,
+      "narrative": "Restricted search is the bluntest stopgap: Copilot and search see only the allow list. On with an empty list means nobody finds anything.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-010",
+      "domain": "copilot",
+      "title": "Site access reviews initiated from the baseline",
+      "severityDefault": "Medium",
+      "license": [
+        "SAM"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "sam-dag-reports.json"
+      ],
+      "pass": "facts.siteReviewsInitiatedPct >= 100",
+      "gate": {
+        "code": "C10",
+        "hard": false
+      },
+      "remediation": "Initiate a site access review for every site the baseline flagged and track completion.",
+      "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
+      "deepLink": null,
+      "narrative": "The review is where the site owner decides who should still have access. Completion percentage is the progress measure for the readiness page.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-011",
+      "domain": "copilot",
+      "title": "Recurring Entra access reviews on privileged roles and guests",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-01-access-reviews.json"
+      ],
+      "pass": "facts.recurringReviewsOk",
+      "gate": {
+        "code": "C11",
+        "hard": false
+      },
+      "remediation": "Create recurring access reviews for the privileged roles and for guests, quarterly or better.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/access-reviews-overview",
+      "deepLink": null,
+      "narrative": "Copilot widens what a stale permission reaches. Recurring reviews are how permissions stay current after the clean-up.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-012",
+      "domain": "copilot",
+      "title": "Access packages for standard access",
+      "severityDefault": "Low",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-02-access-packages-summary.json"
+      ],
+      "pass": "facts.accessPackages > 0",
+      "gate": {
+        "code": "C12",
+        "hard": false
+      },
+      "remediation": "Deliver the top shared resources through access packages with an approver and an expiry.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/entitlement-management-overview",
+      "deepLink": null,
+      "narrative": "Ad hoc sharing is the source of the oversharing baseline; packages replace it with requested, approved, time-bound access.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-013",
+      "domain": "copilot",
+      "title": "DLP policy for the Copilot location",
+      "severityDefault": "Medium",
+      "license": [
+        "E5",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-02-dlp-policies.json"
+      ],
+      "pass": "facts.dlpPoliciesForCopilot > 0",
+      "gate": {
+        "code": "C13",
+        "hard": false
+      },
+      "remediation": "Create a DLP policy with the Microsoft 365 Copilot location that excludes the sensitive labels from Copilot processing, and enforce it.",
+      "learn": "https://learn.microsoft.com/purview/dlp-microsoft365-copilot-location-learn-about",
+      "deepLink": null,
+      "narrative": "The Copilot DLP location stops Copilot summarising or quoting files that carry the excluded labels. (verify) how the policy exposes that location in PowerShell.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-014",
+      "domain": "copilot",
+      "title": "DSPM for AI reviewed",
+      "severityDefault": "Low",
+      "license": [
+        "E5",
+        "Copilot"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "portal-evidence"
+      ],
+      "pass": "facts.dspmReviewed",
+      "gate": {
+        "code": "C14",
+        "hard": false
+      },
+      "remediation": "Open Data Security Posture Management for AI in Purview, enable it, and action or schedule its oversharing recommendations.",
+      "learn": "https://learn.microsoft.com/purview/ai-microsoft-purview",
+      "deepLink": null,
+      "narrative": "DSPM for AI is Microsoft's own view of Copilot exposure. There is no read API; the review is recorded as portal evidence.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-01",
+        "iso27001": "A.5.36",
+        "cmmc": "CA.L2-3.12.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-015",
+      "domain": "copilot",
+      "title": "Copilot settings governed",
+      "severityDefault": "Low",
+      "license": [
+        "Copilot"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "admin-center-evidence"
+      ],
+      "pass": "facts.copilotSettingsGoverned",
+      "gate": {
+        "code": "C15",
+        "hard": false
+      },
+      "remediation": "Record the web grounding decision, the Copilot Studio and agent governance stance, and the Graph connector review in the admin center evidence.",
+      "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-page",
+      "deepLink": null,
+      "narrative": "Web grounding, agents and connectors each widen what Copilot can reach. The decisions belong recorded; the API to read them is not there yet (verify).",
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-016",
+      "domain": "copilot",
+      "title": "Label inheritance verified by test",
+      "severityDefault": "Low",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "profile.json"
+      ],
+      "pass": "facts.labelInheritanceTested",
+      "gate": {
+        "code": "C16",
+        "hard": false
+      },
+      "remediation": "Ask Copilot to summarise a file carrying the top-tier label and confirm the output inherits it; record the date in the profile's operations answers (copilotLabelInheritanceTestedUtc).",
+      "learn": "https://learn.microsoft.com/purview/sensitivity-labels-office-apps#sensitivity-labels-and-microsoft-365-copilot",
+      "deepLink": null,
+      "narrative": "The test proves the taxonomy survives Copilot: output labeled as restrictively as the most restrictive source.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.13",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-017",
+      "domain": "copilot",
+      "title": "Copilot not deployed ahead of the oversharing baseline",
+      "severityDefault": "Low",
+      "license": [
+        "Copilot"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-subscribed-skus.json",
+        "sam-dag-reports.json"
+      ],
+      "pass": "facts.copilotStatus != 'deployed' || facts.overSharingBaselineRecent",
+      "gate": {
+        "code": "C17",
+        "hard": false
+      },
+      "remediation": "If Copilot is already deployed, run the baseline now and work the flagged sites first; this row is a status, not a grade.",
+      "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
+      "deepLink": null,
+      "narrative": "A tenant that licensed Copilot before baselining its sharing is exposed today; the row says so and dates it.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-07",
+        "iso27001": "A.5.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CP-018",
+      "domain": "copilot",
+      "title": "No ownerless sites",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-sites-summary.json"
+      ],
+      "pass": "facts.ownerlessSites == 0",
+      "gate": {
+        "code": "C18",
+        "hard": false
+      },
+      "remediation": "Assign owners to the ownerless sites and enable the ownerless group policy; nobody can review a site nobody owns.",
+      "learn": "https://learn.microsoft.com/microsoft-365/solutions/microsoft-365-groups-ownerless-groups-teams",
+      "deepLink": null,
+      "narrative": "Site access reviews need a site owner to answer them. Ownerless sites are the ones the clean-up cannot reach.",
+      "frameworks": {
+        "nist-csf-2": "GV.RR-02",
+        "iso27001": "A.5.2",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}

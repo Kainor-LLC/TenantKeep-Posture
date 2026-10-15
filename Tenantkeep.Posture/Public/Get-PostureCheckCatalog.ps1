@@ -59,6 +59,7 @@ function Get-PostureCheckCatalog {
             $o.Thresholds = $c['thresholds']
             $o.ApplicableWhen = $c['applicableWhen']
             $o.CoveredBy = @($c['coveredBy'])
+            $o.Gate = $(if ($c.Contains('gate')) { $c['gate'] } else { $null })
         }
         [pscustomobject]$o
     }

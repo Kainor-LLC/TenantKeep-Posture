@@ -1,0 +1,61 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
+
+BeforeAll {
+    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-copilot-$([guid]::NewGuid().ToString('n'))"
+    $script:Ev = Join-Path $script:Root 'evidence'
+    New-Item -ItemType Directory -Path $script:Ev -Force | Out-Null
+    $w = { param([string] $Name, $Data) ConvertTo-Json -InputObject $Data -Depth 10 | Set-Content -LiteralPath (Join-Path $script:Ev "$Name.json") }
+    & $w 'exo-01-audit-config' @{ UnifiedAuditLogIngestionEnabled = $true }
+    & $w 'spo-tenant-settings' @{ DefaultSharingLinkType = 'Direct'; SharingCapability = 'ExternalUserAndGuestSharing'; RequireAnonymousLinksExpireInDays = -1 }
+    & $w 'spo-restricted-search' @{ Mode = 'Enabled'; AllowedSites = 0 }
+    & $w 'pv-01-sensitivity-labels' @(@{ DisplayName = 'Highly Confidential'; Guid = 'hc'; Priority = 3; EncryptionEnabled = $true; SiteAndGroupProtectionEnabled = $true; Disabled = $false }, @{ DisplayName = 'General'; Guid = 'g'; Priority = 1; EncryptionEnabled = $false; SiteAndGroupProtectionEnabled = $false; Disabled = $false })
+    & $w 'pv-01-label-policies' @(@{ Name = 'Global'; Enabled = $true })
+    & $w 'spo-sites' @(@{ Url = 'https://contoso.sharepoint.example/sites/Board'; SensitivityLabel = 'hc'; RestrictedAccessControl = $false; IsOneDrive = $false }, @{ Url = 'https://contoso.sharepoint.example/sites/Legal'; SensitivityLabel = 'hc'; RestrictedAccessControl = $true; IsOneDrive = $false }, @{ Url = 'https://contoso.sharepoint.example/sites/Social'; SensitivityLabel = 'g'; RestrictedAccessControl = $false; IsOneDrive = $false })
+    & $w 'spo-sites-summary' @{ Ownerless = 2 }
+    & $w 'gov-01-access-reviews' @(@{ Recurring = $true; Status = 'InProgress'; ScopeQuery = "/users?`$filter=(userType eq 'Guest')" })
+    & $w 'gov-02-access-packages-summary' @{ Packages = 0 }
+    & $w 'pv-02-dlp-policies' @(@{ Name = 'Copilot sensitive'; Enabled = $true; Mode = 'Enable'; Workload = 'Applications'; ApplicationLocation = 'Microsoft 365 Copilot' })
+    $script:ProfilePath = Join-Path $script:Root 'profile.json'
+    '{ "version": 1, "licenses": ["E5", "Copilot", "SAM", "P2"], "copilot": "deployed", "operations": { "copilotLabelInheritanceTestedUtc": "2026-10-01T00:00:00Z" } }' | Set-Content -LiteralPath $script:ProfilePath
+}
+
+AfterAll { if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -Recurse -Force } }
+
+Describe 'Copilot readiness gates' {
+    BeforeAll {
+        $script:Run = Invoke-PostureChecks -Evidence $script:Ev -ProfilePath $script:ProfilePath -Domain copilot -PassThru
+        $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
+    }
+
+    It 'evaluates 18 gates' { $script:Run.results.Count | Should -Be 18 }
+
+    It 'gives <Id> status <Status>' -ForEach @(
+        @{ Id = 'CP-001'; Status = 'pass' }
+        @{ Id = 'CP-002'; Status = 'pass' }
+        @{ Id = 'CP-003'; Status = 'notEvaluated' }
+        @{ Id = 'CP-004'; Status = 'pass' }
+        @{ Id = 'CP-005'; Status = 'fail' }
+        @{ Id = 'CP-006'; Status = 'pass' }
+        @{ Id = 'CP-007'; Status = 'fail' }
+        @{ Id = 'CP-009'; Status = 'fail' }
+        @{ Id = 'CP-011'; Status = 'fail' }
+        @{ Id = 'CP-012'; Status = 'fail' }
+        @{ Id = 'CP-013'; Status = 'pass' }
+        @{ Id = 'CP-014'; Status = 'notEvaluated' }
+        @{ Id = 'CP-016'; Status = 'pass' }
+        @{ Id = 'CP-017'; Status = 'notEvaluated' }
+        @{ Id = 'CP-018'; Status = 'fail' }
+    ) { $script:By[$Id].status | Should -Be $Status -Because ($script:By[$Id].reason) }
+
+    It 'names the top-tier site without restricted access control' {
+        $script:By['CP-007'].affectedCount | Should -Be 1
+        $script:By['CP-007'].affected[0].name | Should -Match 'Board'
+    }
+
+    It 'carries the gate codes and hard flags in the catalog' {
+        $cat = @(Get-PostureCheckCatalog -Domain copilot -Full)
+        @($cat | Where-Object { $_.Gate.hard }).Id | Should -Be @('CP-001', 'CP-002', 'CP-003', 'CP-004', 'CP-006')
+    }
+}
