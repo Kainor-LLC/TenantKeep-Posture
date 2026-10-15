@@ -103,7 +103,8 @@ configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
 
 On a `Connect-AzAccount` session with Reader on the subscriptions (or the management group) and Security Reader.
 Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls per subscription are capped at
-200 subscriptions. Both go through Get-only entry points. On macOS the Az browser sign-in can hit the same MSAL
+200 subscriptions. Both go through Get-only entry points. Sign in to Graph before importing Az.Accounts in the same
+process: imported first, Az breaks `Connect-MgGraph` with "Entry point was not found" (observed 2026-10-15 on macOS). On macOS the Az browser sign-in can hit the same MSAL
 conflicts as the others; `Connect-AzAccount -UseDeviceAuthentication` or a token from the Azure CLI
 (`Connect-AzAccount -AccessToken (az account get-access-token --resource https://management.azure.com --query accessToken -o tsv) -AccountId <upn>`) work.
 

@@ -15,7 +15,17 @@
     )
 
     # Maintained by build.ps1 from the Public/ folder. Keep in sync by hand for Import-Module from src/.
-    FunctionsToExport = @('Compare-PostureCaSnapshot', 'Export-PostureCaSnapshot', 'Get-PostureCheckCatalog', 'Invoke-PostureChecks', 'Invoke-PostureCollection', 'New-PostureCaDocument', 'New-PostureProfile', 'New-PostureReport')
+    FunctionsToExport = @(
+        'Compare-PostureCaSnapshot',
+        'Export-PostureCaSnapshot',
+        'Export-PostureFindings',
+        'Get-PostureCheckCatalog',
+        'Invoke-PostureChecks',
+        'Invoke-PostureCollection',
+        'New-PostureCaDocument',
+        'New-PostureProfile',
+        'New-PostureReport'
+    )
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()

@@ -14,7 +14,8 @@ function Test-PostureAzureSession {
     try { $c = Get-AzContext -ErrorAction Stop } catch { return $false }
     if (-not ($c -and $c.Account -and $c.Tenant)) { return $false }
     # A context can outlive its tokens (the cache dies, the session stays listed); prove a token can be minted silently.
-    try { $null = Get-AzAccessToken -ResourceUrl 'https://management.azure.com/' -ErrorAction Stop; return $true } catch { return $false }
+    # A context built from a supplied access token (Connect-AzAccount -AccessToken) cannot mint, so it counts as live as given.
+    try { $null = Get-AzAccessToken -ErrorAction Stop; return $true } catch { return ([string]$c.Account.Type -eq 'AccessToken') }
 }
 
 function Invoke-PostureAzureQuery {
