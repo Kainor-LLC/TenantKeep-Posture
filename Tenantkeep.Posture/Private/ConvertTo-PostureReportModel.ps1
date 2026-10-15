@@ -20,6 +20,7 @@ function ConvertTo-PostureReportModel {
         [AllowEmptyCollection()] [object[]] $Exception = @(),
         [string] $Template = 'Full',
         [System.Collections.IDictionary] $Previous,
+        [System.Collections.IDictionary] $BaselineModel,
         [datetime] $GeneratedUtc = [datetime]::UtcNow
     )
 
@@ -164,6 +165,23 @@ function ConvertTo-PostureReportModel {
         }
     }
 
+    # Framework crosswalk (spec 10.6): the baseline's groups or the customer's control names, each with the checks that map there.
+    $crosswalk = $null
+    if ($BaselineModel -and $BaselineModel.Contains('crosswalk') -and $BaselineModel['crosswalk']) {
+        $cw = $BaselineModel['crosswalk']
+        $key = [string]$cw['framework']
+        $refOf = { param($r) $c = $byId[[string]$r.id]; if ($c -and $c['frameworks'] -and $c['frameworks'].Contains($key)) { [string]$c['frameworks'][$key] } else { '' } }
+        $rowsOf = { param([string[]] $refs, [bool] $prefix) @($results | Where-Object { $ref = & $refOf $_; $ref -and (@($refs | Where-Object { if ($prefix) { $ref -like "$_*" } else { $ref -eq $_ } }).Count -gt 0) } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; status = $_.status; severity = $_.severity; reference = (& $refOf $_) } } | Sort-Object { $_.reference }, { $_.id }) }
+        $entries = [System.Collections.Generic.List[object]]::new()
+        if ($cw.Contains('controls') -and $cw['controls']) {
+            foreach ($control in @($cw['controls'].Keys)) { $rowsC = & $rowsOf @($cw['controls'][$control] | ForEach-Object { [string]$_ }) $false; $entries.Add([ordered]@{ name = [string]$control; references = @($cw['controls'][$control]); checks = @($rowsC); pass = @($rowsC | Where-Object { $_.status -in @('pass', 'acceptedRisk', 'coveredBy') }).Count; fail = @($rowsC | Where-Object { $_.status -eq 'fail' }).Count }) }
+        }
+        elseif ($cw.Contains('groups') -and $cw['groups']) {
+            foreach ($g in @($cw['groups'].Keys)) { $rowsG = & $rowsOf @([string]$g) $true; $entries.Add([ordered]@{ name = "$g $($cw['groups'][$g])"; references = @($g); checks = @($rowsG); pass = @($rowsG | Where-Object { $_.status -in @('pass', 'acceptedRisk', 'coveredBy') }).Count; fail = @($rowsG | Where-Object { $_.status -eq 'fail' }).Count }) }
+        }
+        $crosswalk = [ordered]@{ framework = $key; baseline = [string]$BaselineModel['name']; entries = @($entries) }
+    }
+
     # Top risks: failed checks by severity weight, five of them.
     $topRisks = @($results | Where-Object { $_.status -eq 'fail' } | Sort-Object { -$weight[[string]$_.severity] }, { $_.id } | Select-Object -First 5 | ForEach-Object {
             [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; domain = $_.domain; affectedCount = $_.affectedCount; narrative = [string]$byId[$_.id]['narrative'] }
@@ -265,6 +283,7 @@ function ConvertTo-PostureReportModel {
         ca           = $ca
         copilot      = $copilot
         trend        = $trend
+        crosswalk    = $crosswalk
         results      = $results
         catalogText  = $catalogText
         appendix     = [ordered]@{

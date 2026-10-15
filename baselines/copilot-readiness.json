@@ -1,0 +1,37 @@
+{
+  "name": "copilot-readiness",
+  "description": "Section 4.7: the Copilot readiness gates plus the sharing, labeling, governance and Conditional Access checks that feed them.",
+  "checks": [
+    "domain:copilot",
+    "CL-001",
+    "CL-002",
+    "CL-003",
+    "CL-005",
+    "CL-006",
+    "CL-007",
+    "CL-008",
+    "CL-009",
+    "PV-001",
+    "PV-002",
+    "PV-003",
+    "PV-004",
+    "PV-005",
+    "GV-002",
+    "GV-003",
+    "GV-004",
+    "CA-002",
+    "CA-003",
+    "CA-005",
+    "EM-019",
+    "ID-012"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {
+    "CL-001": "High",
+    "CL-003": "High",
+    "PV-002": "High",
+    "PV-004": "High"
+  },
+  "frameworks": []
+}

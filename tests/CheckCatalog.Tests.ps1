@@ -56,7 +56,24 @@ Describe 'Shipped check catalog' {
             InModuleScope Tenantkeep.Posture -Parameters @{ P = $Path } {
                 $b = Import-PostureBaseline -Baseline $P
                 $known = @((Import-PostureCheckCatalog).checks | ForEach-Object { $_.id })
-                foreach ($id in @($b.checks | Where-Object { $_ -ne '*' }) + @($b.exclude) + @($b.thresholds.Keys) + @($b.severity.Keys)) { $known | Should -Contain $id }
+                foreach ($id in @($b.checks | Where-Object { $_ -ne '*' -and $_ -notlike 'domain:*' -and $_ -notlike 'framework:*' }) + @($b.exclude) + @($b.thresholds.Keys) + @($b.severity.Keys)) { $known | Should -Contain $id }
+                $domains = @((Import-PostureCheckCatalog).checks | ForEach-Object { $_.domain } | Sort-Object -Unique)
+                foreach ($sel in @($b.checks | Where-Object { $_ -like 'domain:*' })) { $domains | Should -Contain $sel.Substring(7) }
+                foreach ($sel in @($b.checks | Where-Object { $_ -like 'framework:*' })) { @('nist-csf-2', 'iso27001', 'cmmc', 'cisa-scuba', 'cis-m365') | Should -Contain $sel.Substring(10) }
+            }
+        }
+
+        It 'selects at least one check and its crosswalk references resolve to mapped checks' {
+            InModuleScope Tenantkeep.Posture -Parameters @{ P = $Path } {
+                $b = Import-PostureBaseline -Baseline $P
+                $catalog = Import-PostureCheckCatalog
+                $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline $b -OrgProfile (Import-PostureProfile) -Exception @() -Evidence (Join-Path ([System.IO.Path]::GetTempPath()) 'tkp-no-evidence')
+                @($run.results).Count | Should -BeGreaterThan 0
+                if ($b.crosswalk -and $b.crosswalk.Contains('controls')) {
+                    $key = [string]$b.crosswalk.framework
+                    $refs = @($catalog.checks | ForEach-Object { [string]$_.frameworks[$key] } | Where-Object { $_ })
+                    foreach ($control in @($b.crosswalk.controls.Keys)) { foreach ($ref in @($b.crosswalk.controls[$control])) { $refs | Should -Contain $ref -Because "$control references $ref" } }
+                }
             }
         }
     }

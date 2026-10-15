@@ -1,0 +1,78 @@
+{
+  "name": "hipaa",
+  "description": "HIPAA Security Rule safeguards, reached through the HHS crosswalk from the Security Rule to NIST CSF subcategories (verify the crosswalk rows): every check that maps to a CSF 2.0 subcategory listed below, with the technical safeguards lifted to High.",
+  "checks": [
+    "framework:nist-csf-2"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "nist-csf-2"
+  ],
+  "crosswalk": {
+    "framework": "nist-csf-2",
+    "controls": {
+      "164.308(a)(1) Security management process": [
+        "ID.RA-01",
+        "ID.RA-05",
+        "GV.PO-01",
+        "ID.AM-01",
+        "ID.AM-07"
+      ],
+      "164.308(a)(3) Workforce security": [
+        "PR.AA-01",
+        "PR.AA-05",
+        "GV.RR-02"
+      ],
+      "164.308(a)(4) Information access management": [
+        "PR.AA-05",
+        "PR.AA-03"
+      ],
+      "164.308(a)(5) Security awareness and training": [
+        "PR.AT-01",
+        "PR.PS-05",
+        "DE.CM-09"
+      ],
+      "164.308(a)(6) Security incident procedures": [
+        "RS.MA-01",
+        "RS.CO-02",
+        "DE.CM-03"
+      ],
+      "164.308(a)(7) Contingency plan": [
+        "RC.RP-01",
+        "PR.DS-11"
+      ],
+      "164.310(d) Device and media controls": [
+        "PR.DS-01",
+        "PR.PS-01"
+      ],
+      "164.312(a) Access control": [
+        "PR.AA-01",
+        "PR.AA-03",
+        "PR.AA-05"
+      ],
+      "164.312(b) Audit controls": [
+        "DE.CM-01",
+        "DE.CM-09"
+      ],
+      "164.312(c) Integrity": [
+        "PR.DS-01",
+        "PR.PS-02",
+        "ID.IM-01"
+      ],
+      "164.312(d) Person or entity authentication": [
+        "PR.AA-03"
+      ],
+      "164.312(e) Transmission security": [
+        "PR.DS-02",
+        "PR.IR-01"
+      ],
+      "164.314 and 164.316 Organizational requirements and documentation": [
+        "GV.PO-01",
+        "GV.SC-04",
+        "PR.PS-01"
+      ]
+    }
+  }
+}

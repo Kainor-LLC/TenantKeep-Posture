@@ -134,6 +134,18 @@ function ConvertTo-PostureReportMarkdown {
         }
     }
 
+    if ($r.crosswalk) {
+        & $line "## Framework crosswalk: $($r.crosswalk.baseline) ($($r.crosswalk.framework))"
+        & $line
+        & $line 'Reference numbers only; the framework text is not reproduced. Each row lists the checks that map to the group or control, with their results.'
+        & $line
+        foreach ($e in $r.crosswalk.entries) {
+            & $line "### $(& $esc $e.name) ($($e.pass) pass, $($e.fail) fail)"
+            & $line
+            if (@($e.checks).Count -eq 0) { & $line 'No check maps here yet.'; & $line; continue }
+            & $table @('Reference', 'Check', 'Status', 'Severity') @($e.checks | ForEach-Object { , @($_.reference, "$($_.id) $(& $esc $_.title)", $_.status, $_.severity) })
+        }
+    }
     & $line '## Appendix'
     & $line
     $a = $r.appendix

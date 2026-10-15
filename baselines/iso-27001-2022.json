@@ -1,0 +1,22 @@
+{
+  "name": "iso-27001-2022",
+  "description": "ISO/IEC 27001:2022 Annex A: every check that maps to an Annex A control, catalog severities. Reference numbers only; the standard's text is not reproduced.",
+  "checks": [
+    "framework:iso27001"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "iso27001"
+  ],
+  "crosswalk": {
+    "framework": "iso27001",
+    "groups": {
+      "A.5": "Organizational controls",
+      "A.6": "People controls",
+      "A.7": "Physical controls",
+      "A.8": "Technological controls"
+    }
+  }
+}

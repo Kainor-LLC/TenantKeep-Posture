@@ -27,7 +27,16 @@ function Invoke-PostureCheckEvaluation {
 
     # 1. Scope from the baseline, then the optional domain filter.
     $all = @($Catalog.checks)
-    $selected = if (@($Baseline.checks) -contains '*') { $all } else { @($all | Where-Object { $_['id'] -in @($Baseline.checks) }) }
+    # Selection entries: '*', a check id, 'domain:<slug>', or 'framework:<key>' (every check that carries a reference for that framework).
+    $selectors = @($Baseline.checks | ForEach-Object { [string]$_ })
+    $selected = if ($selectors -contains '*') { $all } else {
+        @($all | Where-Object {
+                $c = $_
+                ($c['id'] -in $selectors) -or
+                (@($selectors | Where-Object { $_ -like 'domain:*' } | ForEach-Object { $_.Substring(7) }) -contains [string]$c['domain']) -or
+                (@($selectors | Where-Object { $_ -like 'framework:*' } | ForEach-Object { $_.Substring(10) } | Where-Object { $c['frameworks'] -and $c['frameworks'].Contains($_) -and [string]$c['frameworks'][$_] }).Count -gt 0)
+            })
+    }
     $selected = @($selected | Where-Object { $_['id'] -notin @($Baseline.exclude) })
     if ($Domain) { $selected = @($selected | Where-Object { [string]$_['domain'] -in $Domain }) }
 

@@ -22,6 +22,7 @@ function Import-PostureBaseline {
         thresholds  = $(if ($b['thresholds']) { $b['thresholds'] } else { @{} })
         severity    = $(if ($b['severity']) { $b['severity'] } else { @{} })
         frameworks  = @($(if ($b.Contains('frameworks')) { $b['frameworks'] } else { @() }))
+        crosswalk   = $(if ($b.Contains('crosswalk') -and $b['crosswalk']) { $b['crosswalk'] } else { $null })
         path        = (Resolve-Path -LiteralPath $file).Path
     }
 }

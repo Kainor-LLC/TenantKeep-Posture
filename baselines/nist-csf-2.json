@@ -1,0 +1,24 @@
+{
+  "name": "nist-csf-2",
+  "description": "NIST Cybersecurity Framework 2.0: every check that maps to a CSF 2.0 subcategory, catalog severities. The crosswalk appendix groups results by function and subcategory.",
+  "checks": [
+    "framework:nist-csf-2"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "nist-csf-2"
+  ],
+  "crosswalk": {
+    "framework": "nist-csf-2",
+    "groups": {
+      "GV": "Govern",
+      "ID": "Identify",
+      "PR": "Protect",
+      "DE": "Detect",
+      "RS": "Respond",
+      "RC": "Recover"
+    }
+  }
+}

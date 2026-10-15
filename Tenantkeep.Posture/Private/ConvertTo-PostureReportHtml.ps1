@@ -53,7 +53,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -208,6 +208,18 @@ function ConvertTo-PostureReportHtml {
 
     # Appendix
     $a = $r.appendix
+    if ($r.crosswalk) {
+        & $w "<section class=`"view`" id=`"crosswalk`"><h2>Framework crosswalk: $(& $h $r.crosswalk.baseline) ($(& $h $r.crosswalk.framework))</h2>"
+        & $w '<p class="muted">Reference numbers only; the framework text is not reproduced.</p>'
+        foreach ($e in $r.crosswalk.entries) {
+            & $w "<h3>$(& $h $e.name) <span class=`"muted`">($($e.pass) pass, $($e.fail) fail)</span></h3>"
+            if (@($e.checks).Count -eq 0) { & $w '<p class="muted">No check maps here yet.</p>'; continue }
+            & $w '<table><thead><tr><th>Reference</th><th>Check</th><th>Status</th><th>Severity</th></tr></thead><tbody>'
+            foreach ($c in $e.checks) { & $w "<tr class=`"st-$($c.status)`"><td>$(& $h $c.reference)</td><td>$(& $h $c.id) $(& $h $c.title)</td><td>$(& $h $c.status)</td><td>$(& $h $c.severity)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        & $w '</section>'
+    }
     & $w '<section class="view" id="appendix"><h2>Appendix</h2><table><tbody>'
     foreach ($pair in @(@('Catalog version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API versions', ($a.graphApiVersions -join ', ')), @('Module version', $a.moduleVersion))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }
     & $w '</tbody></table>'

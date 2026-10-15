@@ -1,0 +1,28 @@
+{
+  "name": "cmmc-2",
+  "description": "CMMC 2.0 Level 2: the 800-171 practice set under the CMMC numbering. Same selection as nist-800-171; kept as its own name so a report says what the customer is assessed against.",
+  "checks": [
+    "framework:cmmc"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "cmmc"
+  ],
+  "crosswalk": {
+    "framework": "cmmc",
+    "groups": {
+      "AC": "Access control",
+      "AT": "Awareness and training",
+      "AU": "Audit and accountability",
+      "CM": "Configuration management",
+      "IA": "Identification and authentication",
+      "IR": "Incident response",
+      "MP": "Media protection",
+      "SC": "System and communications protection",
+      "SI": "System and information integrity",
+      "CP": "Contingency planning"
+    }
+  }
+}

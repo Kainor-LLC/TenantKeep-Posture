@@ -1,0 +1,28 @@
+{
+  "name": "nist-800-171",
+  "description": "NIST SP 800-171 practices for defense contractors, identified by their CMMC practice ids (the same numbering, AC.L2-3.1.5 is 800-171 3.1.5). Every mapped check; Medium checks lifted to High where a practice is a Level 2 requirement.",
+  "checks": [
+    "framework:cmmc"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "cmmc"
+  ],
+  "crosswalk": {
+    "framework": "cmmc",
+    "groups": {
+      "AC": "Access control",
+      "AT": "Awareness and training",
+      "AU": "Audit and accountability",
+      "CM": "Configuration management",
+      "IA": "Identification and authentication",
+      "IR": "Incident response",
+      "MP": "Media protection",
+      "SC": "System and communications protection",
+      "SI": "System and information integrity",
+      "CP": "Contingency planning"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "cisa-scuba",
+  "description": "CISA Secure Cloud Business Applications baselines for Microsoft 365, as ScubaGear tests them: every check that maps to an MS.AAD, MS.EXO, MS.SHAREPOINT, MS.TEAMS or MS.DEFENDER policy id, catalog severities lifted to High for the SHALL policies carried here. First pass: 35 of 179 checks carry an id; the rest of the mapping is open.",
+  "checks": [
+    "framework:cisa-scuba"
+  ],
+  "exclude": [],
+  "thresholds": {},
+  "severity": {},
+  "frameworks": [
+    "cisa-scuba"
+  ],
+  "crosswalk": {
+    "framework": "cisa-scuba",
+    "groups": {
+      "MS.AAD": "Entra ID",
+      "MS.EXO": "Exchange Online",
+      "MS.SHAREPOINT": "SharePoint and OneDrive",
+      "MS.TEAMS": "Teams",
+      "MS.DEFENDER": "Defender"
+    }
+  }
+}

@@ -214,3 +214,31 @@ Describe 'Trend since a previous run' {
     }
 }
 
+Describe 'Framework baselines and the crosswalk' {
+    It 'selects by framework reference and renders the crosswalk grouped by CSF function' {
+        $r = New-PostureReport -Evidence $script:Ev -Baseline nist-csf-2 -Format Markdown, Html -OutputPath (Join-Path $script:Root 'csf') -PassThru
+        $r.Report.crosswalk.framework | Should -Be 'nist-csf-2'
+        @($r.Report.crosswalk.entries | ForEach-Object { $_.name }) | Should -Contain 'PR Protect'
+        @($r.Report.crosswalk.entries | Where-Object { $_.name -eq 'PR Protect' })[0].checks.Count | Should -BeGreaterThan 5
+        $md = Get-Content -Raw (Join-Path $script:Root 'csf' 'report.md')
+        $md | Should -Match '## Framework crosswalk: nist-csf-2'
+        $html = Get-Content -Raw (Join-Path $script:Root 'csf' 'report.html')
+        $html | Should -Match '<section class="view" id="crosswalk">'
+    }
+
+    It 'maps the HIPAA safeguards through the CSF references' {
+        $r = New-PostureReport -Evidence $script:Ev -Baseline hipaa -Format Markdown -OutputPath (Join-Path $script:Root 'hipaa') -PassThru
+        $entry = @($r.Report.crosswalk.entries | Where-Object { $_.name -like '164.312(a)*' })
+        $entry.Count | Should -Be 1
+        $entry[0].checks.Count | Should -BeGreaterThan 0
+        @($entry[0].checks | ForEach-Object { $_.reference } | Sort-Object -Unique) | Should -BeIn @('PR.AA-01', 'PR.AA-03', 'PR.AA-05')
+    }
+
+    It 'narrows the catalog to the Copilot gates and their feeders' {
+        $run = Invoke-PostureChecks -Evidence $script:Ev -Baseline copilot-readiness -PassThru
+        @($run.results | ForEach-Object { $_.domain } | Sort-Object -Unique) | Should -Contain 'copilot'
+        @($run.results | Where-Object { $_.id -eq 'EM-001' }).Count | Should -Be 0
+        $run.results.Count | Should -BeLessThan 60
+    }
+}
+
