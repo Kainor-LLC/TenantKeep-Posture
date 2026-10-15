@@ -18,6 +18,8 @@ function New-PostureProfile {
         Detect licenses from the signed-in Graph session (Organization.Read.All or Directory.Read.All).
     .PARAMETER NonInteractive
         Ask nothing; write parameters over existing values over defaults.
+    .PARAMETER TenantId
+        The tenant this profile belongs to. Invoke-PostureCollection -ProfilePath refuses a session in any other tenant; -FromGraph records the signed-in one.
     .PARAMETER SharePointClientId
         Application (client) id of the Entra app the SharePoint and Teams collector signs in with; deploy/setup/New-PostureSharePointApp.ps1 writes it.
     .PARAMETER Force
@@ -60,6 +62,7 @@ function New-PostureProfile {
         [ValidateSet('executive', 'technical', 'auditor')] [string] $Audience,
         [ValidateSet('one-off', 'monthly', 'quarterly')] [string] $Cadence,
         [string] $ClientName,
+        [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $TenantId,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $SharePointClientId,
         [switch] $Force,
         [switch] $PassThru
@@ -70,6 +73,7 @@ function New-PostureProfile {
 
     $defaults = [ordered]@{
         clientName            = $null
+        tenantId              = $null
         licenses              = @()
         platforms             = @('windows')
         identityModel         = 'cloud-only'
@@ -100,6 +104,7 @@ function New-PostureProfile {
 
     # Parameters win over the file.
     if ($PSBoundParameters.ContainsKey('ClientName')) { $defaults.clientName = $ClientName }
+    if ($TenantId) { $defaults.tenantId = $TenantId }
     if ($PSBoundParameters.ContainsKey('Licenses')) { $defaults.licenses = @($Licenses) }
     if ($PSBoundParameters.ContainsKey('Platforms')) { $defaults.platforms = @($Platforms) }
     if ($IdentityModel) { $defaults.identityModel = $IdentityModel }
@@ -128,6 +133,7 @@ function New-PostureProfile {
         $null = Assert-PostureGraphScope -AnyOfScope 'Organization.Read.All', 'Directory.Read.All'
         $detected = @(Get-PostureLicenseToken -Sku @(Invoke-PostureGraphRequest -Uri 'subscribedSkus' -ApiVersion 'v1.0'))
         $licenseSource = "graph:$((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))"
+        if (-not $TenantId) { $defaults.tenantId = [string](Get-MgContext).TenantId }
     }
     if ($null -ne $detected -and -not $PSBoundParameters.ContainsKey('Licenses')) { $defaults.licenses = $detected }
 

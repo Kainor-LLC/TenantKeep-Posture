@@ -31,6 +31,9 @@ function Invoke-PostureCollection {
         Store group member lists in the Conditional Access snapshot.
     .PARAMETER SkipCaSnapshot
         Do not write the Conditional Access snapshot into the folder.
+    .PARAMETER ProfilePath
+        profile.json of the tenant. When it carries tenantId, a Graph session in any other tenant is refused before
+        anything is read: the guard for a machine that holds sessions to several tenants.
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
     .PARAMETER SkipSiteEnumeration
@@ -70,6 +73,7 @@ function Invoke-PostureCollection {
         [string] $OutputFolder,
         [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
+        [Alias('Profile')] [string] $ProfilePath,
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
         [switch] $SkipPerUserMfa,
@@ -83,6 +87,11 @@ function Invoke-PostureCollection {
 
     $core = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All')
     $context = Assert-PostureGraphScope -RequiredScope $core
+    if ($ProfilePath) {
+        $orgProfile = Import-PostureProfile -Path $ProfilePath
+        $expected = [string]$(if ($orgProfile.Contains('tenantId')) { $orgProfile['tenantId'] })
+        if ($expected -and $expected -ne [string]$context.TenantId) { throw "The Graph session is in tenant $($context.TenantId), but $ProfilePath belongs to tenant $expected. Sign in to that tenant first, Connect-MgGraph -TenantId $expected, or pass the right profile." }
+    }
     $optional = [ordered]@{
         'User.Read.All'                     = 'Users'
         'OnPremDirectorySynchronization.Read.All' = 'Hybrid sync features'

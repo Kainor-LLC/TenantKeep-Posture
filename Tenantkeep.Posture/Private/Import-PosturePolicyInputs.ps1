@@ -54,6 +54,8 @@ function Import-PostureProfile {
         breakGlass            = @()
         audience              = 'technical'
         cadence               = $null
+        tenantId              = $null
+        sharePointClientId    = $null
         path                  = $null
     }
     if (-not $Path) { return $model }

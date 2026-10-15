@@ -395,6 +395,21 @@ Describe 'Invoke-PostureCollection' {
         }
     }
 
+    Context 'tenant guard' {
+        It 'refuses a profile that belongs to another tenant before reading anything' {
+            $p = Join-Path $script:Root 'other-tenant-profile.json'
+            '{ "version": 1, "tenantId": "99999999-9999-9999-9999-999999999999" }' | Set-Content -LiteralPath $p
+            { Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -ProfilePath $p -OutputFolder (Join-Path $script:Root 'guard') } | Should -Throw '*belongs to tenant 99999999-9999-9999-9999-999999999999*'
+            Join-Path $script:Root 'guard' 'collection.json' | Should -Not -Exist
+        }
+
+        It 'accepts the matching tenant' {
+            $p = Join-Path $script:Root 'same-tenant-profile.json'
+            '{ "version": 1, "tenantId": "tenant-guid" }' | Set-Content -LiteralPath $p
+            { Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -ProfilePath $p -OutputFolder (Join-Path $script:Root 'guard-ok') -WarningAction SilentlyContinue -ErrorAction SilentlyContinue } | Should -Not -Throw
+        }
+    }
+
     Context 'scope check' {
         It 'refuses without the core scopes' {
             Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }
