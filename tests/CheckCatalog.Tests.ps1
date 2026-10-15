@@ -60,7 +60,7 @@ Describe 'Shipped check catalog' {
                 foreach ($id in @($b.checks | Where-Object { $_ -ne '*' -and $_ -notlike 'domain:*' -and $_ -notlike 'framework:*' }) + @($b.exclude) + @($b.thresholds.Keys) + @($b.severity.Keys)) { $known | Should -Contain $id }
                 $domains = @((Import-PostureCheckCatalog).checks | ForEach-Object { $_.domain } | Sort-Object -Unique)
                 foreach ($sel in @($b.checks | Where-Object { $_ -like 'domain:*' })) { $domains | Should -Contain $sel.Substring(7) }
-                foreach ($sel in @($b.checks | Where-Object { $_ -like 'framework:*' })) { @('nist-csf-2', 'iso27001', 'cmmc', 'cisa-scuba', 'cis-m365') | Should -Contain $sel.Substring(10) }
+                foreach ($sel in @($b.checks | Where-Object { $_ -like 'framework:*' })) { @('nist-csf-2', 'iso27001', 'cmmc', 'cisa-scuba') | Should -Contain $sel.Substring(10) }
             }
         }
 

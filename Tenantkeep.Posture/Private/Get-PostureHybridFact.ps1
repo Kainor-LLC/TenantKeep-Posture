@@ -128,11 +128,17 @@ function Get-PostureHybridFact {
         $facts.activeWindowsNonDc = [int](& $v $comp 'ActiveWindowsNonDc'); $facts.windowsLapsComputers = [int](& $v $comp 'WindowsLaps'); $facts.legacyLapsComputers = [int](& $v $comp 'LegacyLaps')
         $facts.lapsPct = & $pct $facts.windowsLapsComputers $facts.activeWindowsNonDc
         if ($facts.activeWindowsNonDc -eq 0) { $notEvaluated['HY-020'] = 'No active Windows member computers.' }
+        $facts.lapsSchemaPresent = ((& $v $comp 'WindowsLapsSchema') -eq $true) -or ((& $v $comp 'LegacyLapsSchema') -eq $true)
     }
 
     $users = & $load 'ad-07-users-summary'
     if ($null -eq $users) { & $adMissing @('HY-024', 'HY-026') 'ad-07-users-summary' }
-    else { $facts.staleEnabledUsers = [int](& $v $users 'StaleEnabled'); $facts.passwordNeverExpiresHumans = [int](& $v $users 'PasswordNeverExpiresEnabledHumans'); $facts.enabledUsers = [int](& $v $users 'Enabled'); $facts.staleUserPct = & $pct $facts.staleEnabledUsers $facts.enabledUsers }
+    else {
+        $facts.staleEnabledUsers = [int](& $v $users 'StaleEnabled'); $facts.passwordNeverExpiresHumans = [int](& $v $users 'PasswordNeverExpiresEnabledHumans'); $facts.enabledUsers = [int](& $v $users 'Enabled'); $facts.staleUserPct = & $pct $facts.staleEnabledUsers $facts.enabledUsers
+        $staleList = & $load 'ad-07-stale-users'; $neverList = & $load 'ad-07-password-never-expires'
+        $affected.staleEnabledUsers = @(& $rows $staleList | ForEach-Object { [ordered]@{ name = [string]$_.SamAccountName; detail = $(if ($_.LastLogon) { "last logon $([string]$_.LastLogon)" } else { 'never signed in' }) } })
+        $affected.passwordNeverExpiresHumans = @(& $rows $neverList | ForEach-Object { [ordered]@{ name = [string]$_.SamAccountName; detail = "password set $([string]$_.PasswordLastSet)" } })
+    }
 
     $trusts = & $load 'ad-01-trusts'
     if ($null -eq $trusts) { & $adMissing @('HY-027') 'ad-01-trusts' }

@@ -19,7 +19,7 @@ A baseline is a check selection, per-check threshold overrides, severity overrid
 
 `checks` takes `"*"`, a check id, `"domain:<slug>"` (every check in that domain) or `"framework:<key>"` (every check
 that carries a reference for that framework, so the selection grows with the catalog). The keys are the ones in each
-check's `frameworks` block: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`, `cis-m365`.
+check's `frameworks` block: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`.
 
 ## Crosswalk
 
@@ -31,6 +31,6 @@ per group or control, the checks that map there with their statuses. Framework t
 ## Shipped
 
 standard, copilot-readiness, nist-csf-2, iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba (first pass, 35 checks
-mapped), hipaa (through the HHS crosswalk, verify). cis-m365 and cis-azure wait for the CIS terms decision; the catalog's
-`cis-m365` references are empty until then.
+mapped), hipaa (through the HHS crosswalk, verify). CIS benchmarks are not mapped: their content is licensed through
+the CIS SecureSuite vendor programme, which Kainor has not joined (decided 2026-10-15).
 

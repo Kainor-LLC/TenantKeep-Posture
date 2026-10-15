@@ -14,17 +14,17 @@ Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocum
 ```powershell
 Import-Module ./Tenantkeep.Posture
 Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All -NoWelcome
-Export-PostureCaSnapshot                       # writes ~/audit/evidence/<yyyyMMdd-HHmm>-ca/
+Export-PostureCaSnapshot                       # writes ~/tenantkeep/evidence/<yyyyMMdd-HHmm>-ca/
 Export-PostureCaSnapshot -IncludeMembers       # also stores group member UPNs
-New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -NamePattern '^CA-\d{3}-'   # ca-document.md and .html next to the snapshot
-New-PostureCaDocument -Snapshot ~/audit/evidence/<stamp>-ca -Format Pdf -Brand ./brand.json  # adds ca-document.pdf via headless Edge or Chrome
+New-PostureCaDocument -Snapshot ~/tenantkeep/evidence/<stamp>-ca -NamePattern '^CA-\d{3}-'   # ca-document.md and .html next to the snapshot
+New-PostureCaDocument -Snapshot ~/tenantkeep/evidence/<stamp>-ca -Format Pdf -Brand ./brand.json  # adds ca-document.pdf via headless Edge or Chrome
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                              # ca-changes.md and .html, risk-relevant changes first
 Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
-Invoke-PostureChecks -Evidence ~/audit/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
+Invoke-PostureChecks -Evidence ~/tenantkeep/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
-Invoke-PostureCollection -OutRoot ~/audit/evidence                                            # A.1 identity and Intune evidence, A.2 Exchange evidence and the CA snapshot in one run folder
-New-PostureReport -Evidence ~/audit/evidence/<stamp> -Profile ~/audit/profile.json            # report.html (interactive), report.md, checks.json; add -Format Pdf
-New-PostureProfile -Path ~/audit/profile.json -Evidence ~/audit/evidence/<stamp>                # discovery from the evidence, then the questions evidence cannot answer
+Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence                                            # A.1 identity and Intune evidence, A.2 Exchange evidence and the CA snapshot in one run folder
+New-PostureReport -Evidence ~/tenantkeep/evidence/<stamp> -Profile ~/tenantkeep/clients/contoso/profile.json            # report.html (interactive), report.md, checks.json; add -Format Pdf
+New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence ~/tenantkeep/evidence/<stamp>                # discovery from the evidence, then the questions evidence cannot answer
 ```
 
 ## Develop

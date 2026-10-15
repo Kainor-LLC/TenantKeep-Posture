@@ -27,11 +27,11 @@ function Invoke-PostureChecks {
     .PARAMETER PassThru
         Return the full result object instead of the checks.json path.
     .EXAMPLE
-        Invoke-PostureChecks -Evidence ~/audit/evidence/20261013-2231-ca -Domain ca
+        Invoke-PostureChecks -Evidence ~/tenantkeep/evidence/20261013-2231-ca -Domain ca
 
         Evaluates the Conditional Access checks against that snapshot with the standard baseline.
     .EXAMPLE
-        Invoke-PostureChecks -Evidence ./snap -Baseline cisa-scuba -Profile ./clients/contoso/profile.json -Exceptions ./clients/contoso/exceptions.json -PassThru
+        Invoke-PostureChecks -Evidence ./snap -Baseline cisa-scuba -Profile ~/tenantkeep/clients/contoso/profile.json -Exceptions ~/tenantkeep/clients/contoso/exceptions.json -PassThru
 
         Full result object for a client folder.
     .OUTPUTS

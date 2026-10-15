@@ -10,8 +10,8 @@ Run the collection first, then point the wizard at the evidence folder. Discover
 says about itself and the wizard asks only what evidence cannot answer:
 
 ```powershell
-$folder = Invoke-PostureCollection -OutRoot ~/audit/evidence
-New-PostureProfile -Path ./clients/contoso/profile.json -Evidence $folder
+$folder = Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
+New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence $folder
 ```
 
 | Discovered | From | Rule |
@@ -57,7 +57,7 @@ measured and what was answered.
   "cadence": "quarterly",
   "breakGlass": ["breakglass01@contoso.example", "breakglass02@contoso.example"],
   "operations": { "breakGlassTestedUtc": "2026-09-01T00:00:00Z", "messageCenterOwner": "IT operations team" },
-  "licensesSource": "evidence:/Users/me/audit/evidence/20261014-1448",
+  "licensesSource": "evidence:/Users/me/tenantkeep/evidence/20261014-1448",
   "discovery": { "evidence": "...", "timestampUtc": "...", "keys": ["licenses", "platforms", "identityModel", "byod", "externalCollaboration", "copilot", "tenantId", "clientName"], "sources": { "platforms": "..." } },
   "createdUtc": "2026-10-14T04:30:00Z",
   "updatedUtc": "2026-10-14T04:30:00Z"

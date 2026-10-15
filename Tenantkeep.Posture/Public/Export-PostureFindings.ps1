@@ -21,7 +21,7 @@ function Export-PostureFindings {
     .PARAMETER PassThru
         Return the rows instead of the file path.
     .EXAMPLE
-        Export-PostureFindings -Path ~/audit/evidence/20261015-0952 -Merge ~/audit/findings.csv -OutputPath ~/audit/findings.csv
+        Export-PostureFindings -Path ~/tenantkeep/evidence/20261015-0952 -Merge ~/tenantkeep/clients/contoso/findings.csv -OutputPath ~/tenantkeep/clients/contoso/findings.csv
     .OUTPUTS
         System.String, the findings.csv path. With -PassThru, the rows.
     .LINK

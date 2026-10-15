@@ -24,17 +24,17 @@
     Connect-MgGraph -Identity -NoWelcome
     ./ca-snapshot-cycle.ps1 -OutRoot /mnt/snapshots -TeamsWebhookUrl $env:TEAMS_WEBHOOK -FailOnRiskRelevantChange
 .EXAMPLE
-    ./ca-snapshot-cycle.ps1 -OutRoot ~/audit/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example
+    ./ca-snapshot-cycle.ps1 -OutRoot ~/tenantkeep/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example
 
     Emails through Graph as ca-monitor@contoso.example when a risk-relevant change appears. The identity needs Mail.Send.
 .EXAMPLE
-    ./ca-snapshot-cycle.ps1 -OutRoot ~/audit/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example -EmailMethod Smtp -SmtpServer smtp.contoso.example -SmtpCredential $cred -EmailAlways
+    ./ca-snapshot-cycle.ps1 -OutRoot ~/tenantkeep/evidence -EmailTo secops@contoso.example -EmailFrom ca-monitor@contoso.example -EmailMethod Smtp -SmtpServer smtp.contoso.example -SmtpCredential $cred -EmailAlways
 
     Daily digest through the customer's SMTP relay, sent even when nothing is risk-relevant.
 #>
 [CmdletBinding()]
 param(
-    [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
+    [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
     [string] $Brand,
     [string[]] $BreakGlass,
     [string] $NamePattern,

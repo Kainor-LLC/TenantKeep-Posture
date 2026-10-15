@@ -62,7 +62,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Check catalog schema (checks/README.md) and the catalog test over every shipped file; loader rejects a missing field, bad severity, duplicate id (this checkpoint)
 - [x] Expression evaluator for pass rules: own parser, no Invoke-Expression; facts.* and thresholds.* only (this checkpoint)
 - [x] Invoke-PostureChecks and Get-PostureCheckCatalog with baseline (name or path), profile.json, exceptions.json (check-level and object-level, expiry), custom check folders, checks.json output; baselines/standard.json (this checkpoint)
-- [x] checks/ca.json: the 15 checks from spec 4.3 with narrative, remediation, Learn link, NIST CSF 2 / ISO 27001 / CMMC / SCuBA references; CIS left empty pending the terms check (this checkpoint)
+- [x] checks/ca.json: the 15 checks from spec 4.3 with narrative, remediation, Learn link, NIST CSF 2 / ISO 27001 / CMMC / SCuBA references
 - [x] CA fact provider from a snapshot folder; verified on the sample (13 of 15 fail as designed) and on the Kainor tenant (12 pass, 2 fail, 1 not evaluated) (this checkpoint)
 - [ ] (verify) the 14 administrator roles in CA-003 against Microsoft's current recommended list, and the SCuBA ids
 - [x] Invoke-PostureCollection with the Entra collector (A.1 sections 1, 2, 4, 5, 6, 7, 10, 11) and the CA snapshot in the same folder; users and PIM fallbacks; collection.json manifest; docs/collection.md (checkpoint E)
@@ -77,7 +77,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] All three domains on the Kainor collection: 39 checks, 28 pass, 8 fail, 3 not evaluated with named reasons
 - [x] A.1 additions: PIM role management policies (ID-006), legacy per-user MFA state through batched reads (AU-009), Entra devices section 8 (checkpoint H)
 - [x] Azure diagnostic settings with the Azure collector (ID-014), and Entra Connect Health for OP-007 (checkpoint R)
-- [ ] (verify) SCuBA ids on the identity and auth checks; CIS ids once the terms are cleared
+- [ ] (verify) SCuBA ids on the identity and auth checks
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken
 - [ ] New-PostureProfile wizard
@@ -91,7 +91,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Email domain: checks/email.json (21 checks from spec 4.10; the inbox-rule check waits for an audit search collector) and Get-PostureEmailFact; MDO delivery checks covered by a third-party gateway from the profile, DNS, forwarding, protocol and audit checks evaluated regardless (checkpoint J)
 - [x] First real Exchange collection on Kainor on 2026-10-14: 87 files across all three collectors, 0 errors; email domain 16 pass, 4 fail (no EOP or MDO preset policy, MTA-STS and TLS-RPT unpublished, POP and IMAP on by default per mailbox), 1 not evaluated (attack simulation without the scope). All five domains: 74 checks, 56 pass, 14 fail, 3 not evaluated, 1 not applicable. Caught and fixed: the evidence root is now a full provider path, so a tilde or relative root works from a script
 - [ ] Inbox rules forwarding externally (spec 4.10) through an audit search, not Get-InboxRule
-- [ ] (verify) SCuBA MS.EXO ids on the email checks; CIS ids once the terms are cleared; the remaining 144 checks without a SCuBA id
+- [ ] (verify) SCuBA MS.EXO ids on the email checks; the remaining 144 checks without a SCuBA id
 - [x] Framework baselines first pass (spec 10.6): nist-csf-2, iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba, hipaa (through the HHS crosswalk to CSF, verify) and copilot-readiness; baselines select by framework reference or domain so they grow with the catalog; a crosswalk appendix groups results by function, control family or the customer's own control names (checkpoint U)
 - [x] Intune policy state for endpoint security (spec 4.11, the Intune half): settings catalog values flattened per assigned policy, template and compliance policy scalars, Windows Hello config, app protection policies, feature update profiles (checkpoint K)
 - [x] Endpoint domain: checks/endpoint.json (18 policy-state checks: baselines, BitLocker, firewall, LAPS, Defender AV, tamper protection, network protection, ASR rules and exclusions, SmartScreen, Office macros, Hello and cloud Kerberos trust, update rings, FileVault, macOS hardening, Platform SSO, mobile) and Get-PostureEndpointFact (checkpoint K)
@@ -125,7 +125,9 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] First live Azure run on the first customer on 2026-10-15 (Az.Accounts through an Azure CLI token with the classic audience; 16 subscriptions, 14 management groups, 879 resources): confirmed the pricings plan names, the ADHybridHealthService endpoint (one healthy sync service, OP-007 passes) and the Entra diagnostic settings (ID-014 passes); the classicAdministrators resource type is gone (404 InvalidResourceType), now read as none left; security contacts carry notificationsSources in the preview shape, now read. Azure domain: 5 pass, 15 fail, 2 not evaluated; standing root rights, missing contacts and exports, 0.2% tagged, 59 storage accounts off the model. All twelve domains: 179 checks, 74 pass, 92 fail, 12 not evaluated, 1 not applicable
 - [ ] Azure items without a collector: PIM for Azure resources eligibility, permissions creep (Defender CSPM), cost anomaly alerts
 - [x] Hybrid domain (spec 4.14, v1.1 brought forward): collectors/windows/Get-ADBaseline.ps1, a read-only Windows-only script for the jump box, and Get-PostureHybridFact with checks/hybrid.json (25 checks: sync features, federation, Connect Health; privileged groups, admin hygiene, krbtgt, built-in accounts, machine quota, delegation, roasting, LAPS, functional levels, domain controllers, recycle bin, stale and never-expiring accounts, password policy, trusts, seamless SSO key, AD CS ESC1, cpassword). Not run on a real domain yet (checkpoint W)
-- [ ] First real run of Get-ADBaseline.ps1 on the the first customer AD box: Connor copies the folder into the evidence folder; every ad-* shape is (verify) until then
+- [x] First real run of Get-ADBaseline.ps1 on the the first customer AD box (2026-10-15): 15 files, 21 checks evaluated. Two fixes from it: the LAPS step now reads the schema before asking for the LAPS attributes (an unextended schema failed the whole step), and the GPO step names the RSAT capability to install. Stale and never-expiring users now list the affected accounts (checkpoint X)
+- [ ] Rerun Get-ADBaseline.ps1 on the AD box after the LAPS fix (and with the Group Policy RSAT tools) so HY-020 and HY-030 evaluate
+- [x] Default folders moved under one parent: ~/tenantkeep/evidence/<stamp> and ~/tenantkeep/clients/<name>/ (profile.json, brand.json, exceptions.json, findings.csv); every example and default updated (checkpoint X)
 - [x] Customer guide (docs/guide.md, step by step) and the public catalog page generated by build.ps1 -Task Catalog, for kainor.com (checkpoint W)
 - [ ] Website: tabs for LAPSlock, the on-call app and Tenantkeep Posture, the guide and the catalog page published; needs the site repository and its stack
 - [ ] errors.txt is append-only across processes into one folder, so a step that failed in an earlier process and succeeded later still counts in the manifest; decide whether a later success should retire the line
@@ -143,7 +145,7 @@ See spec section 9 for weeks 5 to 12 and v1.1. Not broken down until weeks 3 to 
 
 ## Open decisions and verifications
 - Entitlement tier (Connor asked how to decide, 2026-10-15): proposal is a signed licence file per tenant (tenant id, tier, expiry, Kainor private key; the module verifies offline with the built-in public key), which removes the monthly tenant id check entirely; the alternative is one signed HTTPS endpoint. Decide the mechanism and whether tiers are two (Conditional Access, Full).
-- CIS terms: CIS benchmarks are licensed; shipping cis-m365 and cis-azure mapped by control number needs the CIS SecureSuite vendor membership (paid). Recommendation: leave CIS out of v1, lean on SCuBA, NIST and ISO, decide on membership when a customer asks.
+- CIS: removed entirely on 2026-10-15. Benchmark content is licensed through CIS SecureSuite and Kainor is not joining; the cis-m365 framework key, the planned cis-m365 and cis-azure baselines and the spec row are gone. SCuBA, NIST and ISO carry the mappings.
 - Kainor-hosted email relay (Connor, 2026-10-13): not built. It would be the first data path out of the customer's environment besides the license check and contradicts CLAUDE.md and spec 11. If it ships, it carries a count and a link only, is opt-in, and the privacy statement changes. Decide before the licensed tier (weeks 11 to 12).
 - Gallery packaging of checks/, baselines/ and templates/ as sibling folders inside the module (verify)
 - PowerShell Gallery terms for non-open-source modules (verify, spec 6)

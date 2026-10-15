@@ -39,7 +39,7 @@ Describe 'Pre-commit secret scanner' {
             $clean = @'
 function Export-PostureCaSnapshot {
     [CmdletBinding()]
-    param([string] $OutRoot = "$HOME/audit/evidence")
+    param([string] $OutRoot = "$HOME/tenantkeep/evidence")
     $policies = Invoke-PostureGraphRequest -Uri 'identity/conditionalAccess/policies' -ApiVersion 'v1.0'
     $password = Read-Host -AsSecureString
 }

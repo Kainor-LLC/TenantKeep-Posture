@@ -76,7 +76,7 @@ scalars and string lists before they are written.
 
 ```powershell
 Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$false
-Invoke-PostureCollection -OutRoot ~/audit/evidence        # Entra, Intune and Exchange into one folder
+Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence        # Entra, Intune and Exchange into one folder
 ```
 
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
@@ -180,7 +180,7 @@ DelegatedPermissionGrant.ReadWrite.All grants the admin consent through Graph; t
 for this app (AADSTS500113, its only reply address is localhost).
 
 ```powershell
-./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
+./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ~/tenantkeep/clients/contoso/profile.json
 Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
 Connect-MicrosoftTeams
 ```
@@ -223,7 +223,7 @@ OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRis
 
 ```powershell
 Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All -NoWelcome
-Invoke-PostureCollection -OutRoot ~/audit/evidence
+Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
 ```
 
 At 20k users the users and registration pulls dominate; expect 20 to 40 minutes, as the audit plan says.

@@ -779,7 +779,7 @@ About 12 answers, collected by `New-PostureProfile` and stored as JSON. Licenses
   "pass": "encryptedPercent >= thresholds.minEncryptedPercent && escrowedPercent >= thresholds.minEscrowedPercent",
   "remediation": "Deploy a FileVault disk encryption policy with personal recovery key escrow to Entra and rotation after reveal. ...",
   "learn": "https://learn.microsoft.com/...",
-  "frameworks": { "cis-m365": "", "nist-csf-2": "PR.DS-01", "iso27001": "A.8.24", "cmmc": "SC.L2-3.13.16" }
+  "frameworks": { "nist-csf-2": "PR.DS-01", "iso27001": "A.8.24", "cmmc": "SC.L2-3.13.16" }
 }
 ```
 
@@ -803,7 +803,6 @@ A baseline is a check selection, targets, severity overrides and the framework c
 |---|---|---|
 | `standard` | Product default, Microsoft's own recommendations plus the catalog's defaults | v1 |
 | `copilot-readiness` | Section 4.7 gates plus the sharing, labeling and governance checks that feed them | v1 |
-| `cis-m365` and `cis-azure` | CIS Microsoft 365 Foundations and CIS Azure Foundations, mapped by control number | v1 (verify CIS terms first) |
 | `nist-csf-2` | NIST Cybersecurity Framework 2.0 subcategories | v1 |
 | `nist-800-171` / `cmmc-2` | Defense contractors; 800-171 practices and CMMC Level 2 | v1 |
 | `cisa-scuba` | CISA Secure Cloud Business Applications baselines for M365; the federal civilian baseline, and what ScubaGear tests | v1 |

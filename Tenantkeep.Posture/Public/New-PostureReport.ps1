@@ -30,7 +30,7 @@ function New-PostureReport {
     .PARAMETER PassThru
         Return the report model and the written file paths.
     .EXAMPLE
-        New-PostureReport -Evidence ~/audit/evidence/20261013-2350 -Client ./clients/contoso
+        New-PostureReport -Evidence ~/tenantkeep/evidence/20261013-2350 -Client ~/tenantkeep/clients/contoso
     .EXAMPLE
         New-PostureReport -Evidence ./evidence/run -Profile ./profile.json -Template Executive -PassThru
     .OUTPUTS

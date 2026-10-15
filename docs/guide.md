@@ -29,7 +29,7 @@ Register the SharePoint app with delegated read permissions, consent to it, and 
 
 ```powershell
 Connect-MgGraph -TenantId <tenant id> -Scopes Application.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All
-./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ./clients/contoso/profile.json
+./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ~/tenantkeep/clients/contoso/profile.json
 ```
 
 The script prints what, if anything, is left by hand: the SharePoint Administrator role for the reading account.
@@ -52,7 +52,7 @@ macOS sign-in workarounds are in docs/collection.md.
 ## 5. Collect
 
 ```powershell
-$folder = Invoke-PostureCollection -OutRoot ~/audit/evidence
+$folder = Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
 ```
 
 Every collector whose session is open runs; the others are skipped with a warning. Exchange, Purview and (if run
@@ -64,7 +64,9 @@ Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder $folde
 ```
 
 For hybrid tenants, run collectors/windows/Get-ADBaseline.ps1 once on a domain-joined Windows machine with RSAT and
-copy its folder into `$folder`.
+copy the files it wrote into `$folder` (not as a subfolder). A domain controller has everything the script needs; a
+workstation needs the Active Directory and Group Policy RSAT tools, and without Group Policy the GPO checks are
+reported as not evaluated. The LAPS check reads the schema first, so an unextended schema is reported, not an error.
 
 ## 6. Build the profile
 
@@ -73,7 +75,7 @@ controls, thresholds, break-glass accounts and their last test, the Message Cent
 cadence.
 
 ```powershell
-New-PostureProfile -Path ./clients/contoso/profile.json -Evidence $folder
+New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence $folder
 ```
 
 Rerun it after any change; `-AskAll` re-asks the discovered questions too. The profile is plain JSON and the keys are
@@ -82,7 +84,7 @@ explained in docs/profile.md.
 ## 7. Evaluate and report
 
 ```powershell
-New-PostureReport -Evidence $folder -Client ./clients/contoso
+New-PostureReport -Evidence $folder -Client ~/tenantkeep/clients/contoso
 ```
 
 Writes report.html (self-contained, interactive), report.md and checks.json into the folder. Pick a baseline with
@@ -92,7 +94,7 @@ checks and add the crosswalk appendix. Add `-Format Pdf` for a PDF through a hea
 ## 8. Work the findings
 
 ```powershell
-Export-PostureFindings -Path $folder -Merge ./clients/contoso/findings.csv -OutputPath ./clients/contoso/findings.csv
+Export-PostureFindings -Path $folder -Merge ~/tenantkeep/clients/contoso/findings.csv -OutputPath ~/tenantkeep/clients/contoso/findings.csv
 ```
 
 One row per failing check in the audit plan's register format. Owners and statuses you type into the register survive
@@ -102,7 +104,7 @@ marks them as accepted instead of failed.
 ## 9. Next run, and the trend
 
 ```powershell
-New-PostureReport -Evidence $newFolder -Client ./clients/contoso -Previous $folder
+New-PostureReport -Evidence $newFolder -Client ~/tenantkeep/clients/contoso -Previous $folder
 ```
 
 The Trend view shows the score and domain deltas, the checks that started or stopped failing, and the affected counts

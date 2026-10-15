@@ -20,7 +20,7 @@ The full specification is in `docs/posture-spec.md`. Read it before touching any
 ```
 Tenantkeep.Posture/         module: .psd1, .psm1, Public/, Private/
 checks/                     catalog JSON, one file per domain (identity, auth, ca, devices, endpoint, email, purview, collaboration, copilot, governance, operations, azure, hybrid)
-baselines/                  standard, copilot-readiness, cis-m365, cis-azure, nist-csf-2, nist-800-171, cisa-scuba, iso-27001-2022, hipaa, ...
+baselines/                  standard, copilot-readiness, nist-csf-2, nist-800-171, cmmc-2, cisa-scuba, iso-27001-2022, hipaa (no CIS: benchmark content is licensed, decided 2026-10-15)
 collectors/                 Get-EntraBaseline, Get-ExchangePurviewBaseline, Get-SpoTeamsBaseline, Get-DefenderBaseline, Get-AzureBaseline, windows/Get-ADBaseline
 templates/                  the interactive HTML report (single file, inline CSS/JS, no CDN), print stylesheet
 deploy/                     Bicep -> mainTemplate.json, createUiDefinition.json, runbook wrapper, Static Web App opt-in; schedules/ holds the 5.4 cycle script and the runbook, GitHub Action and launchd samples; setup/ holds the one-time customer-side tenant setup scripts (app registrations, role grants): the only tenant writes in the repo, run by the customer's admin, never by the module

@@ -23,6 +23,6 @@ Every check carries, and the catalog test enforces:
 | `learn` | Microsoft Learn link |
 | `deepLink` | Portal deep link, or null |
 | `narrative` | Why it matters: two to four factual sentences |
-| `frameworks` | Reference numbers only: `cis-m365`, `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text |
+| `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7).

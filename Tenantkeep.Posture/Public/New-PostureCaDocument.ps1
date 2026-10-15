@@ -42,11 +42,11 @@ function New-PostureCaDocument {
     .PARAMETER PassThru
         Return the document model and the written file paths instead of the file paths alone.
     .EXAMPLE
-        New-PostureCaDocument -Snapshot ~/audit/evidence/20261013-0905-ca
+        New-PostureCaDocument -Snapshot ~/tenantkeep/evidence/20261013-0905-ca
 
         Writes ca-document.md and ca-document.html into the snapshot folder and returns their paths.
     .EXAMPLE
-        New-PostureCaDocument -Snapshot ./snap -OutputPath ./out -Brand ./clients/contoso/brand.json -NamePattern '^CA-\d{3}-'
+        New-PostureCaDocument -Snapshot ./snap -OutputPath ./out -Brand ~/tenantkeep/clients/contoso/brand.json -NamePattern '^CA-\d{3}-'
 
         Branded document with a naming report, written to ./out.
     .OUTPUTS

@@ -35,7 +35,7 @@ function Compare-PostureCaSnapshot {
     .PARAMETER PassThru
         Return an object with Files, Diff, RiskRelevantCount and HasRiskRelevantChanges instead of the file paths.
     .EXAMPLE
-        Compare-PostureCaSnapshot -Before ~/audit/evidence/20261013-0905-ca -After ~/audit/evidence/20261014-0905-ca
+        Compare-PostureCaSnapshot -Before ~/tenantkeep/evidence/20261013-0905-ca -After ~/tenantkeep/evidence/20261014-0905-ca
 
         Writes ca-changes.md and ca-changes.html into the newer folder.
     .EXAMPLE

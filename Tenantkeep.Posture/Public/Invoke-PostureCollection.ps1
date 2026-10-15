@@ -17,7 +17,7 @@ function Invoke-PostureCollection {
         IdentityRiskEvent.Read.All (Identity Protection). Missing ones are reported
         with the steps they would unlock. Never connects on its own.
     .PARAMETER OutRoot
-        Root folder for evidence. Default: ~/audit/evidence. The run folder <yyyyMMdd-HHmm> is created under it.
+        Root folder for evidence. Default: ~/tenantkeep/evidence. The run folder <yyyyMMdd-HHmm> is created under it.
     .PARAMETER OutputFolder
         Write into this exact folder instead.
     .PARAMETER Collector
@@ -51,7 +51,7 @@ function Invoke-PostureCollection {
         Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All -NoWelcome
         Invoke-PostureCollection
 
-        Writes ~/audit/evidence/<stamp>/ with the A.1 files and the CA snapshot.
+        Writes ~/tenantkeep/evidence/<stamp>/ with the A.1 files and the CA snapshot.
     .EXAMPLE
         Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$false
         Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot
@@ -83,7 +83,7 @@ function Invoke-PostureCollection {
     [CmdletBinding()]
     [OutputType([string], [pscustomobject])]
     param(
-        [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
+        [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
         [string] $OutputFolder,
         [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,

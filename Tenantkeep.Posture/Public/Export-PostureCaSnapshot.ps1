@@ -23,7 +23,7 @@ function Export-PostureCaSnapshot {
         The policy export is pinned to Graph v1.0. Use -ApiVersion beta to capture properties that only the beta
         schema exposes, such as insider risk conditions (verify). Snapshots compared later should use the same version.
     .PARAMETER OutRoot
-        Root folder for evidence. Default: ~/audit/evidence, the audit plan's convention. The run folder is created under it.
+        Root folder for evidence. Default: ~/tenantkeep/evidence, the audit plan's convention. The run folder is created under it.
     .PARAMETER OutputFolder
         Write into this exact folder instead of creating <OutRoot>/<stamp>-ca. Used by Invoke-PostureCollection so one
         run folder holds every domain's evidence.
@@ -37,7 +37,7 @@ function Export-PostureCaSnapshot {
         Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All -NoWelcome
         Export-PostureCaSnapshot
 
-        Writes ~/audit/evidence/20261013-0905-ca/ and returns that path.
+        Writes ~/tenantkeep/evidence/20261013-0905-ca/ and returns that path.
     .EXAMPLE
         Export-PostureCaSnapshot -OutRoot ./snapshots -IncludeMembers -PassThru
 
@@ -50,7 +50,7 @@ function Export-PostureCaSnapshot {
     [CmdletBinding()]
     [OutputType([string], [pscustomobject])]
     param(
-        [Parameter()] [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
+        [Parameter()] [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
         [string] $OutputFolder,
         [switch] $IncludeMembers,
         [ValidateSet('v1.0', 'beta')] [string] $ApiVersion = 'v1.0',

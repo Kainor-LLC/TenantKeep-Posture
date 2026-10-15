@@ -37,7 +37,7 @@ function New-PostureProfile {
         Return the profile object instead of the path.
     .EXAMPLE
         Connect-MgGraph -Scopes Organization.Read.All -NoWelcome
-        New-PostureProfile -Path ./clients/contoso/profile.json -FromGraph
+        New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -FromGraph
 
         Detects licenses, then asks the questions.
     .EXAMPLE

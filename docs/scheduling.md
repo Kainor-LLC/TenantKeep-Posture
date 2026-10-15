@@ -26,7 +26,7 @@ environment besides the license check, so if it ever ships it carries a count an
 |---|---|---|---|---|
 | Azure Automation runbook | System-assigned managed identity with application permissions | Blob container; the runbook downloads the previous run and uploads the new one | Teams webhook or email, plus an alert rule on job failure | `deploy/automation/` (Bicep, deploy.ps1, grant script) and `deploy/schedules/automation-runbook.ps1` |
 | GitHub Action | App registration with a federated credential (OIDC), no secret | A private repo, one commit per run | Teams webhook, plus GitHub's failed-workflow notification | `deploy/schedules/github-action.yml` |
-| macOS launchd | The admin's own delegated sign-in, token cache reused | `~/audit/evidence` | Teams webhook, plus the `.err` log | `deploy/schedules/launchd/` |
+| macOS launchd | The admin's own delegated sign-in, token cache reused | `~/tenantkeep/evidence` | Teams webhook, plus the `.err` log | `deploy/schedules/launchd/` |
 
 ## Deploying the Automation variant
 

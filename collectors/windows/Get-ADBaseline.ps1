@@ -6,7 +6,8 @@
     it once on any domain-joined Windows machine with RSAT, copy the output folder into the run's evidence folder,
     and the hybrid checks evaluate from it. Nothing is installed, nothing is changed, nothing is scheduled.
 .DESCRIPTION
-    Needs the ActiveDirectory module (RSAT); GroupPolicy adds the GPO inventory when present. A domain user reads
+    Needs the ActiveDirectory module (RSAT); GroupPolicy adds the GPO inventory when present (Add-WindowsCapability -Online
+    -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0 on a workstation; a domain controller has both). A domain user reads
     almost everything; AdminSDHolder and template ACLs need elevated read and are left out of this pass. Every step
     writes one file and logs a failure to errors.txt without stopping. Output file names carry the ad- prefix so they
     sit beside the cloud evidence without colliding.
@@ -158,10 +159,14 @@ try {
 
     Invoke-Step 'LAPS coverage and computers' {
         $staleBefore = $now.AddDays(-$StaleDays)
-        $computers = Get-ADComputer -Filter 'Enabled -eq $true' -Properties OperatingSystem, LastLogonTimestamp, 'msLAPS-PasswordExpirationTime', 'ms-Mcs-AdmPwdExpirationTime', PasswordLastSet @srv
+        # The LAPS attributes exist only where the schema was extended; asking for a missing one fails the whole query.
+        $schemaDn = (Get-ADRootDSE @srv).schemaNamingContext
+        $lapsAttrs = @('msLAPS-PasswordExpirationTime', 'ms-Mcs-AdmPwdExpirationTime') | Where-Object { @(Get-ADObject -SearchBase $schemaDn -LDAPFilter "(lDAPDisplayName=$_)" @srv).Count -gt 0 }
+        $hasWindowsLaps = $lapsAttrs -contains 'msLAPS-PasswordExpirationTime'; $hasLegacyLaps = $lapsAttrs -contains 'ms-Mcs-AdmPwdExpirationTime'
+        $computers = Get-ADComputer -Filter 'Enabled -eq $true' -Properties (@('OperatingSystem', 'LastLogonTimestamp', 'PasswordLastSet') + @($lapsAttrs)) @srv
         $rows = @($computers | ForEach-Object {
                 $last = $(if ($_.LastLogonTimestamp) { [DateTime]::FromFileTimeUtc($_.LastLogonTimestamp) } else { $null })
-                [ordered]@{ Name = $_.Name; OperatingSystem = $_.OperatingSystem; IsServer = ([string]$_.OperatingSystem -match 'Server'); IsDomainController = $false; LastLogon = $(if ($last) { $last.ToString('o') } else { $null }); Stale = ($null -eq $last -or $last -lt $staleBefore); WindowsLaps = ($null -ne $_.'msLAPS-PasswordExpirationTime'); LegacyLaps = ($null -ne $_.'ms-Mcs-AdmPwdExpirationTime') }
+                [ordered]@{ Name = $_.Name; OperatingSystem = $_.OperatingSystem; IsServer = ([string]$_.OperatingSystem -match 'Server'); IsDomainController = $false; LastLogon = $(if ($last) { $last.ToString('o') } else { $null }); Stale = ($null -eq $last -or $last -lt $staleBefore); WindowsLaps = ($hasWindowsLaps -and $null -ne $_.'msLAPS-PasswordExpirationTime'); LegacyLaps = ($hasLegacyLaps -and $null -ne $_.'ms-Mcs-AdmPwdExpirationTime') }
             })
         $dcNames = @(Get-ADDomainController -Filter * @srv | ForEach-Object { $_.Name })
         foreach ($r in $rows) { if ($dcNames -contains $r.Name) { $r.IsDomainController = $true } }
@@ -171,7 +176,7 @@ try {
             EnabledComputers = $rows.Count; ActiveWindowsNonDc = $windows.Count
             WindowsLaps = @($windows | Where-Object { $_.WindowsLaps }).Count; LegacyLaps = @($windows | Where-Object { $_.LegacyLaps -and -not $_.WindowsLaps }).Count
             ByOperatingSystem = @($rows | Group-Object { [string]$_.OperatingSystem } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count })
-            StaleComputers = @($rows | Where-Object { $_.Stale }).Count
+            StaleComputers = @($rows | Where-Object { $_.Stale }).Count; WindowsLapsSchema = $hasWindowsLaps; LegacyLapsSchema = $hasLegacyLaps
         } | Save-Evidence -Name 'ad-06-computers-summary' -Single
     }
 
@@ -187,7 +192,7 @@ try {
     }
 
     Invoke-Step 'Group Policy inventory' {
-        if (-not $hasGpo) { throw 'GroupPolicy module not available; GPO inventory skipped.' }
+        if (-not $hasGpo) { throw 'GroupPolicy module not available; GPO inventory skipped. Install it with: Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0' }
         $gpos = @(Get-GPO -All @srv)
         $rows = foreach ($g in $gpos) {
             $xml = [xml](Get-GPOReport -Guid $g.Id -ReportType Xml @srv)
