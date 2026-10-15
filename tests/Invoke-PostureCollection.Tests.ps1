@@ -12,6 +12,7 @@ BeforeAll {
     }
     Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
     Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
+    Mock -ModuleName Tenantkeep.Posture Test-PostureAzureSession { $false }
 
     # Synthetic tenant, routed by path. Every value is made up.
     Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest {

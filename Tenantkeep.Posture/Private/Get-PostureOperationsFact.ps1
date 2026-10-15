@@ -89,8 +89,15 @@ function Get-PostureOperationsFact {
     $affected.expiringWithinWarning = @($soon | ForEach-Object { [ordered]@{ name = "$($_.kind): $($_.name)"; detail = $(if ($_.days -lt 0) { "expired $(-$_.days) day(s) ago" } else { "expires in $($_.days) day(s)" }) } })
     if ($sources -eq 0) { $notEvaluated['OP-006'] = 'None of the expiry sources were collected (app registrations, service principals, Apple certificates).' }
 
-    # Entra Connect Health (OP-007) waits for the Azure collector.
-    $notEvaluated['OP-007'] = 'Entra Connect Health is read through Azure (spec 4.13); the Azure collector is not built yet.'
+    # Entra Connect Health (OP-007) from the Azure collector. (verify) the service fields
+    $health = & $load 'az-08-entra-connect-health'
+    if ($null -eq $health) { $notEvaluated['OP-007'] = 'az-08-entra-connect-health.json was not collected (Invoke-PostureCollection -Collector Azure).' }
+    else {
+        $services = @(& $rows $health)
+        $facts.entraConnectHealthServices = $services.Count
+        $facts.entraConnectHealthActiveAlerts = @($services | ForEach-Object { [int]$(if ($null -ne $_.ActiveAlerts) { $_.ActiveAlerts } else { 0 }) } | Measure-Object -Sum).Sum
+        $facts.entraConnectHealthEnabled = $services.Count -gt 0
+    }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('10-app-registrations.json', 'def-06-secure-score.json') }
 }

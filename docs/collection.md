@@ -99,6 +99,27 @@ configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
 | `def-05-incidents` (+csv), `def-05-incidents-summary` | security/incidents, active | Open over 7 days, unassigned |
 | `def-06-secure-score`, `def-06-secure-score-controls` (+csv) | security/secureScores, secureScoreControlProfiles | Spec 4.12: reported beside the posture score, never the grade |
 
+## What the Azure collector writes
+
+On a `Connect-AzAccount` session with Reader on the subscriptions (or the management group) and Security Reader.
+Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls per subscription are capped at
+200 subscriptions. Both go through Get-only entry points. On macOS the Az browser sign-in can hit the same MSAL
+conflicts as the others; `Connect-AzAccount -UseDeviceAuthentication` or a token from the Azure CLI
+(`Connect-AzAccount -AccessToken (az account get-access-token --resource https://management.azure.com --query accessToken -o tsv) -AccountId <upn>`) work.
+
+| File | Source | Notes |
+|---|---|---|
+| `az-01-subscriptions` (+csv), `az-01-management-groups` (+csv) | resourcecontainers | Management group chain; subscriptions at the tenant root |
+| `az-02-defender-pricings` (+csv), `az-02-security-contacts` (+csv) | Microsoft.Security pricings and securityContacts per subscription | (verify) contact shape |
+| `az-02-secure-scores` (+csv), `az-02-assessments-summary` (+csv), `az-02-assessments-top` (+csv) | securityresources | Microsoft's numbers, reported beside the posture score |
+| `az-03-policy-assignments` (+csv) | policyresources | Benchmark assignments flagged |
+| `az-04-activity-log-exports` (+csv) | Microsoft.Insights diagnosticSettings per subscription | |
+| `az-05-role-assignments` (+csv), `az-05-role-definitions-custom` (+csv), `az-05-classic-administrators` (+csv) | authorizationresources, classicAdministrators | Role names resolved, scope level and subscription parsed; joined to 06-users, 07-groups and 10-service-principals by the facts |
+| `az-06-resources-by-type` (+csv), `az-06-resources-summary`, `az-06-locks` (+csv), `az-06-vaults` (+csv) | resources | Tags, orphans, delete locks on Key Vaults and Recovery Services vaults |
+| `az-07-keyvaults` (+csv), `az-07-storage` (+csv), `az-07-sql-servers` (+csv) | resources | Access model, purge protection, shared keys, anonymous blobs, TLS, Entra-only SQL |
+| `az-08-entra-connect-health` (+csv) | Microsoft.ADHybridHealthService (verify) | Feeds OP-007 |
+| `az-09-entra-diagnostic-settings` (+csv) | microsoft.aadiam diagnosticSettings | Feeds ID-014: sign-in and audit logs to a workspace or event hub |
+
 ## What the Purview collector writes
 
 Through Security and Compliance PowerShell (`Connect-IPPSSession`, ExchangeOnlineManagement 3.x; Compliance

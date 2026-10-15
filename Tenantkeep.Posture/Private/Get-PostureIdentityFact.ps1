@@ -118,7 +118,15 @@ function Get-PostureIdentityFact {
         $affected.pimPolicyProblems = @($problems)
         if ($checked.Count -eq 0) { $notEvaluated['ID-006'] = 'None of the four top roles has a PIM policy in the collection.' }
     }
-    $notEvaluated['ID-014'] = 'Azure diagnostic settings are not collected yet (Azure collector, spec 4.13).'
+    # ID-014: the Entra diagnostic settings (microsoft.aadiam) from the Azure collector; sign-in and audit logs to a workspace or event hub.
+    $diag = & $load 'az-09-entra-diagnostic-settings'
+    if ($null -eq $diag) { $notEvaluated['ID-014'] = 'az-09-entra-diagnostic-settings.json was not collected (Invoke-PostureCollection -Collector Azure; needs a Connect-AzAccount session).' }
+    else {
+        $exports = @($diag | Where-Object { $_ -and ($_.WorkspaceId -or $_.EventHub) })
+        $cats = @($exports | ForEach-Object { @($_.Categories) } | ForEach-Object { [string]$_ })
+        $facts.logExportConfigured = ($exports.Count -gt 0) -and ($cats -contains 'SignInLogs') -and ($cats -contains 'AuditLogs')
+        $facts.logExportCategories = @($cats | Sort-Object -Unique)
+    }
 
     $authz = & $load '02-authorization-policy'
     if ($null -eq $authz) { & $missing 'ID-008' '02-authorization-policy' }

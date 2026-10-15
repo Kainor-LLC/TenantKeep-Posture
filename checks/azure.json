@@ -1,0 +1,679 @@
+{
+  "domain": "azure",
+  "checks": [
+    {
+      "id": "AZ-001",
+      "domain": "azure",
+      "title": "Management group hierarchy, no subscription at the tenant root",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-01-subscriptions.json",
+        "az-01-management-groups.json"
+      ],
+      "pass": "facts.subscriptionsAtTenantRoot == 0",
+      "affected": "facts.subscriptionsAtTenantRoot",
+      "remediation": "Create a management group hierarchy (platform, landing zones, sandbox) and move every subscription under it, so policy and role assignments inherit.",
+      "learn": "https://learn.microsoft.com/azure/governance/management-groups/overview",
+      "deepLink": null,
+      "narrative": "A subscription at the tenant root inherits nothing: no benchmark, no policy, no standing-access rules. Management groups are where those are set once.",
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-002",
+      "domain": "azure",
+      "title": "Microsoft cloud security benchmark assigned on every subscription",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-03-policy-assignments.json"
+      ],
+      "pass": "facts.subscriptionsWithoutMcsb == 0",
+      "affected": "facts.subscriptionsWithoutMcsb",
+      "remediation": "Enable Defender for Cloud on the listed subscriptions, or assign the benchmark initiative at the management group so new subscriptions inherit it.",
+      "learn": "https://learn.microsoft.com/azure/defender-for-cloud/concept-regulatory-compliance",
+      "deepLink": null,
+      "narrative": "The benchmark is the policy set behind Azure Secure Score and every Defender for Cloud recommendation. A subscription without it is unevaluated, not clean.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-01",
+        "iso27001": "A.5.36",
+        "cmmc": "CA.L2-3.12.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-003",
+      "domain": "azure",
+      "title": "Defender for Cloud plans on where the resource types exist",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-02-defender-pricings.json",
+        "az-06-resources-by-type.json"
+      ],
+      "pass": "facts.defenderPlanGaps == 0",
+      "affected": "facts.defenderPlanGaps",
+      "remediation": "Turn on the Defender plan for each listed subscription and resource type: Servers, Storage, Key Vault, Databases, Containers, App Service, APIs, and Resource Manager everywhere.",
+      "learn": "https://learn.microsoft.com/azure/defender-for-cloud/enable-all-plans",
+      "deepLink": null,
+      "narrative": "The plans are the paid detections: runtime threat detection on VMs, malware scanning on storage, anomalous Key Vault access. Off on a subscription that holds the resource is the finding; off elsewhere is fine and noted.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-004",
+      "domain": "azure",
+      "title": "Defender CSPM enabled",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-02-defender-pricings.json"
+      ],
+      "pass": "facts.defenderCspmSubscriptions > 0",
+      "remediation": "Enable Defender CSPM on the subscriptions where attack paths, permissions creep and unused-permission findings are wanted.",
+      "learn": "https://learn.microsoft.com/azure/defender-for-cloud/concept-cloud-security-posture-management",
+      "deepLink": null,
+      "narrative": "Defender CSPM adds attack path analysis and the identity findings Entra Permissions Management used to carry. Without it those rows are not evaluated.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-05",
+        "iso27001": "A.5.36",
+        "cmmc": "CA.L2-3.12.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-005",
+      "domain": "azure",
+      "title": "Security contact with alert notifications on every subscription",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-02-security-contacts.json"
+      ],
+      "pass": "facts.subscriptionsWithoutSecurityContact == 0",
+      "affected": "facts.subscriptionsWithoutSecurityContact",
+      "remediation": "Set a security contact email on each listed subscription with alert notifications for high severity and above, and the Owner role notified.",
+      "learn": "https://learn.microsoft.com/azure/defender-for-cloud/configure-email-notifications",
+      "deepLink": null,
+      "narrative": "Defender for Cloud alerts that nobody is emailed about sit in the portal. The contact is who finds out.",
+      "frameworks": {
+        "nist-csf-2": "RS.CO-02",
+        "iso27001": "A.5.26",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-006",
+      "domain": "azure",
+      "title": "Activity log exported from every subscription",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-04-activity-log-exports.json"
+      ],
+      "pass": "facts.subscriptionsWithoutActivityLogExport == 0",
+      "affected": "facts.subscriptionsWithoutActivityLogExport",
+      "remediation": "Add a diagnostic setting on each listed subscription that sends the activity log categories to the Log Analytics workspace or Sentinel, with a year or more of retention there.",
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/essentials/activity-log",
+      "deepLink": null,
+      "narrative": "The activity log holds every control-plane change and is kept 90 days on its own. The export is what makes an investigation older than that possible.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-007",
+      "domain": "azure",
+      "title": "Delete locks on Key Vaults and Recovery Services vaults",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-06-locks.json",
+        "az-06-vaults.json"
+      ],
+      "pass": "facts.vaultsWithoutDeleteLock == 0",
+      "affected": "facts.vaultsWithoutDeleteLock",
+      "remediation": "Apply a CanNotDelete lock to each listed vault, or to its resource group.",
+      "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources",
+      "deepLink": null,
+      "narrative": "A Key Vault or backup vault deleted by mistake, or by an attacker with Contributor, is the outage and the ransomware scenario in one. The lock is cheap.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-11",
+        "iso27001": "A.8.13",
+        "cmmc": "CP.L2-3.8.9",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-008",
+      "domain": "azure",
+      "title": "Policy coverage beyond the benchmark on every subscription",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-03-policy-assignments.json"
+      ],
+      "pass": "facts.subscriptionsWithoutOwnPolicy == 0",
+      "affected": "facts.subscriptionsWithoutOwnPolicy",
+      "remediation": "Assign the organisation's own policies (deny public IPs, deny public storage, require encryption, allowed locations) at the management group.",
+      "learn": "https://learn.microsoft.com/azure/governance/policy/overview",
+      "deepLink": null,
+      "narrative": "The benchmark audits. The organisation's own deny policies are what stop a misconfiguration from being created at all.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.9",
+        "cmmc": "CM.L2-3.4.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-009",
+      "domain": "azure",
+      "title": "Owner and environment tags on the fleet",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minTaggedPct": 95
+      },
+      "evidence": [
+        "az-06-resources-summary.json"
+      ],
+      "pass": "facts.taggedPct >= thresholds.minTaggedPct",
+      "remediation": "Enforce the owner and environment tags with a policy that inherits them from the resource group, then tag the resource groups.",
+      "learn": "https://learn.microsoft.com/azure/azure-resource-manager/management/tag-resources",
+      "deepLink": null,
+      "narrative": "A resource with no owner tag is a resource nobody will answer for when the finding lands. Tags are the join key between the posture report and the people.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.5.9",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-010",
+      "domain": "azure",
+      "title": "No orphaned resources",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-06-resources-summary.json"
+      ],
+      "pass": "facts.orphanedResources == 0",
+      "affected": "facts.orphanedResources",
+      "remediation": "Delete the unattached disks, unused public IPs, NICs without a VM and empty resource groups, or document why each stays.",
+      "learn": "https://learn.microsoft.com/azure/advisor/advisor-cost-recommendations",
+      "deepLink": null,
+      "narrative": "Orphans cost money and carry data: an unattached disk still holds the VM's contents. The counts are the clean-up list.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-01",
+        "iso27001": "A.5.9",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-011",
+      "domain": "azure",
+      "title": "Owners per subscription within the limit, none synced from AD",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxOwnersPerSubscription": 3
+      },
+      "evidence": [
+        "az-05-role-assignments.json",
+        "06-users.json"
+      ],
+      "pass": "facts.subscriptionsOverOwnerLimit == 0 && facts.syncedOwners == 0",
+      "affected": "facts.ownerProblems",
+      "remediation": "Reduce standing Owners to three or fewer named cloud-only accounts per subscription; everyone else gets Contributor or an eligible PIM assignment.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/best-practices",
+      "deepLink": null,
+      "narrative": "Owner on a subscription is full control including the right to grant it. Owners inherited from the root or a management group count too; synced accounts tie the subscription's fate to on-premises AD.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-012",
+      "domain": "azure",
+      "title": "No standing Owner or User Access Administrator at root or management group",
+      "severityDefault": "High",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-05-role-assignments.json"
+      ],
+      "pass": "facts.standingRootOrMgAdmins == 0",
+      "affected": "facts.standingRootOrMgAdmins",
+      "remediation": "Remove the standing assignments at the root and management group scopes and make them eligible through PIM for Azure resources.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-resource-roles-assign-roles",
+      "deepLink": null,
+      "narrative": "A permanent Owner at the root scope owns every subscription that exists and every one created later. Eligible is the only acceptable state for that role.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-013",
+      "domain": "azure",
+      "title": "No guest users with Azure role assignments",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-05-role-assignments.json",
+        "06-users.json"
+      ],
+      "pass": "facts.guestRoleAssignments == 0",
+      "affected": "facts.guestRoleAssignments",
+      "remediation": "Remove the guest assignments, or record each as an object-level exception with the partner and the reason.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/role-assignments-external-users",
+      "deepLink": null,
+      "narrative": "A guest with an Azure role is a partner's account, governed by the partner's MFA and lifecycle, with rights in your subscription.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-014",
+      "domain": "azure",
+      "title": "Service principals with Owner or Contributor justified",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxServicePrincipalOwners": 0
+      },
+      "evidence": [
+        "az-05-role-assignments.json",
+        "10-service-principals.json"
+      ],
+      "pass": "facts.servicePrincipalOwnersOrContributors <= thresholds.maxServicePrincipalOwners",
+      "affected": "facts.servicePrincipalOwnersOrContributors",
+      "remediation": "Record each listed service principal as an exception with its purpose, prefer a managed identity over an app secret, and scope it to a resource group rather than the subscription.",
+      "learn": "https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals",
+      "deepLink": null,
+      "narrative": "A service principal with Contributor is a credential that can rebuild the subscription. Pipelines need it; the question is which ones and at what scope.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-015",
+      "domain": "azure",
+      "title": "No orphaned role assignments",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-05-role-assignments.json"
+      ],
+      "pass": "facts.orphanedRoleAssignments == 0",
+      "affected": "facts.orphanedRoleAssignments",
+      "remediation": "Delete the assignments whose principal no longer exists.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/troubleshooting",
+      "deepLink": null,
+      "narrative": "An assignment to a deleted principal is noise now and a grant to whoever recreates the object id later. They accumulate with every leaver.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-016",
+      "domain": "azure",
+      "title": "No custom roles with wildcard actions",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-05-role-definitions-custom.json"
+      ],
+      "pass": "facts.customRolesWithWildcard == 0",
+      "affected": "facts.customRolesWithWildcard",
+      "remediation": "Rewrite the listed custom roles with explicit actions; a role that grants * is Owner with a different name.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/custom-roles",
+      "deepLink": null,
+      "narrative": "Wildcard actions in a custom role defeat the point of the custom role and hide an Owner-equivalent grant from every review that looks for Owner.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-017",
+      "domain": "azure",
+      "title": "No classic administrators",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-05-classic-administrators.json"
+      ],
+      "pass": "facts.classicAdministrators == 0",
+      "affected": "facts.classicAdministrators",
+      "remediation": "Remove the listed Co-Administrators and Service Administrators; the role type was retired in 2024 and anything left is unmanaged access.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/classic-administrators",
+      "deepLink": null,
+      "narrative": "Classic administrators sit outside RBAC and PIM. Microsoft retired the type; a tenant that still has them has access nobody reviews.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-018",
+      "domain": "azure",
+      "title": "Role assignments to individual users at resource scope within the limit",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxUserResourceScopeAssignments": 10
+      },
+      "evidence": [
+        "az-05-role-assignments.json"
+      ],
+      "pass": "facts.userAssignmentsAtResourceScope <= thresholds.maxUserResourceScopeAssignments",
+      "remediation": "Replace per-user assignments on individual resources with group assignments at resource group scope; the count is the trend to drive down.",
+      "learn": "https://learn.microsoft.com/azure/role-based-access-control/best-practices",
+      "deepLink": null,
+      "narrative": "Hundreds of per-user grants on individual resources are unreviewable. Groups at resource group scope are the maintainable shape.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-019",
+      "domain": "azure",
+      "title": "Key Vaults on the RBAC model with purge protection, soft delete and no public access",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-07-keyvaults.json"
+      ],
+      "pass": "facts.keyVaultsOffModel == 0",
+      "affected": "facts.keyVaultsOffModel",
+      "remediation": "Switch each listed vault to RBAC authorisation, enable purge protection and soft delete, and disable public network access or set the firewall default to deny.",
+      "learn": "https://learn.microsoft.com/azure/key-vault/general/security-features",
+      "deepLink": null,
+      "narrative": "Key Vault holds the secrets everything else depends on. Access policies are the legacy model nobody reviews; purge protection is what stops an attacker deleting the keys for good.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.10",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-020",
+      "domain": "azure",
+      "title": "Storage accounts without shared keys, anonymous blobs or HTTP",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-07-storage.json"
+      ],
+      "pass": "facts.storageAccountsOffModel == 0",
+      "affected": "facts.storageAccountsOffModel",
+      "remediation": "Disable shared key access and anonymous blob access on each listed account, require HTTPS and TLS 1.2; move clients to Entra authentication or SAS tokens scoped and dated.",
+      "learn": "https://learn.microsoft.com/azure/storage/common/security-recommendations",
+      "deepLink": null,
+      "narrative": "A storage account key is a password to every byte in the account, and anonymous blob access is the classic public-bucket leak. Both are off by one switch each.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-021",
+      "domain": "azure",
+      "title": "Azure SQL servers on Entra-only authentication",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-07-sql-servers.json"
+      ],
+      "pass": "facts.sqlServersWithLocalAuth == 0",
+      "affected": "facts.sqlServersWithLocalAuth",
+      "remediation": "Enable Entra-only authentication on each listed SQL server once the applications use managed identities or Entra logins.",
+      "learn": "https://learn.microsoft.com/azure/azure-sql/database/authentication-azure-ad-only-authentication",
+      "deepLink": null,
+      "narrative": "SQL authentication is a password in a connection string. Entra-only removes it as a path, the same move as disabling shared keys on storage.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-022",
+      "domain": "azure",
+      "title": "Conditional Access covers the Azure management plane",
+      "severityDefault": "High",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.azureManagementCaPolicies > 0",
+      "remediation": "Create a Conditional Access policy that targets Windows Azure Service Management API (Microsoft Azure Management) for all users and requires MFA or a phishing-resistant strength and a compliant device.",
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-old-require-mfa-azure-mgmt",
+      "deepLink": null,
+      "narrative": "The portal, CLI and ARM API are all the management plane. A policy on all cloud apps covers it; a tenant with app-specific policies often leaves it out.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}

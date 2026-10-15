@@ -25,7 +25,8 @@ function Invoke-PostureCollection {
         Exchange (A.2 Exchange Online and the mail DNS records), SharePoint (A.3 tenant settings and sites through
         PnP.PowerShell), Teams (A.3 Teams policies), Defender (effective state through Graph advanced hunting,
         incidents and Secure Score), Purview (A.2 labels, DLP, retention and the rest through Connect-IPPSSession,
-        in a process of its own because its cmdlet names overlap Exchange's). Default all seven; a collector whose session is missing is skipped with a warning,
+        in a process of its own because its cmdlet names overlap Exchange's), Azure (spec 4.13 through Resource Graph
+        and Resource Manager reads on a Connect-AzAccount session). Default all eight; a collector whose session is missing is skipped with a warning,
         and refused when it was asked for by name; Defender runs on the Graph session and is skipped with a warning
         when ThreatHunting.Read.All was not granted. See docs/collection.md for the sign-ins.
     .PARAMETER StaleDays
@@ -57,6 +58,11 @@ function Invoke-PostureCollection {
 
         Writes the A.2 exo-* files and dns-01-mail-records into a new run folder. Needs View-Only Organization Management or equivalent.
     .EXAMPLE
+        Connect-AzAccount -Tenant <tenant id>
+        Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder <the run folder>
+
+        Writes the az-* files (spec 4.13); Reader on the subscriptions or the management group, plus Security Reader.
+    .EXAMPLE
         Connect-IPPSSession -UserPrincipalName reader@contoso.example
         Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder <the run folder>
 
@@ -79,7 +85,7 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview'),
+        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [Alias('Profile')] [string] $ProfilePath,
         [switch] $IncludeMembers,
@@ -133,6 +139,7 @@ function Invoke-PostureCollection {
         SharePoint = @{ test = { Test-PosturePnpSession }; hint = 'Connect-PnPOnline -Url https://<tenant>-admin.sharepoint.com -ClientId <sharePointClientId from profile.json> -Interactive' }
         Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
         Purview    = @{ test = { Test-PosturePurviewSession }; hint = 'Connect-IPPSSession -UserPrincipalName <reader>' }
+        Azure      = @{ test = { Test-PostureAzureSession }; hint = 'Connect-AzAccount -Tenant <tenant id>' }
     }
     $run = @{}
     $run['Defender'] = $Collector -contains 'Defender'
@@ -196,6 +203,11 @@ function Invoke-PostureCollection {
             $r = Invoke-PosturePurviewCollection -Folder $folder
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Purview')
+        }
+        if ($run.Azure) {
+            $r = Invoke-PostureAzureCollection -Folder $folder
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('Azure')
         }
         if ($run.Defender) {
             $r = Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc

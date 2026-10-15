@@ -140,6 +140,14 @@ Describe 'Read-only guard' {
         $src | Should -Match "ValidatePattern\('\^Get-"
     }
 
+    It 'runs Az cmdlets only through the Azure entry points, which read only' {
+        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-Az[A-Z][A-Za-z]*' 'Invoke-PostureAzureCommand.ps1'
+        $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureAzureCommand.ps1')
+        $src | Should -Match 'Invoke-AzRestMethod -Method GET'
+        $src | Should -Not -Match 'Invoke-AzRestMethod -Method (POST|PUT|PATCH|DELETE)'
+    }
+
     It 'runs PnP and Teams cmdlets only through their entry points, which accept read names only' {
         $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty

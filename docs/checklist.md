@@ -76,7 +76,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Authentication domain: checks/auth.json (9 checks from spec 4.2) and Get-PostureAuthFact; AU-009 (per-user MFA) not evaluated until collected (checkpoint F)
 - [x] All three domains on the Kainor collection: 39 checks, 28 pass, 8 fail, 3 not evaluated with named reasons
 - [x] A.1 additions: PIM role management policies (ID-006), legacy per-user MFA state through batched reads (AU-009), Entra devices section 8 (checkpoint H)
-- [ ] Azure diagnostic settings with the Azure collector (ID-014)
+- [x] Azure diagnostic settings with the Azure collector (ID-014), and Entra Connect Health for OP-007 (checkpoint R)
 - [ ] (verify) SCuBA ids on the identity and auth checks; CIS ids once the terms are cleared
 - [x] New-PostureProfile wizard (spec 10.2): twelve questions, every answer a parameter, -NonInteractive, edit in place, licenses detected from evidence or Graph and confirmed; docs/profile.md (checkpoint D)
 - [ ] (verify) service plan names for Entra Suite, Intune Suite and SharePoint Advanced Management in Get-PostureLicenseToken
@@ -117,6 +117,9 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [x] Copilot readiness domain (spec 4.7): checks/copilot.json (18 gates with a `gate` field, five hard) and Get-PostureCopilotFact reading the SharePoint, Purview, Exchange and governance evidence; the SharePoint collector adds restricted search and the content discovery flag (checkpoint Q)
 - [x] Copilot readiness page in the report: Blocked while any hard gate is not passed (not evaluated counts as not passed, and says why), readiness percentage over evaluated gates, every gate with its code, the not-evaluated rows listed, the stopgap narrative; headline cell shows Blocked or the percentage (checkpoint Q)
 - [ ] Copilot gates without a collector: the oversharing baseline and site access reviews (SAM data access governance reports import), DSPM for AI and Copilot settings (portal evidence), restricted content discovery per site (verify PnP property)
+- [x] Azure domain (spec 4.13): checks/azure.json (22 checks: hierarchy, benchmark, Defender plans and CSPM, contacts, activity log export, locks, tags, orphans, owners, standing root rights, guests, service principals, orphaned assignments, custom roles, classic administrators, resource-scope grants, Key Vault, storage, SQL, management plane Conditional Access) and Get-PostureAzureFact; the Azure collector through Resource Graph and Resource Manager GET entry points on a Connect-AzAccount session (checkpoint R)
+- [ ] (verify) on the first live Azure run: the pricings plan names, the securityContacts shape, the classicAdministrators endpoint, the ADHybridHealthService endpoint and fields
+- [ ] Azure items without a collector: PIM for Azure resources eligibility, permissions creep (Defender CSPM), cost anomaly alerts
 - [ ] errors.txt is append-only across processes into one folder, so a step that failed in an earlier process and succeeded later still counts in the manifest; decide whether a later success should retire the line
 - [ ] Oversharing views from SharePoint Advanced Management reports: sites shared with Everyone except external users, active anonymous links, inactive sites (spec 4.6, SAM)
 - [ ] (verify) Teams app permission policy shape on tenants moved to app centric management; SCuBA MS.SHAREPOINT and MS.TEAMS ids on the collaboration checks
