@@ -39,10 +39,22 @@ function ConvertTo-PostureReportMarkdown {
     & $line "**Posture score $(& $num $r.score.value) ($($r.score.grade)).** $($r.score.method) $($r.score.evaluated) checks scored."
     & $line
     $h = $r.headline
-    & $table @('MFA registered', 'Admins on phishing-resistant auth', 'Permanent Global Admins', 'Intune compliance', 'External sharing exposure', 'Copilot readiness') @(, @((& $num $h.mfaRegisteredPct '%'), (& $num $h.adminsPhishingResistantPct '%'), (& $num $h.permanentGlobalAdmins), (& $num $h.intuneCompliancePct '%'), (& $num $h.externalExposure), (& $num $h.copilotReadinessPct '%')))
+    & $table @('MFA registered', 'Admins on phishing-resistant auth', 'Permanent Global Admins', 'Intune compliance', 'External sharing exposure', 'Copilot readiness') @(, @((& $num $h.mfaRegisteredPct '%'), (& $num $h.adminsPhishingResistantPct '%'), (& $num $h.permanentGlobalAdmins), (& $num $h.intuneCompliancePct '%'), (& $num $h.externalExposure), $(if ($h.copilotBlocked) { 'Blocked' } else { & $num $h.copilotReadinessPct '%' })))
     $c = $r.counts
     & $line "Checks: $($c.pass) pass, $($c.fail) fail, $($c.acceptedRisk) accepted risk, $($c.coveredBy) covered by a third party, $($c.notEvaluated) not evaluated, $($c.notApplicable) not applicable."
     & $line
+    if ($r.copilot -and $r.copilot.present) {
+        $cp = $r.copilot
+        & $line '### Copilot readiness'
+        & $line
+        if ($cp.blocked) { & $line "**Blocked.** $(@($cp.blockedBy).Count) hard gate(s) not passed: $(@($cp.blockedBy | ForEach-Object { "$($_.code) $(& $esc $_.title) ($($_.status))" }) -join '; ')." }
+        else { & $line "**Readiness $(& $num $cp.readinessPct '%').** Every hard gate passes; $($cp.passed) of $($cp.evaluated) evaluated gates pass." }
+        & $line
+        & $table @('Gate', 'Hard', 'Status', 'Title') @($cp.gates | ForEach-Object { , @($_.code, $(if ($_.hard) { 'yes' } else { '' }), $_.status, (& $esc $_.title)) })
+        if (@($cp.notEvaluated).Count -gt 0) { & $line "Not evaluated: $(@($cp.notEvaluated | ForEach-Object { "$($_.code) ($(& $esc $_.reason))" }) -join '; ')."; & $line }
+        & $line (& $esc $cp.narrative)
+        & $line
+    }
     & $line '### Top risks'
     & $line
     if (@($r.topRisks).Count -eq 0) { & $line 'No failed checks.'; & $line }

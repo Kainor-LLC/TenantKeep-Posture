@@ -53,7 +53,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', $false), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('trend', 'Trend', $false), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('trend', 'Trend', $false), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -63,7 +63,7 @@ function ConvertTo-PostureReportHtml {
     & $w "<div class=`"score`"><div class=`"grade`">$(& $h $r.score.grade)</div><div><div class=`"value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div></div></div>"
     $hl = $r.headline
     & $w '<div class="stats">'
-    foreach ($pair in @(@('MFA registered', (& $num $hl.mfaRegisteredPct '%')), @('Admins on phishing-resistant auth', (& $num $hl.adminsPhishingResistantPct '%')), @('Permanent Global Admins', (& $num $hl.permanentGlobalAdmins)), @('Intune compliance', (& $num $hl.intuneCompliancePct '%')), @('External sharing exposure', (& $num $hl.externalExposure)), @('Copilot readiness', (& $num $hl.copilotReadinessPct '%')))) {
+    foreach ($pair in @(@('MFA registered', (& $num $hl.mfaRegisteredPct '%')), @('Admins on phishing-resistant auth', (& $num $hl.adminsPhishingResistantPct '%')), @('Permanent Global Admins', (& $num $hl.permanentGlobalAdmins)), @('Intune compliance', (& $num $hl.intuneCompliancePct '%')), @('External sharing exposure', (& $num $hl.externalExposure)), @('Copilot readiness', $(if ($hl.copilotBlocked) { 'Blocked' } else { & $num $hl.copilotReadinessPct '%' })))) {
         $naClass = if ($pair[1] -eq 'not collected yet') { ' na' } else { '' }
         & $w ('<div class="stat' + $naClass + '"><div class="n">' + (& $h $pair[1]) + '</div><div class="l">' + (& $h $pair[0]) + '</div></div>')
     }
@@ -134,8 +134,23 @@ function ConvertTo-PostureReportHtml {
     }
     & $w '</section>'
 
-    foreach ($na in @(@('exposure', 'External exposure', 'Guests by domain, sharing links, anonymous links and Teams federation come from the SharePoint and Teams collector (A.3), not collected yet.'), @('copilot', 'Copilot readiness', 'The 18 gates (spec 4.7) need the collaboration, labeling and governance evidence, not collected yet.'), @('trend', 'Trend', 'Headline numbers and domain scores across runs appear once a previous run exists in the same evidence root.'), @('licensing', 'Licensing and value', 'Unassigned and overlapping licenses need the full collection set; the licenses present are in the profile appendix.'))) {
+    $naViews = @(@('exposure', 'External exposure', 'Guests by domain, sharing links, anonymous links and Teams federation come from the SharePoint and Teams collector (A.3), not collected yet.'), @('copilot', 'Copilot readiness', 'The 18 gates (spec 4.7) need the collaboration, labeling and governance evidence, not collected yet.'), @('trend', 'Trend', 'Headline numbers and domain scores across runs appear once a previous run exists in the same evidence root.'), @('licensing', 'Licensing and value', 'Unassigned and overlapping licenses need the full collection set; the licenses present are in the profile appendix.'))
+    if ($r.copilot -and $r.copilot.present) { $naViews = @($naViews | Where-Object { $_[0] -ne 'copilot' }) }
+    foreach ($na in $naViews) {
         & $w "<section class=`"view`" id=`"$($na[0])`"><h2>$(& $h $na[1])</h2><p class=`"na-panel`">$(& $h $na[2])</p></section>"
+    }
+
+    # Copilot readiness (spec 4.7): the page the client reads first.
+    if ($r.copilot -and $r.copilot.present) {
+        $cp = $r.copilot
+        & $w '<section class="view" id="copilot"><h2>Copilot readiness</h2>'
+        if ($cp.blocked) { & $w "<p class=`"banner blocked`"><strong>Blocked.</strong> $(@($cp.blockedBy).Count) hard gate(s) not passed: $(& $h (@($cp.blockedBy | ForEach-Object { "$($_.code) $($_.title) ($($_.status))" }) -join '; ')).</p>" }
+        else { & $w "<p class=`"banner ready`"><strong>Readiness $(& $num $cp.readinessPct '%').</strong> Every hard gate passes; $($cp.passed) of $($cp.evaluated) evaluated gates pass.</p>" }
+        & $w '<table><thead><tr><th>Gate</th><th>Hard</th><th>Status</th><th>Title</th><th>Affected</th></tr></thead><tbody>'
+        foreach ($g in $cp.gates) { & $w "<tr class=`"st-$($g.status)`"><td>$(& $h $g.code)</td><td>$(if ($g.hard) { 'yes' })</td><td>$(& $h $g.status)</td><td>$(& $h $g.title)</td><td>$(if ($g.affectedCount -gt 0) { $g.affectedCount })</td></tr>" }
+        & $w '</tbody></table>'
+        if (@($cp.notEvaluated).Count -gt 0) { & $w "<p class=`"muted`">Not evaluated: $(& $h (@($cp.notEvaluated | ForEach-Object { "$($_.code): $($_.reason)" }) -join ' '))</p>" }
+        & $w "<p>$(& $h $cp.narrative)</p></section>"
     }
 
     # Conditional Access

@@ -59,3 +59,23 @@ Describe 'Copilot readiness gates' {
         @($cat | Where-Object { $_.Gate.hard }).Id | Should -Be @('CP-001', 'CP-002', 'CP-003', 'CP-004', 'CP-006')
     }
 }
+
+Describe 'Copilot readiness page' {
+    It 'leads with Blocked while a hard gate is not evaluated, lists the gates and the stopgap narrative' {
+        $r = New-PostureReport -Evidence $script:Ev -ProfilePath $script:ProfilePath -Format Html, Markdown -OutputPath (Join-Path $script:Root 'out') -PassThru
+        $r.Report.copilot.present | Should -BeTrue
+        $r.Report.copilot.blocked | Should -BeTrue -Because 'C3 is not evaluated'
+        @($r.Report.copilot.blockedBy | ForEach-Object { $_.code }) | Should -Be @('C3')
+        $r.Report.copilot.readinessPct | Should -Be 50 -Because 'six of twelve evaluated gates pass'
+        $r.Report.headline.copilotBlocked | Should -BeTrue
+        $md = Get-Content -Raw (Join-Path $script:Root 'out' 'report.md')
+        $md | Should -Match '### Copilot readiness'
+        $md | Should -Match '\*\*Blocked\.\*\*'
+        $md | Should -Match 'stopgaps'
+        $html = Get-Content -Raw (Join-Path $script:Root 'out' 'report.html')
+        $html | Should -Match '<section class="view" id="copilot"><h2>Copilot readiness</h2>'
+        $html | Should -Match 'banner blocked'
+        $html | Should -Not -Match 'na-panel">The 18 gates'
+    }
+}
+

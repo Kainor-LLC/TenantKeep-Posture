@@ -91,7 +91,39 @@ function ConvertTo-PostureReportModel {
         intuneCompliancePct      = & $v $devFacts 'intuneCompliancePct'
         externalExposure         = $null
         copilotReadinessPct      = $null
+        copilotBlocked           = $false
     }
+
+    # Copilot readiness (spec 4.7): hard gates must all pass before the page shows anything but Blocked; readiness is
+    # passed gates over evaluated gates, with the not-evaluated rows listed. Statuses come from the engine; the gate
+    # codes and hard flags from the catalog.
+    $copilot = $null
+    $cpResults = @($results | Where-Object { $_.domain -eq 'copilot' })
+    if ($cpResults.Count -gt 0) {
+        $gates = @($cpResults | ForEach-Object {
+                $g = $byId[$_.id]['gate']
+                [ordered]@{ id = $_.id; code = [string]$(if ($g) { $g['code'] }); hard = [bool]$(if ($g) { $g['hard'] }); title = $_.title; status = $_.status; reason = $_.reason; affectedCount = $_.affectedCount }
+            } | Sort-Object { [int](($_.code -replace '\D', '') + 0) })
+        $hard = @($gates | Where-Object { $_.hard })
+        $hardNotPassed = @($hard | Where-Object { $_.status -notin @('pass', 'acceptedRisk', 'coveredBy') })
+        $evaluated = @($gates | Where-Object { $_.status -in @('pass', 'fail', 'acceptedRisk', 'coveredBy') })
+        $passed = @($evaluated | Where-Object { $_.status -ne 'fail' })
+        $present = @($gates | Where-Object { $_.status -notin @('notEvaluated', 'notApplicable') }).Count -gt 0
+        $copilot = [ordered]@{
+            present      = $present
+            blocked      = ($hardNotPassed.Count -gt 0)
+            blockedBy    = @($hardNotPassed)
+            readinessPct = $(if ($evaluated.Count -gt 0) { [Math]::Round(100.0 * $passed.Count / $evaluated.Count) } else { $null })
+            evaluated    = $evaluated.Count
+            passed       = $passed.Count
+            notEvaluated = @($gates | Where-Object { $_.status -eq 'notEvaluated' })
+            hardGates    = @($hard)
+            gates        = @($gates)
+            narrative    = 'Restricted access control, restricted content discovery and restricted SharePoint search are stopgaps: they let Copilot be turned on while site owners clean up. The end state is correct permissions, labels that encrypt the top tier, and reviews that keep both true.'
+        }
+    }
+
+    if ($copilot -and $copilot.present) { $headline.copilotReadinessPct = $copilot.readinessPct; $headline.copilotBlocked = $copilot.blocked }
 
     # Top risks: failed checks by severity weight, five of them.
     $topRisks = @($results | Where-Object { $_.status -eq 'fail' } | Sort-Object { -$weight[[string]$_.severity] }, { $_.id } | Select-Object -First 5 | ForEach-Object {
@@ -192,6 +224,7 @@ function ConvertTo-PostureReportModel {
         recommendations = $recommendations
         admins       = $adminsTable
         ca           = $ca
+        copilot      = $copilot
         results      = $results
         catalogText  = $catalogText
         appendix     = [ordered]@{
