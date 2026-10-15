@@ -44,6 +44,36 @@ The deployer needs Owner (or Contributor plus User Access Administrator) on the 
 the deployer blob data access so the module zip can be uploaded, and the account's identity Storage Blob Data
 Contributor on the snapshots. Dev deployments upload an unsigned zip of the staged module; releases are signed.
 
+## The monthly posture cycle (Automation, full report)
+
+`deploy.ps1 -IncludePosture` adds a second runbook, `Invoke-PostureCycle`, on a monthly schedule, with two more
+containers: `posture-runs` (one folder per run: evidence, report.html, report.md, checks.json, findings.csv) and
+`client` (what the customer maintains: profile.json, brand.json, exceptions.json, tenantkeep.lic, and findings.csv,
+which the run writes back after merging owners and statuses; hybrid tenants also drop the Windows collector's ad-*
+files under `hybrid/`). The job signs in everywhere as the managed identity, runs every collector whose sign-in
+succeeded, builds the report against the previous run for the trend, exports the register and uploads the lot. A
+collector that could not sign in is named in the job output and in the report's "not collected" list.
+
+```powershell
+./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -IncludePosture -Organization contoso.onmicrosoft.com -SharePointAdminUrl https://contoso-admin.sharepoint.com -ClientFolder ~/tenantkeep/clients/contoso
+Connect-MgGraph -TenantId <tenant id> -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All, RoleManagement.ReadWrite.Directory
+./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <printed id> -IncludePosture
+az role assignment create --assignee-object-id <printed id> --assignee-principal-type ServicePrincipal --role Reader --scope /subscriptions/<id>
+az role assignment create --assignee-object-id <printed id> --assignee-principal-type ServicePrincipal --role "Security Reader" --scope /subscriptions/<id>
+az automation runbook start -g rg-tenantkeep-dev --automation-account-name aa-tenantkeep-dev -n Invoke-PostureCycle
+```
+
+What the identity gets with -IncludePosture: the Graph application roles the collectors use (the same list
+Invoke-PostureCollection warns about), Exchange.ManageAsApp for app-only Exchange and Purview, Sites.FullControl.All
+on SharePoint Online for PnP's tenant reads (verify: the least application permission that works), the Teams tenant
+admin API role, and the Global Reader directory role. All read. The runtime environment also gets
+ExchangeOnlineManagement, PnP.PowerShell, MicrosoftTeams and Az.ResourceGraph from the Gallery; package imports finish
+in the background, so wait for them to show Available before the first job.
+
+Open items from the first deployment (verify): Purview app-only through Connect-IPPSSession -ManagedIdentity, whether
+Exchange and PnP load together in one Automation job (they do not on macOS), and the PnP.PowerShell package size
+against Automation's module limit.
+
 ## Permissions
 
 Application permissions for the managed identity or the app registration: `Policy.Read.All`, `Directory.Read.All`,

@@ -31,7 +31,22 @@ param(
     [string] $EmailFrom,
     [string[]] $BreakGlass,
     [string] $GraphAuthenticationVersion = '2.39.0',
-    [switch] $SkipModuleImport
+    [switch] $SkipModuleImport,
+
+    # Monthly full posture cycle (second runbook). Needs the collectors' modules in the runtime environment and the
+    # posture roles from Grant-ManagedIdentityGraphRole.ps1 -IncludePosture.
+    [switch] $IncludePosture,
+    [string] $Organization,
+    [string] $SharePointAdminUrl,
+    [ValidateRange(1, 28)] [int] $PostureDayOfMonth = 1,
+    [string] $PostureTimeUtc = '03:00',
+    [int] $PostureKeepRuns = 24,
+    [string] $ClientFolder,
+    # (verify) current Gallery versions at deployment time
+    [string] $ExchangeOnlineManagementVersion = '3.9.0',
+    [string] $PnPPowerShellVersion = '3.1.0',
+    [string] $MicrosoftTeamsVersion = '7.3.1',
+    [string] $AzResourceGraphVersion = '1.2.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,7 +69,9 @@ if ($PSCmdlet.ShouldProcess($ResourceGroup, "Create resource group in $Location"
 }
 $paramArgs = @("baseName=$BaseName", "envName=$EnvName", "scheduleTimeUtc=$ScheduleTimeUtc", "keepRuns=$KeepRuns",
     "emailTo=$(($EmailTo | ForEach-Object { $_ }) -join ',')", "emailFrom=$EmailFrom", "breakGlass=$(($BreakGlass | ForEach-Object { $_ }) -join ',')",
-    "teamsWebhookUrl=$TeamsWebhookUrl")
+    "teamsWebhookUrl=$TeamsWebhookUrl",
+    "includePosture=$($IncludePosture.IsPresent.ToString().ToLowerInvariant())", "postureDayOfMonth=$PostureDayOfMonth", "postureTimeUtc=$PostureTimeUtc", "postureKeepRuns=$PostureKeepRuns",
+    "organization=$Organization", "sharePointAdminUrl=$SharePointAdminUrl")
 $bicep = Join-Path $PSScriptRoot 'main.bicep'
 if (-not $PSCmdlet.ShouldProcess($ResourceGroup, 'Deploy main.bicep')) {
     Invoke-Az deployment group what-if -g $ResourceGroup -f $bicep -p @paramArgs | Write-Host
@@ -101,6 +118,14 @@ if (-not $SkipModuleImport) {
     $body = @{ properties = @{ contentLink = @{ uri = $galleryUri } } } | ConvertTo-Json -Compress
     $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/Microsoft.Graph.Authentication?api-version=$apiVersion" --body $body -o none
     Write-Host "Imported Microsoft.Graph.Authentication $GraphAuthenticationVersion"
+    if ($IncludePosture) {
+        # The collectors' session modules. Package imports run in the background; a job started before they finish fails to import them.
+        foreach ($pkg in @(@('ExchangeOnlineManagement', $ExchangeOnlineManagementVersion), @('PnP.PowerShell', $PnPPowerShellVersion), @('MicrosoftTeams', $MicrosoftTeamsVersion), @('Az.ResourceGraph', $AzResourceGraphVersion))) {
+            $body = @{ properties = @{ contentLink = @{ uri = "https://www.powershellgallery.com/api/v2/package/$($pkg[0])/$($pkg[1])" } } } | ConvertTo-Json -Compress
+            $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($pkg[0])?api-version=$apiVersion" --body $body -o none
+            Write-Host "Imported $($pkg[0]) $($pkg[1])"
+        }
+    }
 }
 
 # 4. Runbook content
@@ -108,6 +133,22 @@ $runbookFile = Join-Path $repo 'deploy' 'schedules' 'automation-runbook.ps1'
 $null = Invoke-Az automation runbook replace-content -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName --content "@$runbookFile" -o none
 $null = Invoke-Az automation runbook publish -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName -o none
 Write-Host "Published runbook $runbookName"
+if ($IncludePosture) {
+    $postureRunbook = $o.postureRunbookName.value
+    $postureFile = Join-Path $repo 'deploy' 'schedules' 'posture-runbook.ps1'
+    $null = Invoke-Az automation runbook replace-content -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook --content "@$postureFile" -o none
+    $null = Invoke-Az automation runbook publish -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook -o none
+    Write-Host "Published runbook $postureRunbook"
+    if ($ClientFolder) {
+        # profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv; hybrid/ad-* for hybrid tenants.
+        foreach ($f in (Get-ChildItem -Path $ClientFolder -File -Recurse | Where-Object { $_.Name -in 'profile.json', 'brand.json', 'exceptions.json', 'tenantkeep.lic', 'findings.csv' -or $_.Name -like 'ad-*' })) {
+            $rel = $f.FullName.Substring((Resolve-Path $ClientFolder).Path.Length).TrimStart('/', '\') -replace '\\', '/'
+            if ($f.Name -like 'ad-*' -and $rel -notlike 'hybrid/*') { $rel = "hybrid/$($f.Name)" }
+            $null = Invoke-Az storage blob upload --account-name $storageAccount --container-name client --name $rel --file $f.FullName --auth-mode login --overwrite true -o none
+            Write-Host "Uploaded client/$rel"
+        }
+    }
+}
 
 # 5. Link the schedule (only once the runbook has a published version, which is why it is not in Bicep).
 $scheduleName = $o.scheduleName.value
@@ -120,12 +161,23 @@ if (-not $linked) {
     Write-Host "Linked schedule $scheduleName to $runbookName"
 }
 else { Write-Host "Schedule $scheduleName already linked" }
+if ($IncludePosture) {
+    $postureSchedule = $o.postureScheduleName.value
+    $plinked = $links | Where-Object { $_.properties.runbook.name -eq $postureRunbook -and $_.properties.schedule.name -eq $postureSchedule }
+    if (-not $plinked) {
+        $body = @{ properties = @{ runbook = @{ name = $postureRunbook }; schedule = @{ name = $postureSchedule } } } | ConvertTo-Json -Compress
+        $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/jobSchedules/$([guid]::NewGuid())`?api-version=2023-11-01" --body $body -o none
+        Write-Host "Linked schedule $postureSchedule to $postureRunbook"
+    }
+    else { Write-Host "Schedule $postureSchedule already linked" }
+}
 
 Write-Host ''
 Write-Host 'Next, once, as a Global Administrator of the tenant:'
 Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All"
-Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })"
+Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })"
 Write-Host "Then start a job: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName"
+if ($IncludePosture) { Write-Host "Posture run: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles and once the package imports show Available)" }
 
 [pscustomobject]@{
     ResourceGroup     = $ResourceGroup

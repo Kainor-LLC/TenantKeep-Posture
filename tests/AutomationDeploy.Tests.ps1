@@ -86,6 +86,34 @@ Describe 'deploy scripts' {
         finally { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
+    It 'with includePosture the template adds the posture runbook, monthly schedule, two containers and the variables' {
+        $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'main.bicep')
+        foreach ($needle in "param includePosture bool", "name: postureRunbookName", "frequency: 'Month'", "name: postureContainerName", "name: clientContainerName", 'TENANTKEEP_POSTURE_CONTAINER_URL', 'TENANTKEEP_CLIENT_CONTAINER_URL', 'TENANTKEEP_ORGANIZATION', 'TENANTKEEP_SHAREPOINT_ADMIN_URL', 'output postureRunbookName') { $src | Should -Match ([regex]::Escape($needle)) }
+    }
+
+    It 'the posture runbook parses, signs in as the identity only, and never calls a tenant write' {
+        $path = Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1'
+        $tokens = $null; $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) | Out-Null
+        @($errors).Count | Should -Be 0
+        $src = Get-Content -Raw $path
+        $src | Should -Match 'Connect-MgGraph -Identity'
+        $src | Should -Match 'Connect-ExchangeOnline -ManagedIdentity'
+        $src | Should -Match 'Connect-PnPOnline -Url \$spoAdmin -ManagedIdentity'
+        $src | Should -Not -Match '-Scopes|-Credential|ClientSecret|CertificateThumbprint' -Because 'the runbook has no secrets and no delegated sign-in'
+        $src | Should -Not -Match '(^|[;{|(&\s])(Set|New|Remove|Update)-(Mg|EXO|Pnp|Cs|Az(?!Storage))' -Because 'reads only, storage aside'
+        foreach ($cmd in 'Invoke-PostureCollection', 'New-PostureReport', 'Export-PostureFindings') { $src | Should -Match $cmd }
+    }
+
+    It 'the grant script lists every Graph role the collection warns about, plus the Exchange, SharePoint and Teams app roles' {
+        $grant = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1')
+        $collection = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
+        $warned = [regex]::Matches($collection, "'([A-Za-z]+\.[A-Za-z.]+)'\s+= '") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+        $warned.Count | Should -BeGreaterThan 15
+        foreach ($scope in $warned) { $grant | Should -Match ([regex]::Escape("'$scope'")) -Because "$scope is a collector scope" }
+        foreach ($needle in 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access', 'f2ef992c-3afb-46b9-b7cf-a126ee74c451') { $grant | Should -Match ([regex]::Escape($needle)) }
+    }
+
     It 'the grant script refuses without the admin scopes' {
         Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All') } }
         { & (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' } | Should -Throw '*missing AppRoleAssignment.ReadWrite.All*'
