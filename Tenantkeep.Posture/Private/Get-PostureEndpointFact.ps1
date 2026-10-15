@@ -213,8 +213,8 @@ function Get-PostureEndpointFact {
     if ($null -eq $cfg) { & $defMissing @('EP-022', 'EP-023') 'def-03-secure-config' }
     else {
         $c = @(& $rows $cfg | Where-Object { $null -ne $_.CompliantPct })
-        # (verify) subcategory and configuration names as the KB table spells them
-        $asr = @($c | Where-Object { [string]$_.Subcategory -match '(?i)attack surface reduction' -or [string]$_.ConfigurationName -match '(?i)^Block .*|ASR' })
+        # Subcategory 'Attack Surface Reduction' and the core names confirmed on a live tenant 2026-10-15 (18 ASR configurations, cloud-delivered, real-time, tamper and network protection per platform).
+        $asr = @($c | Where-Object { [string]$_.Subcategory -match '(?i)attack surface reduction' })
         $facts.asrEffectiveConfigs = $asr.Count
         $asrBelow = @($asr | Where-Object { [double]$_.CompliantPct -lt [double]$t.minEffectivePct })
         $facts.asrEffectiveBelowTarget = $asrBelow.Count

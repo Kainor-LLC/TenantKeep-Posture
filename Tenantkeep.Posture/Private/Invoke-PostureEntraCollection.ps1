@@ -244,19 +244,20 @@ function Invoke-PostureEntraCollection {
         & $saveOne ([ordered]@{ UnifiedGroups = @($unified).Count; Ownerless = $rows.Count }) '07-groups-ownerless-summary'
     } | Out-Null
 
-    Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
-        $groups = & $get 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999'
-        $flat = @($groups | ForEach-Object {
-                $types = @(& $v $_ 'groupTypes')
-                $kind = if ($types -contains 'Unified') { 'M365' } elseif ($types -contains 'DynamicMembership') { 'DynamicSecurity' } elseif ((& $v $_ 'mailEnabled') -and (& $v $_ 'securityEnabled')) { 'MailEnabledSecurity' } elseif (& $v $_ 'mailEnabled') { 'Distribution' } else { 'Security' }
-                [ordered]@{
-                    Id = $_.id; DisplayName = (& $v $_ 'displayName'); OnPremisesSyncEnabled = [bool](& $v $_ 'onPremisesSyncEnabled'); CreatedDateTime = (& $v $_ 'createdDateTime')
-                    Visibility = (& $v $_ 'visibility'); IsAssignableToRole = [bool](& $v $_ 'isAssignableToRole'); ExpirationDateTime = (& $v $_ 'expirationDateTime'); MembershipRule = (& $v $_ 'membershipRule')
-                    Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
-                }
-            })
-        & $save $flat '07-groups' $true
-    } | Out-Null
+    $groupRows = @(Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
+            $groups = & $get 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999'
+            $flat = @($groups | ForEach-Object {
+                    $types = @(& $v $_ 'groupTypes')
+                    $kind = if ($types -contains 'Unified') { 'M365' } elseif ($types -contains 'DynamicMembership') { 'DynamicSecurity' } elseif ((& $v $_ 'mailEnabled') -and (& $v $_ 'securityEnabled')) { 'MailEnabledSecurity' } elseif (& $v $_ 'mailEnabled') { 'Distribution' } else { 'Security' }
+                    [ordered]@{
+                        Id = $_.id; DisplayName = (& $v $_ 'displayName'); OnPremisesSyncEnabled = [bool](& $v $_ 'onPremisesSyncEnabled'); CreatedDateTime = (& $v $_ 'createdDateTime')
+                        Visibility = (& $v $_ 'visibility'); IsAssignableToRole = [bool](& $v $_ 'isAssignableToRole'); ExpirationDateTime = (& $v $_ 'expirationDateTime'); MembershipRule = (& $v $_ 'membershipRule')
+                        Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
+                    }
+                })
+            & $save $flat '07-groups' $true
+            $flat
+        })
 
     # ---------- 8. Entra devices ----------
     Invoke-PostureStep -Label 'Entra devices' -Folder $Folder -Script {
@@ -363,8 +364,10 @@ function Invoke-PostureEntraCollection {
         & $save @($wf | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Category = (& $v $_ 'category'); IsEnabled = (& $v $_ 'isEnabled'); IsSchedulingEnabled = (& $v $_ 'isSchedulingEnabled'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) 'gov-03-lifecycle-workflows' $true
     } | Out-Null
     Invoke-PostureStep -Label 'PIM for Groups' -Folder $Folder -Script {
-        # PrivilegedEligibilitySchedule.Read.AzureADGroup. (verify) the v1.0 path and whether role-assignable groups appear here when managed by PIM
-        $sched = & $get 'identityGovernance/privilegedAccess/group/eligibilitySchedules?$select=id,groupId,accessId,principalId,status,memberType'
+        # PrivilegedEligibilitySchedule.Read.AzureADGroup. The endpoint needs a groupId or principalId filter (confirmed 2026-10-15: unfiltered is BadRequest),
+        # so it is read once per role-assignable group; those are the groups that carry admin roles. Capped at 100 groups.
+        $candidates = @($groupRows | Where-Object { $_ -and $_.IsAssignableToRole -eq $true } | Select-Object -First 100)
+        $sched = @(foreach ($g in $candidates) { & $get "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$($g.Id)'&`$select=id,groupId,accessId,principalId,status,memberType" })
         $rows = @($sched | ForEach-Object { [ordered]@{ Id = $_.id; GroupId = (& $v $_ 'groupId'); AccessId = (& $v $_ 'accessId'); PrincipalId = (& $v $_ 'principalId'); Status = (& $v $_ 'status'); MemberType = (& $v $_ 'memberType') } })
         & $save $rows 'gov-04-pim-groups' $true
         & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count }) 'gov-04-pim-groups-summary'
