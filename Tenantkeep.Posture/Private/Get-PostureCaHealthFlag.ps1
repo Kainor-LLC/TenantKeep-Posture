@@ -30,11 +30,13 @@ function Get-PostureCaHealthFlag {
     }
 
     $allRefs = @()
-    foreach ($k in $Policy.assignments.Keys) { $allRefs += @($Policy.assignments[$k] | Where-Object { $_ -is [System.Collections.IDictionary] }) }
+    # includeGuestsOrExternal and excludeGuestsOrExternal hold the guest type object, not references.
+    foreach ($k in @($Policy.assignments.Keys | Where-Object { $_ -notmatch 'GuestsOrExternal' })) { $allRefs += @($Policy.assignments[$k] | Where-Object { $_ -is [System.Collections.IDictionary] }) }
     foreach ($k in 'includeApplications', 'excludeApplications', 'userActions', 'authenticationContexts') { $allRefs += @($Policy.targets[$k]) }
     foreach ($k in 'includeLocations', 'excludeLocations') { $allRefs += @($Policy.conditions[$k]) }
     if ($Policy.grant.authenticationStrength) { $allRefs += @($Policy.grant.authenticationStrength) }
-    $deleted = @($allRefs | Where-Object { $_ -and $_.deleted })
+    # Some entries are plain values rather than resolved refs (a filter string, a built-in value); Get-PostureValue is safe on those.
+    $deleted = @($allRefs | Where-Object { $_ -and (Get-PostureValue $_ 'deleted') -eq $true })
     foreach ($d in $deleted) {
         & $flag 'deletedReference' 'error' "References a deleted $($d.type): $($d.id). The policy silently no longer covers or excludes it."
     }

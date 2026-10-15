@@ -24,7 +24,7 @@ function ConvertTo-PostureCaHtml {
         $items = @($Refs | ForEach-Object {
                 $label = & $h $_.name
                 if ($null -ne $_.memberCount) { $label += " ($($_.memberCount) members)" }
-                if ($_.deleted) { "<span class=`"deleted`">$label</span>" } else { $label }
+                if ((Get-PostureValue $_ 'deleted') -eq $true) { "<span class=`"deleted`">$label</span>" } else { $label }
             })
         if ($items.Count -eq 0) { 'none' } else { $items -join ', ' }
     }
@@ -203,7 +203,7 @@ function ConvertTo-PostureCaHtml {
             if ($g.authenticationStrength) {
                 $st = $g.authenticationStrength
                 $stLabel = & $h $st.name
-                if ($st.deleted) { $stLabel = '<span class="deleted">' + $stLabel + '</span>' }
+                if ((Get-PostureValue $st 'deleted') -eq $true) { $stLabel = '<span class="deleted">' + $stLabel + '</span>' }
                 & $w "<li>Authentication strength: $stLabel"
                 if (@($st.allowedCombinations).Count -gt 0) { & $w "<ul><li>Allowed methods: $(& $h (@($st.allowedCombinations) -join '; '))</li></ul>" }
                 & $w '</li>'

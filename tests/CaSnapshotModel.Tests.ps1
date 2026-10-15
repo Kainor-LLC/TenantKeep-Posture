@@ -41,6 +41,49 @@ Describe 'Import-PostureCaSnapshot' {
     }
 }
 
+Describe 'ConvertTo-PostureCaPolicyModel on policies the sample lacks' {
+    BeforeAll {
+        # A copy of the sample with one more policy: guest types object, an authentication context, the admin portals value. Shapes seen on a real tenant 2026-10-15.
+        $script:Extra = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-ca-extra-$([guid]::NewGuid().ToString('n'))"
+        Copy-Item -Path $script:Sample -Destination $script:Extra -Recurse
+        $policiesPath = Join-Path $script:Extra 'policies.json'
+        $policies = @(Get-Content -Raw $policiesPath | ConvertFrom-Json -AsHashtable -Depth 20)
+        $policies += [ordered]@{
+            id = 'p-extra'; displayName = 'CA-009-Guests-Require auth context for sensitive sites'; state = 'enabled'; createdDateTime = '2026-01-01T00:00:00Z'; modifiedDateTime = '2026-01-02T00:00:00Z'
+            conditions = [ordered]@{
+                users = [ordered]@{ includeUsers = @(); excludeUsers = @(); includeGroups = @(); excludeGroups = @(); includeRoles = @(); excludeRoles = @(); includeGuestsOrExternalUsers = [ordered]@{ guestOrExternalUserTypes = 'b2bCollaborationGuest,b2bCollaborationMember'; externalTenants = [ordered]@{ membershipKind = 'all' } } }
+                applications = [ordered]@{ includeApplications = @('MicrosoftAdminPortals'); excludeApplications = @(); includeUserActions = @(); includeAuthenticationContextClassReferences = @('c1') }
+                clientAppTypes = @('all'); locations = $null; platforms = $null
+            }
+            grantControls = [ordered]@{ operator = 'OR'; builtInControls = @('mfa'); authenticationStrength = $null }
+            sessionControls = $null
+        }
+        ConvertTo-Json -InputObject $policies -Depth 20 | Set-Content -LiteralPath $policiesPath
+        InModuleScope Tenantkeep.Posture -Parameters @{ Extra = $script:Extra } {
+            $script:ExtraSnap = Import-PostureCaSnapshot -Path $Extra
+            $script:ExtraModels = @(ConvertTo-PostureCaPolicyModel -Snapshot $script:ExtraSnap)
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Extra -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'models the guest type object, the authentication context and the admin portals value without an error' {
+        InModuleScope Tenantkeep.Posture {
+            $script:ExtraModels.Count | Should -Be 9
+            $m = $script:ExtraModels | Where-Object { $_.id -eq 'p-extra' }
+            $m.assignments.includeGuestsOrExternal.guestOrExternalUserTypes | Should -Match 'b2bCollaborationGuest'
+            @($m.targets.authenticationContexts).Count | Should -Be 1
+            @($m.targets.includeApplications)[0].id | Should -Be 'MicrosoftAdminPortals'
+            @($m.healthFlags | Where-Object { $_.code -eq 'deletedReference' }).Count | Should -Be 0
+        }
+    }
+
+    It 'renders the document and evaluates the facts over it' {
+        $out = Join-Path $script:Extra 'out'
+        { New-PostureCaDocument -Snapshot $script:Extra -Format Html -OutputPath $out } | Should -Not -Throw
+        InModuleScope Tenantkeep.Posture -Parameters @{ Extra = $script:Extra } { (Get-PostureCaFact -Evidence $Extra).facts.policyCount | Should -Be 9 }
+    }
+}
+
 Describe 'ConvertTo-PostureCaPolicyModel' {
     It 'returns one model per policy sorted by name' {
         InModuleScope Tenantkeep.Posture {
