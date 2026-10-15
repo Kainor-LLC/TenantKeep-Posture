@@ -23,8 +23,10 @@ function Invoke-PostureCollection {
     .PARAMETER Collector
         Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions),
         Exchange (A.2 Exchange Online and the mail DNS records), SharePoint (A.3 tenant settings and sites through
-        PnP.PowerShell), Teams (A.3 Teams policies). Default all five; a collector whose session is missing is skipped
-        with a warning, and refused when it was asked for by name. See docs/collection.md for the sign-ins.
+        PnP.PowerShell), Teams (A.3 Teams policies), Defender (effective state through Graph advanced hunting,
+        incidents and Secure Score). Default all six; a collector whose session is missing is skipped with a warning,
+        and refused when it was asked for by name; Defender runs on the Graph session and is skipped with a warning
+        when ThreatHunting.Read.All was not granted. See docs/collection.md for the sign-ins.
     .PARAMETER StaleDays
         Threshold for inactive users and devices in the summaries. Default 90.
     .PARAMETER IncludeMembers
@@ -71,7 +73,7 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'audit' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams'),
+        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender'),
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [Alias('Profile')] [string] $ProfilePath,
         [switch] $IncludeMembers,
@@ -111,6 +113,9 @@ function Invoke-PostureCollection {
         'LifecycleWorkflows.Read.All'             = 'Lifecycle workflows'
         'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups'
         'AdministrativeUnit.Read.All'             = 'Administrative units'
+        'ThreatHunting.Read.All'                  = 'Defender devices, antivirus state, secure configuration, vulnerabilities (advanced hunting)'
+        'SecurityIncident.Read.All'               = 'Defender incidents'
+        'SecurityEvents.Read.All'                 = 'Secure Score'
     }
     $granted = @($context.Scopes)
     foreach ($scope in $optional.Keys) {
@@ -123,6 +128,12 @@ function Invoke-PostureCollection {
         Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
     }
     $run = @{}
+    $run['Defender'] = $Collector -contains 'Defender'
+    if ($run['Defender'] -and 'ThreatHunting.Read.All' -notin $granted) {
+        if ($PSBoundParameters.ContainsKey('Collector')) { throw 'The Defender collector needs ThreatHunting.Read.All on the Graph session (plus SecurityIncident.Read.All and SecurityEvents.Read.All for incidents and Secure Score).' }
+        Write-Warning 'ThreatHunting.Read.All not granted; skipping the Defender collector. Add it to Connect-MgGraph -Scopes, or name the collectors you want in -Collector to silence this.'
+        $run['Defender'] = $false
+    }
     foreach ($name in $sessions.Keys) {
         $run[$name] = $Collector -contains $name
         if ($run[$name] -and -not (& $sessions[$name].test)) {
@@ -173,6 +184,11 @@ function Invoke-PostureCollection {
             $r = Invoke-PostureTeamsCollection -Folder $folder
             foreach ($f in $r.files) { $files.Add($f) }
             $ran.Add('Teams')
+        }
+        if ($run.Defender) {
+            $r = Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc
+            foreach ($f in $r.files) { $files.Add($f) }
+            $ran.Add('Defender')
         }
 
         $errorsPath = Join-Path $folder 'errors.txt'

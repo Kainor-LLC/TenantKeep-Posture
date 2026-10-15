@@ -31,7 +31,7 @@ Describe 'New-PostureReport' {
 
         It 'writes checks.json, report.html and report.md' {
             @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.html', 'report.md')
-            (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 117
+            (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 124
         }
 
         It 'scores with the stated method and grades it' {
@@ -111,7 +111,7 @@ Describe 'New-PostureReport' {
             $script:Html | Should -Not -Match '<script[^>]*src='
             $script:Html | Should -Match "default-src 'none'"
             $results = [regex]::Match($script:Html, '<script type="application/json" id="data-results">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
-            $results.Count | Should -Be 117
+            $results.Count | Should -Be 124
             $catalog = [regex]::Match($script:Html, '<script type="application/json" id="data-catalog">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
             $catalog.'CA-002'.remediation | Should -Not -BeNullOrEmpty
         }

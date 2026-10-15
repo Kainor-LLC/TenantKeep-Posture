@@ -82,6 +82,23 @@ Invoke-PostureCollection -OutRoot ~/audit/evidence        # Entra, Intune and Ex
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
 at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
+## What the Defender collector writes
+
+Graph only, on the same session as the Entra collector: advanced hunting is a query-style POST that changes nothing.
+Scopes: ThreatHunting.Read.All (hunting), SecurityIncident.Read.All (incidents), SecurityEvents.Read.All (Secure
+Score). Skipped with a warning when ThreatHunting.Read.All is missing. The device tables are read in 16 shards by
+the first character of the device id, under the 10,000-row cap per query. Needs Defender for Endpoint P2 for the
+configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
+
+| File | Source | Notes |
+|---|---|---|
+| `def-01-devices` (+csv), `def-01-devices-summary` | DeviceInfo, last 7 days, latest row per device | Onboarding, sensor health, exposure; joined to Intune on the Entra device id for coverage |
+| `def-02-av-state` (+csv), `def-02-av-state-summary` | DeviceTvmInfoGathering | Antivirus mode and signature state (verify field names and mode values) |
+| `def-03-secure-config` (+csv) | DeviceTvmSecureConfigurationAssessment joined to its KB | Compliant and applicable device counts per configuration; the facts match on names and subcategory (verify) |
+| `def-04-vulnerabilities-summary`, `def-04-vulnerabilities-top` (+csv) | DeviceTvmSoftwareVulnerabilities joined to its KB | Critical CVEs, over 30 days since publication, top 50 by device count |
+| `def-05-incidents` (+csv), `def-05-incidents-summary` | security/incidents, active | Open over 7 days, unassigned |
+| `def-06-secure-score`, `def-06-secure-score-controls` (+csv) | security/secureScores, secureScoreControlProfiles | Spec 4.12: reported beside the posture score, never the grade |
+
 ## What the SharePoint and Teams collectors write
 
 | File | Source | Notes |
@@ -150,7 +167,7 @@ User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagem
 OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All. All delegated, all read-only.
 
 ```powershell
-Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All -NoWelcome
+Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All -NoWelcome
 Invoke-PostureCollection -OutRoot ~/audit/evidence
 ```
 

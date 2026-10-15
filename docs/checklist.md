@@ -112,7 +112,9 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] errors.txt is append-only across processes into one folder, so a step that failed in an earlier process and succeeded later still counts in the manifest; decide whether a later success should retire the line
 - [ ] Oversharing views from SharePoint Advanced Management reports: sites shared with Everyone except external users, active anonymous links, inactive sites (spec 4.6, SAM)
 - [ ] (verify) Teams app permission policy shape on tenants moved to app centric management; SCuBA MS.SHAREPOINT and MS.TEAMS ids on the collaboration checks
-- [ ] Defender effective state (4.11 Defender half: onboarding, sensor health, AV mode, ASR effective, EDR block mode, AIR, vulnerability management) with Get-DefenderBaseline; needs the the first customer tenant
+- [x] Defender effective state through Graph (checkpoint N): advanced hunting for devices, antivirus mode, secure configuration assessment and vulnerabilities, plus incidents and Secure Score with its control profiles; seven endpoint checks (EP-019 to EP-025) compare what devices do with what policy says. No Defender API app registration needed: ThreatHunting.Read.All on the Graph session
+- [ ] (verify) on the first live Defender run: DeviceTvmInfoGathering field names and antivirus mode values, the secure configuration names and subcategories, the AadDeviceId join, and whether MDE P1 answers DeviceInfo
+- [ ] Defender settings without a read API in Graph: EDR in block mode, automated investigation level, device discovery mode (spec 4.11)
 - [ ] Effective-state device checks waiting on reports: BitLocker and FileVault encryption report, Credential Guard and HVCI, update compliance, local admin population, recovery key access audit
 - [x] Coverage findings page in the CA document fed from the engine (checkpoint C)
 

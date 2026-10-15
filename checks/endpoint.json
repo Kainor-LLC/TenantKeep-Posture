@@ -624,6 +624,223 @@
         "cmmc": "AC.L2-3.1.18",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "EP-019",
+      "domain": "endpoint",
+      "title": "Defender for Endpoint onboarded on the Intune fleet",
+      "severityDefault": "High",
+      "license": [
+        "MDE1",
+        "MDE2",
+        "MDEBusiness"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {
+        "minMdeOnboardedPct": 100
+      },
+      "evidence": [
+        "def-01-devices.json",
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "facts.mdeOnboardedPct >= thresholds.minMdeOnboardedPct",
+      "affected": "facts.devicesNotOnboarded",
+      "remediation": "Onboard the listed devices: assign the Intune EDR policy with the Defender connector to every Windows, macOS and Linux device and check the devices that still report no sensor.",
+      "learn": "https://learn.microsoft.com/defender-endpoint/onboarding",
+      "deepLink": null,
+      "narrative": "Policy state said every device gets the EDR policy; this is the share that actually reports to Defender. The gap between the two is the finding the spec asks for. Joined on the Entra device id.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-020",
+      "domain": "endpoint",
+      "title": "Defender sensors healthy: none inactive or impaired over 7 days",
+      "severityDefault": "High",
+      "license": [
+        "MDE1",
+        "MDE2",
+        "MDEBusiness"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "def-01-devices.json"
+      ],
+      "pass": "facts.mdeSensorUnhealthy == 0",
+      "affected": "facts.mdeSensorUnhealthy",
+      "remediation": "Investigate each listed device: inactive usually means retired without offboarding, impaired means a proxy or firewall blocking the sensor.",
+      "learn": "https://learn.microsoft.com/defender-endpoint/fix-unhealthy-sensors",
+      "deepLink": null,
+      "narrative": "An onboarded device whose sensor is silent is unprotected and still counts as covered in every dashboard. Seven days is Microsoft's own inactive threshold.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-021",
+      "domain": "endpoint",
+      "title": "Defender Antivirus active on every device",
+      "severityDefault": "High",
+      "license": [
+        "MDE1",
+        "MDE2",
+        "MDEBusiness"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "def-02-av-state.json"
+      ],
+      "pass": "facts.avNotActive == 0",
+      "affected": "facts.avNotActive",
+      "remediation": "Put Defender Antivirus back in active mode on the listed devices; passive mode belongs only to a documented migration from another antivirus, with a dated plan recorded as an exception.",
+      "learn": "https://learn.microsoft.com/defender-endpoint/microsoft-defender-antivirus-compatibility",
+      "deepLink": null,
+      "narrative": "Passive mode means another product is the antivirus and Defender only observes. Disabled means nothing is. Both are invisible in policy state, which says the antivirus settings are configured.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-05",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-022",
+      "domain": "endpoint",
+      "title": "Attack surface reduction rules effective on the fleet",
+      "severityDefault": "High",
+      "license": [
+        "MDE2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {
+        "minEffectivePct": 95
+      },
+      "evidence": [
+        "def-03-secure-config.json"
+      ],
+      "pass": "facts.asrEffectiveBelowTarget == 0",
+      "affected": "facts.asrEffectiveBelowTarget",
+      "remediation": "For each listed rule, find the devices the assessment counts as non-compliant: a conflicting policy, a pending reboot, or the rule in audit on that device.",
+      "learn": "https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-deployment-operationalize",
+      "deepLink": null,
+      "narrative": "The policy check says the rules are set to block; the secure configuration assessment says which devices are actually enforcing each rule. Both views are in the report.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-023",
+      "domain": "endpoint",
+      "title": "Tamper protection and real-time protection effective on the fleet",
+      "severityDefault": "High",
+      "license": [
+        "MDE2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {
+        "minEffectivePct": 95
+      },
+      "evidence": [
+        "def-03-secure-config.json"
+      ],
+      "pass": "facts.defenderCoreBelowTarget == 0",
+      "affected": "facts.defenderCoreBelowTarget",
+      "remediation": "Find the devices the assessment counts as non-compliant for each listed control; local overrides and third-party antivirus are the usual causes.",
+      "learn": "https://learn.microsoft.com/defender-vulnerability-management/tvm-security-recommendation",
+      "deepLink": null,
+      "narrative": "Effective state for the controls that matter most: tamper protection, real-time protection, cloud-delivered protection, network protection, as the devices report them rather than as the policy says.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-024",
+      "domain": "endpoint",
+      "title": "No critical vulnerabilities open beyond 30 days",
+      "severityDefault": "High",
+      "license": [
+        "MDE2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "def-04-vulnerabilities-summary.json",
+        "def-04-vulnerabilities-top.json"
+      ],
+      "pass": "facts.criticalCvesOver30d == 0",
+      "remediation": "Patch or mitigate the critical CVEs published more than 30 days ago; the top list names the software and the device counts.",
+      "learn": "https://learn.microsoft.com/defender-vulnerability-management/tvm-weaknesses",
+      "deepLink": null,
+      "narrative": "Critical means a working exploit path. Thirty days after publication is past any reasonable patch cycle. Defender Vulnerability Management counts them per device; the summary counts distinct CVEs and devices.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-01",
+        "iso27001": "A.8.8",
+        "cmmc": "SI.L1-3.14.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EP-025",
+      "domain": "endpoint",
+      "title": "No Defender incidents open beyond 7 days without an owner",
+      "severityDefault": "Medium",
+      "license": [
+        "E5",
+        "MDE2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "siem:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "def-05-incidents-summary.json",
+        "def-05-incidents.json"
+      ],
+      "pass": "facts.incidentsOpenOver7DaysUnassigned == 0",
+      "remediation": "Assign every active incident to an analyst and close or classify the old ones; set an alert tuning rule for the recurring false positives.",
+      "learn": "https://learn.microsoft.com/defender-xdr/manage-incidents",
+      "deepLink": null,
+      "narrative": "An unassigned incident older than a week is one nobody is working. It says more about the operation than any single detection.",
+      "frameworks": {
+        "nist-csf-2": "RS.MA-01",
+        "iso27001": "A.5.26",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

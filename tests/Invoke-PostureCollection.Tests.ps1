@@ -8,7 +8,7 @@ BeforeAll {
     $env:TKP_TEST_PIM = 'ok'
 
     Mock -ModuleName Tenantkeep.Posture Get-MgContext {
-        [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'User.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskEvent.Read.All') }
+        [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'User.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskEvent.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All') }
     }
     Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
     Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
@@ -98,6 +98,22 @@ BeforeAll {
             '^identityGovernance/lifecycleWorkflows/workflows' { & $u @(@{ id = 'wf1'; displayName = 'Leaver'; category = 'leaver'; isEnabled = $true; isSchedulingEnabled = $true }, @{ id = 'wf2'; displayName = 'Joiner draft'; category = 'joiner'; isEnabled = $false; isSchedulingEnabled = $false }); break }
             '^identityGovernance/privilegedAccess/group/eligibilitySchedules' { & $u @(@{ id = 'es1'; groupId = 'grp-admins'; accessId = 'member'; principalId = 'u1'; status = 'Provisioned'; memberType = 'Direct' }); break }
             '^directory/administrativeUnits' { & $u @(); break }
+            '^security/runHuntingQuery$' {
+                $q = [string](ConvertFrom-Json $Body).Query
+                $hex = $(if ($q -match "startswith '([0-9a-f])'") { $Matches[1] } else { '' })
+                switch -Regex ($q) {
+                    '^DeviceInfo' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Active'; ExposureLevel = 'Medium'; AadDeviceId = 'dev-1'; Timestamp = '2026-10-13T00:00:00Z' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Inactive'; ExposureLevel = 'High'; AadDeviceId = 'dev-2'; Timestamp = '2026-10-01T00:00:00Z' }) } } else { @{ results = @() } }; break }
+                    '^DeviceTvmInfoGathering' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; AvMode = '0'; AvIsSignatureUpToDate = 'true' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; AvMode = '1'; AvIsSignatureUpToDate = 'false' }) } } else { @{ results = @() } }; break }
+                    '^DeviceTvmSecureConfigurationAssessment' { @{ results = @(@{ ConfigurationId = 'scid-1'; ConfigurationName = 'Block executable content from email client and webmail'; ConfigurationCategory = 'Security controls'; ConfigurationSubcategory = 'Attack Surface Reduction'; ConfigurationImpact = 8; Devices = 2; Compliant = 1 }, @{ ConfigurationId = 'scid-2'; ConfigurationName = 'Turn on Tamper Protection'; ConfigurationCategory = 'Security controls'; ConfigurationSubcategory = 'Antivirus'; ConfigurationImpact = 9; Devices = 2; Compliant = 2 }) }; break }
+                    '^DeviceTvmSoftwareVulnerabilities.*summarize Devices = dcount\(DeviceId\), Cves' { @{ results = @(@{ Devices = 1; Cves = 2; CvesOver30d = 1; DevicesOver30d = 1 }) }; break }
+                    '^DeviceTvmSoftwareVulnerabilities' { @{ results = @(@{ CveId = 'CVE-2026-0001'; SoftwareName = 'Reader'; SoftwareVendor = 'Vendor'; CvssScore = 9.8; PublishedDate = '2026-08-01T00:00:00Z'; Devices = 1 }) }; break }
+                    default { throw "No hunting answer for $q" }
+                }
+                break
+            }
+            '^security/incidents' { & $u @(@{ id = 'i1'; displayName = 'Suspicious sign-in'; severity = 'medium'; status = 'active'; assignedTo = $null; createdDateTime = '2026-09-20T00:00:00Z' }, @{ id = 'i2'; displayName = 'Malware'; severity = 'high'; status = 'active'; assignedTo = 'soc@contoso.example'; createdDateTime = '2026-09-01T00:00:00Z' }); break }
+            '^security/secureScores' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-13T00:00:00Z'; currentScore = 412.5; maxScore = 900; licensedUserCount = 12; activeUserCount = 10; averageComparativeScores = @(@{ basis = 'AllTenants'; averageScore = 390 }); controlScores = @(@{ controlCategory = 'Identity'; score = 200 }, @{ controlCategory = 'Device'; score = 100 }, @{ controlCategory = 'Identity'; score = 12.5 }) }); break }
+            '^security/secureScoreControlProfiles' { & $u @(@{ id = 'MFARegistrationV2'; title = 'Ensure all users can complete MFA'; controlCategory = 'Identity'; maxScore = 9; implementationCost = 'Low'; userImpact = 'Low'; actionType = 'Config'; tier = 'Core'; rank = 1; deprecated = $false; controlStateUpdates = @(@{ state = 'Default' }, @{ state = 'ThirdParty' }); remediation = 'Register everyone.' }, @{ id = 'Old'; title = 'Retired'; deprecated = $true; controlStateUpdates = @() }); break }
             '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
             '^groups\?\$filter=groupTypes' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; createdDateTime = '2024-01-01T00:00:00Z'; visibility = 'Private'; owners = @(@{ id = 'u1' }) }, @{ id = 'grp9'; displayName = 'Orphaned Project'; createdDateTime = '2023-05-01T00:00:00Z'; visibility = 'Private'; owners = @() }); break }
             '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }); break }
@@ -192,7 +208,7 @@ Describe 'Invoke-PostureCollection' {
             foreach ($f in '01-subscribed-skus', '04-role-assignments-active', '05-auth-registration', '06-users', '07-groups', '10-app-registrations', '10-service-principals') {
                 Join-Path $script:R.Folder "$f.csv" | Should -Exist
             }
-            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune')
+            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune', 'Defender')
             foreach ($f in '09-intune-managed-devices', '09-intune-summary-compliance', '09-intune-summary-windows-builds', '09-autopilot-devices', '09-intune-compliance-policies', '09-intune-config-profiles-templates', '09-intune-config-profiles-settings-catalog', '09-intune-apps', '09-apple-push-cert', '09-apple-vpp-tokens', '09-intune-enrollment-restrictions', '09-intune-mde-connector', '09-intune-device-cleanup', '08-bitlocker-keys-by-device', '08-bitlocker-keys-summary') {
                 Join-Path $script:R.Folder "$f.json" | Should -Exist
             }
@@ -236,7 +252,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the endpoint checks from the same folder' {
             $profilePath = Join-Path $script:Root 'endpoint-profile.json'
-            '{ "version": 1, "identityModel": "cloud-only", "platforms": ["windows", "macOS", "iOS"], "byod": "mam", "licenses": ["BusinessPremium", "Intune", "MDEBusiness"] }' | Set-Content -LiteralPath $profilePath
+            '{ "version": 1, "identityModel": "cloud-only", "platforms": ["windows", "macOS", "iOS"], "byod": "mam", "licenses": ["BusinessPremium", "Intune", "MDEBusiness", "MDE2", "E5"] }' | Set-Content -LiteralPath $profilePath
             $run = Invoke-PostureChecks -Evidence $script:R.Folder -Domain endpoint -ProfilePath $profilePath -OutputPath (Join-Path $script:Root 'endpoint-checks') -PassThru
             $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
             $by['EP-002'].status | Should -Be 'fail' -Because $by['EP-002'].reason
@@ -250,6 +266,13 @@ Describe 'Invoke-PostureCollection' {
             $by['EP-013'].status | Should -Be 'notApplicable' -Because 'the fixture profile is cloud-only'
             $by['EP-014'].status | Should -Be 'pass'
             $by['EP-015'].status | Should -Be 'fail' -Because 'macOS is in scope and no FileVault policy exists'
+            $by['EP-019'].status | Should -Be 'fail' -Because 'MAC-1 has no onboarded Defender record'
+            $by['EP-020'].status | Should -Be 'fail' -Because 'OLD-PC sensor is inactive'
+            $by['EP-021'].status | Should -Be 'fail' -Because 'OLD-PC is in passive mode'
+            $by['EP-022'].status | Should -Be 'fail' -Because 'the ASR rule is at 50%'
+            $by['EP-023'].status | Should -Be 'pass'
+            $by['EP-024'].status | Should -Be 'fail'
+            $by['EP-025'].status | Should -Be 'fail'
             $by['EP-018'].status | Should -Be 'pass' -Because 'iOS has an assigned app protection policy and jailbreak detection; Android is out of scope'
         }
 
@@ -276,6 +299,23 @@ Describe 'Invoke-PostureCollection' {
             $by['GV-009'].status | Should -Be 'pass' -Because 'under the scale threshold'
             $by['GV-010'].status | Should -Be 'fail' -Because 'the listed enterprise app has no owners'
             $by['GV-010'].affectedCount | Should -Be 1
+        }
+
+        It 'collects Defender effective state: sharded hunting answers, incidents and Secure Score' {
+            $script:Result = $script:R
+            $d = @(& $script:Read 'def-01-devices')
+            $d.Count | Should -Be 2
+            (& $script:Read 'def-01-devices-summary').Onboarded | Should -Be 2
+            (& $script:Read 'def-02-av-state-summary').SignatureOutOfDate | Should -Be 1
+            @(& $script:Read 'def-03-secure-config' | Where-Object { $_.ConfigurationId -eq 'scid-1' })[0].CompliantPct | Should -Be 50
+            (& $script:Read 'def-04-vulnerabilities-summary').CriticalCvesOver30d | Should -Be 1
+            (& $script:Read 'def-05-incidents-summary').OpenOver7DaysUnassigned | Should -Be 1
+            $ss = & $script:Read 'def-06-secure-score'
+            $ss.CurrentScore | Should -Be 412.5
+            $ss.ByCategory.Identity | Should -Be 212.5
+            @(& $script:Read 'def-06-secure-score-controls').Count | Should -Be 1 -Because 'deprecated profiles are left out'
+            @(& $script:Read 'def-06-secure-score-controls')[0].State | Should -Be 'ThirdParty' -Because 'the latest state update wins'
+            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 32 -Exactly -Scope Context -ParameterFilter { $Uri -like '*runHuntingQuery' -and $Method -eq 'POST' -and ([string]$Body -match 'DeviceInfo|DeviceTvmInfoGathering') } -Because 'two device tables, sixteen shards each'
         }
 
         It 'records the verified domains with their authentication type' {
@@ -380,7 +420,7 @@ Describe 'Invoke-PostureCollection' {
         It 'writes collection.json with tenant, scopes, api versions and the file list, and keeps the CA metadata separate' {
             $m = & $script:Read 'collection'
             $m.tenantId | Should -Be 'tenant-guid'
-            $m.collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune')
+            $m.collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune', 'Defender')
             $m.graphApiVersions | Should -Be @('beta', 'v1.0') -Because 'the per-user MFA batch is the one beta call'
             $m.files | Should -Contain '06-users.csv'
             $m.errorCount | Should -Be 1

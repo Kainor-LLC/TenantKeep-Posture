@@ -11,7 +11,8 @@ function Get-PostureEndpointFact {
         setting definition ids, which are self-describing. The ids and choice values used here are from the settings
         catalog as documented; each is tagged (verify) in the code until a live run confirms it. Effective state from
         Defender (what devices actually do) is a later collector; the gap between the two is the finding the spec
-        asks for. Thresholds read: maxAsrRulesAudit, minOfficeMacroApps, maxQualityUpdateDeadlineDays.
+        asks for. Thresholds read: maxAsrRulesAudit, minOfficeMacroApps, maxQualityUpdateDeadlineDays, minEffectivePct,
+        minMdeOnboardedPct. The def-* files from the Defender collector carry the effective state.
         Profile read: platforms, identityModel, byod.
     #>
     [CmdletBinding()]
@@ -23,7 +24,7 @@ function Get-PostureEndpointFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxAsrRulesAudit = 0; minOfficeMacroApps = 3; maxQualityUpdateDeadlineDays = 7 }
+    $t = @{ maxAsrRulesAudit = 0; minOfficeMacroApps = 3; maxQualityUpdateDeadlineDays = 7; minEffectivePct = 95; minMdeOnboardedPct = 100 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     $load = {
         param([string] $Name)
@@ -169,6 +170,71 @@ function Get-PostureEndpointFact {
         $facts.updateFeatureDeadlineSet = @($rings | Where-Object { [string]$_.Setting -eq 'deadlineForFeatureUpdatesInDays' -and $null -ne $_.Value }).Count -gt 0
         $facts.featureUpdateProfileAssigned = [bool]($null -ne $feature -and @(& $rows $feature | Where-Object { [int]$_.Assignments -gt 0 }).Count -gt 0)
     }
+
+    # ---------- Defender effective state (spec 4.11, the other half): what devices are doing, from advanced hunting ----------
+    $defMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Defender; needs ThreatHunting.Read.All and Defender for Endpoint)." } }
+    $def = & $load 'def-01-devices'
+    if ($null -eq $def) { & $defMissing @('EP-019', 'EP-020') 'def-01-devices' }
+    else {
+        $d = @(& $rows $def)
+        $onboarded = @($d | Where-Object { [string]$_.OnboardingStatus -eq 'Onboarded' })
+        $facts.mdeDevices = $d.Count
+        $facts.mdeOnboarded = $onboarded.Count
+        # Onboarding coverage against the Intune fleet: an Intune device with no onboarded Defender record is the gap. (verify) the join key AadDeviceId = azureADDeviceId
+        $managed = & $load '09-intune-managed-devices'
+        if ($null -ne $managed) {
+            $byAad = @{}; foreach ($x in $onboarded) { $k = [string]$x.AadDeviceId; if ($k) { $byAad[$k.ToLowerInvariant()] = $true } }
+            $fleet = @(& $rows $managed | Where-Object { [string]$_.OperatingSystem -in @('Windows', 'macOS', 'Linux') })
+            $notOnboarded = @($fleet | Where-Object { -not ($_.AzureAdDeviceId -and $byAad.ContainsKey(([string]$_.AzureAdDeviceId).ToLowerInvariant())) })
+            $facts.mdeFleet = $fleet.Count
+            $facts.mdeOnboardedPct = $(if ($fleet.Count -gt 0) { [Math]::Round(100.0 * ($fleet.Count - $notOnboarded.Count) / $fleet.Count, 1) } else { $null })
+            $affected.devicesNotOnboarded = @($notOnboarded | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "$($_.OperatingSystem), Intune-managed, no onboarded Defender record" } })
+            if ($null -eq $facts.mdeOnboardedPct) { $notEvaluated['EP-019'] = 'No Intune-managed Windows, macOS or Linux devices to compare against.' }
+        }
+        else { $notEvaluated['EP-019'] = '09-intune-managed-devices.json was not collected; the fleet to compare against is unknown.' }
+        $unhealthy = @($onboarded | Where-Object { [string]$_.SensorHealthState -in @('Inactive', 'ImpairedCommunication', 'NoSensorData') })
+        $facts.mdeSensorUnhealthy = $unhealthy.Count
+        $affected.mdeSensorUnhealthy = @($unhealthy | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "$($_.OSPlatform), sensor $($_.SensorHealthState), last seen $([string]$_.LastSeen)" } })
+    }
+
+    $av = & $load 'def-02-av-state'
+    if ($null -eq $av) { & $defMissing @('EP-021') 'def-02-av-state' }
+    else {
+        # (verify) AvMode: 0 active, 1 passive, 2 disabled, 4 EDR block mode
+        $a = @(& $rows $av)
+        $notActive = @($a | Where-Object { [string]$_.AvMode -ne '0' -and [string]$_.AvMode -ne '' })
+        $facts.avDevicesReporting = $a.Count
+        $facts.avNotActive = $notActive.Count
+        $affected.avNotActive = @($notActive | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "antivirus mode $($_.AvMode) ($(switch ([string]$_.AvMode) { '1' { 'passive' } '2' { 'disabled' } '4' { 'EDR block mode' } default { 'unknown' } }))" } })
+        $facts.avSignatureOutOfDate = @($a | Where-Object { [string]$_.AvIsSignatureUpToDate -eq 'false' }).Count
+    }
+
+    $cfg = & $load 'def-03-secure-config'
+    if ($null -eq $cfg) { & $defMissing @('EP-022', 'EP-023') 'def-03-secure-config' }
+    else {
+        $c = @(& $rows $cfg | Where-Object { $null -ne $_.CompliantPct })
+        # (verify) subcategory and configuration names as the KB table spells them
+        $asr = @($c | Where-Object { [string]$_.Subcategory -match '(?i)attack surface reduction' -or [string]$_.ConfigurationName -match '(?i)^Block .*|ASR' })
+        $facts.asrEffectiveConfigs = $asr.Count
+        $asrBelow = @($asr | Where-Object { [double]$_.CompliantPct -lt [double]$t.minEffectivePct })
+        $facts.asrEffectiveBelowTarget = $asrBelow.Count
+        $affected.asrEffectiveBelowTarget = @($asrBelow | ForEach-Object { [ordered]@{ name = [string]$_.ConfigurationName; detail = "$($_.Compliant) of $($_.Devices) devices compliant ($($_.CompliantPct)%)" } })
+        $core = @($c | Where-Object { [string]$_.ConfigurationName -match '(?i)tamper protection|real-time protection|cloud-delivered protection|network protection' })
+        $facts.defenderCoreConfigs = $core.Count
+        $coreBelow = @($core | Where-Object { [double]$_.CompliantPct -lt [double]$t.minEffectivePct })
+        $facts.defenderCoreBelowTarget = $coreBelow.Count
+        $affected.defenderCoreBelowTarget = @($coreBelow | ForEach-Object { [ordered]@{ name = [string]$_.ConfigurationName; detail = "$($_.Compliant) of $($_.Devices) devices compliant ($($_.CompliantPct)%)" } })
+        if ($asr.Count -eq 0) { $notEvaluated['EP-022'] = 'No attack surface reduction configurations in the assessment (none applicable, or the names changed).' }
+        if ($core.Count -eq 0) { $notEvaluated['EP-023'] = 'No tamper protection or real-time protection configurations in the assessment.' }
+    }
+
+    $vul = & $load 'def-04-vulnerabilities-summary'
+    if ($null -eq $vul) { & $defMissing @('EP-024') 'def-04-vulnerabilities-summary' }
+    else { $facts.criticalCves = [int](& $v $vul 'CriticalCves'); $facts.criticalCvesOver30d = [int](& $v $vul 'CriticalCvesOver30d'); $facts.devicesWithCriticalCvesOver30d = [int](& $v $vul 'DevicesWithCriticalCvesOver30d') }
+
+    $inc = & $load 'def-05-incidents-summary'
+    if ($null -eq $inc) { & $defMissing @('EP-025') 'def-05-incidents-summary' }
+    else { $facts.incidentsActive = [int](& $v $inc 'Active'); $facts.incidentsOpenOver7Days = [int](& $v $inc 'OpenOver7Days'); $facts.incidentsOpenOver7DaysUnassigned = [int](& $v $inc 'OpenOver7DaysUnassigned') }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('09-intune-config-profiles-settings-catalog.json', '09-intune-policy-settings.json') }
 }
