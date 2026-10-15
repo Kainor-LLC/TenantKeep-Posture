@@ -25,6 +25,10 @@ function New-PostureProfile {
         Ask nothing; write parameters over existing values over defaults.
     .PARAMETER TenantId
         The tenant this profile belongs to. Invoke-PostureCollection -ProfilePath refuses a session in any other tenant; -FromGraph records the signed-in one.
+    .PARAMETER BreakGlassTestedUtc
+        When the break-glass accounts were last signed in and verified (operations answer; OP-003).
+    .PARAMETER MessageCenterOwner
+        Who reads the Microsoft 365 Message Center and turns changes into tickets (operations answer; OP-004).
     .PARAMETER SharePointClientId
         Application (client) id of the Entra app the SharePoint and Teams collector signs in with; deploy/setup/New-PostureSharePointApp.ps1 writes it.
     .PARAMETER Force
@@ -69,6 +73,8 @@ function New-PostureProfile {
         [ValidateSet('one-off', 'monthly', 'quarterly')] [string] $Cadence,
         [string] $ClientName,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $TenantId,
+        [datetime] $BreakGlassTestedUtc,
+        [string] $MessageCenterOwner,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $SharePointClientId,
         [switch] $Force,
         [switch] $PassThru
@@ -93,6 +99,7 @@ function New-PostureProfile {
         audience              = 'technical'
         cadence               = 'quarterly'
         breakGlass            = @()
+        operations            = [ordered]@{ breakGlassTestedUtc = $null; messageCenterOwner = $null }
         sharePointClientId    = $null
     }
 
@@ -122,6 +129,8 @@ function New-PostureProfile {
     if ($PSBoundParameters.ContainsKey('Frameworks')) { $defaults.frameworks = @($Frameworks | Where-Object { $_ -ne 'none' }) }
     if ($Thresholds) { foreach ($k in $Thresholds.Keys) { $defaults.thresholds[[string]$k] = $Thresholds[$k] } }
     if ($PSBoundParameters.ContainsKey('BreakGlass')) { $defaults.breakGlass = @($BreakGlass) }
+    if ($PSBoundParameters.ContainsKey('BreakGlassTestedUtc')) { $defaults.operations.breakGlassTestedUtc = $BreakGlassTestedUtc.ToUniversalTime().ToString('o') }
+    if ($PSBoundParameters.ContainsKey('MessageCenterOwner')) { $defaults.operations.messageCenterOwner = $MessageCenterOwner }
     if ($SharePointClientId) { $defaults.sharePointClientId = $SharePointClientId }
     if ($Audience) { $defaults.audience = $Audience }
     if ($Cadence) { $defaults.cadence = $Cadence }
@@ -175,6 +184,10 @@ function New-PostureProfile {
             $answers.thresholds[$t] = $(if ($t -eq 'namePattern') { $(if ($v) { [string]$v } else { $null }) } else { [int]$v })
         }
         $answers.breakGlass = @(& $ask 'Break-glass account UPNs?' 'Exclusion checks then know which accounts are supposed to be excluded.' @() $answers.breakGlass $true)
+        $testedAnswer = & $ask 'When were the break-glass accounts last tested (date, or blank)?' 'Sign in with each, confirm the exclusions and the alert; OP-003 wants it within six months.' @() $answers.operations.breakGlassTestedUtc $false
+        $parsed = [datetime]::MinValue
+        $answers.operations.breakGlassTestedUtc = $(if ($testedAnswer -and [datetime]::TryParse([string]$testedAnswer, [ref]$parsed)) { $parsed.ToUniversalTime().ToString('o') } else { if ($testedAnswer) { Write-Warning "Not a date: $testedAnswer; left blank." }; $null })
+        $answers.operations.messageCenterOwner = & $ask 'Message Center triage owner (person or team, or blank)?' 'OP-004: who turns Microsoft 365 changes and retirements into tickets.' @() $answers.operations.messageCenterOwner $false
         $answers.audience = & $ask 'Primary audience?' 'executive: the 12-page view. technical: everything. auditor: crosswalk first.' @('executive', 'technical', 'auditor') $answers.audience $false
         $answers.cadence = & $ask 'Report cadence?' 'Sets the trend window and the "what changed" scope.' @('one-off', 'monthly', 'quarterly') $answers.cadence $false
     }

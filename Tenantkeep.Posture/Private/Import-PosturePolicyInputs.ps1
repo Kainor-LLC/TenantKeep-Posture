@@ -56,6 +56,7 @@ function Import-PostureProfile {
         cadence               = $null
         tenantId              = $null
         sharePointClientId    = $null
+        operations            = @{}
         path                  = $null
     }
     if (-not $Path) { return $model }

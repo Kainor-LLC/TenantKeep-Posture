@@ -24,8 +24,8 @@ New-PostureProfile -Path ./clients/contoso/profile.json -Evidence $folder
 | `copilot` | 01-subscribed-skus, 06-users-summary | seats consumed at half the members means deployed; any means pilot |
 | `tenantId`, `clientName` | collection, 01-organization | |
 
-Asked: third-party controls, thresholds, break-glass accounts, frameworks, audience, cadence, and `azure` until the
-Azure collector exists. Every discovered value is printed with its file and rule, a parameter always wins, and
+Asked: third-party controls, thresholds, break-glass accounts and when they were last tested, the Message Center
+owner, frameworks, audience, cadence, and `azure` until the Azure collector exists. Every discovered value is printed with its file and rule, a parameter always wins, and
 `-AskAll` asks the discovered questions too with the discovered values as defaults. The written profile carries a
 `discovery` block with the evidence folder, the keys discovered and the sources, so a reviewer can see what was
 measured and what was answered.
@@ -56,6 +56,7 @@ measured and what was answered.
   "audience": "technical",
   "cadence": "quarterly",
   "breakGlass": ["breakglass01@contoso.example", "breakglass02@contoso.example"],
+  "operations": { "breakGlassTestedUtc": "2026-09-01T00:00:00Z", "messageCenterOwner": "IT operations team" },
   "licensesSource": "evidence:/Users/me/audit/evidence/20261014-1448",
   "discovery": { "evidence": "...", "timestampUtc": "...", "keys": ["licenses", "platforms", "identityModel", "byod", "externalCollaboration", "copilot", "tenantId", "clientName"], "sources": { "platforms": "..." } },
   "createdUtc": "2026-10-14T04:30:00Z",

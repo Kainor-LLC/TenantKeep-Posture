@@ -31,7 +31,7 @@ Describe 'New-PostureReport' {
 
         It 'writes checks.json, report.html and report.md' {
             @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.html', 'report.md')
-            (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 124
+            (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be 131
         }
 
         It 'scores with the stated method and grades it' {
@@ -53,7 +53,7 @@ Describe 'New-PostureReport' {
         }
 
         It 'has one scorecard per collected domain and names the rest' {
-            @($script:Rep.domains | ForEach-Object { $_.key }) | Should -Be @('identity', 'auth', 'ca', 'governance') -Because 'governance evaluates partly from the identity evidence'
+            @($script:Rep.domains | ForEach-Object { $_.key }) | Should -Be @('identity', 'auth', 'ca', 'governance', 'operations') -Because 'governance and operations evaluate partly from the identity evidence'
             ($script:Rep.domains | Where-Object key -eq 'ca').checks[0].status | Should -Be 'fail' -Because 'failures sort first'
             $script:Rep.domainsNotCollected.label | Should -Contain 'Devices'
             $script:Md | Should -Match '### Identity and privileged access'
@@ -111,7 +111,7 @@ Describe 'New-PostureReport' {
             $script:Html | Should -Not -Match '<script[^>]*src='
             $script:Html | Should -Match "default-src 'none'"
             $results = [regex]::Match($script:Html, '<script type="application/json" id="data-results">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
-            $results.Count | Should -Be 124
+            $results.Count | Should -Be 131
             $catalog = [regex]::Match($script:Html, '<script type="application/json" id="data-catalog">(.*?)</script>').Groups[1].Value | ConvertFrom-Json
             $catalog.'CA-002'.remediation | Should -Not -BeNullOrEmpty
         }

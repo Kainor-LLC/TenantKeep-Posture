@@ -179,7 +179,7 @@ Describe 'New-PostureProfile' {
             $p.thresholds.namePattern | Should -Be '^CA-'
             $p.thresholds.staleDeviceDays | Should -Be 90
             $p.breakGlass | Should -Be @('bg@fabrikam.example')
-            Should -Invoke -ModuleName Tenantkeep.Posture Read-PostureAnswer -Times 26 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, audience, cadence'
+            Should -Invoke -ModuleName Tenantkeep.Posture Read-PostureAnswer -Times 28 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence'
         }
 
         It 'asks before overwriting and respects no' {
