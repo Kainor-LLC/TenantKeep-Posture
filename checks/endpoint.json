@@ -602,10 +602,6 @@
         "platforms": [
           "iOS",
           "android"
-        ],
-        "byod": [
-          "mam",
-          "mdm"
         ]
       },
       "coveredBy": [
@@ -621,7 +617,7 @@
       "remediation": "Assign an app protection policy for each mobile platform in scope and a compliance policy that blocks jailbroken or rooted devices.",
       "learn": "https://learn.microsoft.com/mem/intune/apps/app-protection-policy",
       "deepLink": null,
-      "narrative": "App protection is what keeps company data inside managed apps on a phone the company does not own. Jailbreak detection is the compliance signal Conditional Access needs for the corporate ones.",
+      "narrative": "App protection is what keeps company data inside managed apps on a phone the company does not own. Jailbreak detection is the compliance signal Conditional Access needs for the corporate ones. The check applies whenever a mobile platform is in scope, whatever the stated BYOD stance: phones reach mail either way.",
       "frameworks": {
         "nist-csf-2": "PR.DS-01",
         "iso27001": "A.8.1",

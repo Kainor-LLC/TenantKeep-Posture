@@ -62,7 +62,9 @@ Describe 'Get-PostureCaFact on the sample snapshot' {
             $script:F.affected.adminRolesWithoutPhishingResistant.name | Should -Not -Contain 'Global Administrator'
             @($script:F.affected.blockPoliciesMissingBreakGlass.name | Sort-Object) | Should -Be @('Block legacy authentication', 'CA-007-Users-Register security info from trusted locations')
             $script:F.affected.trustedLocationMfaBypass[0].detail | Should -Match 'All trusted locations'
-            $script:F.notEvaluated['CA-015'] | Should -Match 'No naming pattern'
+            $script:F.notEvaluated.ContainsKey('CA-015') | Should -BeFalse -Because 'without a pattern the names themselves are judged'
+            $script:F.facts.namingConventionDetected | Should -BeFalse -Because 'six of eight sample names are structured, below eight in ten'
+            $script:F.facts.namingNonConforming | Should -Be 2
         }
     }
 
@@ -118,7 +120,7 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         @{ Id = 'CA-012'; Status = 'fail' }
         @{ Id = 'CA-013'; Status = 'fail' }
         @{ Id = 'CA-014'; Status = 'fail' }
-        @{ Id = 'CA-015'; Status = 'notEvaluated' }
+        @{ Id = 'CA-015'; Status = 'fail' }
     ) {
         $script:By[$Id].status | Should -Be $Status
     }
@@ -127,7 +129,7 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         $script:By['CA-007'].affectedCount | Should -Be 1
         $script:By['CA-007'].affected[0].name | Should -Be 'CA-Exclude-MFA-Legacy'
         $script:By['CA-003'].affectedCount | Should -Be 11
-        $script:By['CA-015'].reason | Should -Match 'No naming pattern'
+        $script:By['CA-015'].affectedCount | Should -Be 2
         $script:By['CA-001'].evidence | Should -Contain 'group-scope.json'
     }
 

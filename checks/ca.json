@@ -6,267 +6,432 @@
       "domain": "ca",
       "title": "Legacy authentication blocked",
       "severityDefault": "Critical",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": { "maxExclusionGroupMembers": 25 },
-      "evidence": ["policies.json", "group-scope.json"],
+      "thresholds": {
+        "maxExclusionGroupMembers": 25
+      },
+      "evidence": [
+        "policies.json",
+        "group-scope.json"
+      ],
       "pass": "facts.legacyAuthBlockPolicies >= 1",
       "affected": "facts.legacyAuthBroadExclusions",
       "remediation": "Create an enabled policy for all users and all cloud apps with client app types Exchange ActiveSync clients and Other clients, grant control Block. Exclude only the break-glass accounts. Check the sign-in logs for legacy protocol use first and move those accounts or devices to modern authentication.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-block-legacy-authentication",
       "deepLink": null,
       "narrative": "Legacy protocols such as basic-auth IMAP, POP and SMTP cannot complete a multifactor prompt, so a password spray or a stolen password signs in without any second factor. Blocking them is the single control that removes most password-only sign-ins from the tenant. A policy in report-only mode or with a broad exclusion group leaves the door open for exactly the accounts an attacker will try.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.5", "cmmc": "IA.L2-3.5.3", "cisa-scuba": "MS.AAD.1.1v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.AAD.1.1v1"
+      }
     },
     {
       "id": "CA-002",
       "domain": "ca",
       "title": "MFA required for all users",
       "severityDefault": "Critical",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
-      "coveredBy": ["mfa:*"],
+      "coveredBy": [
+        "mfa:*"
+      ],
       "thresholds": {},
-      "evidence": ["policies.json", "auth-strengths.json"],
+      "evidence": [
+        "policies.json",
+        "auth-strengths.json"
+      ],
       "pass": "facts.mfaAllUsersPolicies >= 1",
       "affected": "facts.mfaAllUsersWithExtraExclusions",
       "remediation": "Create an enabled policy for all users and all cloud apps that requires multifactor authentication or an authentication strength. Exclude only the break-glass accounts. Move service accounts to workload identities or managed identities instead of excluding them, and move any legacy exclusion group into a scoped policy with an end date.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-mfa-strength",
       "deepLink": null,
       "narrative": "A tenant-wide MFA policy is the baseline every other control assumes. Per-user MFA and security defaults cover fewer scenarios and cannot be scoped or reported on. Every account excluded from the policy is an account that signs in with a password alone, which is why the check counts a policy as passing only when its exclusions are limited to the break-glass accounts.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.5", "cmmc": "IA.L2-3.5.3", "cisa-scuba": "MS.AAD.3.2v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.AAD.3.2v1"
+      }
     },
     {
       "id": "CA-003",
       "domain": "ca",
       "title": "Phishing-resistant authentication for administrator roles",
       "severityDefault": "Critical",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json", "auth-strengths.json", "resolved-names.json"],
+      "evidence": [
+        "policies.json",
+        "auth-strengths.json",
+        "resolved-names.json"
+      ],
       "pass": "facts.adminRolesPhishingResistant >= facts.adminRolesTotal",
       "affected": "facts.adminRolesWithoutPhishingResistant",
       "remediation": "Create an enabled policy that targets the privileged directory roles for all cloud apps and grants access only with the built-in Phishing-resistant MFA authentication strength. Issue passkeys or FIDO2 keys to every administrator before enforcing, and keep the break-glass accounts on a separate policy with the same strength.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-admin-phish-resistant-mfa",
       "deepLink": null,
       "narrative": "Push notifications and one-time codes can be relayed by an adversary-in-the-middle kit, which captures the session as soon as the administrator approves. Phishing-resistant methods bind the credential to the site, so the relayed prompt fails. Administrators are the accounts those kits are aimed at, and the roles listed here are the ones Microsoft recommends protecting first.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.2", "cmmc": "IA.L2-3.5.3", "cisa-scuba": "MS.AAD.3.1v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.2",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.AAD.3.1v1"
+      }
     },
     {
       "id": "CA-004",
       "domain": "ca",
       "title": "Risk-based policies for sign-in risk and user risk",
       "severityDefault": "High",
-      "license": ["P2"],
+      "license": [
+        "P2"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json"],
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.signInRiskPolicies >= 1 && facts.userRiskPolicies >= 1",
       "remediation": "Create two enabled policies for all users and all cloud apps: one for medium and high sign-in risk that requires multifactor authentication, one for high user risk that requires multifactor authentication and a secure password change. Exclude the break-glass accounts. Watch the Identity Protection reports for a week in report-only mode first.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-risk-based-sign-in",
       "deepLink": null,
       "narrative": "Identity Protection scores sign-ins and users on leaked credentials, anonymous networks, impossible travel and attacker infrastructure. Without a policy that acts on the score, the detections are a report nobody reads until after the incident. Requiring MFA on risky sign-ins and a password change on risky users turns the detection into an automatic response.",
-      "frameworks": { "nist-csf-2": "DE.CM-03", "iso27001": "A.8.16", "cmmc": "SI.L2-3.14.6", "cisa-scuba": "MS.AAD.2.1v1" }
+      "frameworks": {
+        "nist-csf-2": "DE.CM-03",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": "MS.AAD.2.1v1"
+      }
     },
     {
       "id": "CA-005",
       "domain": "ca",
       "title": "Compliant device required for Office 365 on Windows and macOS",
       "severityDefault": "High",
-      "license": ["P1", "Intune"],
-      "applicableWhen": { "platforms": ["windows", "macOS"] },
+      "license": [
+        "P1",
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows",
+          "macOS"
+        ]
+      },
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json"],
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.devicePlatformsWithCompliance >= facts.devicePlatformsRequired",
       "affected": "facts.devicePlatformsWithoutCompliance",
       "remediation": "Create an enabled policy for all users targeting Office 365 on the Windows and macOS platforms that grants access only from a compliant device. Confirm the Intune compliance policies and the Entra device registration state first, and pilot with a group before all users.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-device-compliance",
       "deepLink": null,
       "narrative": "A stolen password with a valid MFA approval still lands on whatever machine the attacker chooses. Requiring a compliant device ties access to a managed, patched, encrypted endpoint with endpoint protection reporting in, which is the control that keeps session theft and credential phishing from turning into data access.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.8.1", "cmmc": "AC.L2-3.1.1", "cisa-scuba": "MS.AAD.3.7v1" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": "MS.AAD.3.7v1"
+      }
     },
     {
       "id": "CA-006",
       "domain": "ca",
       "title": "No policy left in report-only mode",
       "severityDefault": "Medium",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": { "reportOnlyMaxDays": 90 },
-      "evidence": ["policies.json"],
+      "thresholds": {
+        "reportOnlyMaxDays": 90
+      },
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.reportOnlyOverThreshold == 0",
       "affected": "facts.reportOnlyOverThreshold",
       "remediation": "For each policy listed, review the report-only results in the sign-in logs and the Conditional Access insights workbook, then either enable the policy or delete it. A policy that cannot be enabled after a quarter is a design problem, not a monitoring one.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-conditional-access-report-only",
       "deepLink": null,
       "narrative": "Report-only mode exists to measure impact before enforcing. A policy that stays in it for months protects nothing while looking like a control on the policy list. The pileup is a common finding in tenants where a rollout stalled, and it usually hides the policies that would matter most.",
-      "frameworks": { "nist-csf-2": "GV.PO-01", "iso27001": "A.5.1", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-007",
       "domain": "ca",
       "title": "Exclusion groups under the size threshold",
       "severityDefault": "High",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": { "maxExclusionGroupMembers": 25 },
-      "evidence": ["policies.json", "group-scope.json"],
+      "thresholds": {
+        "maxExclusionGroupMembers": 25
+      },
+      "evidence": [
+        "policies.json",
+        "group-scope.json"
+      ],
       "pass": "facts.exclusionGroupsOverThreshold == 0",
       "affected": "facts.exclusionGroupsOverThreshold",
       "remediation": "For each group listed, review the membership and remove accounts that no longer need the exception. Replace standing exclusions with a scoped policy that gives those accounts the right control instead of none, put an access review on the group, and record any remaining exception with an owner and an expiry.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/plan-conditional-access",
       "deepLink": null,
       "narrative": "Every member of an exclusion group is outside the policy entirely. Groups created for a migration or a vendor tend to grow and never shrink, and an attacker who lands in one of those accounts faces no MFA at all. The size threshold is the point at which an exclusion stops being an exception and becomes a second, weaker policy.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.5.18", "cmmc": "AC.L2-3.1.1", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-008",
       "domain": "ca",
       "title": "No MFA bypass for trusted locations",
       "severityDefault": "High",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json", "named-locations.json"],
+      "evidence": [
+        "policies.json",
+        "named-locations.json"
+      ],
       "pass": "facts.trustedLocationMfaBypass == 0",
       "affected": "facts.trustedLocationMfaBypass",
       "remediation": "Remove the trusted-location exclusion from the MFA policies listed. Where a location exclusion is required for a specific system, scope it to that application and record the exception with an owner and an expiry. Keep trusted locations for sign-in risk evaluation only.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-assignment-network",
       "deepLink": null,
       "narrative": "Skipping MFA from the office network treats the network as the credential. Anyone on the wireless, a compromised device on the LAN, or a VPN session from a stolen laptop then signs in with a password alone. Zero trust guidance drops the location bypass because the perimeter is the easiest control to get behind.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.5", "cmmc": "IA.L2-3.5.3", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-009",
       "domain": "ca",
       "title": "Sign-in frequency and non-persistent browser for administrators",
       "severityDefault": "Medium",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json"],
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.adminSessionControlPolicies >= 1",
       "remediation": "Create an enabled policy targeting the privileged directory roles for all cloud apps with the session controls sign-in frequency (for example 4 to 12 hours) and persistent browser session set to never persistent. Administrators then re-authenticate on a schedule and shared machines keep no admin session.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-conditional-access-session",
       "deepLink": null,
       "narrative": "An administrator session that persists for weeks is a token worth stealing. Limiting how long the session lives and preventing the browser from keeping it caps what a stolen cookie is worth, and it is the control that makes a token replay noticeable rather than silent.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.2", "cmmc": "AC.L2-3.1.11", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.11",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-010",
       "domain": "ca",
       "title": "Token protection in use",
       "severityDefault": "Medium",
-      "license": ["P1"],
-      "applicableWhen": { "platforms": ["windows"] },
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json"],
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.tokenProtectionPolicies >= 1",
       "remediation": "Create a policy for all users targeting Exchange Online and SharePoint Online on the Windows platform with the session control Require token protection for sign-in sessions, in report-only mode first. Review the sign-in log for unsupported clients, then enable it with a target date recorded as an exception until then.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-token-protection",
       "deepLink": null,
       "narrative": "Token protection binds the sign-in token to the device it was issued to, so a session cookie copied from a phished or malware-infected machine stops working elsewhere. It closes the gap that MFA leaves open once the user has already signed in. Client support is still growing, which is why report-only with a date counts here.",
-      "frameworks": { "nist-csf-2": "PR.AA-03", "iso27001": "A.8.5", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-011",
       "domain": "ca",
       "title": "Microsoft-managed policies not silently disabled",
       "severityDefault": "Medium",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json"],
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.microsoftManagedDisabled == 0",
       "affected": "facts.microsoftManagedDisabled",
       "remediation": "For each Microsoft-managed policy listed as disabled, either enable it or confirm that an equivalent customer policy covers the same scenario and record that decision as an exception with an owner. Microsoft-managed policies cannot be deleted, so a disabled one is a standing decision that should be written down.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/managed-policies",
       "deepLink": null,
       "narrative": "Microsoft creates managed policies in tenants for the controls it considers baseline, such as MFA for administrators and for risky sign-ins, and enables them after a notice period. Disabling one without an equivalent policy removes a control the tenant was about to gain, and the state is easy to miss because the policy stays on the list.",
-      "frameworks": { "nist-csf-2": "GV.PO-01", "iso27001": "A.5.1", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-012",
       "domain": "ca",
       "title": "Break-glass accounts excluded from every blocking policy",
       "severityDefault": "High",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json", "resolved-names.json"],
+      "evidence": [
+        "policies.json",
+        "resolved-names.json"
+      ],
       "pass": "facts.breakGlassIdentified && facts.blockPoliciesMissingBreakGlass == 0",
       "affected": "facts.blockPoliciesMissingBreakGlass",
       "remediation": "Name the break-glass accounts in the profile, keep them in a dedicated group, and exclude that group from every policy with a Block control. Protect the accounts themselves with a separate phishing-resistant policy, alert on their sign-ins, and test one of them every quarter.",
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access",
       "deepLink": null,
       "narrative": "A blocking policy that applies to the break-glass accounts can lock every administrator out of the tenant at once, typically during the incident the policy was written for. A policy misfire, an MFA outage or a mistaken location change then has no way back in. Excluding the emergency accounts from every Block is what keeps Conditional Access recoverable.",
-      "frameworks": { "nist-csf-2": "RC.RP-01", "iso27001": "A.5.30", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "RC.RP-01",
+        "iso27001": "A.5.30",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-013",
       "domain": "ca",
       "title": "No policy references a deleted object",
       "severityDefault": "High",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
       "thresholds": {},
-      "evidence": ["policies.json", "resolved-names.json"],
+      "evidence": [
+        "policies.json",
+        "resolved-names.json"
+      ],
       "pass": "facts.policiesWithDeletedReferences == 0",
       "affected": "facts.policiesWithDeletedReferences",
       "remediation": "Open each policy listed, find the assignment, location or strength that no longer resolves, and replace or remove it. If the deleted object was an exclusion group, check who was in it before it went, because those accounts are now inside the policy, or outside it if it was an include.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/plan-conditional-access",
       "deepLink": null,
       "narrative": "When a group, user or named location a policy references is deleted, the policy keeps the orphaned id and silently stops covering or excluding whoever it pointed at. The portal shows nothing wrong. The result is a policy that reads correctly and does something different, which is the worst kind of drift.",
-      "frameworks": { "nist-csf-2": "PR.AA-05", "iso27001": "A.5.18", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-014",
       "domain": "ca",
       "title": "No policy left disabled past the threshold",
       "severityDefault": "Low",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": { "disabledMaxDays": 90 },
-      "evidence": ["policies.json"],
+      "thresholds": {
+        "disabledMaxDays": 90
+      },
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.disabledOverThreshold == 0",
       "affected": "facts.disabledOverThreshold",
       "remediation": "Delete each policy listed, or document why it is kept disabled as an exception with an owner and an expiry. Keep a copy of the policy JSON in the change record if the design might be needed again.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/plan-conditional-access",
       "deepLink": null,
       "narrative": "Disabled policies accumulate from pilots and emergencies and make the policy list hard to read, which is how a reviewer misses the one that matters. A disabled policy can also be re-enabled by mistake with stale assignments. Either it is needed, and should be enabled, or it is not, and should go.",
-      "frameworks": { "nist-csf-2": "GV.PO-01", "iso27001": "A.5.1", "cmmc": "", "cisa-scuba": "" }
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.1",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     },
     {
       "id": "CA-015",
       "domain": "ca",
       "title": "Policy names follow the naming convention",
       "severityDefault": "Low",
-      "license": ["P1"],
+      "license": [
+        "P1"
+      ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": { "namePattern": null },
-      "evidence": ["policies.json"],
+      "thresholds": {
+        "namePattern": null
+      },
+      "evidence": [
+        "policies.json"
+      ],
       "pass": "facts.namingNonConforming == 0",
       "affected": "facts.namingNonConforming",
-      "remediation": "Rename the policies listed to match the convention. The Conditional Access document's naming report proposes a name for each one. Then record the convention in the profile so the check keeps enforcing it.",
+      "remediation": "Adopt a convention such as CA-<number>-<persona>-<control> and rename the policies listed; the Conditional Access document's naming report proposes a name for each. Record the pattern in the profile (thresholds.namePattern) so the check enforces that exact pattern from then on.",
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/plan-conditional-access",
       "deepLink": null,
-      "narrative": "A naming convention is what lets a reviewer read a policy list and know what each policy is for without opening it. Tenants with fifteen policies named by whoever created them tend to have duplicates and gaps nobody noticed. The pattern is the customer's own; the check only reports what does not match it.",
-      "frameworks": { "nist-csf-2": "GV.PO-01", "iso27001": "A.5.37", "cmmc": "", "cisa-scuba": "" }
+      "narrative": "A naming convention is what lets a reviewer read a policy list and know what each policy is for without opening it. Tenants whose policies are named by whoever created them tend to have duplicates and gaps nobody noticed. With a pattern in the profile the check enforces it; without one it looks for a prefix-and-number structure across the names, and free-text names are the finding.",
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.37",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

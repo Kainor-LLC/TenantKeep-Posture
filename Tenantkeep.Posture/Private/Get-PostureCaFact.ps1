@@ -160,8 +160,15 @@ function Get-PostureCaFact {
         $facts.namingNonConforming = $affected.namingNonConforming.Count
     }
     else {
-        $facts.namingNonConforming = 0
-        $notEvaluated['CA-015'] = 'No naming pattern configured. Set thresholds.namePattern in the profile or caNamePattern in brand.json.'
+        # No pattern configured: look for a convention in the names themselves. A structured name starts with a short
+        # prefix and a number, or an upper-case tag, followed by a separator (CA-001-..., CA01 ..., GRANT-...). Eight in ten
+        # or more names structured counts as a convention; the rest are the finding either way. Connor, 2026-10-15: a
+        # tenant without a convention is a finding, not an unevaluated check.
+        $structured = '^([A-Za-z]{1,8}[-_ ]?\d{1,4}[-_ :]|[A-Z]{2,8}[-_:])'
+        $named = @($policies | Where-Object { $_.name -cmatch $structured })   # case-sensitive: an upper-case tag, not a word like Sign-in
+        $facts.namingConventionDetected = ($policies.Count -ge 3 -and $named.Count -ge [Math]::Ceiling(0.8 * $policies.Count))
+        $affected.namingNonConforming = @($policies | Where-Object { $_.name -cnotmatch $structured } | ForEach-Object { & $label $_ $(if ($facts.namingConventionDetected) { 'does not follow the convention most policies use' } else { 'no naming convention: free text name' }) })
+        $facts.namingNonConforming = $affected.namingNonConforming.Count
     }
 
     $facts.policyCount = $policies.Count
