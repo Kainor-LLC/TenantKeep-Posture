@@ -5,7 +5,8 @@
     Azure Automation runbook (PowerShell 7.4 runtime): the monthly full posture cycle with the account's managed identity.
 .DESCRIPTION
     Deployed by deploy/automation/deploy.ps1 -IncludePosture. One job does what an admin does by hand over an afternoon:
-      1. sign in everywhere as the managed identity (Graph, Azure, Exchange, Purview, SharePoint, Teams), read-only roles
+      1. sign in as the managed identity: Graph and Azure first and every Graph call before PnP loads (its old
+         Microsoft.Graph.Core breaks the Graph SDK), then Exchange, then SharePoint and Teams (Purview has no managed identity sign-in)
       2. download the client container: profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv and any
          ad-* files a hybrid tenant's Windows collector produced
       3. Invoke-PostureCollection into a work folder (every collector whose session opened)
@@ -43,8 +44,32 @@ try {
     $accountName = ([uri]$postureUrl).Host.Split('.')[0]
     $postureContainer = ([uri]$postureUrl).AbsolutePath.Trim('/')
     $clientContainer = ([uri]$clientUrl).AbsolutePath.Trim('/')
+    $blobBase = "https://$accountName.blob.core.windows.net"
 
-    # ---- 1. Sign in everywhere. Each optional service is its own try: a missing role skips that collector, not the run.
+    # Blob storage over REST with the identity's token. Az.Storage is deliberately not used: it and ExchangeOnlineManagement
+    # each ship a Microsoft.OData.Core, and whichever loads second fails, which costs either the mailbox reads or the upload.
+    $blobToken = {
+        $t = Get-AzAccessToken -ResourceUrl 'https://storage.azure.com/' -WarningAction SilentlyContinue
+        if ($t.Token -is [securestring]) { ConvertFrom-SecureString -SecureString $t.Token -AsPlainText } else { [string]$t.Token }
+    }
+    $blobHeaders = { @{ Authorization = "Bearer $(& $blobToken)"; 'x-ms-version' = '2021-12-02'; 'x-ms-date' = [datetime]::UtcNow.ToString('R') } }
+    $blobList = {
+        param([string] $Container, [string] $Prefix = '')
+        $names = [System.Collections.Generic.List[string]]::new(); $marker = ''
+        do {
+            $uri = "$blobBase/$Container`?restype=container&comp=list&prefix=$([uri]::EscapeDataString($Prefix))$(if ($marker) { "&marker=$([uri]::EscapeDataString($marker))" })"
+            $text = [string](Invoke-WebRequest -Uri $uri -Headers (& $blobHeaders) -Method Get).Content
+            $xml = [xml]$text.TrimStart([char]0xFEFF)   # the listing starts with a byte order mark the XML parser rejects
+            foreach ($b in @($xml.EnumerationResults.Blobs.Blob)) { if ($b -and $b.Name) { $names.Add([string]$b.Name) } }
+            $marker = [string]$xml.EnumerationResults.NextMarker
+        } while ($marker)
+        return $names.ToArray()   # callers wrap in @(); a leading comma here would hand them a nested array
+    }
+    $blobGet = { param([string] $Container, [string] $Name, [string] $Path) Invoke-WebRequest -Uri "$blobBase/$Container/$Name" -Headers (& $blobHeaders) -Method Get -OutFile $Path | Out-Null }
+    $blobPut = { param([string] $Container, [string] $Name, [string] $Path) $h = & $blobHeaders; $h['x-ms-blob-type'] = 'BlockBlob'; Invoke-WebRequest -Uri "$blobBase/$Container/$Name" -Headers $h -Method Put -InFile $Path -ContentType 'application/octet-stream' | Out-Null }
+    $blobDelete = { param([string] $Container, [string] $Name) Invoke-WebRequest -Uri "$blobBase/$Container/$Name" -Headers (& $blobHeaders) -Method Delete | Out-Null }
+
+    # ---- 1. Graph and Azure first. The session-bound modules are imported only after the last Graph call (see 4b).
     Write-Output 'step: sign in (Azure, Graph)'
     $null = Connect-AzAccount -Identity
     Connect-MgGraph -Identity -NoWelcome
@@ -56,20 +81,22 @@ try {
         Write-Output "Organization from Graph: $organization"
     }
     $skipped = [ordered]@{}
-    $try = {
-        param([string] $Name, [scriptblock] $Connect)
-        try { & $Connect; Write-Output "$Name session open" }
-        catch { $skipped[$Name] = $_.Exception.Message; Write-Output "$Name sign-in failed; that collector is skipped: $($_.Exception.Message)" }
+    # Purview: ExchangeOnlineManagement has no app-only Purview sign-in for a managed identity (certificate app auth only),
+    # so that domain reads as not collected in the automated run. Run the Purview collector by hand, or add a certificate app later (verify).
+    $skipped['Purview'] = 'Connect-IPPSSession has no managed identity sign-in; the Purview domain is not collected in the scheduled run.'
+    # Exchange signs in now, before Az.Storage loads: both carry Microsoft.OData.Core, and the mailbox cmdlets need Exchange's newer copy to be the one in memory.
+    $exchangeOpen = $false
+    try {
+        Connect-ExchangeOnline -ManagedIdentity -Organization $organization -ShowBanner:$false; $exchangeOpen = $true
+        # One REST cmdlet now, so Exchange's Microsoft.OData.Core is the copy in memory before Az.Storage brings its older one.
+        $null = Get-EXOMailbox -ResultSize 1 -ErrorAction SilentlyContinue
+        Write-Output 'Exchange session open'
     }
-    & $try 'Exchange' { Connect-ExchangeOnline -ManagedIdentity -Organization $organization -ShowBanner:$false }
-    & $try 'Purview' { Connect-IPPSSession -ManagedIdentity -Organization $organization -ShowBanner:$false }   # (verify) app-only Purview support in the installed ExchangeOnlineManagement
-    if ($spoAdmin) { & $try 'SharePoint' { Connect-PnPOnline -Url $spoAdmin -ManagedIdentity } } else { $skipped['SharePoint'] = 'TENANTKEEP_SHAREPOINT_ADMIN_URL not set' }
-    & $try 'Teams' { Connect-MicrosoftTeams -Identity | Out-Null }
+    catch { $skipped['Exchange'] = $_.Exception.Message; Write-Output "Exchange sign-in failed; skipped: $($_.Exception.Message)" }
 
     Write-Output 'step: import module'
     Import-Module Tenantkeep.Posture
     Write-Output "module $((Get-Module Tenantkeep.Posture).Version) build: $(& (Get-Module Tenantkeep.Posture) { $script:PostureBuildState.detail })"
-    $storage = New-AzStorageContext -StorageAccountName $accountName -UseConnectedAccount
 
     $work = Join-Path ([System.IO.Path]::GetTempPath()) 'tenantkeep-posture'
     if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
@@ -78,11 +105,11 @@ try {
 
     # ---- 2. Client files (profile, brand, exceptions, licence, register, hybrid ad-* files).
     Write-Output 'step: download client container'
-    $clientBlobs = @(Get-AzStorageBlob -Container $clientContainer -Context $storage -ErrorAction SilentlyContinue)
-    foreach ($b in $clientBlobs) {
-        $dest = Join-Path $client ($b.Name -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+    $clientBlobs = @(& $blobList $clientContainer)
+    foreach ($name in $clientBlobs) {
+        $dest = Join-Path $client ($name -replace '/', [System.IO.Path]::DirectorySeparatorChar)
         New-Item -ItemType Directory -Path (Split-Path $dest -Parent) -Force | Out-Null
-        $null = Get-AzStorageBlobContent -Blob $b.Name -Container $clientContainer -Context $storage -Destination $dest -Force
+        & $blobGet $clientContainer $name $dest
     }
     Write-Output "client files: $($clientBlobs.Count)"
     $profilePath = Join-Path $client 'profile.json'
@@ -90,23 +117,51 @@ try {
 
     # ---- 3. Previous run, for the trend and the register merge.
     Write-Output 'step: list previous runs'
-    $blobs = @(Get-AzStorageBlob -Container $postureContainer -Context $storage -ErrorAction SilentlyContinue)
-    $runNames = @($blobs | ForEach-Object { ($_.Name -split '/')[0] } | Where-Object { $_ -match '^\d{8}-\d{4}$' } | Sort-Object -Unique)
+    $blobs = @(& $blobList $postureContainer)
+    $runNames = @($blobs | ForEach-Object { ($_ -split '/')[0] } | Where-Object { $_ -match '^\d{8}-\d{4}$' } | Sort-Object -Unique)
     $previous = $null
     if ($runNames.Count -gt 0) {
         $latest = $runNames[-1]; $previous = Join-Path $evidenceRoot $latest
         New-Item -ItemType Directory -Path $previous -Force | Out-Null
-        foreach ($b in ($blobs | Where-Object { $_.Name -eq "$latest/checks.json" })) { $null = Get-AzStorageBlobContent -Blob $b.Name -Container $postureContainer -Context $storage -Destination (Join-Path $previous 'checks.json') -Force }
+        if ($blobs -contains "$latest/checks.json") { & $blobGet $postureContainer "$latest/checks.json" (Join-Path $previous 'checks.json') }
         Write-Output "previous run $latest"
     }
 
-    # ---- 4. Collect, evaluate, report.
-    Write-Output 'step: collect'
-    $collectParams = @{ OutRoot = $evidenceRoot; PassThru = $true }
+    # ---- 4. Collect: Graph-based collectors and Azure first.
+    Write-Output 'step: collect (Entra, Intune, Defender, Azure)'
+    # Only name collectors whose roles the token carries: a named collector without its role is an error, an unnamed one a warning.
+    $mainCollectors = @('Entra', 'Intune')
+    if ('ThreatHunting.Read.All' -in @($ctx.Scopes)) { $mainCollectors += 'Defender' } else { $skipped['Defender'] = 'ThreatHunting.Read.All is not on the Graph token yet (roles granted recently are cached for up to a day).' }
+    if ((Get-AzContext -ErrorAction SilentlyContinue) -and (Get-Command Search-AzGraph -ErrorAction SilentlyContinue)) { $mainCollectors += 'Azure' } else { $skipped['Azure'] = 'No Azure context or Az.ResourceGraph not loaded.' }
+    $collectParams = @{ OutRoot = $evidenceRoot; Collector = $mainCollectors; PassThru = $true }
     if (Test-Path $profilePath) { $collectParams.ProfilePath = $profilePath }
     $collection = Invoke-PostureCollection @collectParams
     $folder = [string]$collection.Folder
     Write-Output "evidence $folder, errors $(@($collection.Errors).Count)"
+
+    # ---- 4b. Session-bound collectors, in this order and only now: the Graph SDK resolves Microsoft.Graph.Core to the
+    # old copy PnP.PowerShell loads, so every Graph call happens above, before PnP is imported. The sandbox has no pwsh
+    # executable (the host is a custom .NET app), so there is no child process to hide in. Each phase is its own try.
+    $phase = {
+        param([string] $Name, [scriptblock] $Connect, [string[]] $Collectors)
+        try {
+            & $Connect
+            Invoke-PostureCollection -Collector $Collectors -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null
+            Write-Output "$Name collected"
+        }
+        catch { $skipped[$Name] = $_.Exception.Message; Write-Output "$Name failed; skipped: $($_.Exception.Message)" }
+    }
+    $profileParam = @{}; if (Test-Path $profilePath) { $profileParam.ProfilePath = $profilePath }
+    Write-Output 'step: collect (Exchange)'
+    if ($exchangeOpen) { & $phase 'Exchange' { } @('Exchange') }
+    Write-Output 'step: collect (SharePoint, Teams)'
+    if ($spoAdmin) {
+        & $phase 'SharePoint and Teams' { Connect-PnPOnline -Url $spoAdmin -ManagedIdentity; Connect-MicrosoftTeams -Identity | Out-Null } @('SharePoint', 'Teams')
+    }
+    else {
+        $skipped['SharePoint'] = 'TENANTKEEP_SHAREPOINT_ADMIN_URL not set.'
+        & $phase 'Teams' { Connect-MicrosoftTeams -Identity | Out-Null } @('Teams')
+    }
     $hybrid = Join-Path $client 'hybrid'
     if (Test-Path $hybrid) { Copy-Item -Path (Join-Path $hybrid 'ad-*') -Destination $folder -Force; Write-Output 'hybrid ad-* files copied in' }
 
@@ -123,13 +178,13 @@ try {
     # ---- 5. Upload the run, write the register back, prune.
     Write-Output 'step: upload'
     $runName = Split-Path $folder -Leaf
-    foreach ($f in (Get-ChildItem -Path $folder -File)) { $null = Set-AzStorageBlobContent -File $f.FullName -Container $postureContainer -Blob "$runName/$($f.Name)" -Context $storage -Force }
-    $null = Set-AzStorageBlobContent -File (Join-Path $folder 'findings.csv') -Container $clientContainer -Blob 'findings.csv' -Context $storage -Force
+    foreach ($f in (Get-ChildItem -Path $folder -File)) { & $blobPut $postureContainer "$runName/$($f.Name)" $f.FullName }
+    & $blobPut $clientContainer 'findings.csv' (Join-Path $folder 'findings.csv')
     Write-Output "uploaded run $runName ($((Get-ChildItem -Path $folder -File).Count) files)"
     if ($keepRuns -gt 0) {
         $all = @(@($runNames) + @($runName) | Sort-Object -Unique)
         foreach ($old in ($all | Select-Object -First ([Math]::Max(0, $all.Count - $keepRuns)))) {
-            foreach ($b in ($blobs | Where-Object { $_.Name -like "$old/*" })) { Remove-AzStorageBlob -Blob $b.Name -Container $postureContainer -Context $storage -Force }
+            foreach ($b in ($blobs | Where-Object { $_ -like "$old/*" })) { & $blobDelete $postureContainer $b }
             Write-Output "pruned run $old"
         }
     }

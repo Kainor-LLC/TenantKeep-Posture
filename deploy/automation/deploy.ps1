@@ -46,7 +46,10 @@ param(
     [string] $ExchangeOnlineManagementVersion = '3.9.0',
     [string] $PnPPowerShellVersion = '3.1.0',
     [string] $MicrosoftTeamsVersion = '7.3.1',
-    [string] $AzResourceGraphVersion = '1.2.0'
+
+    # Sign the staged module's integrity manifest through Key Vault so the report reads "Signed release" instead of "Development build".
+    [string] $IntegrityVaultName,
+    [string] $IntegrityKeyName = 'kainor-2026-10'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -91,7 +94,8 @@ $apiVersion = '2023-05-15-preview'
 
 # 2. Module
 if (-not $SkipModuleImport) {
-    & (Join-Path $repo 'build.ps1') -Task Build | Out-Null
+    if ($IntegrityVaultName) { & (Join-Path $repo 'build.ps1') -Task Build, Integrity -VaultName $IntegrityVaultName -KeyName $IntegrityKeyName | Out-Null }
+    else { & (Join-Path $repo 'build.ps1') -Task Build | Out-Null }
     $version = (Import-PowerShellDataFile (Join-Path $repo 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1')).ModuleVersion
     $staged = Join-Path $repo 'out' 'Tenantkeep.Posture' $version
     $zip = Join-Path $repo 'out' "Tenantkeep.Posture-$version-unsigned.zip"
@@ -120,7 +124,8 @@ if (-not $SkipModuleImport) {
     Write-Host "Imported Microsoft.Graph.Authentication $GraphAuthenticationVersion"
     if ($IncludePosture) {
         # The collectors' session modules. Package imports run in the background; a job started before they finish fails to import them.
-        foreach ($pkg in @(@('ExchangeOnlineManagement', $ExchangeOnlineManagementVersion), @('PnP.PowerShell', $PnPPowerShellVersion), @('MicrosoftTeams', $MicrosoftTeamsVersion), @('Az.ResourceGraph', $AzResourceGraphVersion))) {
+        # Az.ResourceGraph comes with the runtime's Az rollup; a separately imported newer version needs a newer Az.Accounts and breaks the import.
+        foreach ($pkg in @(@('ExchangeOnlineManagement', $ExchangeOnlineManagementVersion), @('PnP.PowerShell', $PnPPowerShellVersion), @('MicrosoftTeams', $MicrosoftTeamsVersion))) {
             $body = @{ properties = @{ contentLink = @{ uri = "https://www.powershellgallery.com/api/v2/package/$($pkg[0])/$($pkg[1])" } } } | ConvertTo-Json -Compress
             $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($pkg[0])?api-version=$apiVersion" --body $body -o none
             Write-Host "Imported $($pkg[0]) $($pkg[1])"

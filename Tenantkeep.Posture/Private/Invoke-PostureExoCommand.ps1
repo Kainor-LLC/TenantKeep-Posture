@@ -91,8 +91,9 @@ function Resolve-PostureDnsRecord {
 
     $ErrorActionPreference = 'Stop'
     if ($IsWindows) {
-        $r = @(Resolve-DnsName -Name $Name -Type $Type -ErrorAction SilentlyContinue)
-        if ($Type -eq 'TXT') { return @($r | ForEach-Object { ($_.Strings -join '') } | Where-Object { $_ }) }
+        # The answer can carry extra records of other types (CNAME, A); only the requested type has the fields read below.
+        $r = @(Resolve-DnsName -Name $Name -Type $Type -ErrorAction SilentlyContinue | Where-Object { [string]$_.Type -eq $Type })
+        if ($Type -eq 'TXT') { return @($r | ForEach-Object { (@($_.Strings) -join '') } | Where-Object { $_ }) }
         return @($r | ForEach-Object { "$($_.Preference) $($_.NameExchange)" } | Where-Object { $_ })
     }
     $dig = Get-Command -Name dig -ErrorAction SilentlyContinue

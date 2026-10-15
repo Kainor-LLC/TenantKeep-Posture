@@ -70,9 +70,22 @@ admin API role, and the Global Reader directory role. All read. The runtime envi
 ExchangeOnlineManagement, PnP.PowerShell, MicrosoftTeams and Az.ResourceGraph from the Gallery; package imports finish
 in the background, so wait for them to show Available before the first job.
 
-Open items from the first deployment (verify): Purview app-only through Connect-IPPSSession -ManagedIdentity, whether
-Exchange and PnP load together in one Automation job (they do not on macOS), and the PnP.PowerShell package size
-against Automation's module limit.
+Learned on the first Kainor runs (2026-10-15), all baked into the runbook:
+
+- The sandbox is a custom .NET host with no pwsh executable, so everything runs in one process and the order matters.
+  Every Graph call happens before PnP.PowerShell is imported (its old Microsoft.Graph.Core breaks the Graph SDK), and
+  Exchange signs in and warms up its REST cmdlets before anything else loads Microsoft.OData.Core.
+- Az.Storage and ExchangeOnlineManagement each ship a Microsoft.OData.Core and cannot both load, so the runbook talks to
+  blob storage over REST with the identity's token and never imports Az.Storage. Az.ResourceGraph comes with the
+  runtime's Az rollup; importing a newer one separately breaks it.
+- Purview is not collected in the scheduled run: ExchangeOnlineManagement has no managed identity sign-in for
+  Connect-IPPSSession (certificate app auth only), so that domain reads as not collected and the report says so.
+- Roles granted to the identity reach a sandbox's cached token after up to a day; a job started right after the grant
+  sees the old token, names only the collectors whose roles it has, and the schedule picks up the rest next time.
+- Two warnings are licence facts, not faults: lifecycle workflows need Entra ID Governance, restricted SharePoint
+  search needs SharePoint Advanced Management.
+
+Still (verify): whether a smaller SharePoint application permission than Sites.FullControl.All lets the tenant reads work.
 
 ## Permissions
 
