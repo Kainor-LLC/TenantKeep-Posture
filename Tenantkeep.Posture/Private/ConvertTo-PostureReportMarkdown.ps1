@@ -68,6 +68,18 @@ function ConvertTo-PostureReportMarkdown {
     }
     & $line
 
+    if ($r.trend) {
+        $tr = $r.trend
+        & $line "## Trend since $(& $fmtDate $tr.previousCheckedUtc)"
+        & $line
+        $signed = { param($d) if ($null -eq $d) { 'n/a' } elseif ($d -ge 0) { "+$d" } else { "$d" } }
+        & $line "Score $(& $num $tr.scoreBefore) to $(& $num $tr.scoreAfter) ($(& $signed $tr.scoreDelta)). $(@($tr.newFailures).Count) check(s) started failing, $(@($tr.resolved).Count) resolved, $(@($tr.affectedMoved).Count) moved."
+        & $line
+        if (@($tr.newFailures).Count -gt 0) { & $line ('**Started failing:** ' + (@($tr.newFailures | ForEach-Object { "$($_.id) $(& $esc $_.title) ($($_.detail))" }) -join '; ')); & $line }
+        if (@($tr.resolved).Count -gt 0) { & $line ('**Resolved:** ' + (@($tr.resolved | ForEach-Object { "$($_.id) $(& $esc $_.title)" }) -join '; ')); & $line }
+        if (@($tr.affectedMoved).Count -gt 0) { & $line ('**Affected counts moved:** ' + (@($tr.affectedMoved | ForEach-Object { "$($_.id) $($_.before) to $($_.after)" }) -join '; ')); & $line }
+        & $table @('Domain', 'Before', 'After', 'Delta') @($tr.domains | ForEach-Object { , @((& $esc $_.label), (& $num $_.before), (& $num $_.after), (& $signed $_.delta)) })
+    }
     & $line '## Domain scorecards'
     & $line
     foreach ($d in $r.domains) {

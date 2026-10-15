@@ -53,7 +53,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('trend', 'Trend', $false), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks explorer', $true), @('admins', 'Who are your admins', $true), @('exposure', 'External exposure', $false), @('copilot', 'Copilot readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and value', $false), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -136,8 +136,31 @@ function ConvertTo-PostureReportHtml {
 
     $naViews = @(@('exposure', 'External exposure', 'Guests by domain, sharing links, anonymous links and Teams federation come from the SharePoint and Teams collector (A.3), not collected yet.'), @('copilot', 'Copilot readiness', 'The 18 gates (spec 4.7) need the collaboration, labeling and governance evidence, not collected yet.'), @('trend', 'Trend', 'Headline numbers and domain scores across runs appear once a previous run exists in the same evidence root.'), @('licensing', 'Licensing and value', 'Unassigned and overlapping licenses need the full collection set; the licenses present are in the profile appendix.'))
     if ($r.copilot -and $r.copilot.present) { $naViews = @($naViews | Where-Object { $_[0] -ne 'copilot' }) }
+    if ($r.trend) { $naViews = @($naViews | Where-Object { $_[0] -ne 'trend' }) }
     foreach ($na in $naViews) {
         & $w "<section class=`"view`" id=`"$($na[0])`"><h2>$(& $h $na[1])</h2><p class=`"na-panel`">$(& $h $na[2])</p></section>"
+    }
+
+    # Trend since the previous run.
+    if ($r.trend) {
+        $tr = $r.trend
+        $signed = { param($d) if ($null -eq $d) { 'n/a' } elseif ($d -ge 0) { "+$d" } else { "$d" } }
+        & $w "<section class=`"view`" id=`"trend`"><h2>Trend since $(& $h (& $fmtDate $tr.previousCheckedUtc))</h2>"
+        & $w "<p><strong>Score $(& $num $tr.scoreBefore) to $(& $num $tr.scoreAfter)</strong> ($(& $signed $tr.scoreDelta)). $(@($tr.newFailures).Count) check(s) started failing, $(@($tr.resolved).Count) resolved, $(@($tr.affectedMoved).Count) moved.</p>"
+        foreach ($pair in @(@('Started failing', $tr.newFailures), @('Resolved', $tr.resolved))) {
+            if (@($pair[1]).Count -eq 0) { continue }
+            & $w "<h3>$($pair[0])</h3><ul>"
+            foreach ($x in $pair[1]) { & $w "<li><strong>$(& $h $x.id)</strong> $(& $h $x.title) <span class=`"muted`">($(& $h $x.severity), $(& $h $x.detail))</span></li>" }
+            & $w '</ul>'
+        }
+        if (@($tr.affectedMoved).Count -gt 0) {
+            & $w '<h3>Affected counts moved</h3><table><thead><tr><th>Check</th><th>Before</th><th>After</th></tr></thead><tbody>'
+            foreach ($x in $tr.affectedMoved) { & $w "<tr><td>$(& $h $x.id) $(& $h $x.title)</td><td>$($x.before)</td><td>$($x.after)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        & $w '<h3>Domains</h3><table><thead><tr><th>Domain</th><th>Before</th><th>After</th><th>Delta</th></tr></thead><tbody>'
+        foreach ($d in $tr.domains) { & $w "<tr><td>$(& $h $d.label)</td><td>$(& $num $d.before)</td><td>$(& $num $d.after)</td><td>$(& $signed $d.delta)</td></tr>" }
+        & $w '</tbody></table></section>'
     }
 
     # Copilot readiness (spec 4.7): the page the client reads first.

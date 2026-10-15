@@ -22,6 +22,9 @@ function New-PostureReport {
         Executive (cover, summary, scorecards, recommendations) or Full. Default Full.
     .PARAMETER Format
         One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
+    .PARAMETER Previous
+        An earlier run's checks.json, or the folder holding one, for the Trend view: score and domain deltas, checks
+        that started or stopped failing, affected counts that moved.
     .PARAMETER OutputPath
         Folder for report.<ext> and checks.json. Default: the evidence folder.
     .PARAMETER PassThru
@@ -47,6 +50,7 @@ function New-PostureReport {
         [string[]] $CustomChecks = @(),
         [ValidateSet('Executive', 'Full')] [string] $Template = 'Full',
         [ValidateSet('Html', 'Markdown', 'Pdf')] [string[]] $Format = @('Html', 'Markdown'),
+        [string] $Previous,
         [string] $OutputPath,
         [switch] $PassThru
     )
@@ -73,7 +77,14 @@ function New-PostureReport {
 
     $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline $baselineModel -OrgProfile $profileModel -Exception $exceptionList -Evidence $evidencePath
     $run.moduleVersion = $script:ModuleVersion
-    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template
+    $previousRun = $null
+    if ($Previous) {
+        $prevPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Previous)
+        if (Test-Path -LiteralPath $prevPath -PathType Container) { $prevPath = Join-Path $prevPath 'checks.json' }
+        if (-not (Test-Path -LiteralPath $prevPath -PathType Leaf)) { throw "Previous checks.json not found: $prevPath" }
+        $previousRun = Get-Content -Raw -LiteralPath $prevPath | ConvertFrom-Json -AsHashtable -Depth 20
+    }
+    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun
 
     $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } else { $evidencePath }))   # expands ~ too
 

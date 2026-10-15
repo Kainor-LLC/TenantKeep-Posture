@@ -179,3 +179,38 @@ Describe 'New-PostureReport' {
         }
     }
 }
+
+Describe 'Trend since a previous run' {
+    It 'computes score deltas, new failures, resolved checks and moved affected counts from an earlier checks.json' {
+        $prevPath = Join-Path $script:Root 'previous-checks.json'
+        $current = Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20
+        # Rewrite history: one failing check used to pass, one passing check used to fail, one failing check had fewer affected.
+        $prev = $current
+        $failing = @($prev.results | Where-Object { $_.status -eq 'fail' })
+        $passing = @($prev.results | Where-Object { $_.status -eq 'pass' })
+        $failing[0].status = 'pass'; $failing[0].affectedCount = 0
+        $passing[0].status = 'fail'
+        $failing[1].affectedCount = [int]$failing[1].affectedCount + 3
+        $prev.checkedUtc = '2026-09-01T00:00:00Z'
+        ConvertTo-Json -InputObject $prev -Depth 20 | Set-Content -LiteralPath $prevPath
+        $r = New-PostureReport -Evidence $script:Ev -Previous $prevPath -Format Markdown, Html -OutputPath (Join-Path $script:Root 'trend') -PassThru
+        $tr = $r.Report.trend
+        $tr | Should -Not -BeNullOrEmpty
+        @($tr.newFailures | ForEach-Object { $_.id }) | Should -Contain $failing[0].id
+        @($tr.resolved | ForEach-Object { $_.id }) | Should -Contain $passing[0].id
+        @($tr.affectedMoved | ForEach-Object { $_.id }) | Should -Contain $failing[1].id
+        @($tr.domains).Count | Should -Be @($r.Report.domains).Count
+        $tr.scoreBefore | Should -Not -BeNullOrEmpty
+        $md = Get-Content -Raw (Join-Path $script:Root 'trend' 'report.md')
+        $md | Should -Match '## Trend since 2026-09-01'
+        $md | Should -Match 'Started failing'
+        $html = Get-Content -Raw (Join-Path $script:Root 'trend' 'report.html')
+        $html | Should -Match '<section class="view" id="trend"><h2>Trend since'
+        $html | Should -Not -Match 'na-panel">Trend'
+    }
+
+    It 'refuses a missing previous run' {
+        { New-PostureReport -Evidence $script:Ev -Previous (Join-Path $script:Root 'nope') -OutputPath (Join-Path $script:Root 'trend2') } | Should -Throw '*Previous checks.json not found*'
+    }
+}
+

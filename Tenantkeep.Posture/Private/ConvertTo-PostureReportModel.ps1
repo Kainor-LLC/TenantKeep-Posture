@@ -19,6 +19,7 @@ function ConvertTo-PostureReportModel {
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Brand,
         [AllowEmptyCollection()] [object[]] $Exception = @(),
         [string] $Template = 'Full',
+        [System.Collections.IDictionary] $Previous,
         [datetime] $GeneratedUtc = [datetime]::UtcNow
     )
 
@@ -125,6 +126,44 @@ function ConvertTo-PostureReportModel {
 
     if ($copilot -and $copilot.present) { $headline.copilotReadinessPct = $copilot.readinessPct; $headline.copilotBlocked = $copilot.blocked }
 
+    # Trend since an earlier run (spec 3, 9): score and domain deltas, checks that started or stopped failing, affected counts that moved.
+    $trend = $null
+    if ($Previous -and $Previous.Contains('results')) {
+        $prevResults = @($Previous['results'] | Where-Object { $_ })
+        $prevById = @{}; foreach ($pr in $prevResults) { $prevById[[string]$pr['id']] = $pr }
+        $prevScored = @($prevResults | Where-Object { [string]$_['status'] -in @('pass', 'fail', 'acceptedRisk') })
+        $pe = 0; $pp = 0
+        foreach ($pr in $prevScored) { $w = $weight[[string]$pr['severity']]; if (-not $w) { $w = 1 }; $pp += $w; if ([string]$pr['status'] -ne 'fail') { $pe += $w } }
+        $prevScore = $(if ($pp -gt 0) { [Math]::Round(100.0 * $pe / $pp) } else { $null })
+        $newFailures = @(); $resolved = @(); $moved = @()
+        foreach ($r in $results) {
+            $pr = $prevById[[string]$r.id]
+            if (-not $pr) { if ($r.status -eq 'fail') { $newFailures += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = 'new check, failing' } }; continue }
+            $was = [string]$pr['status']
+            if ($r.status -eq 'fail' -and $was -ne 'fail') { $newFailures += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = "was $was" } }
+            elseif ($r.status -ne 'fail' -and $was -eq 'fail') { $resolved += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = "now $($r.status)" } }
+            elseif ($r.status -eq 'fail' -and [int]$r.affectedCount -ne [int]$pr['affectedCount']) { $moved += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; before = [int]$pr['affectedCount']; after = [int]$r.affectedCount } }
+        }
+        $domainDeltas = foreach ($d in $domains) {
+            $pd = @($prevScored | Where-Object { [string]$_['domain'] -eq $d.key })
+            $de2 = 0; $dp2 = 0
+            foreach ($pr in $pd) { $w = $weight[[string]$pr['severity']]; if (-not $w) { $w = 1 }; $dp2 += $w; if ([string]$pr['status'] -ne 'fail') { $de2 += $w } }
+            $before = $(if ($dp2 -gt 0) { [Math]::Round(100.0 * $de2 / $dp2) } else { $null })
+            [ordered]@{ key = $d.key; label = $d.label; before = $before; after = $d.score; delta = $(if ($null -ne $before -and $null -ne $d.score) { $d.score - $before } else { $null }) }
+        }
+        $trend = [ordered]@{
+            previousCheckedUtc = [string]$(if ($Previous.Contains('checkedUtc')) { $Previous['checkedUtc'] } elseif ($prevResults.Count -gt 0) { $prevResults[0]['checkedUtc'] })
+            previousEvidence   = [string]$(if ($Previous.Contains('evidence')) { $Previous['evidence'] })
+            scoreBefore        = $prevScore
+            scoreAfter         = $score
+            scoreDelta         = $(if ($null -ne $prevScore -and $null -ne $score) { $score - $prevScore } else { $null })
+            newFailures        = @($newFailures | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
+            resolved           = @($resolved | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
+            affectedMoved      = @($moved | Sort-Object { -[Math]::Abs($_.after - $_.before) }, { $_.id })
+            domains            = @($domainDeltas)
+        }
+    }
+
     # Top risks: failed checks by severity weight, five of them.
     $topRisks = @($results | Where-Object { $_.status -eq 'fail' } | Sort-Object { -$weight[[string]$_.severity] }, { $_.id } | Select-Object -First 5 | ForEach-Object {
             [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; domain = $_.domain; affectedCount = $_.affectedCount; narrative = [string]$byId[$_.id]['narrative'] }
@@ -225,6 +264,7 @@ function ConvertTo-PostureReportModel {
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot
+        trend        = $trend
         results      = $results
         catalogText  = $catalogText
         appendix     = [ordered]@{
