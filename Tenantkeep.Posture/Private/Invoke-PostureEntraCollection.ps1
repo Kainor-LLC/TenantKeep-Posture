@@ -293,7 +293,7 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
     Invoke-PostureStep -Label 'Service principals' -Folder $Folder -Script {
         $tenantId = [string](Get-MgContext).TenantId
-        $sps = & $get 'servicePrincipals?$select=id,appId,displayName,accountEnabled,servicePrincipalType,appOwnerOrganizationId,preferredSingleSignOnMode,signInAudience,tags,keyCredentials,passwordCredentials,createdDateTime,appRoleAssignmentRequired&$top=999'
+        $sps = & $get 'servicePrincipals?$select=id,appId,displayName,accountEnabled,servicePrincipalType,appOwnerOrganizationId,preferredSingleSignOnMode,signInAudience,tags,keyCredentials,passwordCredentials,createdDateTime,appRoleAssignmentRequired&$expand=owners($select=id)&$top=999'
         $flat = @($sps | ForEach-Object {
                 $ends = @(@(& $v $_ 'passwordCredentials') + @(& $v $_ 'keyCredentials') | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ })
                 $saml = @(@(& $v $_ 'keyCredentials') | Where-Object { (& $v $_ 'usage') -eq 'Verify' } | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ } | Sort-Object | Select-Object -First 1)
@@ -303,6 +303,7 @@ function Invoke-PostureEntraCollection {
                     AppRoleAssignmentRequired = (& $v $_ 'appRoleAssignmentRequired'); CreatedDateTime = (& $v $_ 'createdDateTime')
                     HomeTenantApp = ([string](& $v $_ 'appOwnerOrganizationId') -eq $tenantId); IsEnterpriseAppListed = (@(& $v $_ 'tags') -contains 'WindowsAzureActiveDirectoryIntegratedApp')
                     SamlCertExpiry = $(if ($saml.Count -gt 0) { $saml[0].ToString('o') } else { $null }); HasExpiredCreds = (@($ends | Where-Object { $_ -lt $AsOf }).Count -gt 0)
+                    OwnerCount = @(@(& $v $_ 'owners') | Where-Object { $_ }).Count   # owners expanded with ids only (Graph caps it at 20); an absent property is zero, not a one-element array of null
                 }
             })
         & $save $flat '10-service-principals' $true
@@ -334,6 +335,46 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
 
     $errorsPath = Join-Path $Folder 'errors.txt'
+    # ---------- Governance (spec 4.8): identity governance reads, each behind its own optional scope ----------
+    Invoke-PostureStep -Label 'Access review definitions' -Folder $Folder -Script {
+        # AccessReview.Read.All. The scope query says what is reviewed: a role assignment path, a guest filter, a group.
+        $defs = & $get 'identityGovernance/accessReviews/definitions?$select=id,displayName,status,scope,settings,createdDateTime,lastModifiedDateTime'
+        & $save @($defs | ForEach-Object {
+                $scope = & $v $_ 'scope'
+                $queries = @(@(& $v $scope 'query') + @(@(& $v $scope 'principalScopes') | ForEach-Object { & $v $_ 'query' }) + @(@(& $v $scope 'resourceScopes') | ForEach-Object { & $v $_ 'query' }) | Where-Object { $_ })
+                [ordered]@{
+                    Id = $_.id; DisplayName = (& $v $_ 'displayName'); Status = (& $v $_ 'status'); ScopeType = ([string]$(if ($scope -is [System.Collections.IDictionary]) { $scope['@odata.type'] })) -replace '^#microsoft\.graph\.', ''
+                    ScopeQuery = ($queries -join ' | '); Recurring = [bool](& $v $_ 'settings.recurrence.pattern.type'); RecurrencePattern = (& $v $_ 'settings.recurrence.pattern.type')
+                    RecurrenceInterval = (& $v $_ 'settings.recurrence.pattern.interval'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime')
+                }
+            }) 'gov-01-access-reviews' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Access packages' -Folder $Folder -Script {
+        # EntitlementManagement.Read.All
+        $packages = & $get 'identityGovernance/entitlementManagement/accessPackages?$select=id,displayName,isHidden,createdDateTime'
+        $catalogs = & $get 'identityGovernance/entitlementManagement/catalogs?$select=id,displayName,state,isExternallyVisible'
+        $orgs = & $get 'identityGovernance/entitlementManagement/connectedOrganizations?$select=id,displayName,state'
+        & $save @($packages | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); IsHidden = (& $v $_ 'isHidden'); CreatedDateTime = (& $v $_ 'createdDateTime') } }) 'gov-02-access-packages' $true
+        & $saveOne ([ordered]@{ Packages = @($packages).Count; Catalogs = @($catalogs).Count; ConnectedOrganizations = @($orgs).Count }) 'gov-02-access-packages-summary'
+    } | Out-Null
+    Invoke-PostureStep -Label 'Lifecycle workflows' -Folder $Folder -Script {
+        # LifecycleWorkflows.Read.All (Entra ID Governance)
+        $wf = & $get 'identityGovernance/lifecycleWorkflows/workflows?$select=id,displayName,category,isEnabled,isSchedulingEnabled,lastModifiedDateTime'
+        & $save @($wf | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Category = (& $v $_ 'category'); IsEnabled = (& $v $_ 'isEnabled'); IsSchedulingEnabled = (& $v $_ 'isSchedulingEnabled'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) 'gov-03-lifecycle-workflows' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'PIM for Groups' -Folder $Folder -Script {
+        # PrivilegedEligibilitySchedule.Read.AzureADGroup. (verify) the v1.0 path and whether role-assignable groups appear here when managed by PIM
+        $sched = & $get 'identityGovernance/privilegedAccess/group/eligibilitySchedules?$select=id,groupId,accessId,principalId,status,memberType'
+        $rows = @($sched | ForEach-Object { [ordered]@{ Id = $_.id; GroupId = (& $v $_ 'groupId'); AccessId = (& $v $_ 'accessId'); PrincipalId = (& $v $_ 'principalId'); Status = (& $v $_ 'status'); MemberType = (& $v $_ 'memberType') } })
+        & $save $rows 'gov-04-pim-groups' $true
+        & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count }) 'gov-04-pim-groups-summary'
+    } | Out-Null
+    Invoke-PostureStep -Label 'Administrative units' -Folder $Folder -Script {
+        # AdministrativeUnit.Read.All
+        $aus = & $get 'directory/administrativeUnits?$select=id,displayName,membershipType,isMemberManagementRestricted'
+        & $save @($aus | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); MembershipType = (& $v $_ 'membershipType'); IsMemberManagementRestricted = (& $v $_ 'isMemberManagementRestricted') } }) 'gov-05-administrative-units' $true
+    } | Out-Null
+
     return @{
         files  = $files.ToArray()
         errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })

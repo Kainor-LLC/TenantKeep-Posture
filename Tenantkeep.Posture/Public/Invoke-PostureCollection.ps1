@@ -106,6 +106,11 @@ function Invoke-PostureCollection {
         'DeviceManagementApps.Read.All'           = 'Intune apps, Apple VPP tokens'
         'BitLockerKey.ReadBasic.All'              = 'BitLocker recovery key presence'
         'AttackSimulation.Read.All'               = 'Attack simulation campaigns (skipped quietly when missing)'
+        'AccessReview.Read.All'                   = 'Access review definitions'
+        'EntitlementManagement.Read.All'          = 'Access packages, catalogs, connected organizations'
+        'LifecycleWorkflows.Read.All'             = 'Lifecycle workflows'
+        'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups'
+        'AdministrativeUnit.Read.All'             = 'Administrative units'
     }
     $granted = @($context.Scopes)
     foreach ($scope in $optional.Keys) {

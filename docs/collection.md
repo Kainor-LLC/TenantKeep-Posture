@@ -20,6 +20,12 @@ run continues.
 | `07-groups` (+csv) | groups with Kind and Dynamic | |
 | `10-app-registrations`, `10-service-principals`, `10-graph-app-permissions`, `10-oauth2-delegated-grants` (+csv) | applications, servicePrincipals, Graph appRoleAssignedTo, oauth2PermissionGrants | Credential expiry and SAML certificate expiry computed |
 | `11-risky-users`, `11-risk-detections-30d` (+csv) | Identity Protection | P2; denied without it and logged |
+| `gov-01-access-reviews` (+csv) | identityGovernance/accessReviews/definitions | Scope queries joined, recurrence; needs AccessReview.Read.All |
+| `gov-02-access-packages` (+csv), `gov-02-access-packages-summary` | entitlementManagement packages, catalogs, connected organizations | EntitlementManagement.Read.All |
+| `gov-03-lifecycle-workflows` (+csv) | lifecycleWorkflows/workflows | LifecycleWorkflows.Read.All |
+| `gov-04-pim-groups` (+csv), `gov-04-pim-groups-summary` | privilegedAccess/group/eligibilitySchedules | PrivilegedEligibilitySchedule.Read.AzureADGroup (verify) |
+| `gov-05-administrative-units` (+csv) | directory/administrativeUnits | AdministrativeUnit.Read.All |
+| `01-domains` (+csv) | domains with authentication type | Federated domains feed the identity model discovery |
 | `policies`, `named-locations`, `auth-strengths`, `auth-context`, `resolved-names`, `group-scope`, `metadata` | Export-PostureCaSnapshot into the same folder | The CA checks and documents read these |
 | `collection` | run manifest: tenant, account, scopes, API versions, files, errors | `metadata.json` stays the CA snapshot's own |
 
@@ -144,7 +150,7 @@ User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagem
 OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All. All delegated, all read-only.
 
 ```powershell
-Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All -NoWelcome
+Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All -NoWelcome
 Invoke-PostureCollection -OutRoot ~/audit/evidence
 ```
 

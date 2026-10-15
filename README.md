@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), the check engine with the Conditional Access, identity, authentication, devices, email, endpoint (Intune policy state) and collaboration catalogs (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`), the Entra, Intune, Exchange Online, SharePoint and Teams collectors (`Invoke-PostureCollection`), the profile wizard (`New-PostureProfile`) and the interactive posture report (`New-PostureReport`). Next: Defender effective state and the E5 domains. Progress: [docs/checklist.md](docs/checklist.md).
+Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), the check engine with the Conditional Access, identity, authentication, devices, email, endpoint (Intune policy state), collaboration and governance catalogs (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`), the Entra, Intune, Exchange Online, SharePoint and Teams collectors (`Invoke-PostureCollection`), the profile wizard (`New-PostureProfile`) and the interactive posture report (`New-PostureReport`). Next: Defender effective state and the E5 domains. Progress: [docs/checklist.md](docs/checklist.md).
 
 ## Use
 

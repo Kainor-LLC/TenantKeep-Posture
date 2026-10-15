@@ -1,0 +1,299 @@
+{
+  "domain": "governance",
+  "checks": [
+    {
+      "id": "GV-001",
+      "domain": "governance",
+      "title": "Enabled members inactive beyond the threshold within the limit",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxInactiveMemberPct": 5
+      },
+      "evidence": [
+        "06-users-summary.json",
+        "06-users.json"
+      ],
+      "pass": "facts.inactiveMemberPct <= thresholds.maxInactiveMemberPct",
+      "remediation": "Disable or remove the enabled accounts that have not signed in within the stale window, or automate it with a leaver workflow. Service and shared mailbox accounts belong blocked from sign-in, not left as users.",
+      "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/howto-manage-inactive-user-accounts",
+      "deepLink": null,
+      "narrative": "An enabled account nobody uses is an account nobody watches. The share of enabled members with no sign-in in the stale window is the backlog the leaver process left behind.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-002",
+      "domain": "governance",
+      "title": "Recurring access reviews on privileged roles",
+      "severityDefault": "High",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-01-access-reviews.json"
+      ],
+      "pass": "facts.privilegedRoleReviews > 0",
+      "remediation": "Create a recurring access review (quarterly or better) on the privileged role assignments in PIM, with the role members or their managers as reviewers and automatic removal on no response.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-create-roles-and-resource-roles-review",
+      "deepLink": null,
+      "narrative": "Privileged roles accrete. A recurring review is the only control that removes an admin role nobody asked to keep. Entra P2 includes it; most tenants that have it have never run one.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-003",
+      "domain": "governance",
+      "title": "Recurring access reviews on guests",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-01-access-reviews.json"
+      ],
+      "pass": "facts.guests == 0 || facts.guestReviews > 0",
+      "remediation": "Create a recurring review of guest users, reviewed by the group or team owners who invited them, with removal on no response.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/manage-guest-access-with-access-reviews",
+      "deepLink": null,
+      "narrative": "Guests arrive for a project and stay. A recurring review puts the decision in front of the person who knows whether the project is still running.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-004",
+      "domain": "governance",
+      "title": "Access packages in use for guest and cross-team access",
+      "severityDefault": "Low",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-02-access-packages-summary.json"
+      ],
+      "pass": "facts.guests == 0 || facts.accessPackages > 0",
+      "remediation": "Put the recurring guest and cross-team access requests behind access packages with an approver and an expiry, so invitations stop being ad hoc.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/entitlement-management-overview",
+      "deepLink": null,
+      "narrative": "Entitlement management is the licensed way to make access requestable, approved and time-bound. A tenant with guests and no packages is granting access by hand.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-005",
+      "domain": "governance",
+      "title": "Joiner and leaver lifecycle workflows enabled",
+      "severityDefault": "Medium",
+      "license": [
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "gov-03-lifecycle-workflows.json"
+      ],
+      "pass": "facts.joinerWorkflow && facts.leaverWorkflow",
+      "remediation": "Enable a joiner workflow (welcome, group membership, temporary access pass) and a leaver workflow (disable, remove licences and groups, delete after a period) in Lifecycle Workflows.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/what-are-lifecycle-workflows",
+      "deepLink": null,
+      "narrative": "The leaver workflow is what makes the deprovisioning SLA true without a ticket. It needs the Governance licence, which the tenant has.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-006",
+      "domain": "governance",
+      "title": "PIM for Groups on role-assignable groups",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "07-groups.json",
+        "gov-04-pim-groups-summary.json"
+      ],
+      "pass": "facts.roleAssignableGroups == 0 || facts.pimManagedGroups > 0",
+      "remediation": "Bring the role-assignable groups under PIM for Groups so membership is eligible and activated with MFA and justification, not permanent.",
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/concept-pim-for-groups",
+      "deepLink": null,
+      "narrative": "A role-assignable group carries admin roles to everyone in it. Permanent membership in such a group is a permanent admin, however the role itself is configured.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-007",
+      "domain": "governance",
+      "title": "Password-based single sign-on within the limit",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxPasswordSsoPct": 10
+      },
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.passwordSsoPct <= thresholds.maxPasswordSsoPct",
+      "affected": "facts.passwordSsoApps",
+      "remediation": "Move the listed applications to SAML or OpenID Connect; password vaulting means a shared credential the user never sees and Conditional Access never evaluates at the app.",
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/what-is-single-sign-on",
+      "deepLink": null,
+      "narrative": "The protocol mix across enterprise applications says how much of the estate Conditional Access really governs. Password SSO is a stored credential, not federation.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-008",
+      "domain": "governance",
+      "title": "No SAML signing certificates expiring within the warning window",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "samlCertWarningDays": 90
+      },
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.samlCertsExpiringSoon == 0",
+      "affected": "facts.samlCertsExpiringSoon",
+      "remediation": "Roll the signing certificate on each listed application and update the service provider, before the expiry date in the detail.",
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/tutorial-manage-certificates-for-federated-single-sign-on",
+      "deepLink": null,
+      "narrative": "An expired SAML certificate is an outage for every user of that application, usually discovered on a Monday morning. The expiry calendar in the report lists these with the other expiring secrets.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.10",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-009",
+      "domain": "governance",
+      "title": "Administrative units at scale",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "adminUnitScaleUsers": 1000
+      },
+      "evidence": [
+        "gov-05-administrative-units.json",
+        "06-users-summary.json"
+      ],
+      "pass": "facts.members < thresholds.adminUnitScaleUsers || facts.administrativeUnits > 0",
+      "remediation": "Create administrative units for the business units or regions and scope the helpdesk and user administrator roles to them.",
+      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/administrative-units",
+      "deepLink": null,
+      "narrative": "Above a thousand users, a tenant-wide helpdesk administrator can reset the password of anyone in the company. Administrative units scope that to the people the helpdesk actually supports.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-010",
+      "domain": "governance",
+      "title": "Every enterprise application has an owner",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.enterpriseAppsWithoutOwner == 0",
+      "affected": "facts.enterpriseAppsWithoutOwner",
+      "remediation": "Assign at least one owner to each listed application; owners receive the certificate expiry notices and answer for the access the application grants.",
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-app-owners",
+      "deepLink": null,
+      "narrative": "An ownerless application is one nobody renews, reviews or removes. The owner is who the expiry notice goes to.",
+      "frameworks": {
+        "nist-csf-2": "GV.RR-02",
+        "iso27001": "A.5.2",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "GV-011",
+      "domain": "governance",
+      "title": "HR-driven provisioning connector present",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.hrProvisioningConnectors > 0",
+      "remediation": "Connect the HR system (Workday, SuccessFactors, or the API-driven inbound provisioning app for any other) so accounts are created and disabled from the source of truth. If provisioning runs another way, record it as an accepted exception with the mechanism named.",
+      "learn": "https://learn.microsoft.com/entra/identity/app-provisioning/inbound-provisioning-api-concepts",
+      "deepLink": null,
+      "narrative": "When HR is the source of truth, a leaver is disabled the day HR says so. The check looks for a known HR connector by name and cannot see a custom integration; an exception documents one. (verify) connector names.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}

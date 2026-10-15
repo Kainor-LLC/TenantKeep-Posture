@@ -84,6 +84,20 @@ BeforeAll {
                 )
                 break
             }
+            '^identityGovernance/accessReviews/definitions' {
+                & $u @(
+                    @{ id = 'ar1'; displayName = 'Quarterly admin review'; status = 'InProgress'; scope = @{ '@odata.type' = '#microsoft.graph.accessReviewQueryScope'; query = '/roleManagement/directory/roleAssignmentScheduleInstances?$filter=roleDefinitionId eq ''r-ga'''; queryType = 'MicrosoftGraph' }; settings = @{ recurrence = @{ pattern = @{ type = 'absoluteMonthly'; interval = 3 } } } },
+                    @{ id = 'ar2'; displayName = 'Guest review'; status = 'InProgress'; scope = @{ '@odata.type' = '#microsoft.graph.principalResourceMembershipsScope'; principalScopes = @(@{ query = '/users?$filter=(userType eq ''Guest'')' }); resourceScopes = @(@{ query = '/groups/g1' }) }; settings = @{ recurrence = @{ pattern = @{ type = 'weekly'; interval = 1 } } } },
+                    @{ id = 'ar3'; displayName = 'One-off'; status = 'Completed'; scope = @{ query = '/groups/g2/members' }; settings = @{ recurrence = @{ pattern = $null } } }
+                )
+                break
+            }
+            '^identityGovernance/entitlementManagement/accessPackages' { & $u @(@{ id = 'pk1'; displayName = 'Vendor access'; isHidden = $false }); break }
+            '^identityGovernance/entitlementManagement/catalogs' { & $u @(@{ id = 'cat1'; displayName = 'General'; state = 'published' }); break }
+            '^identityGovernance/entitlementManagement/connectedOrganizations' { & $u @(); break }
+            '^identityGovernance/lifecycleWorkflows/workflows' { & $u @(@{ id = 'wf1'; displayName = 'Leaver'; category = 'leaver'; isEnabled = $true; isSchedulingEnabled = $true }, @{ id = 'wf2'; displayName = 'Joiner draft'; category = 'joiner'; isEnabled = $false; isSchedulingEnabled = $false }); break }
+            '^identityGovernance/privilegedAccess/group/eligibilitySchedules' { & $u @(@{ id = 'es1'; groupId = 'grp-admins'; accessId = 'member'; principalId = 'u1'; status = 'Provisioned'; memberType = 'Direct' }); break }
+            '^directory/administrativeUnits' { & $u @(); break }
             '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
             '^groups\?\$filter=groupTypes' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; createdDateTime = '2024-01-01T00:00:00Z'; visibility = 'Private'; owners = @(@{ id = 'u1' }) }, @{ id = 'grp9'; displayName = 'Orphaned Project'; createdDateTime = '2023-05-01T00:00:00Z'; visibility = 'Private'; owners = @() }); break }
             '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }); break }
@@ -237,6 +251,31 @@ Describe 'Invoke-PostureCollection' {
             $by['EP-014'].status | Should -Be 'pass'
             $by['EP-015'].status | Should -Be 'fail' -Because 'macOS is in scope and no FileVault policy exists'
             $by['EP-018'].status | Should -Be 'pass' -Because 'iOS has an assigned app protection policy and jailbreak detection; Android is out of scope'
+        }
+
+        It 'collects the governance reads: reviews with their scope queries, packages, workflows, PIM groups, administrative units' {
+            $ar = @(& $script:Read 'gov-01-access-reviews')
+            $ar.Count | Should -Be 3
+            @($ar | Where-Object { $_.Id -eq 'ar2' })[0].ScopeQuery | Should -Match "userType eq 'Guest'"
+            @($ar | Where-Object { $_.Id -eq 'ar2' })[0].ScopeQuery | Should -Match '/groups/g1'
+            @($ar | Where-Object { $_.Id -eq 'ar3' })[0].Recurring | Should -BeFalse
+            (& $script:Read 'gov-02-access-packages-summary').Packages | Should -Be 1
+            @(& $script:Read 'gov-03-lifecycle-workflows' | Where-Object { $_.IsEnabled }).Category | Should -Be 'leaver'
+            (& $script:Read 'gov-04-pim-groups-summary').Groups | Should -Be 1
+            @(& $script:Read 'gov-05-administrative-units').Count | Should -Be 0
+            @(& $script:Read '10-service-principals')[0].PSObject.Properties['OwnerCount'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'feeds the governance checks from the same folder' {
+            $run = Invoke-PostureChecks -Evidence $script:R.Folder -Domain governance -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by['GV-002'].status | Should -Be 'pass' -Because 'a recurring review targets role assignments'
+            $by['GV-003'].status | Should -Be 'pass'
+            $by['GV-004'].status | Should -Be 'pass'
+            $by['GV-005'].status | Should -Be 'fail' -Because 'the joiner workflow is disabled'
+            $by['GV-009'].status | Should -Be 'pass' -Because 'under the scale threshold'
+            $by['GV-010'].status | Should -Be 'fail' -Because 'the listed enterprise app has no owners'
+            $by['GV-010'].affectedCount | Should -Be 1
         }
 
         It 'records the verified domains with their authentication type' {
