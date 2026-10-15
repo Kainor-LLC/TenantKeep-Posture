@@ -4,6 +4,32 @@ The org profile (spec 10.2): facts about the tenant and its risk appetite that e
 `New-PostureProfile`, hand-editable, one per tenant. Without a profile, every check is evaluated and license gating
 is off; the appendix says so.
 
+## Discovery first, then the questionnaire
+
+Run the collection first, then point the wizard at the evidence folder. Discovery reads what the tenant already
+says about itself and the wizard asks only what evidence cannot answer:
+
+```powershell
+$folder = Invoke-PostureCollection -OutRoot ~/audit/evidence
+New-PostureProfile -Path ./clients/contoso/profile.json -Evidence $folder
+```
+
+| Discovered | From | Rule |
+|---|---|---|
+| `licenses` | 01-subscribed-skus | service plans and SKUs; Copilot implies SAM (verify) |
+| `platforms` | 09-intune-managed-devices, 08-entra-devices | a platform with 5 or more devices, or 2% of the fleet (verify the floor) |
+| `identityModel` | 01-organization, 01-domains | sync on means hybrid; a federated domain means hybrid-adfs; Cloud Sync reads as hybrid-connect (verify) |
+| `byod` | 09-intune-managed-devices, 09-intune-app-protection-policies | 5 or more personal devices means mdm; an assigned app protection policy means mam; else none |
+| `externalCollaboration` | 06-users-summary, spo-tenant-settings, teams-federation | no guests and sharing off means locked; guests with expiration, a domain list or a Teams allow list means governed; else open |
+| `copilot` | 01-subscribed-skus, 06-users-summary | seats consumed at half the members means deployed; any means pilot |
+| `tenantId`, `clientName` | collection, 01-organization | |
+
+Asked: third-party controls, thresholds, break-glass accounts, frameworks, audience, cadence, and `azure` until the
+Azure collector exists. Every discovered value is printed with its file and rule, a parameter always wins, and
+`-AskAll` asks the discovered questions too with the discovered values as defaults. The written profile carries a
+`discovery` block with the evidence folder, the keys discovered and the sources, so a reviewer can see what was
+measured and what was answered.
+
 ```json
 {
   "version": 1,
@@ -30,7 +56,8 @@ is off; the appendix says so.
   "audience": "technical",
   "cadence": "quarterly",
   "breakGlass": ["breakglass01@contoso.example", "breakglass02@contoso.example"],
-  "licensesSource": "graph:2026-10-14",
+  "licensesSource": "evidence:/Users/me/audit/evidence/20261014-1448",
+  "discovery": { "evidence": "...", "timestampUtc": "...", "keys": ["licenses", "platforms", "identityModel", "byod", "externalCollaboration", "copilot", "tenantId", "clientName"], "sources": { "platforms": "..." } },
   "createdUtc": "2026-10-14T04:30:00Z",
   "updatedUtc": "2026-10-14T04:30:00Z"
 }

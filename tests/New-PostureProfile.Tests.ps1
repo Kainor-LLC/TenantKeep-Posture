@@ -84,6 +84,42 @@ Describe 'New-PostureProfile' {
             finally { Remove-Item -LiteralPath (Join-Path $HOME ($rel.Substring(2))) -Recurse -Force -ErrorAction SilentlyContinue }
         }
 
+        It 'discovers licenses, platforms, identity model, BYOD, collaboration, Copilot, tenant and name from an evidence folder, and asks only the rest' {
+            $ev = Join-Path $script:Root 'discover'
+            New-Item -ItemType Directory -Path $ev -Force | Out-Null
+            $w = { param([string] $Name, $Data) ConvertTo-Json -InputObject $Data -Depth 10 | Set-Content -LiteralPath (Join-Path $ev "$Name.json") }
+            & $w 'collection' @{ tenantId = '11111111-2222-3333-4444-555555555555' }
+            & $w '01-organization' @(@{ id = 't'; displayName = 'Contoso Ltd'; onPremisesSyncEnabled = $true })
+            & $w '01-domains' @(@{ Id = 'contoso.example'; AuthenticationType = 'Federated'; IsVerified = $true }, @{ Id = 'contoso.onmicrosoft.com'; AuthenticationType = 'Managed'; IsVerified = $true })
+            & $w '01-subscribed-skus' @(
+                @{ skuPartNumber = 'SPE_E5'; consumedUnits = 400; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM_P2' }, @{ servicePlanName = 'INTUNE_A' }, @{ servicePlanName = 'THREAT_INTELLIGENCE' }, @{ servicePlanName = 'WINDEFATP' }) }
+                @{ skuPartNumber = 'Microsoft_365_Copilot'; consumedUnits = 40; servicePlans = @(@{ servicePlanName = 'M365_COPILOT' }) }
+            )
+            & $w '09-intune-managed-devices' (@(1..60 | ForEach-Object { @{ OperatingSystem = 'Windows'; ManagedDeviceOwnerType = 'company' } }) + @(1..6 | ForEach-Object { @{ OperatingSystem = 'macOS'; ManagedDeviceOwnerType = 'company' } }) + @(@{ OperatingSystem = 'iOS'; ManagedDeviceOwnerType = 'personal' }))
+            & $w '08-entra-devices' (@(1..30 | ForEach-Object { @{ OperatingSystem = 'IPhone' } }) + @(@{ OperatingSystem = 'Android' }, @{ OperatingSystem = 'Linux' }))
+            & $w '09-intune-app-protection-policies' @(@{ Type = 'iosManagedAppProtection'; IsAssigned = $true })
+            & $w '06-users-summary' @{ Total = 420; Members = 400; Guests = 20 }
+            & $w 'spo-tenant-settings' @{ SharingCapability = 'ExternalUserSharingOnly'; ExternalUserExpirationRequired = $true; SharingDomainRestrictionMode = 'None' }
+            $path = Join-Path $script:Root 'discovered-profile.json'
+            $p = New-PostureProfile -Path $path -NonInteractive -Evidence $ev -Platforms windows, macOS, iOS, android -PassThru 6>$null
+            @($p.licenses) | Should -Contain 'Copilot'
+            @($p.licenses) | Should -Contain 'SAM' -Because 'Copilot includes SharePoint Advanced Management'
+            @($p.platforms) | Should -Be @('windows', 'macOS', 'iOS', 'android') -Because 'the parameter wins over discovery'
+            $p.identityModel | Should -Be 'hybrid-adfs'
+            $p.byod | Should -Be 'mam'
+            $p.externalCollaboration | Should -Be 'governed'
+            $p.copilot | Should -Be 'pilot' -Because '40 seats for 400 members'
+            $p.tenantId | Should -Be '11111111-2222-3333-4444-555555555555'
+            $p.clientName | Should -Be 'Contoso Ltd'
+            @($p.discovery.keys) | Should -Not -Contain 'platforms'
+            @($p.discovery.keys) | Should -Contain 'identityModel'
+            $p.discovery.sources.identityModel | Should -Match 'federated=1'
+            InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $ev } {
+                $d = Get-PostureProfileDiscovery -Evidence $Ev
+                @($d.facts.platforms) | Should -Be @('iOS', 'macOS', 'windows') -Because 'Android and Linux have one device each, under the floor'
+            }
+        }
+
         It 'detects licenses from an evidence folder' {
             $ev = Join-Path $script:Root 'evidence'
             New-Item -ItemType Directory -Path $ev | Out-Null

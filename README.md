@@ -24,7 +24,7 @@ Invoke-PostureChecks -Evidence ~/audit/evidence/<stamp>-ca -Domain ca           
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
 Invoke-PostureCollection -OutRoot ~/audit/evidence                                            # A.1 identity and Intune evidence, A.2 Exchange evidence and the CA snapshot in one run folder
 New-PostureReport -Evidence ~/audit/evidence/<stamp> -Profile ~/audit/profile.json            # report.html (interactive), report.md, checks.json; add -Format Pdf
-New-PostureProfile -Path ~/audit/profile.json -FromGraph                                      # the org profile the checks read
+New-PostureProfile -Path ~/audit/profile.json -Evidence ~/audit/evidence/<stamp>                # discovery from the evidence, then the questions evidence cannot answer
 ```
 
 ## Develop

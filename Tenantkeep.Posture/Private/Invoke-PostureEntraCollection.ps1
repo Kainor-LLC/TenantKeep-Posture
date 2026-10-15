@@ -39,6 +39,11 @@ function Invoke-PostureEntraCollection {
         $org = & $get 'organization?$select=id,displayName,tenantType,countryLetterCode,onPremisesSyncEnabled,onPremisesLastSyncDateTime,verifiedDomains,createdDateTime'
         & $save $org '01-organization'
     } | Out-Null
+    Invoke-PostureStep -Label 'Domains' -Folder $Folder -Script {
+        # Federated domains say ADFS or another federation is in play; the profile discovery reads this for the identity model.
+        $domains = & $get 'domains?$select=id,isDefault,isInitial,isVerified,authenticationType'
+        & $save @($domains | ForEach-Object { [ordered]@{ Id = $_.id; IsDefault = (& $v $_ 'isDefault'); IsInitial = (& $v $_ 'isInitial'); IsVerified = (& $v $_ 'isVerified'); AuthenticationType = (& $v $_ 'authenticationType') } }) '01-domains' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Subscribed SKUs' -Folder $Folder -Script {
         $skus = & $get 'subscribedSkus'
         $flat = @($skus | ForEach-Object {

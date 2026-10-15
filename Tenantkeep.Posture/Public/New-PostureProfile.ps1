@@ -13,7 +13,12 @@ function New-PostureProfile {
     .PARAMETER Path
         Where to write. Default: ./profile.json. An existing file is read first and its answers become the defaults.
     .PARAMETER Evidence
-        Evidence folder holding 01-subscribed-skus.json for license detection.
+        Evidence folder from Invoke-PostureCollection. Discovery reads it for the licenses, platforms, identity model,
+        BYOD stance, external collaboration, Copilot status, tenant id and display name, and the wizard then asks only
+        what evidence cannot answer: third-party controls, thresholds, break-glass accounts, frameworks, audience,
+        cadence. Each discovered value is printed with the file and rule it came from; a parameter still wins.
+    .PARAMETER AskAll
+        Ask the discovered questions too, with the discovered values as defaults.
     .PARAMETER FromGraph
         Detect licenses from the signed-in Graph session (Organization.Read.All or Directory.Read.All).
     .PARAMETER NonInteractive
@@ -47,6 +52,7 @@ function New-PostureProfile {
         [string] $Evidence,
         [switch] $FromGraph,
         [switch] $NonInteractive,
+        [switch] $AskAll,
         [ValidateSet('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Intune', 'IntuneSuite', 'EntraSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'Purview', 'Copilot', 'SAM')]
         [string[]] $Licenses,
         [ValidateSet('windows', 'macOS', 'linux', 'iOS', 'android')] [string[]] $Platforms,
@@ -123,11 +129,21 @@ function New-PostureProfile {
     # Licenses: detected, then confirmed.
     $licenseSource = $(if ($existing -and $existing.Contains('licensesSource')) { $existing.licensesSource } else { 'manual' })
     $detected = $null
+    $discovered = @()
+    $discovery = $null
     if ($Evidence) {
-        $skuFile = Join-Path $Evidence '01-subscribed-skus.json'
-        if (-not (Test-Path -LiteralPath $skuFile)) { throw "No 01-subscribed-skus.json in $Evidence" }
-        $detected = @(Get-PostureLicenseToken -Sku @(Get-Content -Raw -LiteralPath $skuFile | ConvertFrom-Json -AsHashtable -Depth 10))
-        $licenseSource = "evidence:$skuFile"
+        $discovery = Get-PostureProfileDiscovery -Evidence $Evidence
+        $licenseSource = "evidence:$($discovery.evidence)"
+        if ($discovery.facts.Contains('licenses')) { $detected = @($discovery.facts.licenses) }
+        # Discovered values become the defaults unless the matching parameter was given.
+        $paramFor = @{ platforms = 'Platforms'; identityModel = 'IdentityModel'; byod = 'Byod'; externalCollaboration = 'ExternalCollaboration'; copilot = 'Copilot'; tenantId = 'TenantId'; clientName = 'ClientName' }
+        foreach ($k in @($discovery.facts.Keys | Where-Object { $_ -ne 'licenses' })) {
+            if ($paramFor.ContainsKey($k) -and $PSBoundParameters.ContainsKey($paramFor[$k])) { continue }
+            $defaults[$k] = $discovery.facts[$k]
+            $discovered += $k
+        }
+        if ($null -ne $detected -and -not $PSBoundParameters.ContainsKey('Licenses')) { $discovered += 'licenses' }
+        Write-PostureDiscovery -Discovery $discovery -Keys $discovered
     }
     elseif ($FromGraph) {
         $null = Assert-PostureGraphScope -AnyOfScope 'Organization.Read.All', 'Directory.Read.All'
@@ -140,14 +156,15 @@ function New-PostureProfile {
     $answers = $defaults
     if (-not $NonInteractive) {
         $ask = { param($q, $why, $choices, $default, [bool] $multi) Read-PostureAnswer -Question $q -Why $why -Choices $choices -Default $default -Multi:$multi }
-        $answers.clientName = & $ask 'Client or tenant display name?' 'Shown on the report cover.' @() $answers.clientName $false
+        $skip = { param([string] $k) ($discovered -contains $k) -and -not $AskAll }
+        if (-not (& $skip 'clientName')) { $answers.clientName = & $ask 'Client or tenant display name?' 'Shown on the report cover.' @() $answers.clientName $false }
         $licenseWhy = if ($null -ne $detected) { "Detected from $licenseSource. Edit the list if it is wrong." } else { 'Tokens: E3, E5, BusinessPremium, P1, P2, Intune, IntuneSuite, EntraSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, Purview, Copilot, SAM. Use -FromGraph or -Evidence to detect.' }
-        $answers.licenses = @(& $ask 'Licenses present?' $licenseWhy @('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Intune', 'IntuneSuite', 'EntraSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'Purview', 'Copilot', 'SAM') $answers.licenses $true)
-        $answers.platforms = @(& $ask 'Platforms in scope?' 'Decides which device and endpoint checks appear.' @('windows', 'macOS', 'linux', 'iOS', 'android') $answers.platforms $true)
-        $answers.identityModel = & $ask 'Identity model?' 'Hybrid renders the AD domain; ADFS adds the federation checks.' @('cloud-only', 'hybrid-connect', 'hybrid-cloud-sync', 'hybrid-adfs') $answers.identityModel $false
-        $answers.byod = & $ask 'BYOD stance for phones?' 'none: corporate devices only. mam: app protection without enrollment. mdm: enrolled.' @('none', 'mam', 'mdm') $answers.byod $false
-        $answers.externalCollaboration = & $ask 'External collaboration stance?' 'locked: any guest is a finding. governed: guests with reviews pass. open: by policy.' @('locked', 'governed', 'open') $answers.externalCollaboration $false
-        $answers.copilot = & $ask 'Copilot status?' 'Decides whether the readiness domain renders and how oversharing is scored.' @('none', 'pilot', 'deployed') $answers.copilot $false
+        if (-not (& $skip 'licenses')) { $answers.licenses = @(& $ask 'Licenses present?' $licenseWhy @('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Intune', 'IntuneSuite', 'EntraSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'Purview', 'Copilot', 'SAM') $answers.licenses $true) }
+        if (-not (& $skip 'platforms')) { $answers.platforms = @(& $ask 'Platforms in scope?' 'Decides which device and endpoint checks appear.' @('windows', 'macOS', 'linux', 'iOS', 'android') $answers.platforms $true) }
+        if (-not (& $skip 'identityModel')) { $answers.identityModel = & $ask 'Identity model?' 'Hybrid renders the AD domain; ADFS adds the federation checks.' @('cloud-only', 'hybrid-connect', 'hybrid-cloud-sync', 'hybrid-adfs') $answers.identityModel $false }
+        if (-not (& $skip 'byod')) { $answers.byod = & $ask 'BYOD stance for phones?' 'none: corporate devices only. mam: app protection without enrollment. mdm: enrolled.' @('none', 'mam', 'mdm') $answers.byod $false }
+        if (-not (& $skip 'externalCollaboration')) { $answers.externalCollaboration = & $ask 'External collaboration stance?' 'locked: any guest is a finding. governed: guests with reviews pass. open: by policy.' @('locked', 'governed', 'open') $answers.externalCollaboration $false }
+        if (-not (& $skip 'copilot')) { $answers.copilot = & $ask 'Copilot status?' 'Decides whether the readiness domain renders and how oversharing is scored.' @('none', 'pilot', 'deployed') $answers.copilot $false }
         $answers.azure = & $ask 'Azure footprint?' 'none, platform only, or workloads. Decides whether the Azure domain renders.' @('none', 'platform', 'workloads') $answers.azure $false
         foreach ($cat in @($answers.thirdParty.Keys)) {
             $answers.thirdParty[$cat] = & $ask "Third-party $cat control? (vendor name, or none)" 'Checks it covers render as "Covered by <vendor>" instead of failing.' @() $answers.thirdParty[$cat] $false
@@ -165,6 +182,7 @@ function New-PostureProfile {
     $written = [ordered]@{ version = 1 }
     foreach ($k in $answers.Keys) { $written[$k] = $answers[$k] }
     $written.licensesSource = $licenseSource
+    if ($discovery) { $written.discovery = [ordered]@{ evidence = $discovery.evidence; timestampUtc = [datetime]::UtcNow.ToString('o'); keys = @($discovered | Sort-Object); sources = $discovery.sources } }
     $written.createdUtc = $(if ($existing -and $existing.Contains('createdUtc')) { $existing.createdUtc } else { [datetime]::UtcNow.ToString('o') })
     $written.updatedUtc = [datetime]::UtcNow.ToString('o')
 

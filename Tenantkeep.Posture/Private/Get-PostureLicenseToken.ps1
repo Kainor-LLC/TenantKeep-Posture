@@ -6,7 +6,7 @@ function Get-PostureLicenseToken {
     .DESCRIPTION
         Tokens: E3, E5, BusinessPremium, P1, P2, Intune, IntuneSuite, EntraSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness,
         Purview, Copilot, SAM. Derived from service plan names, so a bundle such as Business Premium yields P1,
-        Intune, MDO1 and MDEBusiness as well. (verify) plan names for Entra Suite, Intune Suite and SAM.
+        Intune, MDO1 and MDEBusiness as well, and Copilot yields SAM. (verify) plan names for Entra Suite, Intune Suite and SAM.
     .PARAMETER Sku
         Objects shaped like Graph subscribedSkus (skuPartNumber, servicePlans[].servicePlanName) or the audit
         plan's 01-subscribed-skus rows (SkuPartNumber, ServicePlans as a ';'-joined string).
@@ -56,5 +56,7 @@ function Get-PostureLicenseToken {
         $names = if ($plans -is [string]) { @($plans -split ';') } else { @($plans | ForEach-Object { if ($_ -is [string]) { $_ } else { Get-PostureValue $_ 'servicePlanName' } }) }
         foreach ($n in $names) { $n = [string]$n; if ($n -and $byPlan.ContainsKey($n)) { $null = $tokens.Add($byPlan[$n]) } }
     }
+    # Microsoft 365 Copilot includes SharePoint Advanced Management (verify: announced for Copilot licenses in 2025; confirm the plan name appears under the Copilot SKU on a live tenant).
+    if ($tokens.Contains('Copilot')) { $null = $tokens.Add('SAM') }
     return @($tokens | Sort-Object)
 }
