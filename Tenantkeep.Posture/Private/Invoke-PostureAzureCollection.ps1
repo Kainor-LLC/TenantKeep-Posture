@@ -51,9 +51,16 @@ function Invoke-PostureAzureCollection {
         & $save @($rows) 'az-02-defender-pricings' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Defender for Cloud security contacts' -Folder $Folder -Script {
-        # (verify) api-version and the notificationsByRole / alertNotifications shape
+        # The 2023-12-01-preview shape carries notificationsSources (sourceType Alert with minimalSeverity) and isEnabled; older contacts carry alertNotifications. Both are read (live shape confirmed 2026-10-15).
         $rows = foreach ($s in $subIds) {
-            foreach ($c in @(& $rest "/subscriptions/$s/providers/Microsoft.Security/securityContacts?api-version=2023-12-01-preview")) { [ordered]@{ SubscriptionId = $s; Name = (& $v $c 'name'); Emails = (& $v $c 'properties.emails'); AlertState = (& $v $c 'properties.alertNotifications.state'); MinimalSeverity = (& $v $c 'properties.alertNotifications.minimalSeverity'); NotifyRoles = @(@(& $v $c 'properties.notificationsByRole.roles') | ForEach-Object { [string]$_ }); IsEnabled = (& $v $c 'properties.isEnabled') } }
+            foreach ($c in @(& $rest "/subscriptions/$s/providers/Microsoft.Security/securityContacts?api-version=2023-12-01-preview")) {
+                $alertSource = @(@(& $v $c 'properties.notificationsSources') | Where-Object { [string](& $v $_ 'sourceType') -eq 'Alert' } | Select-Object -First 1)
+                $minimal = & $v $c 'properties.alertNotifications.minimalSeverity'
+                if (-not $minimal -and $alertSource.Count -gt 0) { $minimal = & $v $alertSource[0] 'minimalSeverity' }
+                $state = & $v $c 'properties.alertNotifications.state'
+                if (-not $state) { $state = $(if ($alertSource.Count -gt 0) { 'On' } elseif ((& $v $c 'properties.notificationsSources')) { 'Off' } else { $null }) }
+                [ordered]@{ SubscriptionId = $s; Name = (& $v $c 'name'); Emails = (& $v $c 'properties.emails'); AlertState = $state; MinimalSeverity = $minimal; NotifyRoles = @(@(& $v $c 'properties.notificationsByRole.roles') | ForEach-Object { [string]$_ }); IsEnabled = (& $v $c 'properties.isEnabled') }
+            }
         }
         & $save @($rows) 'az-02-security-contacts' $true
     } | Out-Null
@@ -103,8 +110,12 @@ function Invoke-PostureAzureCollection {
         & $save $flat 'az-05-role-assignments' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Classic administrators' -Folder $Folder -Script {
-        # (verify) the endpoint still answers after the 2024 retirement; an error here is logged, not fatal
-        $rows = foreach ($s in $subIds) { foreach ($a in @(& $rest "/subscriptions/$s/providers/Microsoft.Authorization/classicAdministrators?api-version=2015-06-01")) { [ordered]@{ SubscriptionId = $s; EmailAddress = (& $v $a 'properties.emailAddress'); Role = (& $v $a 'properties.role') } } }
+        # The classic administrators resource type is gone on tenants that completed the 2024 retirement (confirmed 2026-10-15: 404 InvalidResourceType);
+        # that answer means none are left, which is the pass. Any other error is logged.
+        $rows = foreach ($s in $subIds) {
+            $answer = $(try { @(& $rest "/subscriptions/$s/providers/Microsoft.Authorization/classicAdministrators?api-version=2015-06-01") } catch { if ($_.Exception.Message -match 'InvalidResourceType|404') { @() } else { throw } })
+            foreach ($a in $answer) { [ordered]@{ SubscriptionId = $s; EmailAddress = (& $v $a 'properties.emailAddress'); Role = (& $v $a 'properties.role') } }
+        }
         & $save @($rows) 'az-05-classic-administrators' $true
     } | Out-Null
 
