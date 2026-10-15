@@ -1,0 +1,781 @@
+{
+  "domain": "hybrid",
+  "checks": [
+    {
+      "id": "HY-001",
+      "domain": "hybrid",
+      "title": "Password hash sync on",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-onprem-sync-features.json"
+      ],
+      "pass": "facts.passwordHashSync",
+      "remediation": "Enable password hash synchronization in Entra Connect, even alongside pass-through authentication or federation, for leaked credential detection and sign-in failover.",
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/whatis-phs",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Without the hashes in Entra, leaked credential detection has nothing to compare and a federation outage is a sign-in outage.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-002",
+      "domain": "hybrid",
+      "title": "Hard and soft match takeover protection on",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-onprem-sync-features.json"
+      ],
+      "pass": "facts.blockSoftMatch && facts.blockHardMatchTakeover",
+      "remediation": "Set BlockSoftMatch and BlockCloudObjectTakeoverThroughHardMatch on the directory synchronization features.",
+      "learn": "https://learn.microsoft.com/graph/api/resources/onpremisesdirectorysynchronizationfeature",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "An on-premises account that matches a cloud admin by UPN or source anchor takes it over on the next sync. The two switches close that path.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-003",
+      "domain": "hybrid",
+      "title": "No federated domains, or a dated migration plan",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-domains.json"
+      ],
+      "pass": "facts.federatedDomains == 0",
+      "remediation": "Move federated domains to password hash sync or pass-through authentication with staged rollout, and decommission ADFS; record the plan as an exception while it runs.",
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/migrate-from-federation-to-cloud-authentication",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "ADFS is a Tier 0 server farm whose only purpose Entra now performs natively. Every federated domain keeps it alive.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-004",
+      "domain": "hybrid",
+      "title": "Entra Connect Health with no open alerts",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-08-entra-connect-health.json"
+      ],
+      "pass": "facts.connectHealthServices > 0 && facts.connectHealthActiveAlerts == 0",
+      "remediation": "Install the Connect Health agent on the sync server and work the open alerts.",
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/whatis-azure-ad-connect-health",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Sync errors, an aging sync server and a stale export show up in Connect Health first, long before users notice.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-010",
+      "domain": "hybrid",
+      "title": "Domain Admins within the limit",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxDomainAdmins": 5
+      },
+      "evidence": [
+        "ad-03-privileged-groups.json"
+      ],
+      "pass": "facts.domainAdmins <= thresholds.maxDomainAdmins",
+      "affected": "facts.domainAdmins",
+      "remediation": "Reduce Domain Admins to five or fewer named, separate admin accounts; delegate everything else.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Every Domain Admin is a path to every system. Service accounts and daily-use accounts in the group are the usual excess.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-011",
+      "domain": "hybrid",
+      "title": "Enterprise Admins and Schema Admins empty",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-03-privileged-groups.json"
+      ],
+      "pass": "facts.enterpriseAndSchemaAdmins == 0",
+      "affected": "facts.enterpriseAndSchemaAdmins",
+      "remediation": "Empty both groups; add a member only for the forest change that needs it, then remove it.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Neither group has a day-to-day purpose. Standing members are standing forest-wide control.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-012",
+      "domain": "hybrid",
+      "title": "Operator groups empty or justified",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-03-privileged-groups.json"
+      ],
+      "pass": "facts.operatorGroupMembers == 0",
+      "affected": "facts.operatorGroupMembers",
+      "remediation": "Remove members from Account, Server, Print and Backup Operators, DnsAdmins and Group Policy Creator Owners, or record each as an exception.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "These groups grant quiet paths to domain control: a Backup Operator can read the AD database, a DnsAdmin can load a DLL on a DC.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-013",
+      "domain": "hybrid",
+      "title": "Admin accounts hardened: Protected Users, no delegation, no SPN, no mailbox, fresh password",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxAdminPasswordAgeDays": 365
+      },
+      "evidence": [
+        "ad-03-admin-accounts.json"
+      ],
+      "pass": "facts.adminAccountsWithIssues == 0",
+      "affected": "facts.adminAccountsWithIssues",
+      "remediation": "Put admin accounts in Protected Users, mark them sensitive and cannot be delegated, remove SPNs and mailboxes, rotate passwords older than a year.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "adminCount=1 marks the accounts AdminSDHolder protects. Each listed issue is a way an attacker turns one of them into domain control.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-014",
+      "domain": "hybrid",
+      "title": "krbtgt password rotated within the window",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxKrbtgtAgeDays": 180
+      },
+      "evidence": [
+        "ad-04-builtin-accounts.json"
+      ],
+      "pass": "facts.krbtgtPasswordAgeDays <= thresholds.maxKrbtgtAgeDays",
+      "remediation": "Rotate the krbtgt password twice, at least ten hours apart, with Microsoft's script, and schedule it every six months.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/manage/ad-forest-recovery-resetting-the-krbtgt-password",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "A krbtgt password from years ago means any golden ticket ever forged still works.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-015",
+      "domain": "hybrid",
+      "title": "Built-in Administrator and Guest controlled",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-04-builtin-accounts.json"
+      ],
+      "pass": "!facts.builtinAdministratorEnabled && !facts.guestEnabled",
+      "remediation": "Disable the RID 500 account (keep its password in the break-glass safe) and the Guest account.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "RID 500 cannot be locked out and is the first account any attacker tries.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-016",
+      "domain": "hybrid",
+      "title": "Machine account quota zero",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-01-forest-domain.json"
+      ],
+      "pass": "facts.machineAccountQuota == 0",
+      "remediation": "Set ms-DS-MachineAccountQuota to 0 on the domain and let the provisioning process join computers.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "The default lets any user create ten computer accounts, the first step of several Kerberos relay and delegation attacks.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-017",
+      "domain": "hybrid",
+      "title": "No unconstrained delegation outside domain controllers",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-05-delegation.json"
+      ],
+      "pass": "facts.unconstrainedDelegationNonDc == 0",
+      "affected": "facts.unconstrainedDelegationNonDc",
+      "remediation": "Remove unconstrained delegation from the listed objects; use constrained or resource-based delegation where a service needs it.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "A server trusted for unconstrained delegation holds the tickets of everyone who connects to it, including Domain Admins.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-018",
+      "domain": "hybrid",
+      "title": "No Kerberoastable user accounts",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-05-kerberoastable.json"
+      ],
+      "pass": "facts.kerberoastableAccounts == 0",
+      "affected": "facts.kerberoastableAccounts",
+      "remediation": "Move services to group managed service accounts; for the rest set long random passwords, AES only, and no privileged membership.",
+      "learn": "https://learn.microsoft.com/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Any domain user can request a ticket for an SPN and crack the password offline. A user account with an SPN and an old password is already lost.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-019",
+      "domain": "hybrid",
+      "title": "No AS-REP roastable accounts",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-05-asrep-roastable.json"
+      ],
+      "pass": "facts.asrepRoastableAccounts == 0",
+      "affected": "facts.asrepRoastableAccounts",
+      "remediation": "Re-enable Kerberos pre-authentication on the listed accounts.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Without pre-authentication an attacker gets crackable material for the account without a password.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-020",
+      "domain": "hybrid",
+      "title": "Windows LAPS on member computers",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minLapsPct": 95
+      },
+      "evidence": [
+        "ad-06-computers-summary.json"
+      ],
+      "pass": "facts.lapsPct >= thresholds.minLapsPct",
+      "remediation": "Deploy Windows LAPS through Intune or GPO to every workstation and member server, and retire legacy LAPS.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/laps/laps-overview",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Without LAPS the local administrator password is shared across the fleet and one workstation compromise is every workstation.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-021",
+      "domain": "hybrid",
+      "title": "Forest and domain functional level 2016 or higher",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-01-forest-domain.json"
+      ],
+      "pass": "facts.functionalLevelsAtLeast2016",
+      "remediation": "Raise the functional levels once the last older domain controller is gone.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/active-directory-functional-levels",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Older levels keep older Kerberos and replication behaviours alive, and block Protected Users and the Recycle Bin features.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-02",
+        "iso27001": "A.8.8",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-022",
+      "domain": "hybrid",
+      "title": "Domain controllers on supported Windows Server, two or more",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-02-domain-controllers.json"
+      ],
+      "pass": "facts.domainControllers >= 2 && facts.domainControllersUnsupported == 0",
+      "affected": "facts.domainControllersUnsupported",
+      "remediation": "Replace the listed domain controllers with Windows Server 2016 or later and keep at least two per domain.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "An unsupported domain controller is an unpatched Tier 0 server. One domain controller is a single point of failure for every sign-in.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-02",
+        "iso27001": "A.8.8",
+        "cmmc": "SI.L1-3.14.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-023",
+      "domain": "hybrid",
+      "title": "AD Recycle Bin enabled",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-01-forest-domain.json"
+      ],
+      "pass": "facts.recycleBinEnabled",
+      "remediation": "Enable the Active Directory Recycle Bin optional feature; it cannot be turned off again.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/get-started/adac/introduction-to-active-directory-administrative-center-enhancements--level-100-",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Deleted objects come back with their attributes and group membership instead of from backup.",
+      "frameworks": {
+        "nist-csf-2": "RC.RP-01",
+        "iso27001": "A.8.13",
+        "cmmc": "CP.L2-3.8.9",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-024",
+      "domain": "hybrid",
+      "title": "No stale enabled users beyond the window",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-07-users-summary.json"
+      ],
+      "pass": "facts.staleEnabledUsers == 0",
+      "remediation": "Disable enabled accounts that have not signed in within the stale window and move them to a quarantine OU; delete after the retention period.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Stale enabled accounts are the leavers the process missed; each one is a valid credential nobody watches.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-025",
+      "domain": "hybrid",
+      "title": "Password policy: 14 characters, lockout on, no reversible encryption",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minPasswordLength": 14
+      },
+      "evidence": [
+        "ad-01-forest-domain.json"
+      ],
+      "pass": "facts.passwordPolicyOk",
+      "remediation": "Set the default domain policy to 14 characters or longer with lockout, and a stricter fine-grained policy for admin and service accounts.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "The default domain policy is what every account without a fine-grained policy inherits.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-026",
+      "domain": "hybrid",
+      "title": "No human accounts with password never expires",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-07-users-summary.json",
+        "ad-07-password-never-expires.json"
+      ],
+      "pass": "facts.passwordNeverExpiresHumans == 0",
+      "remediation": "Clear the flag on the listed accounts and move services to group managed service accounts.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "Password never expires on a human account is a password that will never be rotated after it leaks.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-027",
+      "domain": "hybrid",
+      "title": "SID filtering on every external trust",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-01-trusts.json"
+      ],
+      "pass": "facts.trustsWithoutSidFiltering == 0",
+      "affected": "facts.trustsWithoutSidFiltering",
+      "remediation": "Enable SID filtering quarantine on the listed trusts, and selective authentication where the trust is external.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/manage/understand-security-identifiers",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "A trust without SID filtering lets the other forest inject your privileged SIDs into its tokens.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-028",
+      "domain": "hybrid",
+      "title": "Seamless SSO key rotated within the window",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxSsoKeyAgeDays": 30
+      },
+      "evidence": [
+        "ad-10-entra-accounts.json"
+      ],
+      "pass": "facts.seamlessSsoKeyAgeDays <= thresholds.maxSsoKeyAgeDays",
+      "remediation": "Roll the AZUREADSSOACC Kerberos decryption key every 30 days with the Entra Connect PowerShell module.",
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/how-to-connect-sso-faq",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "The seamless SSO computer account's key signs Kerberos tickets for Entra; an old key is a long-lived forgery path.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-029",
+      "domain": "hybrid",
+      "title": "No AD CS templates open to ESC1",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-09-adcs-templates.json"
+      ],
+      "pass": "facts.adcsEsc1Templates == 0",
+      "affected": "facts.adcsEsc1Templates",
+      "remediation": "On each listed template, remove Enrollee supplies subject or require manager approval, and restrict enrollment permissions.",
+      "learn": "https://learn.microsoft.com/windows-server/identity/ad-cs/",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "A published template that lets the requester name the subject and issues client authentication certificates lets any enrollee become any user, including a Domain Admin.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.10",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "HY-030",
+      "domain": "hybrid",
+      "title": "No credentials in Group Policy",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-08-gpos.json"
+      ],
+      "pass": "facts.gposWithCpassword == 0",
+      "affected": "facts.gposWithCpassword",
+      "remediation": "Remove the Group Policy Preferences that carry cpassword values and rotate the passwords they held.",
+      "learn": "https://learn.microsoft.com/security-updates/securitybulletins/2014/ms14-025",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
+      "narrative": "The cpassword encryption key has been public since 2012; any domain user can read SYSVOL.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}

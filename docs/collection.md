@@ -130,6 +130,17 @@ lasts about an hour; the collector finishes well inside that on a few hundred su
 | `az-08-entra-connect-health` (+csv) | Microsoft.ADHybridHealthService (verify) | Feeds OP-007 |
 | `az-09-entra-diagnostic-settings` (+csv) | microsoft.aadiam diagnosticSettings | Feeds ID-014: sign-in and audit logs to a workspace or event hub |
 
+## What the Windows collector writes (hybrid)
+
+collectors/windows/Get-ADBaseline.ps1 is Windows-only and runs outside the module: once, on any domain-joined machine
+with RSAT (ActiveDirectory; GroupPolicy for the GPO inventory), as a domain user. It writes ad-01 to ad-10 (forest and
+domain, trusts, domain controllers, privileged groups and admin accounts, krbtgt and built-in accounts, delegation,
+Kerberoastable and AS-REP roastable accounts, LAPS coverage and computers, users, GPOs with a cpassword scan, AD CS
+templates with ESC1 candidates, the seamless SSO and cloud Kerberos accounts) plus errors.txt and a transcript. Copy
+the folder into the run's evidence folder; the hybrid checks evaluate from it next to the Entra-side facts (sync
+features, federation, Connect Health) the cloud collectors already wrote. Nothing is installed or scheduled; the Hybrid
+Runbook Worker option in deploy/ is the v1.1 path for monthly runs.
+
 ## What the Purview collector writes
 
 Through Security and Compliance PowerShell (`Connect-IPPSSession`, ExchangeOnlineManagement 3.x; Compliance

@@ -72,6 +72,20 @@ Describe 'deploy scripts' {
         $src | Should -Match 'oauth2PermissionGrants'
     }
 
+    It 'the Catalog task writes the public catalog page without pass logic, remediation or framework mappings' {
+        $out = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-catalog-$([guid]::NewGuid().ToString('n'))"
+        try {
+            & pwsh -NoProfile -File (Join-Path $PSScriptRoot '..' 'build.ps1') -Task Catalog -CatalogPath $out 2>&1 | Out-Null
+            $md = Get-Content -Raw (Join-Path $out 'catalog.md')
+            $md | Should -Match '## Conditional Access \(15\)'
+            $md | Should -Match '\| CA-001 \|'
+            $md | Should -Not -Match 'facts\.[a-zA-Z]' -Because 'no pass logic on the public page'
+            $md | Should -Not -Match 'nist-csf-2'
+            (Get-Content -Raw (Join-Path $out 'catalog.html')) | Should -Match '<h2>Identity and privileged access'
+        }
+        finally { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
     It 'the grant script refuses without the admin scopes' {
         Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All') } }
         { & (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' } | Should -Throw '*missing AppRoleAssignment.ReadWrite.All*'
