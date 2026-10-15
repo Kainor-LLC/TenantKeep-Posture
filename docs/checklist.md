@@ -111,6 +111,8 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] (verify) access review scope query shapes for role and guest reviews, the PIM for Groups v1.0 path, HR connector names
 - [x] Operations domain (spec 4.9 and the scores of 4.12): checks/operations.json (7 checks: SIEM, backup decision, break-glass test, Message Center owner, Secure Score against the all-tenant average, the expiry calendar, Entra Connect Health) and Get-PostureOperationsFact; the questionnaire gains the break-glass test date and the Message Center owner (checkpoint O)
 - [ ] Expiry calendar sources still missing: Entra Connect agent and certificate, domain renewals; Entra Connect Health through the Azure collector
+- [x] Purview collector (A.2 pv-01 to pv-08 through Connect-IPPSSession, in its own process) and the purview domain: checks/purview.json (8 checks: audit log and retention, labels published, auto-labeling, container labels, DLP by workload, retention, insider risk, compliance administrators) and Get-PosturePurviewFact (checkpoint P)
+- [ ] Purview items without a collector: Endpoint DLP device onboarding, DSPM for AI (portal evidence)
 - [ ] errors.txt is append-only across processes into one folder, so a step that failed in an earlier process and succeeded later still counts in the manifest; decide whether a later success should retire the line
 - [ ] Oversharing views from SharePoint Advanced Management reports: sites shared with Everyone except external users, active anonymous links, inactive sites (spec 4.6, SAM)
 - [ ] (verify) Teams app permission policy shape on tenants moved to app centric management; SCuBA MS.SHAREPOINT and MS.TEAMS ids on the collaboration checks

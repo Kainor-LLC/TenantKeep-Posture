@@ -1,0 +1,232 @@
+{
+  "domain": "purview",
+  "checks": [
+    {
+      "id": "PV-001",
+      "domain": "purview",
+      "title": "Unified audit log on, with a retention policy where the licence allows one",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-audit-config.json",
+        "pv-05-audit-retention-policies.json"
+      ],
+      "pass": "facts.unifiedAuditLogEnabled && facts.auditRetentionOk",
+      "remediation": "Enable unified audit log ingestion. With E5 or Purview Audit (Premium), add an audit retention policy of one year or longer for the record types investigations need.",
+      "learn": "https://learn.microsoft.com/purview/audit-log-retention-policies",
+      "deepLink": null,
+      "narrative": "The default retention is 180 days. An investigation that starts later than that has nothing to read. The licence decides what can be kept longer; the policy is what keeps it.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-002",
+      "domain": "purview",
+      "title": "Sensitivity labels defined and published to all users",
+      "severityDefault": "High",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-01-sensitivity-labels.json",
+        "pv-01-label-policies.json"
+      ],
+      "pass": "facts.sensitivityLabels > 0 && facts.labelPoliciesEnabled > 0 && facts.labelPolicyToAllUsers",
+      "remediation": "Define a label taxonomy of four or five tiers, with encryption on the top tier, and publish it to all users with a default label.",
+      "learn": "https://learn.microsoft.com/purview/create-sensitivity-labels",
+      "deepLink": null,
+      "narrative": "Labels are what every other data control hangs off: DLP, auto-labeling, Copilot grounding, container access. Defined but published to a pilot group is the common half-done state.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.12",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-003",
+      "domain": "purview",
+      "title": "Auto-labeling policy in enforcement",
+      "severityDefault": "Medium",
+      "license": [
+        "E5",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-01-autolabel-policies.json"
+      ],
+      "pass": "facts.autoLabelPoliciesEnforced > 0",
+      "remediation": "Promote at least one auto-labeling policy from simulation to enforcement for the sensitive information types that matter (financial data, personal data, credentials).",
+      "learn": "https://learn.microsoft.com/purview/apply-sensitivity-label-automatically",
+      "deepLink": null,
+      "narrative": "Users label a fraction of what they create. Auto-labeling is how the taxonomy reaches the files already there. A policy left in simulation protects nothing.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.13",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-004",
+      "domain": "purview",
+      "title": "Container labels enabled and applied to sites",
+      "severityDefault": "Medium",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-01-sensitivity-labels.json",
+        "spo-sites-summary.json"
+      ],
+      "pass": "facts.containerLabels > 0 && facts.labeledSites > 0",
+      "remediation": "Enable site and group protection on the labels, then apply a label to every team and site, starting with the top tier.",
+      "learn": "https://learn.microsoft.com/purview/sensitivity-labels-teams-groups-sites",
+      "deepLink": null,
+      "narrative": "A container label sets the site's privacy, external sharing and Conditional Access in one move, and it is what the Copilot oversharing controls key off. Enabled with no sites labeled is the finding.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-005",
+      "domain": "purview",
+      "title": "DLP enforced on every workload",
+      "severityDefault": "High",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-02-dlp-policies.json",
+        "pv-02-dlp-rules.json"
+      ],
+      "pass": "facts.dlpWorkloadsMissing == 0",
+      "affected": "facts.dlpWorkloadsMissing",
+      "remediation": "Add an enforced DLP policy for each listed workload: Exchange, SharePoint, OneDrive, Teams, and Endpoint devices with E5.",
+      "learn": "https://learn.microsoft.com/purview/dlp-learn-about-dlp",
+      "deepLink": null,
+      "narrative": "DLP in test mode reports and lets the message through. Each workload is a separate location in the policy; a tenant usually has Exchange covered and the rest not.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-006",
+      "domain": "purview",
+      "title": "Retention policies enabled across Exchange and SharePoint",
+      "severityDefault": "Medium",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-03-retention-policies.json",
+        "pv-03-retention-rules.json"
+      ],
+      "pass": "facts.retentionPoliciesEnabled > 0 && facts.retentionCoversExchangeAndSharePoint",
+      "remediation": "Enable retention policies that match the records schedule for mail and files, with Legal's sign-off recorded in the exceptions file if the schedule departs from the default.",
+      "learn": "https://learn.microsoft.com/purview/retention",
+      "deepLink": null,
+      "narrative": "Retention is a decision either way: keep for the schedule, delete after it. No policy means the default of forever for some workloads and the deleted-items window for others.",
+      "frameworks": {
+        "nist-csf-2": "GV.PO-01",
+        "iso27001": "A.5.33",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-007",
+      "domain": "purview",
+      "title": "Insider Risk Management policy enabled",
+      "severityDefault": "Low",
+      "license": [
+        "E5",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-04-insider-risk-policies.json"
+      ],
+      "pass": "facts.insiderRiskPoliciesEnabled > 0",
+      "remediation": "Enable at least the data theft by departing users policy, connected to the HR system so a resignation date raises the signal.",
+      "learn": "https://learn.microsoft.com/purview/insider-risk-management",
+      "deepLink": null,
+      "narrative": "The licence is present; the policy is what turns the signals into cases. Departing-user data theft is the one every organisation has.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-03",
+        "iso27001": "A.6.8",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "PV-008",
+      "domain": "purview",
+      "title": "Purview compliance administrators within the limit",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxComplianceAdmins": 5
+      },
+      "evidence": [
+        "pv-08-role-groups.json"
+      ],
+      "pass": "facts.complianceAdminMembers <= thresholds.maxComplianceAdmins",
+      "affected": "facts.complianceAdminMembers",
+      "remediation": "Trim the Compliance Administrator and Organization Management role groups in Purview to the few who need standing access; use PIM-eligible role assignment for the rest.",
+      "learn": "https://learn.microsoft.com/purview/microsoft-365-compliance-center-permissions",
+      "deepLink": null,
+      "narrative": "Purview has its own role groups outside Entra PIM. Standing compliance administrators can read eDiscovery results and change DLP, so the list belongs reviewed like the Global Administrators.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}

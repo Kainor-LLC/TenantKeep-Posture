@@ -99,6 +99,18 @@ configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
 | `def-05-incidents` (+csv), `def-05-incidents-summary` | security/incidents, active | Open over 7 days, unassigned |
 | `def-06-secure-score`, `def-06-secure-score-controls` (+csv) | security/secureScores, secureScoreControlProfiles | Spec 4.12: reported beside the posture score, never the grade |
 
+## What the Purview collector writes
+
+Through Security and Compliance PowerShell (`Connect-IPPSSession`, ExchangeOnlineManagement 3.x; Compliance
+Administrator, or Global Reader for most reads, verify). The A.2 pv-* files: `pv-01-sensitivity-labels` (+csv),
+`pv-01-label-policies`, `pv-01-autolabel-policies`, `pv-02-dlp-policies` (+csv), `pv-02-dlp-rules` (+csv),
+`pv-03-retention-policies`, `pv-03-retention-rules` (+csv), `pv-03-retention-labels` (+csv),
+`pv-04-insider-risk-policies`, `pv-04-communication-compliance`, `pv-04-information-barriers`,
+`pv-05-audit-retention-policies`, `pv-06-ediscovery-cases` (+csv), `pv-07-alert-policies` (+csv), `pv-08-role-groups`.
+Purview and Exchange share cmdlet names (Get-RoleGroup is one), so run `-Collector Purview` in a process of its own
+after `Connect-IPPSSession`, into the run folder the other collectors filled. The same Get-only entry point as
+Exchange carries every call.
+
 ## What the SharePoint and Teams collectors write
 
 | File | Source | Notes |

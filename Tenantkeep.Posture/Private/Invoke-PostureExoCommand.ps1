@@ -14,10 +14,25 @@ function Test-PostureExoSession {
     return $info.Count -gt 0
 }
 
+function Test-PosturePurviewSession {
+    <#
+    .SYNOPSIS
+        True when a Security and Compliance PowerShell session (Connect-IPPSSession) is connected. Never connects.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    $ErrorActionPreference = 'Stop'
+    if (-not (Get-Command -Name Get-ConnectionInformation -ErrorAction SilentlyContinue)) { return $false }
+    $info = @(Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Connected' -and $_.ConnectionUri -match 'compliance' })
+    return $info.Count -gt 0
+}
+
 function Invoke-PostureExoCommand {
     <#
     .SYNOPSIS
-        The single entry point for Exchange Online cmdlets: Get-* only, by name, so tests can mock one function.
+        The single entry point for Exchange Online and Security and Compliance cmdlets: Get-* only, by name, so tests can mock one function.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
