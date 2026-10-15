@@ -71,8 +71,9 @@ Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder $folde
 
 For hybrid tenants, run collectors/windows/Get-ADBaseline.ps1 once on a domain-joined Windows machine with RSAT and
 copy the files it wrote into `$folder` (not as a subfolder). A domain controller has everything the script needs; a
-workstation needs the Active Directory and Group Policy RSAT tools, and without Group Policy the GPO checks are
-reported as not evaluated. The LAPS check reads the schema first, so an unextended schema is reported, not an error.
+workstation needs the Active Directory and Group Policy RSAT tools (on Windows Server: `Install-WindowsFeature GPMC`; on
+Windows 10 or 11: `Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`, then a new
+PowerShell window), and without Group Policy the GPO checks are reported as not evaluated. The LAPS check reads the schema first, so an unextended schema is reported, not an error.
 
 ## 6. Build the profile
 

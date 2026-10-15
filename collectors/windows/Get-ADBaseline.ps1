@@ -6,8 +6,9 @@
     it once on any domain-joined Windows machine with RSAT, copy the output folder into the run's evidence folder,
     and the hybrid checks evaluate from it. Nothing is installed, nothing is changed, nothing is scheduled.
 .DESCRIPTION
-    Needs the ActiveDirectory module (RSAT); GroupPolicy adds the GPO inventory when present (Add-WindowsCapability -Online
-    -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0 on a workstation; a domain controller has both). A domain user reads
+    Needs the ActiveDirectory module (RSAT); GroupPolicy adds the GPO inventory when present. On Windows Server install it
+    with Install-WindowsFeature GPMC (Add-WindowsCapability reports success there but installs nothing); on Windows 10 or 11
+    with Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0. A domain controller has both. A domain user reads
     almost everything; AdminSDHolder and template ACLs need elevated read and are left out of this pass. Every step
     writes one file and logs a failure to errors.txt without stopping. Output file names carry the ad- prefix so they
     sit beside the cloud evidence without colliding.
@@ -192,7 +193,7 @@ try {
     }
 
     Invoke-Step 'Group Policy inventory' {
-        if (-not $hasGpo) { throw 'GroupPolicy module not available; GPO inventory skipped. Install it with: Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0' }
+        if (-not $hasGpo) { throw 'GroupPolicy module not available; GPO inventory skipped. On Windows Server: Install-WindowsFeature GPMC. On Windows 10 or 11: Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0. Then open a new PowerShell window and run this script again.' }
         $gpos = @(Get-GPO -All @srv)
         $rows = foreach ($g in $gpos) {
             $xml = [xml](Get-GPOReport -Guid $g.Id -ReportType Xml @srv)
