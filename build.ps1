@@ -251,7 +251,7 @@ function Invoke-Integrity {
             $digest = [System.Security.Cryptography.SHA256]::HashData($bytes)
             $raw = & az keyvault key sign --vault-name $vault --name $key --algorithm ES256 --digest ([Convert]::ToBase64String($digest)) --output json 2>&1
             if ($LASTEXITCODE -ne 0) { throw "az keyvault key sign failed: $raw" }
-            $b64 = ([string](($raw | ConvertFrom-Json).signature)).Replace('-', '+').Replace('_', '/'); while ($b64.Length % 4) { $b64 += '=' }   # (verify) field name and encoding
+            $b64 = ([string](($raw | ConvertFrom-Json).signature)).Replace('-', '+').Replace('_', '/'); while ($b64.Length % 4) { $b64 += '=' }   # base64url, confirmed with azure-cli 2.90
             , [Convert]::FromBase64String($b64)
         }.GetNewClosure()
         $path = & $m { param($Root, $KeyId, $Signer) New-PostureIntegrityManifest -ModuleRoot $Root -KeyId $KeyId -Signer $Signer } $Stage $LicenseKeyId $signer

@@ -10,7 +10,7 @@
     Two signing modes:
       -PrivateKeyPath   a PEM file (development, or an emergency copy you then destroy)
       -VaultName/-KeyName   az keyvault key sign with ES256 against a Key Vault EC P-256 key; the key never leaves the
-                        vault (verify: the az output field name and encoding on the installed CLI version)
+                        vault (signature field, base64url; confirmed with azure-cli 2.90)
     The licence automation (Stripe webhook to an Azure Function in the Kainor tenant) calls the same signing path.
 .EXAMPLE
     ./New-PostureLicense.ps1 -TenantId 00000000-0000-0000-0000-000000000001 -Tier full -Customer 'Contoso Ltd' -PrivateKeyPath ~/tenantkeep/licensing/kainor-2026-10.private.pem -OutputPath ~/tenantkeep/clients/contoso/tenantkeep.lic
@@ -61,7 +61,7 @@ else {
     $digest = [System.Security.Cryptography.SHA256]::HashData($canonical)
     $raw = & az keyvault key sign --vault-name $VaultName --name $KeyName --algorithm ES256 --digest ([Convert]::ToBase64String($digest)) --output json 2>&1
     if ($LASTEXITCODE -ne 0) { throw "az keyvault key sign failed: $raw" }
-    $sigText = [string](($raw | ConvertFrom-Json).signature)   # (verify) field name; base64url per the Key Vault REST contract
+    $sigText = [string](($raw | ConvertFrom-Json).signature)   # base64url (confirmed against azure-cli 2.90, 2026-10-15)
     $b64 = $sigText.Replace('-', '+').Replace('_', '/'); while ($b64.Length % 4) { $b64 += '=' }
     $signature = [Convert]::FromBase64String($b64)
 }
