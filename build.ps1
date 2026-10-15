@@ -263,7 +263,7 @@ function Invoke-Integrity {
     }
     $state = & $m { param($Root) Test-PostureIntegrity -ModuleRoot $Root } $Stage
     if ($state.state -ne 'release') { throw "Integrity manifest written but the staged module does not verify as a release: $($state.detail)" }
-    Write-Host "Integrity manifest: $path ($state.detail)"
+    Write-Host "Integrity manifest: $path ($($state.detail))"
 }
 
 function Invoke-Package {
