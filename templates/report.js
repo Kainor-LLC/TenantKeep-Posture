@@ -163,11 +163,16 @@
         '<label>Owner<input id="ex-owner" type="text" placeholder="Who owns the risk"></label>' +
         '<label>Approver<input id="ex-approver" type="text" placeholder="Who approved it"></label>' +
         '</div><div class="form-actions"><button type="button" class="primary" id="ex-add">Record Exception</button><span class="hint">Re-scores the page now; Save writes it to exceptions.json for every future run.</span></div>' : '') +
+      inputPanel(c, r) +
       (r.evidence && r.evidence.length ? '<h4 class="tech">Evidence</h4><p class="chips tech">' + r.evidence.map(function (f) { return '<span class="chip">' + esc(f) + '</span>'; }).join('') + '</p>' : '') +
       (r.thresholds && Object.keys(r.thresholds).length ? '<h4 class="tech">Thresholds Used</h4>' + kvRows(r.thresholds, thresholdLabel) : '');
     drawer.classList.add('open');
     drawer.querySelector('.close').addEventListener('click', closeDrawer);
     var ex = $('export-affected'); if (ex) { ex.addEventListener('click', function () { downloadText(r.id + '-affected.csv', toCsv(['Name', 'Detail'], ef.affected.map(function (a) { return [nameOf(a), humanDetail(a && a.detail)]; })), 'text/csv'); }); }
+    var attBtn = $('att-record');
+    if (attBtn) { attBtn.addEventListener('click', function () { state.profile.attestations = state.profile.attestations || {}; var d = $('att-date').value; if (!d) { toast('Pick a date.'); return; } state.profile.attestations[c.input.key] = d + 'T00:00:00Z'; state.dirty.profile = true; updateSaveBar(); renderSettings(); openDrawer(id); toast(c.input.label + ' recorded. Save to keep it.'); }); }
+    var impBtn = $('imp-add');
+    if (impBtn) { impBtn.addEventListener('click', function () { addImportFiles(c.input, $('imp-status')); }); }
     var add = $('ex-add');
     if (add) {
       add.addEventListener('click', async function () {
@@ -185,6 +190,29 @@
         if (pos >= 0) { state.exceptions.splice(pos, 1); state.removed.push(target); state.dirty.exceptions = true; recompute(); openDrawer(id); toast('Exception removed. Save to keep the change.'); }
       });
     });
+  }
+  function inputPanel(c, r) {
+    var inp = c.input; if (!inp) { return ''; }
+    var portal = inp.portal ? ' <a class="btn" href="' + esc(inp.portal) + '" target="_blank" rel="noopener">Open the portal</a>' : '';
+    if (inp.kind === 'attestation') {
+      var current = (state.profile.attestations || {})[inp.key]; var shown = current ? String(current).substring(0, 10) : 'not recorded';
+      return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><div class="form"><label>' + esc(inp.label) + ' on<input type="date" id="att-date" value="' + esc(current ? String(current).substring(0, 10) : new Date().toISOString().substring(0, 10)) + '"></label><label>Currently<input type="text" value="' + esc(shown) + '" disabled></label></div><div class="form-actions"><button type="button" class="primary" id="att-record">Record ' + esc(inp.label) + '</button><span class="hint">Saved to profile.json with Save; counts on the next run.</span></div>';
+    }
+    if (inp.kind === 'files') {
+      return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><div class="form-actions"><button type="button" class="primary" id="imp-add"' + (canPick ? '' : ' disabled') + '>Add Report Files</button><span class="hint">' + (canPick ? 'Copied into ' + esc(inp.folder) + ' in the client folder; the next run reads the newest one.' : 'This browser cannot write folders: copy the files into ' + esc(inp.folder) + ' in the client folder by hand.') + '</span></div><p class="hint" id="imp-status"></p>';
+    }
+    return '';
+  }
+  async function addImportFiles(inp, status) {
+    if (!state.folder) { await pickFolder(); if (!state.folder) { status.textContent = 'Choose the client folder first.'; return; } }
+    try {
+      var handles = await window.showOpenFilePicker({ multiple: true, types: [{ description: 'Report files', accept: { 'text/csv': ['.csv'], 'application/json': ['.json'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] });
+      var dir = state.folder; var parts = inp.folder.split('/');
+      for (var i = 0; i < parts.length; i++) { dir = await dir.getDirectoryHandle(parts[i], { create: true }); }
+      var names = [];
+      for (var j = 0; j < handles.length; j++) { var f = await handles[j].getFile(); var out = await dir.getFileHandle(f.name, { create: true }); var w = await out.createWritable(); await w.write(await f.arrayBuffer()); await w.close(); names.push(f.name); }
+      status.textContent = 'Added ' + names.join(', ') + ' to ' + inp.folder + '. The next run reads the newest one.'; toast('Report files added');
+    } catch (e) { if (e && e.name !== 'AbortError') { status.textContent = 'Could not add the files: ' + e.message; } }
   }
   function closeDrawer() { if (drawer) { drawer.classList.remove('open'); } }
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeDrawer(); } });
@@ -239,17 +267,22 @@
     var th = thresholdKeys();
     var thresholds = Object.keys(th).sort().map(function (k) { var v = p.thresholds[k] != null ? p.thresholds[k] : th[k]; return '<label>' + esc(thresholdLabel(k)) + '<input data-th="' + esc(k) + '" type="' + (typeof v === 'number' ? 'number' : 'text') + '" value="' + esc(v) + '"></label>'; }).join('');
     var third = THIRD_PARTY.map(function (k) { return '<label>' + esc(words(k).replace(/^Edr$/, 'EDR').replace(/^Mfa$/, 'MFA').replace(/^Mdm$/, 'MDM').replace(/^Siem$/, 'SIEM')) + '<input data-tp="' + k + '" type="text" value="' + esc(p.thirdParty[k] && p.thirdParty[k] !== 'none' ? p.thirdParty[k] : '') + '" placeholder="none"></label>'; }).join('');
+    var attKeys = {}; Object.keys(data.catalog).forEach(function (id) { var i = data.catalog[id].input; if (i && i.kind === 'attestation') { attKeys[i.key] = i.label; } });
+    p.attestations = p.attestations || {};
+    var atts = Object.keys(attKeys).map(function (k) { return '<label>' + esc(attKeys[k]) + '<input data-att="' + esc(k) + '" type="date" value="' + esc(String(p.attestations[k] || '').substring(0, 10)) + '"></label>'; }).join('');
     var fws = FRAMEWORKS.map(function (k) { return '<label style="flex-direction:row;align-items:center;gap:8px"><input data-fw="' + k + '" type="checkbox"' + ((p.frameworks || []).indexOf(k) >= 0 ? ' checked' : '') + '>' + esc(frameworkLabel(k)) + '</label>'; }).join('');
     root.innerHTML =
       '<div class="settings-group"><h3>Thresholds</h3><p class="hint">Numbers the checks compare against. Blank keeps the catalog default. Applies on the next run.</p><div class="form">' + thresholds + '</div></div>' +
       '<div class="settings-group"><h3>Third-Party Controls</h3><p class="hint">Name the vendor where another product covers the control; the matching checks then read as covered by that vendor.</p><div class="form">' + third + '</div></div>' +
       '<div class="settings-group"><h3>Break-Glass Accounts</h3><div class="form"><label class="wide">One per line (user principal name or display name)<textarea data-bg>' + esc((p.breakGlass || []).join('\n')) + '</textarea></label><label>Last tested<input data-op="breakGlassTestedUtc" type="date" value="' + esc(String(p.operations.breakGlassTestedUtc || '').substring(0, 10)) + '"></label><label>Message Center owner<input data-op="messageCenterOwner" type="text" value="' + esc(p.operations.messageCenterOwner || '') + '"></label></div></div>' +
+      (atts ? '<div class="settings-group"><h3>Reviews You Attest To</h3><p class="hint">Dates for the checks no API can answer: when you last reviewed the setting in the portal. Each counts for 90 days by default.</p><div class="form">' + atts + '</div></div>' : '') +
       '<div class="settings-group"><h3>Frameworks and Audience</h3><div class="form">' + fws + '<label>Audience<select data-p="audience">' + ['technical', 'executive', 'both'].map(function (a) { return '<option' + (a === p.audience ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></label><label>Cadence<select data-p="cadence">' + ['', 'monthly', 'quarterly', 'annual'].map(function (a) { return '<option value="' + a + '"' + (a === (p.cadence || '') ? ' selected' : '') + '>' + (a || 'not set') + '</option>'; }).join('') + '</select></label></div></div>';
     Array.prototype.slice.call(root.querySelectorAll('input, select, textarea')).forEach(function (el) {
       el.addEventListener('change', function () {
         if (el.hasAttribute('data-th')) { var k = el.getAttribute('data-th'); if (el.value === '') { delete p.thresholds[k]; } else { p.thresholds[k] = el.type === 'number' ? Number(el.value) : el.value; } }
         else if (el.hasAttribute('data-tp')) { p.thirdParty[el.getAttribute('data-tp')] = el.value.trim() || 'none'; }
         else if (el.hasAttribute('data-bg')) { p.breakGlass = el.value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean); }
+        else if (el.hasAttribute('data-att')) { var ak = el.getAttribute('data-att'); if (el.value) { p.attestations[ak] = el.value + 'T00:00:00Z'; } else { delete p.attestations[ak]; } }
         else if (el.hasAttribute('data-op')) { var ok = el.getAttribute('data-op'); p.operations[ok] = el.value ? (el.type === 'date' ? el.value + 'T00:00:00Z' : el.value) : null; }
         else if (el.hasAttribute('data-fw')) { p.frameworks = FRAMEWORKS.filter(function (f) { var box = root.querySelector('[data-fw="' + f + '"]'); return box && box.checked; }); }
         else if (el.hasAttribute('data-p')) { p[el.getAttribute('data-p')] = el.value || null; }
@@ -308,7 +341,7 @@
   function profileDocument(existing) {
     var doc = existing && typeof existing === 'object' ? existing : {};
     var p = state.profile;
-    ['thresholds', 'thirdParty', 'breakGlass', 'frameworks', 'audience', 'cadence'].forEach(function (k) { if (p[k] != null) { doc[k] = p[k]; } });
+    ['thresholds', 'thirdParty', 'breakGlass', 'frameworks', 'audience', 'cadence', 'attestations'].forEach(function (k) { if (p[k] != null) { doc[k] = p[k]; } });
     doc.operations = Object.assign({}, doc.operations || {}, p.operations || {});
     doc.updatedUtc = new Date().toISOString();
     if (!doc.version) { doc.version = 1; }

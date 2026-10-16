@@ -67,7 +67,9 @@
       ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": {},
+      "thresholds": {
+        "oversharingBaselineMaxDays": 90
+      },
       "evidence": [
         "sam-dag-reports.json"
       ],
@@ -85,6 +87,13 @@
         "iso27001": "A.5.12",
         "cmmc": "AC.L2-3.1.3",
         "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "files",
+        "folder": "imports/sam-dag",
+        "label": "Data access governance reports",
+        "portal": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
+        "steps": "In the SharePoint admin center open Reports, then Data access governance. Run the reports (sharing links, everyone-except-external, potentially oversharing sites) and download the CSV files. Add them here; the newest one dates the baseline."
       }
     },
     {
@@ -279,11 +288,13 @@
       ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": {},
+      "thresholds": {
+        "attestationMaxDays": 90
+      },
       "evidence": [
         "sam-dag-reports.json"
       ],
-      "pass": "facts.siteReviewsInitiatedPct >= 100",
+      "pass": "facts.siteAccessReviewsStarted",
       "gate": {
         "code": "C10",
         "hard": false
@@ -297,6 +308,13 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "attestation",
+        "key": "siteAccessReviewsStartedUtc",
+        "label": "Site access reviews started",
+        "portal": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
+        "steps": "From the data access governance report, start a site access review for each flagged site, then record the date here."
       }
     },
     {
@@ -401,7 +419,9 @@
       ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": {},
+      "thresholds": {
+        "attestationMaxDays": 90
+      },
       "evidence": [
         "portal-evidence"
       ],
@@ -419,6 +439,13 @@
         "iso27001": "A.5.36",
         "cmmc": "CA.L2-3.12.1",
         "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "attestation",
+        "key": "dspmReviewedUtc",
+        "label": "DSPM for AI reviewed",
+        "portal": "https://purview.microsoft.com/dspm-for-ai",
+        "steps": "Open DSPM for AI, review the recommendations and the sensitive interactions report, then record the date here."
       }
     },
     {
@@ -431,7 +458,9 @@
       ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": {},
+      "thresholds": {
+        "attestationMaxDays": 90
+      },
       "evidence": [
         "admin-center-evidence"
       ],
@@ -449,6 +478,13 @@
         "iso27001": "A.5.1",
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "attestation",
+        "key": "copilotSettingsReviewedUtc",
+        "label": "Copilot settings reviewed",
+        "portal": "https://admin.microsoft.com/#/copilot",
+        "steps": "In the Microsoft 365 admin center open Copilot settings: web grounding, agents, connectors, data access. Confirm each is set on purpose, then record the date here."
       }
     },
     {
@@ -494,7 +530,9 @@
       ],
       "applicableWhen": {},
       "coveredBy": [],
-      "thresholds": {},
+      "thresholds": {
+        "oversharingBaselineMaxDays": 90
+      },
       "evidence": [
         "01-subscribed-skus.json",
         "sam-dag-reports.json"
@@ -513,6 +551,13 @@
         "iso27001": "A.5.12",
         "cmmc": "AC.L2-3.1.3",
         "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "files",
+        "folder": "imports/sam-dag",
+        "label": "Data access governance reports",
+        "portal": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
+        "steps": "Same files as C3. With a baseline on file, Copilot deployment is no longer ahead of it."
       }
     },
     {

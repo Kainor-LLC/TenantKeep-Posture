@@ -58,6 +58,7 @@ function Import-PostureProfile {
         tenantId              = $null
         sharePointClientId    = $null
         operations            = @{}
+        attestations          = @{}
         path                  = $null
     }
     if (-not $Path) { return $model }

@@ -124,6 +124,13 @@ One row per failing check in the audit plan's register format. Owners and status
 the next export by check id. Accepted risks go into exceptions.json with an owner, approver and expiry; the next run
 marks them as accepted instead of failed.
 
+## 8b. Reports and reviews you provide
+
+A few Copilot readiness gates have no API behind them. Their check panels say exactly what to provide and link to the
+portal page: the data access governance CSV reports go into `imports/sam-dag/` in the client folder (the panel's Add
+Report Files button copies them there), and the portal reviews (DSPM for AI, Copilot settings, site access reviews)
+are dates you record in the panel or on the Settings view. Both count on the next run.
+
 ## 9. Next run, and the trend
 
 ```powershell

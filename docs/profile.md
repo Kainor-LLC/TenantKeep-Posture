@@ -78,5 +78,17 @@ measured and what was answered.
 | `thresholds` | numbers, and `namePattern` | Override the catalog default by key; the appendix prints both |
 | `breakGlass` | UPNs or display names | Exclusion checks know which accounts belong in exclusions; CA-012 fails when none are named or found |
 | `audience`, `cadence` | see above | Template depth; trend window |
+| `attestations` | `siteAccessReviewsStartedUtc`, `dspmReviewedUtc`, `copilotSettingsReviewedUtc` (dates) | The Copilot gates no API can answer pass for 90 days from the date you reviewed the portal page; recorded from the report's Settings view or the check's panel |
+
+## Reports you provide
+
+Some gates read reports only an admin can download. They live beside profile.json in the client folder, under
+`imports/<name>/`, and ride with it into the Automation `client` container:
+
+| Folder | Report | Used by |
+|---|---|---|
+| `imports/sam-dag/` | Data access governance CSV exports from the SharePoint admin center (sharing links, everyone-except-external, potentially oversharing sites) | C3 oversharing baseline, C17 deployed ahead of the baseline; the newest file dates the baseline (a yyyy-MM-dd in the file name wins over the file's write time) |
+
+The report's check panel adds the files for you in Edge or Chrome (Add Report Files), or copy them in by hand.
 
 Threshold precedence is catalog default, then profile by key, then baseline per check id.

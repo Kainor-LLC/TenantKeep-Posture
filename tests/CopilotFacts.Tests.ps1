@@ -80,3 +80,31 @@ Describe 'Copilot readiness page' {
     }
 }
 
+Describe 'Reports and reviews the admin provides' {
+    It 'dates the oversharing baseline from the newest data access governance export beside profile.json, and reads attestation dates' {
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-cp-input-$([guid]::NewGuid().ToString('n'))"
+        $client = Join-Path $root 'client'; $imports = Join-Path $client 'imports' 'sam-dag'
+        New-Item -ItemType Directory -Path $imports -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:Ev '*') -Destination $root -Recurse -Force
+        Set-Content -LiteralPath (Join-Path $imports 'Sharing links_2020-01-05.csv') -Value 'SiteUrl,Links'
+        Set-Content -LiteralPath (Join-Path $imports "potentially-oversharing-sites_$([datetime]::UtcNow.ToString('yyyy-MM-dd')).csv") -Value 'SiteUrl,Score'
+        $today = [datetime]::UtcNow.ToString('yyyy-MM-dd')
+        @{ version = 1; licenses = @('E5', 'SAM', 'Copilot'); copilot = 'deployed'; attestations = @{ dspmReviewedUtc = "$($today)T00:00:00Z"; copilotSettingsReviewedUtc = '2020-01-01T00:00:00Z' } } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $client 'profile.json')
+        $run = Invoke-PostureChecks -Evidence $root -ProfilePath (Join-Path $client 'profile.json') -Domain copilot -PassThru
+        $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+        $by['CP-003'].status | Should -Be 'pass' -Because 'the newest export is dated today'
+        $by['CP-017'].status | Should -Be 'pass'
+        $by['CP-014'].status | Should -Be 'pass'
+        $by['CP-015'].status | Should -Be 'fail' -Because 'the review is years old'
+        $by['CP-010'].status | Should -Be 'notEvaluated'
+        $by['CP-010'].reason | Should -Match 'Record the date'
+        Remove-Item -LiteralPath $root -Recurse -Force
+    }
+    It 'says where the report goes when none is on file' {
+        $r = @($script:Run.results | Where-Object { $_.id -eq 'CP-003' })[0]
+        $r.status | Should -Be 'notEvaluated'
+        $r.reason | Should -Match 'imports'
+        $r.reason | Should -Match 'SharePoint admin center'
+    }
+}
+

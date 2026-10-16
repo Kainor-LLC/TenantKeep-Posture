@@ -53,15 +53,36 @@ function Get-PostureCopilotFact {
     $facts.copilotStatus = [string]$(if ($OrgProfile.Contains('copilot')) { $OrgProfile['copilot'] })
     if (@($lic).Count -eq 0) { $notEvaluated['CP-002'] = 'No licences in the profile; run New-PostureProfile -Evidence to discover them.' }
 
-    # C3 oversharing baseline, C8 restricted content discovery, C10 site access reviews, C14 DSPM, C15 settings: no collector yet
-    $notEvaluated['CP-003'] = 'The data access governance reports (SharePoint Advanced Management) are not collected yet; run the oversharing baseline in the SharePoint admin center and import it.'
+    # C3 oversharing baseline and C17 deployed-ahead read the data access governance reports the admin downloads into the
+    # client folder (imports/sam-dag); C10, C14 and C15 have no read API and read a dated attestation from the profile
+    # (profile.attestations, recorded on the report's Settings view or the check's panel). Nothing here is guessed.
+    $maxAge = [int]$(if ($t.Contains('attestationMaxDays')) { $t.attestationMaxDays } else { 90 })
+    $baselineMax = [int]$(if ($t.Contains('oversharingBaselineMaxDays')) { $t.oversharingBaselineMaxDays } else { 90 })
+    $clientFolder = $(if ($OrgProfile.Contains('path') -and $OrgProfile['path']) { Split-Path -Parent ([string]$OrgProfile['path']) } else { $null })
+    $importFolder = $(if ($clientFolder) { Join-Path $clientFolder 'imports' 'sam-dag' } else { $null })
+    $reports = @($(if ($importFolder -and (Test-Path -LiteralPath $importFolder)) { Get-ChildItem -LiteralPath $importFolder -File | Where-Object { $_.Extension -in '.csv', '.xlsx', '.json' } }))
+    $facts.overSharingBaselineRecent = $false; $facts.samReportCount = $reports.Count
+    if ($reports.Count -eq 0) {
+        $where = $(if ($importFolder) { $importFolder } else { 'the client folder (no profile.json path known)' })
+        $notEvaluated['CP-003'] = "No data access governance report found. In the SharePoint admin center, run the Data access governance reports and save the downloaded CSV files into $where (the report page's Copilot readiness panel can add them for you); the next run reads the newest one."
+        $notEvaluated['CP-017'] = "Deployed-ahead cannot be dated without the oversharing baseline (see C3); Copilot status in the profile is '$([string]$(if ($OrgProfile.Contains('copilot')) { $OrgProfile['copilot'] }))'."
+    }
+    else {
+        # The report's date: from the file name when it carries one (yyyy-MM-dd or yyyyMMdd), else when the file was written.
+        $dates = foreach ($f in $reports) { $m = [regex]::Match($f.Name, '(20\d{2})[-_]?(\d{2})[-_]?(\d{2})'); if ($m.Success) { try { [datetime]::new([int]$m.Groups[1].Value, [int]$m.Groups[2].Value, [int]$m.Groups[3].Value, 0, 0, 0, [System.DateTimeKind]::Utc) } catch { $f.LastWriteTimeUtc } } else { $f.LastWriteTimeUtc } }
+        $newest = ($dates | Sort-Object -Descending | Select-Object -First 1)
+        $facts.overSharingBaselineRunUtc = $newest.ToString('o'); $facts.overSharingBaselineAgeDays = [int]([datetime]::UtcNow - $newest).TotalDays
+        $facts.overSharingBaselineRecent = $facts.overSharingBaselineAgeDays -le $baselineMax
+    }
     $notEvaluated['CP-008'] = 'Restricted content discovery per site is not collected yet (verify the PnP site property).'
-    $notEvaluated['CP-017'] = "The oversharing baseline is not collected yet, so deployed-ahead cannot be dated; Copilot status in the profile is '$([string]$(if ($OrgProfile.Contains('copilot')) { $OrgProfile['copilot'] }))'."
-    $facts.overSharingBaselineRecent = $false
     $facts.pendingSitesWithoutRcd = 0
-    $notEvaluated['CP-010'] = 'Site access reviews initiated from the data access governance reports are not collected yet.'
-    $notEvaluated['CP-014'] = 'DSPM for AI has no read API; record the review as portal evidence.'
-    $notEvaluated['CP-015'] = 'Copilot admin settings (web grounding, agents, connectors) have no read API yet (verify).'
+    $att = $(if ($OrgProfile.Contains('attestations') -and $OrgProfile['attestations']) { $OrgProfile['attestations'] } else { @{} })
+    $attested = { param([string] $key) $d = ConvertTo-PostureUtcDateTime $(if ($att.Contains($key)) { $att[$key] } else { $null }); if ($d) { ([datetime]::UtcNow - $d).TotalDays -le $maxAge } else { $null } }
+    foreach ($pair in @(@('CP-010', 'siteAccessReviewsStartedUtc', 'siteAccessReviewsStarted', 'Record the date site access reviews were started from the data access governance reports (Settings, or this check''s panel).'), @('CP-014', 'dspmReviewedUtc', 'dspmReviewed', 'DSPM for AI has no read API. Record the date it was reviewed (Settings, or this check''s panel).'), @('CP-015', 'copilotSettingsReviewedUtc', 'copilotSettingsGoverned', 'Copilot admin settings have no read API yet. Record the date they were reviewed (Settings, or this check''s panel).'))) {
+        $ok = & $attested $pair[1]
+        if ($null -eq $ok) { $notEvaluated[$pair[0]] = $pair[3]; $facts[$pair[2]] = $false }
+        else { $facts[$pair[2]] = [bool]$ok; if (-not $ok) { $facts["$($pair[2])Stale"] = $true } }
+    }
 
     # C4, C5, C9 from SharePoint
     if ($null -eq $spo) { foreach ($id in 'CP-004', 'CP-005', 'CP-009') { $notEvaluated[$id] = 'spo-tenant-settings.json was not collected (SharePoint collector).' } }

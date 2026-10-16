@@ -263,7 +263,7 @@ function ConvertTo-PostureReportModel {
     }
 
     $catalogText = [ordered]@{}
-    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']) } }
+    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
 
     $collection = & $load 'collection'
     $tenantId = $(if ($collection) { & $v $collection 'tenantId' } else { & $v (& $load 'metadata') 'tenantId' })
@@ -283,7 +283,7 @@ function ConvertTo-PostureReportModel {
         collectors   = @($(if ($collection) { & $v $collection 'collectors' } else { @() }))
         licence      = $Run.entitlement
         register     = @($Register)
-        profileModel = [ordered]@{ clientName = $OrgProfile.clientName; tenantId = $OrgProfile.tenantId; licenses = @($OrgProfile.licenses); platforms = @($OrgProfile.platforms); identityModel = $OrgProfile.identityModel; byod = $OrgProfile.byod; externalCollaboration = $OrgProfile.externalCollaboration; copilot = $OrgProfile.copilot; azure = $OrgProfile.azure; thirdParty = $OrgProfile.thirdParty; frameworks = @($OrgProfile.frameworks); thresholds = $OrgProfile.thresholds; breakGlass = @($OrgProfile.breakGlass); audience = $OrgProfile.audience; cadence = $OrgProfile.cadence; operations = $OrgProfile.operations }
+        profileModel = [ordered]@{ clientName = $OrgProfile.clientName; tenantId = $OrgProfile.tenantId; licenses = @($OrgProfile.licenses); platforms = @($OrgProfile.platforms); identityModel = $OrgProfile.identityModel; byod = $OrgProfile.byod; externalCollaboration = $OrgProfile.externalCollaboration; copilot = $OrgProfile.copilot; azure = $OrgProfile.azure; thirdParty = $OrgProfile.thirdParty; frameworks = @($OrgProfile.frameworks); thresholds = $OrgProfile.thresholds; breakGlass = @($OrgProfile.breakGlass); audience = $OrgProfile.audience; cadence = $OrgProfile.cadence; operations = $OrgProfile.operations; attestations = $OrgProfile.attestations }
         exceptions   = @($Exception | ForEach-Object { [ordered]@{ check = $_.check; object = $_.object; justification = $_.justification; owner = $_.owner; approver = $_.approver; expires = $(if ($_.expires) { $_.expires.ToString('yyyy-MM-dd') } else { $null }) } })
         build        = [ordered]@{ state = [string]$buildState.state; detail = [string]$buildState.detail; version = [string]$buildState.version }
         score        = [ordered]@{ value = $score; grade = $grade; method = 'Weighted pass rate over evaluated checks: Critical 4, High 3, Medium 2, Low 1. Accepted risk counts as a pass and is marked. Not evaluated and not applicable checks are excluded.'; evaluated = $scored.Count; earned = $earned; possible = $possible }
