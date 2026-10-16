@@ -89,7 +89,10 @@ function New-PostureReport {
         if (-not (Test-Path -LiteralPath $prevPath -PathType Leaf)) { throw "Previous checks.json not found: $prevPath" }
         $previousRun = Get-Content -Raw -LiteralPath $prevPath | ConvertFrom-Json -AsHashtable -Depth 20
     }
-    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement
+    # The register the client folder already holds (owners, statuses, effort) rides into the page so the browser can keep them.
+    $register = @()
+    if ($Client) { $registerPath = Join-Path $Client 'findings.csv'; if (Test-Path -LiteralPath $registerPath -PathType Leaf) { $register = @(Import-Csv -LiteralPath $registerPath | ForEach-Object { $h = [ordered]@{}; foreach ($prop in $_.PSObject.Properties) { $h[$prop.Name] = [string]$prop.Value }; $h }) } }
+    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement -Register $register
 
     $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } else { $evidencePath }))   # expands ~ too
 

@@ -98,7 +98,22 @@ Writes report.html (self-contained, interactive), report.md and checks.json into
 `-Baseline nist-csf-2` (or iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba, hipaa, copilot-readiness) to narrow the
 checks and add the crosswalk appendix. Add `-Format Pdf` for a PDF through a headless Edge or Chrome.
 
-## 8. Work the findings
+## 8. Work the findings in the report
+
+Open report.html in Edge or Chrome. The Risk Register view lists every failing and accepted check with owner, status,
+effort, dependency and notes; a check's detail panel has the exception form (scope, justification, owner, approver,
+expiry). Recording an exception re-scores the page at once. Settings holds the tenant profile: thresholds, third-party
+controls, break-glass accounts, frameworks, audience.
+
+Choose Client Folder once per session, then Save writes exceptions.json, findings.csv and profile.json into that
+folder, merging with what is already there. The next run reads them, so exceptions and owners survive every rerun.
+Safari and Firefox cannot write folders; there Save downloads the files to move into the client folder by hand.
+Profile changes apply on the next run; the page says so.
+
+For Automation-produced reports, save locally and copy the three files to the deployment's `client` container
+(`az storage blob upload`), or pass the folder to `deploy.ps1 -ClientFolder` again.
+
+## 8a. Export the register by hand
 
 ```powershell
 Export-PostureFindings -Path $folder -Merge ~/tenantkeep/clients/contoso/findings.csv -OutputPath ~/tenantkeep/clients/contoso/findings.csv

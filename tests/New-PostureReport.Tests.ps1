@@ -129,6 +129,12 @@ Describe 'New-PostureReport' {
             $script:Html | Should -Match 'class="tech"'
             $script:Html | Should -Match '@media print'
             $script:Html | Should -Match '<aside id="drawer"'
+            $script:Html | Should -Match '<section class="view" id="register">'
+            $script:Html | Should -Match '<section class="view" id="settings">'
+            foreach ($block in 'data-exceptions', 'data-profile', 'data-register', 'data-meta', 'data-labels') { $script:Html | Should -Match "<script type=`"application/json`" id=`"$block`">" }
+            $script:Html | Should -Match 'data-save' -Because 'the page saves to the client folder'
+            $script:Html | Should -Match 'Microsoft Security Posture Report'
+            $script:Html | Should -Not -CMatch '>Checks explorer<' -Because 'view names are Title Case'
         }
 
         It 'encodes brand text and keeps the executive template flag on the body' {

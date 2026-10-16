@@ -22,6 +22,7 @@ function ConvertTo-PostureReportModel {
         [System.Collections.IDictionary] $Previous,
         [System.Collections.IDictionary] $BaselineModel,
         [System.Collections.IDictionary] $Entitlement,
+        [AllowEmptyCollection()] [object[]] $Register = @(),
         [datetime] $GeneratedUtc = [datetime]::UtcNow
     )
 
@@ -271,7 +272,7 @@ function ConvertTo-PostureReportModel {
     $clientName = $(if ($Brand.client.name) { [string]$Brand.client.name } elseif ($OrgProfile.clientName) { [string]$OrgProfile.clientName } elseif ($tenantName) { $tenantName } else { [string]$tenantId })
 
     return [ordered]@{
-        title        = "Microsoft security posture report: $clientName"
+        title        = "Microsoft Security Posture Report: $clientName"
         clientName   = $clientName
         tenantId     = $tenantId
         tenantName   = $tenantName
@@ -281,6 +282,9 @@ function ConvertTo-PostureReportModel {
         collectedUtc = $(if ($collection) { & $v $collection 'timestampUtc' } else { $null })
         collectors   = @($(if ($collection) { & $v $collection 'collectors' } else { @() }))
         licence      = $Run.entitlement
+        register     = @($Register)
+        profileModel = [ordered]@{ clientName = $OrgProfile.clientName; tenantId = $OrgProfile.tenantId; licenses = @($OrgProfile.licenses); platforms = @($OrgProfile.platforms); identityModel = $OrgProfile.identityModel; byod = $OrgProfile.byod; externalCollaboration = $OrgProfile.externalCollaboration; copilot = $OrgProfile.copilot; azure = $OrgProfile.azure; thirdParty = $OrgProfile.thirdParty; frameworks = @($OrgProfile.frameworks); thresholds = $OrgProfile.thresholds; breakGlass = @($OrgProfile.breakGlass); audience = $OrgProfile.audience; cadence = $OrgProfile.cadence; operations = $OrgProfile.operations }
+        exceptions   = @($Exception | ForEach-Object { [ordered]@{ check = $_.check; object = $_.object; justification = $_.justification; owner = $_.owner; approver = $_.approver; expires = $(if ($_.expires) { $_.expires.ToString('yyyy-MM-dd') } else { $null }) } })
         build        = [ordered]@{ state = [string]$buildState.state; detail = [string]$buildState.detail; version = [string]$buildState.version }
         score        = [ordered]@{ value = $score; grade = $grade; method = 'Weighted pass rate over evaluated checks: Critical 4, High 3, Medium 2, Low 1. Accepted risk counts as a pass and is marked. Not evaluated and not applicable checks are excluded.'; evaluated = $scored.Count; earned = $earned; possible = $possible }
         headline     = $headline
