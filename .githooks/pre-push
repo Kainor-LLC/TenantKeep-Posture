@@ -5,7 +5,8 @@
 set -e
 echo "pre-push: analyzer and tests (set TENANTKEEP_SKIP_PREPUSH=1 to bypass once)"
 if [ "${TENANTKEEP_SKIP_PREPUSH:-}" = "1" ]; then echo "pre-push: skipped by request"; exit 0; fi
-pwsh -NoProfile -File ./build.ps1 -Task Analyze,Test -SkipInstall >/tmp/tenantkeep-prepush.log 2>&1 || {
+# -Command, not -File: an array parameter only parses from the PowerShell command line.
+pwsh -NoProfile -Command './build.ps1 -Task Analyze, Test -SkipInstall' >/tmp/tenantkeep-prepush.log 2>&1 || {
   grep -E "PSScriptAnalyzer reported|\[-\]|Tests Passed|Failed:" /tmp/tenantkeep-prepush.log | sed 's/\x1b\[[0-9;]*m//g' | head -20
   echo "pre-push: blocked. Full log: /tmp/tenantkeep-prepush.log"
   exit 1
