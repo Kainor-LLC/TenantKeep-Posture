@@ -78,8 +78,17 @@ Learned on the first Kainor runs (2026-10-15), all baked into the runbook:
 - Az.Storage and ExchangeOnlineManagement each ship a Microsoft.OData.Core and cannot both load, so the runbook talks to
   blob storage over REST with the identity's token and never imports Az.Storage. Az.ResourceGraph comes with the
   runtime's Az rollup; importing a newer one separately breaks it.
-- Purview is not collected in the scheduled run: ExchangeOnlineManagement has no managed identity sign-in for
-  Connect-IPPSSession (certificate app auth only), so that domain reads as not collected and the report says so.
+- Purview needs one more setup step: ExchangeOnlineManagement has no managed identity sign-in for Connect-IPPSSession,
+  only a certificate app. The deployment creates a Key Vault in the customer's resource group; the admin runs
+  `deploy/setup/New-PosturePurviewApp.ps1` once, which generates the certificate inside that vault, registers the
+  app with its public half, consents Exchange.ManageAsApp, assigns Global Reader and sets two Automation variables
+  (the app id and the certificate's vault URL). The runbook reads the certificate in memory at run time. Without the
+  step, Purview reads as not collected and the report says so. This is the one carve-out from "delegated or managed
+  identity only" (CLAUDE.md), and the credential is the customer's, in the customer's vault.
+
+  ```powershell
+  ./deploy/setup/New-PosturePurviewApp.ps1 -ResourceGroup rg-tenantkeep-dev -AutomationAccount aa-tenantkeep-dev -VaultName <purviewVaultName output>
+  ```
 - Roles granted to the identity reach a sandbox's cached token after up to a day; a job started right after the grant
   sees the old token, names only the collectors whose roles it has, and the schedule picks up the rest next time.
 - Two warnings are licence facts, not faults: lifecycle workflows need Entra ID Governance, restricted SharePoint

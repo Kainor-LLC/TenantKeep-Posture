@@ -80,6 +80,8 @@ var postureContainerName = 'posture-runs'
 var clientContainerName = 'client'
 var postureDay = postureDayOfMonth < 10 ? '0${postureDayOfMonth}' : '${postureDayOfMonth}'
 var postureFirstRun = dateTimeAdd('${take(now, 7)}-${postureDay}T${postureTimeUtc}:00Z', 'P1M')
+var purviewVaultName = toLower('kv-${take(baseName, 6)}-${take(suffix, 8)}')
+var keyVaultSecretsUser = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 var firstRun = dateTimeAdd('${now}T${scheduleTimeUtc}:00Z', 'P1D')
 var blobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 
@@ -223,6 +225,41 @@ resource schedule 'Microsoft.Automation/automationAccounts/schedules@2023-11-01'
   }
 }
 
+// Purview has no managed identity sign-in (CLAUDE.md carve-out, decided 2026-10-15): the customer's setup script
+// (deploy/setup/New-PosturePurviewApp.ps1) puts a certificate in this vault and registers the app; the identity reads
+// the certificate at run time. The vault is the customer's; nothing in it is ever in code, config or the repo.
+resource purviewVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (includePosture) {
+  name: purviewVaultName
+  location: location
+  tags: tags
+  properties: {
+    tenantId: subscription().tenantId
+    sku: { family: 'A', name: 'standard' }
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
+    publicNetworkAccess: 'Enabled'
+  }
+}
+resource purviewVaultSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (includePosture) {
+  name: guid(purviewVaultName, automation.id, keyVaultSecretsUser)
+  scope: purviewVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUser
+    principalId: automation.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+// The deployer administers the certificate (create, renew) through the setup script.
+resource purviewVaultDeployer 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (includePosture && !empty(deployerObjectId)) {
+  name: guid(purviewVaultName, deployerObjectId, 'certificates-officer')
+  scope: purviewVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a4417e6f-fecd-4de8-b567-7b0420556985')
+    principalId: deployerObjectId
+  }
+}
+
 resource postureRunbook 'Microsoft.Automation/automationAccounts/runbooks@2023-05-15-preview' = if (includePosture) {
   parent: automation
   name: postureRunbookName
@@ -266,3 +303,4 @@ output postureRunbookName string = includePosture ? postureRunbookName : ''
 output postureScheduleName string = includePosture ? postureScheduleName : ''
 output postureContainerUrl string = includePosture ? '${blobEndpoint}${postureContainerName}' : ''
 output clientContainerUrl string = includePosture ? '${blobEndpoint}${clientContainerName}' : ''
+output purviewVaultName string = includePosture ? purviewVaultName : ''

@@ -114,6 +114,29 @@ Describe 'deploy scripts' {
         foreach ($needle in 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access', 'f2ef992c-3afb-46b9-b7cf-a126ee74c451') { $grant | Should -Match ([regex]::Escape($needle)) }
     }
 
+    It 'with includePosture the template adds the Purview certificate vault with Secrets User for the identity, and the runbook signs in to Purview with the certificate from it' {
+        $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'main.bicep')
+        foreach ($needle in "resource purviewVault 'Microsoft.KeyVault/vaults", '4633458b-17de-408a-b874-0445c86b69e6', 'enableRbacAuthorization: true', 'output purviewVaultName') { $src | Should -Match ([regex]::Escape($needle)) }
+        $rb = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1')
+        $rb | Should -Match 'Connect-IPPSSession -Certificate \$purviewCertificate -AppId \$purviewAppId'
+        $rb | Should -Match 'EphemeralKeySet' -Because 'the certificate stays in memory'
+        $rb | Should -Not -Match 'Export-PfxCertificate|Set-Content.*pfx|\.pfx' -Because 'the certificate is never written to disk'
+    }
+
+    It 'the Purview setup script parses, supports WhatIf, grants Exchange.ManageAsApp and Global Reader only, and references the certificate by its vault URL' {
+        $path = Join-Path $PSScriptRoot '..' 'deploy' 'setup' 'New-PosturePurviewApp.ps1'
+        $tokens = $null; $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors) | Out-Null
+        @($errors).Count | Should -Be 0
+        $src = Get-Content -Raw $path
+        $src | Should -Match 'SupportsShouldProcess'
+        $src | Should -Match 'Exchange\.ManageAsApp'
+        $src | Should -Match 'f2ef992c-3afb-46b9-b7cf-a126ee74c451' -Because 'Global Reader is the role, not Compliance Administrator'
+        $src | Should -Not -Match 'Compliance Administrator'' *\)' -Because 'no write role is assigned'
+        $src | Should -Match 'vault\.azure\.net/secrets/'
+        $src | Should -Not -Match 'passwordCredential|addPassword|--password' -Because 'no client secret, ever'
+    }
+
     It 'the grant script refuses without the admin scopes' {
         Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All') } }
         { & (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' } | Should -Throw '*missing AppRoleAssignment.ReadWrite.All*'

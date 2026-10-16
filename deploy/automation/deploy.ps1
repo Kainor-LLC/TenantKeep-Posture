@@ -182,7 +182,10 @@ Write-Host 'Next, once, as a Global Administrator of the tenant:'
 Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All"
 Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })"
 Write-Host "Then start a job: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName"
-if ($IncludePosture) { Write-Host "Posture run: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles and once the package imports show Available)" }
+if ($IncludePosture) {
+    Write-Host "Purview (once): ./deploy/setup/New-PosturePurviewApp.ps1 -ResourceGroup $ResourceGroup -AutomationAccount $automationAccount -VaultName $($o.purviewVaultName.value)"
+    Write-Host "Posture run: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles and once the package imports show Available)"
+}
 
 [pscustomobject]@{
     ResourceGroup     = $ResourceGroup

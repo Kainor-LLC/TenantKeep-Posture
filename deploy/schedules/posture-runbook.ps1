@@ -6,7 +6,8 @@
 .DESCRIPTION
     Deployed by deploy/automation/deploy.ps1 -IncludePosture. One job does what an admin does by hand over an afternoon:
       1. sign in as the managed identity: Graph and Azure first and every Graph call before PnP loads (its old
-         Microsoft.Graph.Core breaks the Graph SDK), then Exchange, then SharePoint and Teams (Purview has no managed identity sign-in)
+         Microsoft.Graph.Core breaks the Graph SDK), then Exchange, Purview (certificate app from the customer's Key
+         Vault, when New-PosturePurviewApp.ps1 has run), then SharePoint and Teams
       2. download the client container: profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv and any
          ad-* files a hybrid tenant's Windows collector produced
       3. Invoke-PostureCollection into a work folder (every collector whose session opened)
@@ -20,7 +21,8 @@
     the Teams tenant admin API role, Global Reader), plus Reader and Security Reader on the subscriptions.
 
     Variables: TENANTKEEP_POSTURE_CONTAINER_URL, TENANTKEEP_CLIENT_CONTAINER_URL, TENANTKEEP_POSTURE_KEEP_RUNS,
-    TENANTKEEP_ORGANIZATION, TENANTKEEP_SHAREPOINT_ADMIN_URL, TEAMS_WEBHOOK, EMAIL_TO, EMAIL_FROM.
+    TENANTKEEP_ORGANIZATION, TENANTKEEP_SHAREPOINT_ADMIN_URL, TENANTKEEP_PURVIEW_APP_ID, TENANTKEEP_PURVIEW_CERT (a Key
+    Vault secret URL, never the certificate), TEAMS_WEBHOOK, EMAIL_TO, EMAIL_FROM.
 #>
 [CmdletBinding()]
 param()
@@ -37,6 +39,8 @@ try {
     $keepRuns = [int]((& $getVar 'TENANTKEEP_POSTURE_KEEP_RUNS') -replace '[^0-9]', '0')
     $organization = & $getVar 'TENANTKEEP_ORGANIZATION'
     $spoAdmin = & $getVar 'TENANTKEEP_SHAREPOINT_ADMIN_URL'
+    $purviewAppId = & $getVar 'TENANTKEEP_PURVIEW_APP_ID'
+    $purviewCert = & $getVar 'TENANTKEEP_PURVIEW_CERT'
     $webhook = & $getVar 'TEAMS_WEBHOOK'
     $emailTo = @(((& $getVar 'EMAIL_TO')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $emailFrom = & $getVar 'EMAIL_FROM'
@@ -81,9 +85,23 @@ try {
         Write-Output "Organization from Graph: $organization"
     }
     $skipped = [ordered]@{}
-    # Purview: ExchangeOnlineManagement has no app-only Purview sign-in for a managed identity (certificate app auth only),
-    # so that domain reads as not collected in the automated run. Run the Purview collector by hand, or add a certificate app later (verify).
-    $skipped['Purview'] = 'Connect-IPPSSession has no managed identity sign-in; the Purview domain is not collected in the scheduled run.'
+    # Purview: ExchangeOnlineManagement has no managed identity sign-in for Connect-IPPSSession, so the customer's setup
+    # script (New-PosturePurviewApp.ps1) registers a certificate app with the certificate in the customer's Key Vault. The
+    # identity reads it here, in memory, never to disk (the CLAUDE.md carve-out). Without the variables, Purview is skipped.
+    $purviewOpen = $false
+    if ($purviewAppId -and $purviewCert) {
+        try {
+            $vaultToken = Get-AzAccessToken -ResourceUrl 'https://vault.azure.net' -WarningAction SilentlyContinue
+            $vt = $(if ($vaultToken.Token -is [securestring]) { ConvertFrom-SecureString -SecureString $vaultToken.Token -AsPlainText } else { [string]$vaultToken.Token })
+            $secret = Invoke-RestMethod -Uri "$purviewCert`?api-version=7.4" -Headers @{ Authorization = "Bearer $vt" } -Method Get
+            $pfx = [Convert]::FromBase64String([string]$secret.value)
+            $purviewCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($pfx, [string]$null, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+            Connect-IPPSSession -Certificate $purviewCertificate -AppId $purviewAppId -Organization $organization -ShowBanner:$false
+            $purviewOpen = $true; Write-Output "Purview session open (certificate $($purviewCertificate.Thumbprint.Substring(0, 8))..., expires $($purviewCertificate.NotAfter.ToString('yyyy-MM-dd')))"
+        }
+        catch { $skipped['Purview'] = $_.Exception.Message; Write-Output "Purview sign-in failed; skipped: $($_.Exception.Message)" }
+    }
+    else { $skipped['Purview'] = 'Purview app not configured: run deploy/setup/New-PosturePurviewApp.ps1 once to collect Purview in the scheduled run.' }
     # Exchange signs in now, before Az.Storage loads: both carry Microsoft.OData.Core, and the mailbox cmdlets need Exchange's newer copy to be the one in memory.
     $exchangeOpen = $false
     try {
@@ -154,6 +172,8 @@ try {
     $profileParam = @{}; if (Test-Path $profilePath) { $profileParam.ProfilePath = $profilePath }
     Write-Output 'step: collect (Exchange)'
     if ($exchangeOpen) { & $phase 'Exchange' { } @('Exchange') }
+    Write-Output 'step: collect (Purview)'
+    if ($purviewOpen) { & $phase 'Purview' { } @('Purview') }
     Write-Output 'step: collect (SharePoint, Teams)'
     if ($spoAdmin) {
         & $phase 'SharePoint and Teams' { Connect-PnPOnline -Url $spoAdmin -ManagedIdentity; Connect-MicrosoftTeams -Identity | Out-Null } @('SharePoint', 'Teams')

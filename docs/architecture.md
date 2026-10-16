@@ -52,7 +52,7 @@ decisions; `(verify)` marks what has not been proven live yet.
   Sites.FullControl.All (verify the least that works), the Teams tenant admin API role and the Global Reader directory
   role; the deployer adds Reader and Security Reader on the subscriptions. The identity also has Storage Blob Data
   Contributor on the deployment's storage account and nothing else.
-- **Purview in Automation** (decided 2026-10-15, being built): Microsoft's module has no managed identity sign-in for
+- **Purview in Automation** (decided and built 2026-10-15, first live run pending): Microsoft's module has no managed identity sign-in for
   Purview, only a certificate-backed app registration. The customer's setup script creates that app and a certificate
   in a Key Vault in the customer's own subscription; the managed identity reads the certificate at run time and signs
   in with it. The certificate never appears in code, configuration, the runbook or this repository, and the customer
@@ -94,7 +94,7 @@ re-scores the page immediately; the next run makes it permanent. Design details 
 
 - The Windows AD collector runs on a domain-joined machine and its files are copied into the evidence folder (local)
   or the `client/hybrid/` prefix (Automation). A Hybrid Runbook Worker is the v1.1 answer.
-- Purview in Automation until the certificate app ships.
+- Purview in Automation until the customer runs `New-PosturePurviewApp.ps1` once.
 - Role grants and app registrations: always the customer's admin, by design.
 
 ## Repositories
