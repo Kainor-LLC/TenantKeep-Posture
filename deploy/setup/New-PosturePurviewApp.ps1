@@ -147,7 +147,9 @@ role group on the app's service principal (a Security & Compliance PowerShell se
 
   Connect-IPPSSession -UserPrincipalName <admin>
   New-ServicePrincipal -AppId $($app.appId) -ObjectId $($sp.id) -DisplayName '$AppName'
-  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -Roles 'View-Only Audit Logs', 'View-Only Insider Risk Management' -Members $($sp.id)   # (verify) the role names in your tenant: Get-ManagementRole | Where-Object Name -like 'View-Only*'
+  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -Description 'Read-only roles for the Tenantkeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
+  # Role names as listed by Get-ManagementRole in a Business Premium tenant (2026-10-15). If Get-InsiderRiskPolicy still
+  # reads as not available on the next run, add 'Insider Risk Management Analysis' to the group (verify).
 
 eDiscovery cases (Get-ComplianceCase) are not supported app-only by Microsoft; that check stays by hand.
 Renewal: the vault auto-renews the certificate 30 days before expiry; run this script again afterwards so the app
