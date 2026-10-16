@@ -82,7 +82,6 @@ foreach ($rid in $resources.Keys) {
     if ($role) { $manageAsAppRoles[$rid] = @{ sp = $found[0]; role = $role } } else { Write-Warning "$($resources[$rid]) exposes no Exchange.ManageAsApp application role." }
 }
 if ($manageAsAppRoles.Count -eq 0) { throw 'Neither Exchange resource exposes Exchange.ManageAsApp in this tenant.' }
-$exoSp = $manageAsAppRoles['00000002-0000-0ff1-ce00-000000000000'].sp; $manageAsApp = $manageAsAppRoles['00000002-0000-0ff1-ce00-000000000000'].role
 $apps = @((Get-G "$graph/applications?`$filter=displayName eq '$($AppName -replace "'", "''")'&`$select=id,appId,keyCredentials").value)
 $keyCredential = @{ type = 'AsymmetricX509Cert'; usage = 'Verify'; key = $cerBase64; displayName = "$CertificateName $thumbprint" }
 if ($apps.Count -eq 0) {
@@ -148,8 +147,9 @@ role group on the app's service principal (a Security & Compliance PowerShell se
   Connect-IPPSSession -UserPrincipalName <admin>
   New-ServicePrincipal -AppId $($app.appId) -ObjectId $($sp.id) -DisplayName '$AppName'
   New-RoleGroup -Name 'Tenantkeep Posture (view only)' -Description 'Read-only roles for the Tenantkeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
-  # Role names as listed by Get-ManagementRole in a Business Premium tenant (2026-10-15). If Get-InsiderRiskPolicy still
-  # reads as not available on the next run, add 'Insider Risk Management Analysis' to the group (verify).
+  # Role names as listed by Get-ManagementRole (2026-10-15). Proven in Kainor: this group opens Insider Risk policies.
+  # Audit retention policies (Get-UnifiedAuditLogRetentionPolicy) stay hidden with View-Only Audit Logs; add the 'Audit Logs'
+  # role to the group if you want that read in the scheduled run (verify it is the least role that works).
 
 eDiscovery cases (Get-ComplianceCase) are not supported app-only by Microsoft; that check stays by hand.
 Renewal: the vault auto-renews the certificate 30 days before expiry; run this script again afterwards so the app
