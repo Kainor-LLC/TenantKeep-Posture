@@ -1,7 +1,7 @@
 # How Tenantkeep Posture works
 
 One page for the person who has to reason about the whole thing: what runs where, as whom, reading what, writing
-where. The spec (posture-spec.md) says what the product is; this says how it is put together. Dated statements are
+where. The itemised inventory of what each way of running installs, and how to remove it, is docs/footprint.md. The spec (posture-spec.md) says what the product is; this says how it is put together. Dated statements are
 decisions; `(verify)` marks what has not been proven live yet.
 
 ## The parts

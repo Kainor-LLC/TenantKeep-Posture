@@ -141,6 +141,15 @@ The Trend view shows the score and domain deltas, the checks that started or sto
 that moved. The Conditional Access snapshot in each folder also feeds Compare-PostureCaSnapshot for a policy-level
 diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams or email alert.
 
+## 9a. Without Azure
+
+Not every organisation has, or wants, anything in Azure. Local runs need no Azure at all: with `azure: none` in the
+profile (the wizard sets it when no subscription is in scope) the Azure collector is skipped and the Azure domain
+reads as not applicable. Nothing is installed in the tenant beyond the SharePoint app registration. What does need
+an Azure subscription is the scheduled cycle, because the Automation account is where it runs; the full inventory of
+what that puts where is in docs/footprint.md. For a nightly Conditional Access cycle without Azure, the GitHub Action
+and launchd samples in deploy/schedules run it from a machine you already have.
+
 ## 10. Unattended, in the customer's Azure
 
 deploy/automation deploys an Automation account with a managed identity that runs the Conditional Access cycle nightly

@@ -150,7 +150,10 @@ try {
     # Only name collectors whose roles the token carries: a named collector without its role is an error, an unnamed one a warning.
     $mainCollectors = @('Entra', 'Intune')
     if ('ThreatHunting.Read.All' -in @($ctx.Scopes)) { $mainCollectors += 'Defender' } else { $skipped['Defender'] = 'ThreatHunting.Read.All is not on the Graph token yet (roles granted recently are cached for up to a day).' }
-    if ((Get-AzContext -ErrorAction SilentlyContinue) -and (Get-Command Search-AzGraph -ErrorAction SilentlyContinue)) { $mainCollectors += 'Azure' } else { $skipped['Azure'] = 'No Azure context or Az.ResourceGraph not loaded.' }
+    $azureWanted = $true
+    if (Test-Path $profilePath) { try { $pj = Get-Content -Raw -LiteralPath $profilePath | ConvertFrom-Json -AsHashtable; if ($pj -and $pj.Contains('azure') -and [string]$pj['azure'] -eq 'none') { $azureWanted = $false } } catch { Write-Verbose 'profile.json unreadable; Azure stays on.' } }
+    if (-not $azureWanted) { $skipped['Azure'] = 'Profile says azure: none; the Azure domain is not applicable to this tenant.' }
+    elseif ((Get-AzContext -ErrorAction SilentlyContinue) -and (Get-Command Search-AzGraph -ErrorAction SilentlyContinue)) { $mainCollectors += 'Azure' } else { $skipped['Azure'] = 'No Azure context or Az.ResourceGraph not loaded.' }
     $collectParams = @{ OutRoot = $evidenceRoot; Collector = $mainCollectors; PassThru = $true }
     if (Test-Path $profilePath) { $collectParams.ProfilePath = $profilePath }
     $collection = Invoke-PostureCollection @collectParams

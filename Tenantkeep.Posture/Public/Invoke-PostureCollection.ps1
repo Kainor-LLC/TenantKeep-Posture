@@ -105,6 +105,11 @@ function Invoke-PostureCollection {
         $orgProfile = Import-PostureProfile -Path $ProfilePath
         $expected = [string]$(if ($orgProfile.Contains('tenantId')) { $orgProfile['tenantId'] })
         if ($expected -and $expected -ne [string]$context.TenantId) { throw "The Graph session is in tenant $($context.TenantId), but $ProfilePath belongs to tenant $expected. Sign in to that tenant first, Connect-MgGraph -TenantId $expected, or pass the right profile." }
+        # A tenant with nothing in Azure (azure: none in the profile) is never asked for an Azure session; the domain reads as not applicable.
+        if (-not $PSBoundParameters.ContainsKey('Collector') -and [string]$(if ($orgProfile.Contains('azure')) { $orgProfile['azure'] }) -eq 'none' -and 'Azure' -in $Collector) {
+            $Collector = @($Collector | Where-Object { $_ -ne 'Azure' })
+            Write-Verbose 'Profile says azure: none; the Azure collector is skipped.'
+        }
     }
     $optional = [ordered]@{
         'User.Read.All'                     = 'Users'
