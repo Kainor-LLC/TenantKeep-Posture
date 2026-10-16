@@ -15,7 +15,7 @@ decisions; `(verify)` marks what has not been proven live yet.
 | Customer-side setup | `deploy/setup/`, `deploy/automation/Grant-ManagedIdentityGraphRole.ps1` | The only tenant writes in the repo: app registration, consents, role grants. Run once by the customer's admin, never by the module. |
 | Automation deployment | `deploy/automation/` (Bicep, deploy.ps1), `deploy/schedules/` (runbooks) | Option B: an Automation account in the customer's subscription with a managed identity, a nightly Conditional Access cycle and a monthly full posture cycle. |
 | Licensing | `Tenantkeep.Posture/Private/Test-PostureLicense.ps1`, `deploy/licensing/`, private repo `kainorllc/tenantkeep-licensing` | A signed licence file per tenant, verified offline; issued by a Stripe-driven function in the Kainor tenant that signs through Key Vault. |
-| Websites | repos `kainorllc/kainor.com`, `kainorllc/tenantkeep.app` | Company site and the product family site (guide, generated catalog page). |
+| Websites | repos `Kainor-LLC/kainor.com`, `Kainor-LLC/tenantkeep.app` | Company site and the product family site (guide, generated catalog page). |
 
 ## A run, end to end
 
