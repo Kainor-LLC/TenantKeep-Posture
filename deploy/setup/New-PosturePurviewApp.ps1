@@ -115,11 +115,13 @@ else { Write-Host 'Global Reader already assigned' }
 
 # 5. The two Automation variables the runbook reads. The certificate is referenced by its Key Vault secret URL, never copied.
 $secretId = "https://$VaultName.vault.azure.net/secrets/$CertificateName"
+# Through the ARM REST API: the CLI's automation extension has no variable commands in every version.
+$aaPath = "/subscriptions/$($account.id)/resourceGroups/$ResourceGroup/providers/Microsoft.Automation/automationAccounts/$AutomationAccount"
 foreach ($pair in @(@('TENANTKEEP_PURVIEW_APP_ID', [string]$app.appId), @('TENANTKEEP_PURVIEW_CERT', $secretId))) {
     if ($PSCmdlet.ShouldProcess($AutomationAccount, "Set variable $($pair[0])")) {
-        $exists = $null; try { $exists = Invoke-Az automation variable show -g $ResourceGroup --automation-account-name $AutomationAccount -n $pair[0] -o json 2>$null } catch { $exists = $null }
-        if ($exists) { $null = Invoke-Az automation variable update -g $ResourceGroup --automation-account-name $AutomationAccount -n $pair[0] --value "`"$($pair[1])`"" -o none }
-        else { $null = Invoke-Az automation variable create -g $ResourceGroup --automation-account-name $AutomationAccount -n $pair[0] --value "`"$($pair[1])`"" -o none }
+        $body = @{ name = $pair[0]; properties = @{ value = ('"' + $pair[1] + '"'); isEncrypted = $false; description = 'Set by New-PosturePurviewApp.ps1' } } | ConvertTo-Json -Compress
+        $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/variables/$($pair[0])?api-version=2023-11-01" --headers 'Content-Type=application/json' --body $body -o none
+        Write-Host "Variable $($pair[0]) set"
     }
 }
 Write-Host @"
