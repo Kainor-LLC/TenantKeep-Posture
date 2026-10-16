@@ -703,7 +703,7 @@ Reference points: CIPP's hosted option is $99/mo for an ops platform; a hand-bui
 
 Launch tactic: free MSP tier for the first ten MSPs who agree to a written quote and a logo on kainor.com. The sample report they produce is your marketing.
 
-Naming, decided 2026-10-13: Kainor is the publisher only, not a product name. Family name **Tenantkeep** (a keep is the fortified tower where the keys are; "keep" is also what posture work does to a tenant), so this product is **Tenantkeep Posture**. Module name `Tenantkeep.Posture`, cmdlet noun prefix `Posture` (`Export-PostureCaSnapshot`). Checks passed on 2026-10-13: no software product, company, App Store app, GitHub repo or npm package found; tenantkeep.com and tenantkeep.app to be registered by Kainor. USPTO search still to do before the first public use. History: Tenantlock was the first pick and is a live competitor (tenantlock.com, Seattle solo developer); a purchase offer went $200 / $1,000 / $500 and stalled. Shiftlock is an existing App Store app. Realmlock was clean but meant nothing to the buyer. Microsoft trademarks (Entra, Graph, Intune) never appear in a product name.
+Naming, decided 2026-10-13: Kainor is the publisher only, not a product name. Family name **Tenantkeep** (a keep is the fortified tower where the keys are; "keep" is also what posture work does to a tenant), so this product is **Tenantkeep Posture**. Module name `Tenantkeep.Posture`, cmdlet noun prefix `Posture` (`Export-PostureCaSnapshot`). Checks passed on 2026-10-13: no software product, company, App Store app, GitHub repo or npm package found; tenantkeep.app and tenantkeep.app to be registered by Kainor. USPTO search still to do before the first public use. History: Tenantlock was the first pick and is a live competitor (tenantlock.com, Seattle solo developer); a purchase offer went $200 / $1,000 / $500 and stalled. Shiftlock is an existing App Store app. Realmlock was clean but meant nothing to the buyer. Microsoft trademarks (Entra, Graph, Intune) never appear in a product name.
 
 ---
 
@@ -939,7 +939,7 @@ Resolved 2026-10-10 unless marked open.
 
 | # | Decision | Outcome |
 |---|---|---|
-| D1 | Product name | **Tenantkeep Posture**, decided 2026-10-13 (section 8). Register tenantkeep.com and .app; USPTO search before first public use |
+| D1 | Product name | **Tenantkeep Posture**, decided 2026-10-13 (section 8). Register tenantkeep.app and .app; USPTO search before first public use |
 | D2 | Pricing model | Both monthly and annual, annual about two months free |
 | D3 | Free tier scope | Identity + CA, including CA doc and diff |
 | D4 | PDF engine | Headless Edge or Chrome, print view of the HTML |
