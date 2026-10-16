@@ -507,8 +507,8 @@ Describe 'Invoke-PostureCollection' {
 Describe 'Azure optional' {
     It 'skips the Azure collector when the profile says azure: none and no collector list was given' {
         $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
-        $src | Should -Match "eq 'none' -and 'Azure' -in \$Collector"
-        $src | Should -Match "ContainsKey\('Collector'\)" -Because 'a named collector list always wins'
+        $src | Should -Match ([regex]::Escape("eq 'none' -and 'Azure' -in `$Collector"))
+        $src | Should -Match ([regex]::Escape("ContainsKey('Collector')")) -Because 'a named collector list always wins'
         $rb = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1')
         $rb | Should -Match "azure: none" -Because 'the runbook honours the same profile value'
     }
