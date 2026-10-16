@@ -78,7 +78,7 @@ $apps = @((Get-G "$graph/applications?`$filter=displayName eq '$($AppName -repla
 $keyCredential = @{ type = 'AsymmetricX509Cert'; usage = 'Verify'; key = $cerBase64; displayName = "$CertificateName $thumbprint" }
 if ($apps.Count -eq 0) {
     if ($PSCmdlet.ShouldProcess($AppName, 'Create the app registration')) {
-        $app = Post-G "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @(@{ resourceAppId = '00000002-0000-0ff1-ce00-000000000000'; resourceAccess = @(@{ id = $manageAsApp.id; type = 'Role' }) }); notes = 'Tenantkeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
+        $app = Send-GraphPost "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @(@{ resourceAppId = '00000002-0000-0ff1-ce00-000000000000'; resourceAccess = @(@{ id = $manageAsApp.id; type = 'Role' }) }); notes = 'Tenantkeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
         Write-Host "App registration created: $($app.appId)"
     }
 }
@@ -86,18 +86,18 @@ else {
     $app = $apps[0]
     $have = @($app.keyCredentials | Where-Object { [string]$_.customKeyIdentifier -and ([Convert]::ToHexString([Convert]::FromBase64String([string]$_.customKeyIdentifier)) -eq $thumbprint) })
     if ($have.Count -eq 0 -and $PSCmdlet.ShouldProcess($AppName, 'Add the current certificate to the app registration')) {
-        Patch-G "$graph/applications/$($app.id)" @{ keyCredentials = @(@($app.keyCredentials | ForEach-Object { @{ type = $_.type; usage = $_.usage; key = $_.key; keyId = $_.keyId; displayName = $_.displayName } }) + @($keyCredential)) }
+        Send-GraphPatch "$graph/applications/$($app.id)" @{ keyCredentials = @(@($app.keyCredentials | ForEach-Object { @{ type = $_.type; usage = $_.usage; key = $_.key; keyId = $_.keyId; displayName = $_.displayName } }) + @($keyCredential)) }
         Write-Host 'Certificate added to the app registration'
     }
     else { Write-Host "App registration exists: $($app.appId)" }
 }
 $sps = @((Get-G "$graph/servicePrincipals?`$filter=appId eq '$($app.appId)'&`$select=id").value)
-$sp = $(if ($sps.Count -gt 0) { $sps[0] } elseif ($PSCmdlet.ShouldProcess($AppName, 'Create the service principal')) { Post-G "$graph/servicePrincipals" @{ appId = $app.appId } })
+$sp = $(if ($sps.Count -gt 0) { $sps[0] } elseif ($PSCmdlet.ShouldProcess($AppName, 'Create the service principal')) { Send-GraphPost "$graph/servicePrincipals" @{ appId = $app.appId } })
 
 # 3. Consent: Exchange.ManageAsApp on the service principal.
 $assigned = @((Get-G "$graph/servicePrincipals/$($sp.id)/appRoleAssignments").value | Where-Object { $_.appRoleId -eq $manageAsApp.id })
 if ($assigned.Count -eq 0 -and $PSCmdlet.ShouldProcess($AppName, 'Grant Exchange.ManageAsApp')) {
-    $null = Post-G "$graph/servicePrincipals/$($sp.id)/appRoleAssignments" @{ principalId = $sp.id; resourceId = $exoSp.id; appRoleId = $manageAsApp.id }
+    $null = Send-GraphPost "$graph/servicePrincipals/$($sp.id)/appRoleAssignments" @{ principalId = $sp.id; resourceId = $exoSp.id; appRoleId = $manageAsApp.id }
     Write-Host 'Exchange.ManageAsApp granted'
 }
 else { Write-Host 'Exchange.ManageAsApp already granted' }
@@ -108,7 +108,7 @@ $readerTemplate = 'f2ef992c-3afb-46b9-b7cf-a126ee74c451'
 $defs = @((Get-G "$graph/roleManagement/directory/roleDefinitions?`$filter=templateId eq '$readerTemplate'&`$select=id").value)
 $haveRole = @((Get-G "$graph/roleManagement/directory/roleAssignments?`$filter=principalId eq '$($sp.id)'").value | Where-Object { $_.roleDefinitionId -eq $defs[0].id })
 if ($haveRole.Count -eq 0 -and $PSCmdlet.ShouldProcess($AppName, 'Assign the Global Reader directory role')) {
-    $null = Post-G "$graph/roleManagement/directory/roleAssignments" @{ principalId = $sp.id; roleDefinitionId = $defs[0].id; directoryScopeId = '/' }
+    $null = Send-GraphPost "$graph/roleManagement/directory/roleAssignments" @{ principalId = $sp.id; roleDefinitionId = $defs[0].id; directoryScopeId = '/' }
     Write-Host 'Global Reader assigned'
 }
 else { Write-Host 'Global Reader already assigned' }
