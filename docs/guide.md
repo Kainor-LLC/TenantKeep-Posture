@@ -105,8 +105,9 @@ effort, dependency and notes; a check's detail panel has the exception form (sco
 expiry). Recording an exception re-scores the page at once. Settings holds the tenant profile: thresholds, third-party
 controls, break-glass accounts, frameworks, audience.
 
-Choose Client Folder once per session, then Save writes exceptions.json, findings.csv and profile.json into that
-folder, merging with what is already there. The next run reads them, so exceptions and owners survive every rerun.
+The save bar at the bottom of every view holds Choose Client Folder and Save. Recording an exception asks for the
+folder if none is chosen yet. Save writes exceptions.json, findings.csv and profile.json into that folder, merging
+with what is already there, and reads them back before it reports success. The next run reads them, so exceptions and owners survive every rerun.
 Safari and Firefox cannot write folders; there Save downloads the files to move into the client folder by hand.
 Profile changes apply on the next run; the page says so.
 

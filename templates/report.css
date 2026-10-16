@@ -136,6 +136,14 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 .kv dt { color: var(--muted); font-size: 13px; }
 .kv dd { margin: 0; }
 
+/* The save dock: on every view and above the drawer, so a change made anywhere can be saved from where you are */
+.savedock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 12; margin: 0; border-radius: 0; border-left: none; border-right: none; border-bottom: none; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); padding: 10px 24px; }
+.savedock.attention { border-top: 2px solid var(--warn); }
+.savedock .result { flex-basis: 100%; }
+.savedock .result:empty { display: none; }
+main { padding-bottom: 110px; }
+#drawer { padding-bottom: 120px; }
+
 /* Drawer */
 #drawer { position: fixed; top: 0; right: 0; width: min(640px, 100%); height: 100%; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); padding: 22px 24px 48px; transform: translateX(100%); transition: transform 0.18s ease; z-index: 10; }
 #drawer.open { transform: translateX(0); }
@@ -152,7 +160,7 @@ body.executive .tech, body.executive #checks, body.executive #appendix, body.exe
 
 @media print {
   :root { --bg: #fff; --fg: #000; --card: #fff; --line: #bbb; --panel: #fff; --soft: #f3f3f3; --shadow: none; }
-  nav.views, .toolbar, #drawer, .filters, .savebar, .form-actions, button, .toast { display: none !important; }
+  nav.views, .toolbar, #drawer, .filters, .savebar, .savedock, .form-actions, button, .toast { display: none !important; }
   section.view { display: block !important; page-break-before: always; }
   section.view.active { page-break-before: auto; }
   a { color: inherit; text-decoration: none; }

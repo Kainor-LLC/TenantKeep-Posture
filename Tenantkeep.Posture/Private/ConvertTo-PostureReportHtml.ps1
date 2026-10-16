@@ -143,7 +143,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</tbody></table><p class="tech">Select a row for the narrative, the remediation, the affected objects and the exception form.</p></section>'
 
     # Risk register: every failing or accepted check with the register fields, editable in the page and saved to findings.csv.
-    $saveBar = '<div class="savebar"><button type="button" data-pick>Choose Client Folder</button><button type="button" class="primary" data-save disabled>Save to Client Folder</button><span class="state"></span></div>'
+    $saveBar = ''
     & $w '<section class="view" id="register"><h2>Risk Register</h2>'
     & $w '<p>Every failing and accepted check, with the owner, status, effort and dependency the register tracks between runs. Record exceptions from a check''s detail panel; edits here and there are written to the client folder with Save, and the next run keeps them.</p>'
     & $w $saveBar
@@ -266,7 +266,9 @@ function ConvertTo-PostureReportHtml {
     & $w "<h3 class=`"tech`">Evidence Index</h3><p class=`"chips tech`">$(@($a.evidenceFiles | ForEach-Object { '<span class="chip">' + (& $h $_) + '</span>' }) -join '')</p>"
     if (@($a.errors).Count -gt 0) { & $w '<h3>Collection Errors</h3><ul>'; foreach ($e in $a.errors) { & $w "<li>$(& $h $e)</li>" }; & $w '</ul>' }
     & $w '</section></main>'
-    & $w '<aside id="drawer" aria-label="Check detail"></aside><div id="toast" class="toast" role="status"></div>'
+    & $w '<aside id="drawer" aria-label="Check detail"></aside>'
+    & $w '<div id="savedock" class="savebar savedock" aria-label="Save changes"><span class="folder"><button type="button" data-pick>Choose Client Folder</button></span><button type="button" class="primary" data-save disabled>Save</button><button type="button" data-download>Download Files Instead</button><span class="state"></span><div class="result hint"></div></div>'
+    & $w '<div id="toast" class="toast" role="status"></div>'
     if ($b.footer) { & $w "<footer class=`"doc`">$(& $h $b.footer)</footer>" }
 
     # Embedded data, then the behaviour.

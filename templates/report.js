@@ -170,10 +170,13 @@
     var ex = $('export-affected'); if (ex) { ex.addEventListener('click', function () { downloadText(r.id + '-affected.csv', toCsv(['Name', 'Detail'], ef.affected.map(function (a) { return [nameOf(a), humanDetail(a && a.detail)]; })), 'text/csv'); }); }
     var add = $('ex-add');
     if (add) {
-      add.addEventListener('click', function () {
+      add.addEventListener('click', async function () {
         var just = ($('ex-just').value || '').trim(); if (!just) { toast('A justification is required.'); $('ex-just').focus(); return; }
-        state.exceptions.push({ check: r.id, object: $('ex-object').value || null, justification: just, owner: ($('ex-owner').value || '').trim(), approver: ($('ex-approver').value || '').trim(), expires: $('ex-expires').value || null });
-        state.dirty.exceptions = true; recompute(); openDrawer(id); toast('Exception recorded. Save to keep it.');
+        var entry = { check: r.id, object: $('ex-object').value || null, justification: just, owner: ($('ex-owner').value || '').trim(), approver: ($('ex-approver').value || '').trim(), expires: $('ex-expires').value || null };
+        if (canPick && !state.folder) { await pickFolder(); }
+        state.exceptions.push(entry); state.dirty.exceptions = true; recompute(); openDrawer(id);
+        if (canPick && !state.folder) { toast('Exception recorded in the page only. Choose the client folder in the bar below, then Save.'); }
+        else { toast('Exception recorded. Save in the bar below to keep it.'); }
       });
     }
     Array.prototype.slice.call(drawer.querySelectorAll('[data-remove-exception]')).forEach(function (btn) {
@@ -260,10 +263,12 @@
   function updateSaveBar() {
     var dirty = state.dirty.exceptions || state.dirty.register || state.dirty.profile;
     Array.prototype.slice.call(document.querySelectorAll('.savebar')).forEach(function (bar) {
-      var st = bar.querySelector('.state'); var btn = bar.querySelector('[data-save]'); var pick = bar.querySelector('[data-pick]');
-      if (pick) { pick.textContent = state.folder ? 'Client folder: ' + state.folder.name : 'Choose Client Folder'; pick.style.display = canPick ? '' : 'none'; }
-      if (btn) { btn.disabled = !dirty; btn.textContent = canPick ? 'Save to Client Folder' : 'Download Files'; }
-      if (st) { st.innerHTML = dirty ? '<span class="dirty">Unsaved changes</span>' + (canPick ? '' : ' (this browser cannot write folders; files download instead)') : 'Saved state matches the report' + (canPick ? '' : ' (this browser downloads files on save)'); }
+      var st = bar.querySelector('.state'); var btn = bar.querySelector('[data-save]'); var pick = bar.querySelector('[data-pick]'); var dl = bar.querySelector('[data-download]');
+      if (pick) { pick.textContent = state.folder ? 'Client folder: ' + state.folder.name : 'Choose Client Folder'; pick.style.display = canPick ? '' : 'none'; pick.classList.toggle('primary', canPick && !state.folder && dirty); }
+      if (btn) { btn.disabled = !dirty; btn.textContent = canPick ? (state.folder ? 'Save to ' + state.folder.name : 'Save') : 'Download Files'; btn.classList.toggle('primary', !(canPick && !state.folder && dirty)); }
+      if (dl) { dl.style.display = canPick ? '' : 'none'; dl.disabled = !dirty; }
+      if (st) { st.innerHTML = dirty ? '<span class="dirty">Unsaved changes</span>' + (canPick ? (state.folder ? '' : ': choose the client folder, then Save') : ' (this browser cannot write folders; files download instead)') : (state.folder ? 'Everything is saved' : (canPick ? 'Choose the client folder (the one with profile.json) before recording exceptions or editing settings' : 'This browser downloads files on save')); }
+      bar.classList.toggle('attention', dirty);
     });
   }
   function toCsv(headers, rows) { var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }; return [headers.map(q).join(',')].concat(rows.map(function (r) { return r.map(q).join(','); })).join('\r\n') + '\r\n'; }
@@ -319,28 +324,45 @@
         try { var pr = JSON.parse(profileText); if (pr.tenantId && String(pr.tenantId).toLowerCase() !== String(data.meta.tenantId).toLowerCase()) { toast('That folder belongs to tenant ' + pr.tenantId + ', not this report. Pick the right client folder.'); return; } } catch (e) { /* unreadable profile: allow */ }
       }
       state.folder = dir; updateSaveBar(); toast('Client folder: ' + dir.name);
-    } catch (e) { if (e && e.name !== 'AbortError') { toast('Could not open the folder: ' + e.message); } }
+    } catch (e) { if (e && e.name === 'AbortError') { toast('No folder chosen; nothing was saved.'); } else { toast('Could not open the folder: ' + (e && e.message)); } }
+  }
+  function setSaveStatus(html) { Array.prototype.slice.call(document.querySelectorAll('.savebar .result')).forEach(function (el) { el.innerHTML = html; }); }
+  function pendingFiles() { var f = []; if (state.dirty.exceptions) { f.push('exceptions.json'); } if (state.dirty.register || state.dirty.exceptions) { f.push('findings.csv'); } if (state.dirty.profile) { f.push('profile.json'); } return f; }
+  async function downloadAll() {
+    var files = pendingFiles(); if (!files.length) { toast('Nothing to save.'); return; }
+    if (files.indexOf('exceptions.json') >= 0) { downloadText('exceptions.json', JSON.stringify(exceptionsDocument([]), null, 2) + '\n'); }
+    if (files.indexOf('findings.csv') >= 0) { downloadText('findings.csv', registerCsv(data.register), 'text/csv'); }
+    if (files.indexOf('profile.json') >= 0) { downloadText('profile.json', JSON.stringify(profileDocument(JSON.parse(JSON.stringify(data.profile || {}))), null, 2) + '\n'); }
+    setSaveStatus('Downloaded ' + files.join(', ') + ' to your browser\'s download folder. Move them into the client folder next to profile.json.');
+    toast('Downloaded ' + files.join(', '));
   }
   async function save() {
-    var files = {};
-    if (canPick) {
-      if (!state.folder) { await pickFolder(); if (!state.folder) { return; } }
-      var dir = state.folder;
-      try {
-        if (state.dirty.exceptions) { var exText = await readFile(dir, 'exceptions.json'); var existing = []; try { var exDoc = exText ? JSON.parse(exText) : null; existing = exDoc ? (Array.isArray(exDoc) ? exDoc : (exDoc.exceptions || [])) : []; } catch (e) { existing = []; } await writeFile(dir, 'exceptions.json', JSON.stringify(exceptionsDocument(existing), null, 2) + '\n'); files['exceptions.json'] = 1; }
-        if (state.dirty.register || state.dirty.exceptions) { var csvText = await readFile(dir, 'findings.csv'); await writeFile(dir, 'findings.csv', registerCsv(csvText ? parseCsv(csvText) : [])); files['findings.csv'] = 1; }
-        if (state.dirty.profile) { var pText = await readFile(dir, 'profile.json'); var pDoc = null; try { pDoc = pText ? JSON.parse(pText) : null; } catch (e) { pDoc = null; } await writeFile(dir, 'profile.json', JSON.stringify(profileDocument(pDoc), null, 2) + '\n'); files['profile.json'] = 1; }
-      } catch (e) { toast('Save failed: ' + e.message); return; }
-    } else {
-      if (state.dirty.exceptions) { downloadText('exceptions.json', JSON.stringify(exceptionsDocument([]), null, 2) + '\n'); files['exceptions.json'] = 1; }
-      if (state.dirty.register || state.dirty.exceptions) { downloadText('findings.csv', registerCsv(data.register), 'text/csv'); files['findings.csv'] = 1; }
-      if (state.dirty.profile) { downloadText('profile.json', JSON.stringify(profileDocument(JSON.parse(JSON.stringify(data.profile || {}))), null, 2) + '\n'); files['profile.json'] = 1; }
+    var files = pendingFiles();
+    if (!files.length) { toast('Nothing to save.'); return; }
+    if (!canPick) { await downloadAll(); markSaved(); return; }
+    if (!state.folder) { await pickFolder(); if (!state.folder) { setSaveStatus('No folder chosen, so nothing was written. Choose the client folder (the one with profile.json), or use Download Files Instead.'); return; } }
+    var dir = state.folder, written = [];
+    try {
+      var perm = await dir.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') { throw new Error('the browser did not grant write access to ' + dir.name); }
+      if (files.indexOf('exceptions.json') >= 0) { var exText = await readFile(dir, 'exceptions.json'); var existing = []; try { var exDoc = exText ? JSON.parse(exText) : null; existing = exDoc ? (Array.isArray(exDoc) ? exDoc : (exDoc.exceptions || [])) : []; } catch (e) { existing = []; } await writeFile(dir, 'exceptions.json', JSON.stringify(exceptionsDocument(existing), null, 2) + '\n'); written.push('exceptions.json'); }
+      if (files.indexOf('findings.csv') >= 0) { var csvText = await readFile(dir, 'findings.csv'); await writeFile(dir, 'findings.csv', registerCsv(csvText ? parseCsv(csvText) : [])); written.push('findings.csv'); }
+      if (files.indexOf('profile.json') >= 0) { var pText = await readFile(dir, 'profile.json'); var pDoc = null; try { pDoc = pText ? JSON.parse(pText) : null; } catch (e) { pDoc = null; } await writeFile(dir, 'profile.json', JSON.stringify(profileDocument(pDoc), null, 2) + '\n'); written.push('profile.json'); }
+      // Read back, so "saved" means the bytes are on disk.
+      for (var i = 0; i < written.length; i++) { var back = await readFile(dir, written[i]); if (back == null || !back.length) { throw new Error(written[i] + ' could not be read back after writing'); } }
+    } catch (e) {
+      var why = (e && e.message) || String(e);
+      setSaveStatus('<span class="dirty">Writing to ' + esc(dir.name) + ' failed: ' + esc(why) + '.</span> Downloading the files instead.');
+      await downloadAll(); markSaved(); return;
     }
-    data.exceptions = state.exceptions.slice(); state.removed = []; state.dirty = { exceptions: false, register: false, profile: false };
-    recompute(); toast('Saved ' + Object.keys(files).join(', ') + (canPick ? ' to ' + state.folder.name : '') + '. The next run reads them.');
+    markSaved();
+    setSaveStatus('Wrote ' + written.join(', ') + ' into <strong>' + esc(dir.name) + '</strong> and read them back. The next run reads them.');
+    toast('Saved ' + written.join(', ') + ' to ' + dir.name);
   }
+  function markSaved() { data.exceptions = state.exceptions.slice(); state.removed = []; state.dirty = { exceptions: false, register: false, profile: false }; recompute(); }
   Array.prototype.slice.call(document.querySelectorAll('[data-pick]')).forEach(function (b) { b.addEventListener('click', pickFolder); });
   Array.prototype.slice.call(document.querySelectorAll('[data-save]')).forEach(function (b) { b.addEventListener('click', save); });
+  Array.prototype.slice.call(document.querySelectorAll('[data-download]')).forEach(function (b) { b.addEventListener('click', async function () { await downloadAll(); markSaved(); }); });
   window.addEventListener('beforeunload', function (e) { if (state.dirty.exceptions || state.dirty.register || state.dirty.profile) { e.preventDefault(); e.returnValue = ''; } });
 
   var exportAll = $('export-checks');
