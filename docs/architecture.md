@@ -101,7 +101,7 @@ re-scores the page immediately; the next run makes it permanent. Design details 
 
 | Repo | Visibility | Holds |
 |---|---|---|
-| kainorllc/tenantkeep-posture | source-available (currently private on GitHub; the licence assumes readers) | the module, catalog, deployment, docs |
-| kainorllc/tenantkeep-licensing | private | the issuing function |
-| kainorllc/tenantkeep.app, kainorllc/kainor.com | private | the websites |
-| kainorllc/LAPSlock, kainorllc/tenantkeep-oncall | private | the other products |
+| Kainor-LLC/tenantkeep-posture | source-available (currently private on GitHub; the licence assumes readers) | the module, catalog, deployment, docs |
+| Kainor-LLC/tenantkeep-licensing | private | the issuing function |
+| Kainor-LLC/tenantkeep.app, Kainor-LLC/kainor.com | public | the websites, served by Cloudflare Pages (GitHub Pages does not allow purchase links) |
+| Kainor-LLC/LAPSlock (public), Kainor-LLC/tenantkeep-oncall (private) | | the other products |

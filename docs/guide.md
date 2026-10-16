@@ -23,7 +23,7 @@ expiry. docs/licensing.md explains what is checked (offline, nothing is sent).
 ## 2a. Install the module
 
 ```powershell
-git clone https://github.com/kainorllc/tenantkeep-posture
+git clone https://github.com/Kainor-LLC/tenantkeep-posture
 Import-Module ./tenantkeep-posture/Tenantkeep.Posture/Tenantkeep.Posture.psd1
 ```
 
