@@ -64,7 +64,7 @@ try {
             $uri = "$blobBase/$Container`?restype=container&comp=list&prefix=$([uri]::EscapeDataString($Prefix))$(if ($marker) { "&marker=$([uri]::EscapeDataString($marker))" })"
             $text = [string](Invoke-WebRequest -Uri $uri -Headers (& $blobHeaders) -Method Get).Content
             $xml = [xml]$text.TrimStart([char]0xFEFF)   # the listing starts with a byte order mark the XML parser rejects
-            foreach ($b in @($xml.EnumerationResults.Blobs.Blob)) { if ($b -and $b.Name) { $names.Add([string]$b.Name) } }
+            foreach ($b in @($xml.SelectNodes('/EnumerationResults/Blobs/Blob'))) { if ($b -and $b.Name) { $names.Add([string]$b.Name) } }   # an empty container has a Blobs element with no children; strict mode has no .Blob on that
             $marker = [string]$xml.EnumerationResults.NextMarker
         } while ($marker)
         return $names.ToArray()   # callers wrap in @(); a leading comma here would hand them a nested array
