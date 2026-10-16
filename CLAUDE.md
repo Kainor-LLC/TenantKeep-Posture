@@ -2,13 +2,13 @@
 
 Microsoft security posture report for Entra, Intune, Defender, Exchange, Purview, SharePoint, Teams, Copilot readiness, Azure and hybrid AD, plus a Conditional Access documentation and diff generator. PowerShell 7 module. Read-only against the tenant, always. Publisher: Kainor LLC. Product name decided 2026-10-13.
 
-The full specification is in `docs/posture-spec.md`. Read it before touching anything. The audit plan it was designed around is `docs/m365-environment-audit-plan.md`; its Appendix A scripts define the evidence file names this module consumes.
+The full specification is in `docs/posture-spec.md`. Read it before touching anything. `docs/architecture.md` is the one-page account of how the parts fit: what runs where, as whom, reading and writing what. The audit plan it was designed around is `docs/m365-environment-audit-plan.md`; its Appendix A scripts define the evidence file names this module consumes.
 
 ## Non-negotiables
 
 - **Read-only.** No cmdlet in this module writes to a tenant. No `-WhatIf` theater around writes either; there are none.
 - **Notifications live outside the module.** Teams cards and email (Graph `sendMail`, which needs the `Mail.Send` write permission the customer grants knowingly, or the customer's SMTP relay) are in `deploy/schedules/ca-notifications.ps1`, opt-in, and go only to the customer's own services. The module's read-only guard stays absolute.
-- **Delegated or managed identity only.** Never app secrets in code or config. Local runs use the signed-in admin; the Automation deployment uses a managed identity.
+- **Delegated or managed identity only.** Never app secrets in code or config. Local runs use the signed-in admin; the Automation deployment uses a managed identity. One carve-out, decided 2026-10-15: Purview has no managed identity sign-in, so the Automation deployment may use a certificate-backed app registration whose certificate lives in a Key Vault in the customer's own subscription, created by the customer's setup script and read by the managed identity at run time. Never in code, config, the runbook or the repo.
 - **Nothing leaves the customer's environment.** The licence is a signed file verified offline against public keys built into the module (`docs/licensing.md`); no licence server, no telemetry, no analytics, no callbacks. Decided 2026-10-15.
 - **Source published, not open source.** Anyone can read the code; the license forbids forks and competing use. See Licensing below.
 - **Cross-platform.** macOS is the primary dev machine. Windows-only code is confined to `collectors/windows/` (the jump-box AD collector) and clearly marked.
