@@ -89,6 +89,11 @@ Learned on the first Kainor runs (2026-10-15), all baked into the runbook:
   ```powershell
   ./deploy/setup/New-PosturePurviewApp.ps1 -ResourceGroup rg-tenantkeep-dev -AutomationAccount aa-tenantkeep-dev -VaultName <purviewVaultName output>
   ```
+
+  Proven in Kainor on 2026-10-15. With Global Reader the app-only session reads labels, label policies, DLP, retention
+  and the audit configuration; auto-labeling policies, Insider Risk policies, information barriers, audit retention
+  policies and eDiscovery cases are not exposed to it and read as not evaluated (verify the view-only role groups that
+  would expose them to a service principal).
 - Roles granted to the identity reach a sandbox's cached token after up to a day; a job started right after the grant
   sees the old token, names only the collectors whose roles it has, and the schedule picks up the rest next time.
 - Two warnings are licence facts, not faults: lifecycle workflows need Entra ID Governance, restricted SharePoint
