@@ -1,0 +1,13 @@
+#!/bin/sh
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# No red pushes: the analyzer and the full test suite must pass locally before anything leaves this machine.
+# CI runs the same two tasks; a failure here is a failure there, minus the email.
+set -e
+echo "pre-push: analyzer and tests (set TENANTKEEP_SKIP_PREPUSH=1 to bypass once)"
+if [ "${TENANTKEEP_SKIP_PREPUSH:-}" = "1" ]; then echo "pre-push: skipped by request"; exit 0; fi
+pwsh -NoProfile -File ./build.ps1 -Task Analyze, Test -SkipInstall >/tmp/tenantkeep-prepush.log 2>&1 || {
+  grep -E "PSScriptAnalyzer reported|\[-\]|Tests Passed|Failed:" /tmp/tenantkeep-prepush.log | sed 's/\x1b\[[0-9;]*m//g' | head -20
+  echo "pre-push: blocked. Full log: /tmp/tenantkeep-prepush.log"
+  exit 1
+}
+grep -E "Tests Passed" /tmp/tenantkeep-prepush.log | sed 's/\x1b\[[0-9;]*m//g' | tail -1

@@ -28,7 +28,7 @@ tests/                      Pester 5.5+ (6 works); one test file per public cmdl
 samples/                    anonymized evidence folder for tests and demos; never real tenant data
 build.ps1                   Analyze, Test, Build, Sign, Package. Sign and Package fail without the signing cert
 PSScriptAnalyzerSettings.psd1
-.githooks/                  pre-commit secret scanner; enable once per clone with: git config core.hooksPath .githooks
+.githooks/                  pre-commit secret scanner and pre-push analyzer-and-tests gate; enable once per clone with: git config core.hooksPath .githooks
 .github/workflows/ci.yml    Analyze + Test on ubuntu, macos, windows; no signing in CI
 ```
 
