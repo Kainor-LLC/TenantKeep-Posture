@@ -163,7 +163,7 @@ Describe 'New-PostureReport' {
             $r = New-PostureReport -Evidence $script:Ev -Template Executive -OutputPath (Join-Path $script:Root 'exec') -PassThru
             $md = Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.md' })
             (Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.html' })) | Should -Match '<body data-template="Executive">'
-            $md | Should -Match '\| Check \| Title \| Status \| Severity \|\n'
+            $md | Should -Match '\| Check \| Title \| Status \| Severity \|\r?\n'
             $md | Should -Not -Match '\| Check \| Title \| Status \| Severity \| License \| Detail \|'
             $md | Should -Match 'Executive template'
             $r.Report.clientName | Should -Be 'Contoso' -Because 'without a brand or profile the organization display name is used'

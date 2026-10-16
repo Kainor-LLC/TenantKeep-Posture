@@ -2,6 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
+    $script:PnPAvailable = [bool](Get-Module -ListAvailable PnP.PowerShell | Where-Object { $_.Version.Major -ge 3 })
     $script:Script = Join-Path $PSScriptRoot '..' 'deploy' 'setup' 'New-PostureSharePointApp.ps1'
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-spoapp-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
@@ -37,6 +38,7 @@ AfterAll {
 
 Describe 'New-PostureSharePointApp.ps1 with an existing registration' {
     It 'adds AllSites.FullControl to the registration, extends the consent grant through Graph, records the id and prints no consent page step' {
+        if (-not $script:PnPAvailable) { Set-ItResult -Skipped -Because 'PnP.PowerShell 3.x is not installed on this machine'; return }
         $env:TKP_SPOAPP_SP = 'present'
         $profilePath = Join-Path $script:Root 'profile.json'
         $out = & $script:Script -Tenant contoso.onmicrosoft.com -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' -ProfilePath $profilePath 6>&1
@@ -55,6 +57,7 @@ Describe 'New-PostureSharePointApp.ps1 with an existing registration' {
     }
 
     It 'treats a 409 on the service principal as present and looks again' {
+        if (-not $script:PnPAvailable) { Set-ItResult -Skipped -Because 'PnP.PowerShell 3.x is not installed on this machine'; return }
         Remove-Item -LiteralPath $env:TKP_SPOAPP_LOG -ErrorAction SilentlyContinue
         $env:TKP_SPOAPP_SP = 'missing'
         $text = (& $script:Script -Tenant contoso.onmicrosoft.com -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>&1 | Out-String)
@@ -63,6 +66,7 @@ Describe 'New-PostureSharePointApp.ps1 with an existing registration' {
     }
 
     It 'skips the consent under WhatIf when the service principal is not there yet' {
+        if (-not $script:PnPAvailable) { Set-ItResult -Skipped -Because 'PnP.PowerShell 3.x is not installed on this machine'; return }
         $env:TKP_SPOAPP_SP = 'missing'
         $text = (& $script:Script -Tenant contoso.onmicrosoft.com -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' -WhatIf 6>&1 | Out-String)
         $text | Should -Match 'consent skipped'
