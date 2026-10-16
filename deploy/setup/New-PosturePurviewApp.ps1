@@ -84,9 +84,11 @@ if ($apps.Count -eq 0) {
 }
 else {
     $app = $apps[0]
-    $have = @($app.keyCredentials | Where-Object { [string]$_.customKeyIdentifier -and ([Convert]::ToHexString([Convert]::FromBase64String([string]$_.customKeyIdentifier)) -eq $thumbprint) })
+    # Graph lists existing credentials by keyId and display name; the thumbprint is in customKeyIdentifier when present and in our display name always.
+    $have = @($app.keyCredentials | Where-Object { ([string]$_.displayName -like "*$thumbprint") -or ([string]$_.key -eq $cerBase64) -or ([string]$_.customKeyIdentifier -and ([Convert]::ToHexString([Convert]::FromBase64String([string]$_.customKeyIdentifier)) -eq $thumbprint)) })
     if ($have.Count -eq 0 -and $PSCmdlet.ShouldProcess($AppName, 'Add the current certificate to the app registration')) {
-        Send-GraphPatch "$graph/applications/$($app.id)" @{ keyCredentials = @(@($app.keyCredentials | ForEach-Object { @{ type = $_.type; usage = $_.usage; key = $_.key; keyId = $_.keyId; displayName = $_.displayName } }) + @($keyCredential)) }
+        # Existing credentials go back by keyId only (Graph refuses key material on an existing keyId); the new one carries the key.
+        Send-GraphPatch "$graph/applications/$($app.id)" @{ keyCredentials = @(@($app.keyCredentials | ForEach-Object { @{ type = $_.type; usage = $_.usage; keyId = $_.keyId; displayName = $_.displayName } }) + @($keyCredential)) }
         Write-Host 'Certificate added to the app registration'
     }
     else { Write-Host "App registration exists: $($app.appId)" }
