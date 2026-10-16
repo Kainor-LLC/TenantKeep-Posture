@@ -70,15 +70,24 @@ else { Write-Host "Certificate $CertificateName exists, expires $($existingCert.
 $cerBase64 = [string]$existingCert.cer
 $thumbprint = [string]$existingCert.x509ThumbprintHex
 
-# 2. App registration that trusts the certificate; Exchange.ManageAsApp requested.
-$exoSp = (Get-G "$graph/servicePrincipals?`$filter=appId eq '00000002-0000-0ff1-ce00-000000000000'&`$select=id,appRoles").value[0]
-$manageAsApp = @($exoSp.appRoles | Where-Object { $_.value -eq 'Exchange.ManageAsApp' -and $_.allowedMemberTypes -contains 'Application' })[0]
-if (-not $manageAsApp) { throw 'Office 365 Exchange Online exposes no Exchange.ManageAsApp application role in this tenant.' }
+# 2. App registration that trusts the certificate; Exchange.ManageAsApp requested on both resources: Security & Compliance
+#    PowerShell app-only is the role on "Microsoft Exchange Online Protection" (per Microsoft's app-only guide), Exchange's own is
+#    "Office 365 Exchange Online". Both are granted so the same app works for either session.
+$resources = [ordered]@{ '00000002-0000-0ff1-ce00-000000000000' = 'Office 365 Exchange Online'; '00000007-0000-0ff1-ce00-000000000000' = 'Microsoft Exchange Online Protection' }
+$manageAsAppRoles = [ordered]@{}
+foreach ($rid in $resources.Keys) {
+    $found = @((Get-G "$graph/servicePrincipals?`$filter=appId eq '$rid'&`$select=id,appRoles").value)
+    if ($found.Count -eq 0) { Write-Warning "No service principal for $($resources[$rid]) in this tenant; skipped."; continue }
+    $role = @($found[0].appRoles | Where-Object { $_.value -eq 'Exchange.ManageAsApp' -and $_.allowedMemberTypes -contains 'Application' })[0]
+    if ($role) { $manageAsAppRoles[$rid] = @{ sp = $found[0]; role = $role } } else { Write-Warning "$($resources[$rid]) exposes no Exchange.ManageAsApp application role." }
+}
+if ($manageAsAppRoles.Count -eq 0) { throw 'Neither Exchange resource exposes Exchange.ManageAsApp in this tenant.' }
+$exoSp = $manageAsAppRoles['00000002-0000-0ff1-ce00-000000000000'].sp; $manageAsApp = $manageAsAppRoles['00000002-0000-0ff1-ce00-000000000000'].role
 $apps = @((Get-G "$graph/applications?`$filter=displayName eq '$($AppName -replace "'", "''")'&`$select=id,appId,keyCredentials").value)
 $keyCredential = @{ type = 'AsymmetricX509Cert'; usage = 'Verify'; key = $cerBase64; displayName = "$CertificateName $thumbprint" }
 if ($apps.Count -eq 0) {
     if ($PSCmdlet.ShouldProcess($AppName, 'Create the app registration')) {
-        $app = Send-GraphPost "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @(@{ resourceAppId = '00000002-0000-0ff1-ce00-000000000000'; resourceAccess = @(@{ id = $manageAsApp.id; type = 'Role' }) }); notes = 'Tenantkeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
+        $app = Send-GraphPost "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @($manageAsAppRoles.Keys | ForEach-Object { @{ resourceAppId = $_; resourceAccess = @(@{ id = $manageAsAppRoles[$_].role.id; type = 'Role' }) } }); notes = 'Tenantkeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
         Write-Host "App registration created: $($app.appId)"
     }
 }
@@ -96,13 +105,16 @@ else {
 $sps = @((Get-G "$graph/servicePrincipals?`$filter=appId eq '$($app.appId)'&`$select=id").value)
 $sp = $(if ($sps.Count -gt 0) { $sps[0] } elseif ($PSCmdlet.ShouldProcess($AppName, 'Create the service principal')) { Send-GraphPost "$graph/servicePrincipals" @{ appId = $app.appId } })
 
-# 3. Consent: Exchange.ManageAsApp on the service principal.
-$assigned = @((Get-G "$graph/servicePrincipals/$($sp.id)/appRoleAssignments").value | Where-Object { $_.appRoleId -eq $manageAsApp.id })
-if ($assigned.Count -eq 0 -and $PSCmdlet.ShouldProcess($AppName, 'Grant Exchange.ManageAsApp')) {
-    $null = Send-GraphPost "$graph/servicePrincipals/$($sp.id)/appRoleAssignments" @{ principalId = $sp.id; resourceId = $exoSp.id; appRoleId = $manageAsApp.id }
-    Write-Host 'Exchange.ManageAsApp granted'
+# 3. Consent: Exchange.ManageAsApp on the service principal, for each resource.
+$assignments = @((Get-G "$graph/servicePrincipals/$($sp.id)/appRoleAssignments").value)
+foreach ($rid in $manageAsAppRoles.Keys) {
+    $r = $manageAsAppRoles[$rid]
+    if ($assignments | Where-Object { $_.appRoleId -eq $r.role.id -and $_.resourceId -eq $r.sp.id }) { Write-Host "Exchange.ManageAsApp already granted on $($resources[$rid])"; continue }
+    if ($PSCmdlet.ShouldProcess($AppName, "Grant Exchange.ManageAsApp on $($resources[$rid])")) {
+        $null = Send-GraphPost "$graph/servicePrincipals/$($sp.id)/appRoleAssignments" @{ principalId = $sp.id; resourceId = $r.sp.id; appRoleId = $r.role.id }
+        Write-Host "Exchange.ManageAsApp granted on $($resources[$rid])"
+    }
 }
-else { Write-Host 'Exchange.ManageAsApp already granted' }
 
 # 4. Global Reader on the service principal: the directory role Purview app-only reads map to (verify: if Purview cmdlets
 #    refuse reads with Global Reader, Compliance Administrator is the documented alternative and a write role; prefer not).
@@ -129,6 +141,15 @@ foreach ($pair in @(@('TENANTKEEP_PURVIEW_APP_ID', [string]$app.appId), @('TENAN
 Write-Host @"
 
 Done. The scheduled posture run now signs in to Purview as '$AppName' with the certificate in $VaultName.
+
+Global Reader covers labels, label policies, DLP, retention and the audit configuration. Two more reads need a Purview
+role group on the app's service principal (a Security & Compliance PowerShell session, interactive, as an admin):
+
+  Connect-IPPSSession -UserPrincipalName <admin>
+  New-ServicePrincipal -AppId $($app.appId) -ObjectId $($sp.id) -DisplayName '$AppName'
+  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -Roles 'View-Only Audit Logs', 'View-Only Insider Risk Management' -Members $($sp.id)   # (verify) the role names in your tenant: Get-ManagementRole | Where-Object Name -like 'View-Only*'
+
+eDiscovery cases (Get-ComplianceCase) are not supported app-only by Microsoft; that check stays by hand.
 Renewal: the vault auto-renews the certificate 30 days before expiry; run this script again afterwards so the app
 registration trusts the new one (it adds the current certificate, keeping the old until you remove it).
 Revoke: delete the app registration or the certificate; the next run reports Purview as not collected.
