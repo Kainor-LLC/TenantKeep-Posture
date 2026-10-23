@@ -34,6 +34,13 @@ Describe 'Module manifest' {
         $manifestList | Should -Be $expected -Because 'FunctionsToExport must match Public/ so Import-Module from the repo works'
     }
 
+    It 'points at the Kainor-LLC repository' {
+        $data = (Import-PowerShellDataFile -Path $script:ManifestPath).PrivateData.PSData
+        $data.ProjectUri | Should -Be 'https://github.com/Kainor-LLC/tenantkeep-posture'
+        $data.LicenseUri | Should -Be 'https://github.com/Kainor-LLC/tenantkeep-posture/blob/main/LICENSE.md'
+        $data.ReleaseNotes | Should -Match 'CHANGELOG\.md'
+    }
+
     It 'targets PowerShell 7.4 Core only' {
         $data = Import-PowerShellDataFile -Path $script:ManifestPath
         $data.PowerShellVersion | Should -Be '7.4'
