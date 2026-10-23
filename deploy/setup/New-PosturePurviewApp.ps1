@@ -146,7 +146,7 @@ role group on the app's service principal (a Security & Compliance PowerShell se
 
   Connect-IPPSSession -UserPrincipalName <admin>
   New-ServicePrincipal -AppId $($app.appId) -ObjectId $($sp.id) -DisplayName '$AppName'
-  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -Description 'Read-only roles for the Tenantkeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
+  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -DisplayName 'Tenantkeep Posture (view only)' -Description 'Read-only roles for the Tenantkeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
   # Role names as listed by Get-ManagementRole (2026-10-15). Proven in Kainor: this group opens Insider Risk policies.
   # Audit retention policies (Get-UnifiedAuditLogRetentionPolicy) stay hidden with View-Only Audit Logs; add the 'Audit Logs'
   # role to the group if you want that read in the scheduled run (verify it is the least role that works).

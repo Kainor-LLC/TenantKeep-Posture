@@ -29,6 +29,8 @@ Describe 'Start-PostureRun' {
                 $script:Calls.Add("collect:$($Collector -join '+')")
                 $f = $(if ($OutputFolder) { $OutputFolder } else { Join-Path $script:TestOutRoot '20261022-1200' })
                 New-Item -ItemType Directory -Path $f -Force | Out-Null
+                # One error from this process; two more lines land in errors.txt from the later ones. The count reported is the file's.
+                if (-not $OutputFolder) { Add-Content -LiteralPath (Join-Path $f 'errors.txt') -Value 'A :: one', 'B :: two', 'C :: three' }
                 [pscustomobject]@{ Folder = $f; Errors = @('one'); Files = @() }
             }
             Mock Get-PostureToken { 'tok' }
@@ -54,7 +56,7 @@ Describe 'Start-PostureRun' {
             $result.Folder | Should -Be (Join-Path $script:TestOutRoot '20261022-1200')
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
-            $result.Errors | Should -Be 1
+            $result.Errors | Should -Be 3
             @($script:Calls) | Should -Be @('signin', 'connect:azure', 'collect:Entra+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'child:Exchange+Purview', 'profile', 'report:none', 'findings', 'open:report.html')
             $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph')
             $script:ChildRequest['purviewSignIn'] | Should -Be 'browser'

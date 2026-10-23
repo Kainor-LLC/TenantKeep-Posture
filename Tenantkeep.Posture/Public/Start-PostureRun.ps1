@@ -174,6 +174,9 @@ function Start-PostureRun {
         if ($reportFile -and -not $NoBrowser) { try { Start-Process $reportFile } catch { Write-Verbose "Report did not open: $($_.Exception.Message)" } }
     }
 
+    # errors.txt is appended by every process that wrote into the folder, so it is the count to report.
+    $errorsFile = Join-Path $folder 'errors.txt'
+    if (Test-Path -LiteralPath $errorsFile) { $errorCount = @(Get-Content -LiteralPath $errorsFile | Where-Object { $_.Trim() }).Count }
     Write-Host ''
     Write-Host "Run folder: $folder"
     if ($reportFile) { Write-Host "Report: $reportFile" }

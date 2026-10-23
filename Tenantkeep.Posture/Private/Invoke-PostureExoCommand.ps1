@@ -42,7 +42,12 @@ function Invoke-PostureExoCommand {
     )
 
     $ErrorActionPreference = 'Stop'
-    if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) { throw "$Name is not available; import ExchangeOnlineManagement and connect first." }
+    if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) {
+        # A connected session loads only the cmdlets the signed-in roles and the tenant's licences expose (seen live on
+        # Business Premium, 2026-10-23: no Get-AutoSensitivityLabelPolicy, no Get-InformationBarrierPolicy).
+        if ((Test-PostureExoSession) -or (Test-PosturePurviewSession)) { throw "$Name is not in this session: the signed-in roles or the tenant's licences do not expose it." }
+        throw "$Name is not available; import ExchangeOnlineManagement and connect first."
+    }
     return @(& $Name @Parameters)
 }
 

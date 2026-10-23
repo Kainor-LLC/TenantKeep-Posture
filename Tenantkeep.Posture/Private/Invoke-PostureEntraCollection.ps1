@@ -359,8 +359,13 @@ function Invoke-PostureEntraCollection {
         & $saveOne ([ordered]@{ Packages = @($packages).Count; Catalogs = @($catalogs).Count; ConnectedOrganizations = @($orgs).Count }) 'gov-02-access-packages-summary'
     } | Out-Null
     Invoke-PostureStep -Label 'Lifecycle workflows' -Folder $Folder -Script {
-        # LifecycleWorkflows.Read.All (Entra ID Governance)
-        $wf = & $get 'identityGovernance/lifecycleWorkflows/workflows?$select=id,displayName,category,isEnabled,isSchedulingEnabled,lastModifiedDateTime'
+        # LifecycleWorkflows.Read.All (Entra ID Governance). A tenant without that licence answers Forbidden (Kainor, 2026-10-23);
+        # GV-005 is gated on the licence, so the line in errors.txt says which of the two it is likely to be.
+        try { $wf = & $get 'identityGovernance/lifecycleWorkflows/workflows?$select=id,displayName,category,isEnabled,isSchedulingEnabled,lastModifiedDateTime' }
+        catch {
+            if ($_.Exception.Message -match 'Forbidden') { throw "Forbidden: Entra ID Governance (Entra Suite) is not licensed in this tenant, or LifecycleWorkflows.Read.All was not consented. GV-005 needs that licence." }
+            throw
+        }
         & $save @($wf | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Category = (& $v $_ 'category'); IsEnabled = (& $v $_ 'isEnabled'); IsSchedulingEnabled = (& $v $_ 'isSchedulingEnabled'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) 'gov-03-lifecycle-workflows' $true
     } | Out-Null
     Invoke-PostureStep -Label 'PIM for Groups' -Folder $Folder -Script {
