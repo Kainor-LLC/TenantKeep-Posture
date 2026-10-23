@@ -1,0 +1,61 @@
+{
+  "displayName": "Tenantkeep Posture",
+  "clientId": "",
+  "publisherDomain": "kainor.com",
+  "redirectUri": "http://localhost",
+  "consentRedirectUri": "https://tenantkeep.app/consent/",
+  "notes": "Tenantkeep Posture: the one sign-in behind Start-PostureRun. Public client, delegated read permissions only, no credentials. Owned by Kainor LLC; the manifest is published in the source repository.",
+  "resources": [
+    {
+      "name": "graph",
+      "label": "Microsoft Graph",
+      "appId": "00000003-0000-0000-c000-000000000000",
+      "audience": "https://graph.microsoft.com",
+      "scopes": [
+        "openid", "profile", "offline_access", "User.Read",
+        "Policy.Read.All", "Directory.Read.All", "Group.Read.All",
+        "User.Read.All", "OnPremDirectorySynchronization.Read.All", "AuditLog.Read.All", "UserAuthenticationMethod.Read.All",
+        "RoleManagement.Read.Directory", "IdentityRiskyUser.Read.All", "IdentityRiskEvent.Read.All",
+        "DeviceManagementManagedDevices.Read.All", "DeviceManagementConfiguration.Read.All", "DeviceManagementServiceConfig.Read.All", "DeviceManagementApps.Read.All",
+        "BitLockerKey.ReadBasic.All", "AttackSimulation.Read.All", "AccessReview.Read.All", "EntitlementManagement.Read.All", "LifecycleWorkflows.Read.All",
+        "PrivilegedEligibilitySchedule.Read.AzureADGroup", "AdministrativeUnit.Read.All", "ThreatHunting.Read.All", "SecurityIncident.Read.All", "SecurityEvents.Read.All",
+        "Sites.Read.All", "Organization.Read.All", "Application.Read.All", "Reports.Read.All"
+      ]
+    },
+    {
+      "name": "exchange",
+      "label": "Office 365 Exchange Online",
+      "appId": "00000002-0000-0ff1-ce00-000000000000",
+      "audience": "https://outlook.office365.com",
+      "scopes": [ "Exchange.Manage" ]
+    },
+    {
+      "name": "purview",
+      "label": "Microsoft Exchange Online Protection",
+      "appId": "00000007-0000-0ff1-ce00-000000000000",
+      "audience": "https://ps.compliance.protection.outlook.com",
+      "scopes": [ "Exchange.Manage" ]
+    },
+    {
+      "name": "sharepoint",
+      "label": "Office 365 SharePoint Online",
+      "appId": "00000003-0000-0ff1-ce00-000000000000",
+      "audience": "https://{tenant}-admin.sharepoint.com",
+      "scopes": [ "AllSites.FullControl" ]
+    },
+    {
+      "name": "teams",
+      "label": "Skype and Teams Tenant Admin API",
+      "appId": "48ac35b8-9aa8-4d74-927d-1f4a14a0b239",
+      "audience": "48ac35b8-9aa8-4d74-927d-1f4a14a0b239",
+      "scopes": [ "user_impersonation" ]
+    },
+    {
+      "name": "azure",
+      "label": "Azure Service Management",
+      "appId": "797f4846-ba00-4fd7-ba43-dac1f8f63013",
+      "audience": "https://management.core.windows.net/",
+      "scopes": [ "user_impersonation" ]
+    }
+  ]
+}

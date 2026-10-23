@@ -6,6 +6,8 @@ $script:ModuleRoot    = $PSScriptRoot
 $script:ModuleVersion = (Import-PowerShellDataFile -Path (Join-Path $PSScriptRoot 'Tenantkeep.Posture.psd1')).ModuleVersion
 # Graph API versions used by the current run, recorded into metadata.json (CLAUDE.md: pin every API version).
 $script:GraphApiVersionsUsed = [System.Collections.Generic.HashSet[string]]::new()
+# The one sign-in (Connect-PostureSession): refresh token and per-resource access tokens, in memory only.
+$script:PostureSession = $null
 
 $private = @(Get-ChildItem -Path (Join-Path $PSScriptRoot 'Private') -Filter '*.ps1' -ErrorAction SilentlyContinue)
 $public  = @(Get-ChildItem -Path (Join-Path $PSScriptRoot 'Public')  -Filter '*.ps1' -ErrorAction SilentlyContinue)

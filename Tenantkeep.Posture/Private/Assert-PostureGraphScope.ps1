@@ -22,6 +22,16 @@ function Assert-PostureGraphScope {
     }
 
     $granted = @($context.Scopes)
+    $tenantId = [string]$context.TenantId
+    $account = [string]$context.Account
+    # After Connect-MgGraph -AccessToken the context may carry no scopes, tenant or account (verify per SDK version); the
+    # broker's own Graph token says what was granted.
+    if ($script:PostureSession -and $script:PostureSession['tokens'].ContainsKey('graph')) {
+        $claims = ConvertFrom-PostureJwt -Token ([string]$script:PostureSession['tokens']['graph']['accessToken'])
+        if ($granted.Count -eq 0 -and $claims.ContainsKey('scp')) { $granted = @(([string]$claims['scp']) -split ' ' | Where-Object { $_ }) }
+        if (-not $tenantId) { $tenantId = [string]$claims['tid'] }
+        if (-not $account) { $account = [string]$script:PostureSession['account'] }
+    }
     $missing = @($RequiredScope | Where-Object { $_ -notin $granted })
     if ($missing.Count -gt 0) {
         throw "Graph session is missing scope(s): $($missing -join ', '). Reconnect with: Connect-MgGraph -Scopes $($RequiredScope -join ', ') -NoWelcome"
@@ -31,8 +41,8 @@ function Assert-PostureGraphScope {
     }
 
     return @{
-        TenantId = $context.TenantId
-        Account  = $context.Account
+        TenantId = $tenantId
+        Account  = $account
         AuthType = [string]$context.AuthType
         Scopes   = $granted
     }

@@ -100,8 +100,8 @@ Describe 'Read-only guard' {
                 [pscustomobject]@{ Filename = $f.Name; LineNumber = $n; Line = $line; Code = $stripped }
             }
         }
-        function Find-Code([string] $Pattern, [string] $ExcludeFile) {
-            $script:CodeLines | Where-Object { $_.Filename -ne $ExcludeFile -and $_.Code -match $Pattern }
+        function Find-Code([string] $Pattern, [string[]] $ExcludeFile) {
+            $script:CodeLines | Where-Object { $_.Filename -notin @($ExcludeFile) -and $_.Code -match $Pattern }
         }
     }
 
@@ -110,13 +110,17 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'calls Invoke-MgGraphRequest only inside the wrapper' {
-        $hits = Find-Code 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest' 'Invoke-PostureGraphRequest.ps1'
+    It 'calls Invoke-MgGraphRequest only inside the wrapper, and the identity platform only inside the token request' {
+        $hits = Find-Code 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest' 'Invoke-PostureGraphRequest.ps1', 'Invoke-PostureTokenRequest.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureTokenRequest.ps1')
+        $src | Should -Match "Authority = 'https://login\.microsoftonline\.com'"
+        $src | Should -Match '/oauth2/v2\.0/\$Endpoint'
+        $src | Should -Not -Match 'client_secret|client_assertion|password'
     }
 
     It 'never issues a non-GET request except an annotated query-style POST' {
-        $hits = Find-Code "-Method\s+['`"]?(POST|PATCH|PUT|DELETE)" 'Invoke-PostureGraphRequest.ps1' |
+        $hits = Find-Code "-Method\s+['`"]?(POST|PATCH|PUT|DELETE)" 'Invoke-PostureGraphRequest.ps1', 'Invoke-PostureTokenRequest.ps1' |
             Where-Object { $_.Code -match 'PATCH|PUT|DELETE' -or $_.Line -notmatch 'posture:read-only-post' }
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
@@ -127,10 +131,16 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'never connects or registers apps from module code' {
+    It 'connects only inside Connect-PostureService, always with a token from the broker, and never registers apps' {
         # A call at statement position. Error text that tells the user how to reconnect is fine.
-        $hits = Find-Code '(^|[;{|(&])\s*(Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)|Register-PnP)'
+        $hits = Find-Code '(^|[;{|(&])\s*(Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)|Register-PnP)' 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
+        $connects = @($script:CodeLines | Where-Object { $_.Filename -eq 'Connect-PostureService.ps1' -and $_.Code -match '(^|[;{|(&])\s*Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)' })
+        $connects.Count | Should -Be 6
+        foreach ($c in $connects) { $c.Code | Should -Match '-AccessTokens?\s' }
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Connect-PostureService.ps1')
+        $src | Should -Not -Match '-(ClientSecret|Certificate|CertificateThumbprint|Credential|ApplicationId|AppId|ClientSecretCredential)\b'
+        $src | Should -Not -Match 'Register-PnP'
     }
 
     It 'runs Exchange Online cmdlets only through Invoke-PostureExoCommand, which accepts Get- names only' {
@@ -141,7 +151,7 @@ Describe 'Read-only guard' {
     }
 
     It 'runs Az cmdlets only through the Azure entry points, which read only' {
-        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-Az[A-Z][A-Za-z]*' 'Invoke-PostureAzureCommand.ps1'
+        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-Az[A-Z][A-Za-z]*' 'Invoke-PostureAzureCommand.ps1', 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureAzureCommand.ps1')
         $src | Should -Match 'Invoke-AzRestMethod -Method GET'
@@ -149,7 +159,7 @@ Describe 'Read-only guard' {
     }
 
     It 'runs PnP and Teams cmdlets only through their entry points, which accept read names only' {
-        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1'
+        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1', 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PosturePnpCommand.ps1')
         $src | Should -Match "ValidatePattern\('\^Get-PnP"

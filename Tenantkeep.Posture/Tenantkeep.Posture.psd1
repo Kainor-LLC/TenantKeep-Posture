@@ -17,6 +17,8 @@
     # Maintained by build.ps1 from the Public/ folder. Keep in sync by hand for Import-Module from src/.
     FunctionsToExport = @(
         'Compare-PostureCaSnapshot',
+        'Connect-PostureSession',
+        'Disconnect-PostureSession',
         'Export-PostureCaSnapshot',
         'Export-PostureFindings',
         'Get-PostureLicense',

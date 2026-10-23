@@ -123,13 +123,25 @@ Exit cleanly on any collector failure: the run folder keeps what was collected a
 
 ## 4. Spikes before the build (one day)
 
-1. Connect-ExchangeOnline and Connect-IPPSSession with a delegated token from the broker, on macOS and Windows
-   (verify: the companion parameter and the audience each wants).
-2. Connect-PnPOnline -AccessToken against an admin site with a multi-tenant app's token (verify audience:
-   `https://<tenant>-admin.sharepoint.com`).
-3. `Get-MgContext` after `Connect-MgGraph -AccessToken`: does it carry the scopes our scope assertion reads, or do we
-   decode the token's `scp` claim ourselves (verify; the fallback is small).
-4. Child process token hand-off over standard input on both platforms.
+Desk research done 2026-10-22 (sources: the module docs, pnp/powershell and msgraph-sdk-powershell source, Michev,
+Rakhesh and Maester); what is left is the live run, marked (verify):
+
+1. Connect-ExchangeOnline -AccessToken: delegated token for `https://outlook.office365.com/.default` with the
+   delegated scope Exchange.Manage on Office 365 Exchange Online, paired with -UserPrincipalName. Documented
+   companions; audience from three independent write-ups. (verify live on macOS and Windows)
+2. Connect-IPPSSession -AccessToken: audience `https://ps.compliance.protection.outlook.com`, owned by the Microsoft
+   Exchange Online Protection principal, -Organization takes the onmicrosoft.com name. No published report of a
+   custom app's delegated token here; the setup script lists what delegated scopes that principal exposes. (verify)
+3. Connect-PnPOnline -Url -AccessToken: the token's audience must match the host in -Url (pnp/powershell #305), so
+   the broker asks for `https://<tenant>-admin.sharepoint.com/.default` and connects to the admin site. (verify)
+4. Get-MgContext after Connect-MgGraph -AccessToken: the SDK fills Scopes from the token's scp claim
+   (JwtHelpers.cs), so the scope assertion works unchanged; the module still falls back to reading the claim itself.
+5. Connect-MicrosoftTeams -AccessTokens: Graph `/.default` plus `48ac35b8-9aa8-4d74-927d-1f4a14a0b239/.default`,
+   custom apps documented as supported. Microsoft's list of Graph delegated permissions for it includes write
+   scopes the read-only app does not ask for. (verify a read-only set is enough for Get-Cs* and Get-Team*)
+6. Connect-AzAccount -AccessToken: no audience check in Az; `https://management.core.windows.net//.default` is what
+   Az itself uses and what the earlier CLI route proved.
+7. Child process token hand-off over standard input on both platforms. (verify)
 
 ## 5. Checkpoints
 
@@ -144,10 +156,14 @@ Exit cleanly on any collector failure: the run folder keeps what was collected a
 
 Rough size: P0 one day, P1 half a day, P2 two days, P3 two days, P4 one day.
 
-## 6. Decisions for Connor
+## 6. Decisions (Connor, 2026-10-22)
 
-1. Go on the multi-tenant app, named **Tenantkeep Posture**, owned by the Kainor tenant.
-2. Publisher verification: needs the Partner Center MPN id and a verified kainor.com domain on the account.
-3. Default client folder naming by tenant display name (`~/tenantkeep/clients/<name>/`) or by tenant id.
-4. Whether the first run should also offer to issue a 30-day trial licence by email (ties into the licensing
-   function; not required for this plan).
+1. Go on the multi-tenant app, named **Tenantkeep Posture**, owned by the Kainor tenant. Registered by
+   `deploy/setup/New-PostureClientApp.ps1` from `Tenantkeep.Posture/app.json`, which is also what the broker reads.
+2. Publisher verification with the Partner Global Account id (Microsoft refuses the Location id:
+   MPNGlobalAccountNotFound). kainor.com is verified. The user running it needs Application Administrator in Entra,
+   Account Admin in Partner Center, and MFA in the same session.
+3. Default client folder: `~/tenantkeep/clients/<tenant display name, lower case, spaces to dashes>/`, with the
+   tenant id in profile.json as the thing that is actually checked. Readable for people, exact for the module.
+4. First run with no licence offers a 30-day trial by email, through the licensing function (an `Issue` call with a
+   trial plan; built after P3).
