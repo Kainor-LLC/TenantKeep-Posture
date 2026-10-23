@@ -132,6 +132,10 @@ Rakhesh and Maester); what is left is the live run, marked (verify):
 2. Connect-IPPSSession -AccessToken: audience `https://ps.compliance.protection.outlook.com`, owned by the Microsoft
    Exchange Online Protection principal, -Organization takes the onmicrosoft.com name. No published report of a
    custom app's delegated token here; the setup script lists what delegated scopes that principal exposes. (verify)
+   Live, 2026-10-23 (Connor, Kainor): the Exchange Online Protection principal exposes no delegated scope named
+   Exchange.Manage, so the first registration attempt left Purview out; the script now prints what that principal
+   does expose. If it exposes nothing delegated, Purview keeps its own sign-in through Connect-IPPSSession and the
+   one sign-in covers every other service (verify on the rerun).
 3. Connect-PnPOnline -Url -AccessToken: the token's audience must match the host in -Url (pnp/powershell #305), so
    the broker asks for `https://<tenant>-admin.sharepoint.com/.default` and connects to the admin site. (verify)
 4. Get-MgContext after Connect-MgGraph -AccessToken: the SDK fills Scopes from the token's scp claim

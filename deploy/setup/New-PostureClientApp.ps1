@@ -15,8 +15,9 @@
       2. Resolves every scope value to its id on the resource's service principal in this tenant. A value the
          resource does not expose is reported and left out; nothing is guessed.
       3. Creates the registration (signInAudience AzureADMultipleOrgs, public client with the loopback redirect, a
-         web redirect for the consent page, the resolved requiredResourceAccess, publisher domain), or updates the
-         same fields on the existing one with that name.
+         web redirect for the consent page, the resolved requiredResourceAccess), or updates the same fields on the
+         existing one with that name. Entra sets the publisher domain itself on create (it refuses the property on
+         POST); when that is not the one in app.json the script patches it, and says so if Entra refuses that too.
       4. With -PartnerId, calls setVerifiedPublisher so customers see "verified publisher" on the consent screen.
          Needs a Global Administrator who is also an account admin on the Partner Center account, signed in with MFA,
          and the publisher domain verified on both sides (verify: the Partner Global Account id is what Microsoft
@@ -71,7 +72,10 @@ foreach ($resource in @($manifest['resources'])) {
     $access = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($value in @($resource['scopes'])) {
         if ($exposed.ContainsKey($value)) { $access.Add(@{ id = $exposed[$value]; type = 'Scope' }) }
-        else { Write-Warning "$($resource['label']) exposes no delegated scope '$value'; left out (verify the value)." }
+        else {
+            $list = $(if ($exposed.Count -gt 0) { "it exposes: $(@($exposed.Keys | Sort-Object) -join ', ')" } else { 'it exposes no delegated scopes at all' })
+            Write-Warning "$($resource['label']) exposes no delegated scope '$value'; left out (verify the value; $list)."
+        }
     }
     if ($access.Count -gt 0) { $required.Add(@{ resourceAppId = [string]$resource['appId']; resourceAccess = @($access) }) }
     Write-Host ("{0}: {1} of {2} scopes resolved" -f $resource['label'], $access.Count, @($resource['scopes']).Count)
@@ -92,7 +96,7 @@ $escaped = $name -replace "'", "''"
 $apps = @((Get-GraphValue "$graph/applications?`$filter=displayName eq '$escaped'&`$select=id,appId,publisherDomain,verifiedPublisher").value)
 if ($apps.Count -eq 0) {
     if ($PSCmdlet.ShouldProcess($name, 'Create the multi-tenant public client')) {
-        $app = Send-GraphPost "$graph/applications" ($fields + @{ publisherDomain = [string]$manifest['publisherDomain'] })
+        $app = Send-GraphPost "$graph/applications" $fields
         Write-Host "App registration created: $($app.appId)"
     }
     else { $app = @{ id = ''; appId = ''; verifiedPublisher = @{} } }
@@ -103,6 +107,14 @@ else {
         $null = Send-GraphPatch "$graph/applications/$($app.id)" $fields
         Write-Host "App registration updated: $($app.appId)"
     }
+}
+
+# 3b. Publisher domain: Entra picks the tenant's primary verified domain on create. Set it only when that differs.
+$wantDomain = [string]$manifest['publisherDomain']
+$haveDomain = [string]$(if ($app.ContainsKey('publisherDomain')) { $app.publisherDomain })
+if ($app.id -and $wantDomain -and $haveDomain -ne $wantDomain -and $PSCmdlet.ShouldProcess($name, "Set publisher domain $wantDomain")) {
+    try { $null = Send-GraphPatch "$graph/applications/$($app.id)" @{ publisherDomain = $wantDomain }; Write-Host "Publisher domain set to $wantDomain" }
+    catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > Tenantkeep Posture > Branding & properties > Publisher domain." }
 }
 
 # 4. Publisher verification, through Graph. Microsoft checks the signed-in user against the Partner Center account.

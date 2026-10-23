@@ -28,7 +28,10 @@ BeforeAll {
             if ($env:TKP_CLIENTAPP_EXISTS -eq '1') { return @{ value = @(@{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001'; publisherDomain = 'kainor.example'; verifiedPublisher = @{ verifiedPublisherId = $null } }) } }
             return @{ value = @() }
         }
-        if ($u -match 'applications$' -and $Method -eq 'POST') { return @{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001' } }
+        if ($u -match 'applications$' -and $Method -eq 'POST') {
+            if ($Body -match 'publisherDomain') { throw "POST https://graph.microsoft.com/v1.0/applications HTTP/1.1 400 Bad Request: Property 'publisherDomain' is read-only and cannot be set." }
+            return @{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001'; publisherDomain = 'kainor.onmicrosoft.com' }
+        }
         if ($u -match 'applications/obj-1$' -and $Method -eq 'PATCH') { return $null }
         if ($u -match 'setVerifiedPublisher$' -and $Method -eq 'POST') { return $null }
         throw "Stub has no answer for $Method $u"
@@ -82,7 +85,10 @@ Describe 'New-PostureClientApp.ps1' {
         $create[0].Body.signInAudience | Should -Be 'AzureADMultipleOrgs'
         $create[0].Body.isFallbackPublicClient | Should -BeTrue
         $create[0].Body.publicClient.redirectUris | Should -Be @('http://localhost')
-        $create[0].Body.publisherDomain | Should -Be 'kainor.com'
+        $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'publisherDomain'
+        $domain = @($requests | Where-Object { $_.Method -eq 'PATCH' -and $_.Uri -match 'applications/obj-1$' -and $_.Body.PSObject.Properties.Name -contains 'publisherDomain' })
+        $domain.Count | Should -Be 1
+        $domain[0].Body.publisherDomain | Should -Be 'kainor.com'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
         @($create[0].Body.requiredResourceAccess).Count | Should -Be 6
@@ -90,7 +96,7 @@ Describe 'New-PostureClientApp.ps1' {
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
         @($graphAccess.resourceAccess).id | Should -Contain 'id-Policy.Read.All'
         @($graphAccess.resourceAccess).id | Should -Not -Contain 'id-Reports.Read.All'
-        @($warnings | Where-Object { $_ -match "no delegated scope 'Reports.Read.All'" }).Count | Should -Be 1
+        @($warnings | Where-Object { $_ -match "no delegated scope 'Reports.Read.All'.*it exposes: .*Policy\.Read\.All" }).Count | Should -Be 1
         $verify = @($requests | Where-Object { $_.Uri -match 'setVerifiedPublisher$' })
         $verify.Count | Should -Be 1
         $verify[0].Body.verifiedPublisherId | Should -Be '1234567'
@@ -103,7 +109,8 @@ Describe 'New-PostureClientApp.ps1' {
         $null = & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' -WarningAction SilentlyContinue 6>&1
         $requests = & $script:ReadRequests
         @($requests | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match 'applications$' }).Count | Should -Be 0
-        @($requests | Where-Object { $_.Method -eq 'PATCH' -and $_.Uri -match 'applications/obj-1$' }).Count | Should -Be 1
+        @($requests | Where-Object { $_.Method -eq 'PATCH' -and $_.Uri -match 'applications/obj-1$' -and $_.Body.PSObject.Properties.Name -contains 'displayName' }).Count | Should -Be 1
+        @($requests | Where-Object { $_.Method -eq 'PATCH' -and $_.Uri -match 'applications/obj-1$' -and $_.Body.PSObject.Properties.Name -contains 'publisherDomain' }).Count | Should -Be 1
         @($requests | Where-Object { $_.Uri -match 'setVerifiedPublisher$' }).Count | Should -Be 0
     }
 
