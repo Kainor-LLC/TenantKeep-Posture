@@ -131,14 +131,20 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'connects only inside Connect-PostureService, always with a token from the broker, and never registers apps' {
+    It 'connects only inside Connect-PostureService, with a token from the broker (Purview: the admin UPN, no token exists), and never registers apps' {
         # A call at statement position. Error text that tells the user how to reconnect is fine.
         $hits = Find-Code '(^|[;{|(&])\s*(Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)|Register-PnP)' 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $connects = @($script:CodeLines | Where-Object { $_.Filename -eq 'Connect-PostureService.ps1' -and $_.Code -match '(^|[;{|(&])\s*Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)' })
         $connects.Count | Should -Be 6
-        foreach ($c in $connects) { $c.Code | Should -Match '-AccessTokens?\s' }
+        foreach ($c in $connects) {
+            # Security & Compliance PowerShell issues no delegated token to a third-party app (live, 2026-10-23), so the one
+            # Connect-IPPSSession signs the same admin in by UPN through the Exchange module's own app, via a splat.
+            if ($c.Code -match 'Connect-IPPSSession') { $c.Code | Should -Match 'Connect-IPPSSession @ipps' }
+            else { $c.Code | Should -Match '-AccessTokens?\s' }
+        }
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Connect-PostureService.ps1')
+        $src | Should -Match '\$ipps = @\{ UserPrincipalName = \$account'
         $src | Should -Not -Match '-(ClientSecret|Certificate|CertificateThumbprint|Credential|ApplicationId|AppId|ClientSecretCredential)\b'
         $src | Should -Not -Match 'Register-PnP'
     }
