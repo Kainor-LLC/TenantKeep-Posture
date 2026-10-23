@@ -1,0 +1,41 @@
+name: Bug report
+description: Something the module did wrong, or a check that judged a tenant wrongly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste evidence files, reports or any other output from a real tenant. Describe the shape of the data instead.
+  - type: input
+    id: version
+    attributes:
+      label: Module version
+      description: Output of `(Get-Module Tenantkeep.Posture).Version`, or the commit if you run from a clone.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: PowerShell version and operating system
+      placeholder: PowerShell 7.4.6 on macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: ran
+    attributes:
+      label: What you ran
+      description: The command, with tenant ids and account names removed.
+    validations:
+      required: true
+  - type: textarea
+    id: saw
+    attributes:
+      label: What happened
+      description: The error text or the wrong result, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: check
+    attributes:
+      label: Check id, if the report is wrong about a check
+      placeholder: CA-003

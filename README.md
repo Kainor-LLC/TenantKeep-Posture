@@ -7,32 +7,48 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release. Shipped: `Export-PostureCaSnapshot` (spec 5.1), `New-PostureCaDocument` (5.2: Markdown, self-contained HTML, PDF, with the Conditional Access checks on its Coverage findings page), `Compare-PostureCaSnapshot` (5.3), the scheduling layer with an Azure Automation deployment (5.4), the check engine with the Conditional Access, identity, authentication, devices, email, endpoint (Intune policy state and Defender effective state), collaboration, governance, operations, Purview, Copilot readiness, Azure and hybrid catalogs (`Invoke-PostureChecks`, `Get-PostureCheckCatalog`), the Entra, Intune, Exchange Online, SharePoint, Teams, Defender, Purview and Azure collectors (`Invoke-PostureCollection`), the profile wizard (`New-PostureProfile`), the interactive posture report (`New-PostureReport`) and the findings register export (`Export-PostureFindings`). Next: the Marketplace listing when the deployment is ready to test, the entitlement tier, the first real run of the Windows collector. Customer guide: [docs/guide.md](docs/guide.md). Licensing, offline and signed: [docs/licensing.md](docs/licensing.md). Progress: [docs/checklist.md](docs/checklist.md).
+Pre-release, not yet on the PowerShell Gallery. Everything in [CHANGELOG.md](CHANGELOG.md) runs today from a clone:
+one sign-in, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
+Windows-only Active Directory script), thirteen check domains, the interactive report, the findings register, the
+Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
+first tagged release, the Marketplace listing, the trial licence on first run.
 
 ## Use
 
+Two lines. The sign-in is delegated, read-only, and the only one (Purview opens a second window of its own).
+
 ```powershell
-Import-Module ./Tenantkeep.Posture
-Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All -NoWelcome
-Export-PostureCaSnapshot                       # writes ~/tenantkeep/evidence/<yyyyMMdd-HHmm>-ca/
-Export-PostureCaSnapshot -IncludeMembers       # also stores group member UPNs
-New-PostureCaDocument -Snapshot ~/tenantkeep/evidence/<stamp>-ca -NamePattern '^CA-\d{3}-'   # ca-document.md and .html next to the snapshot
-New-PostureCaDocument -Snapshot ~/tenantkeep/evidence/<stamp>-ca -Format Pdf -Brand ./brand.json  # adds ca-document.pdf via headless Edge or Chrome
-Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca                              # ca-changes.md and .html, risk-relevant changes first
-Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange     # non-zero exit for a runbook or CI step
-Invoke-PostureChecks -Evidence ~/tenantkeep/evidence/<stamp>-ca -Domain ca                       # checks.json: the 15 CA checks against the snapshot
-Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title                         # what the catalog checks
-Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence                                            # A.1 identity and Intune evidence, A.2 Exchange evidence and the CA snapshot in one run folder
-New-PostureReport -Evidence ~/tenantkeep/evidence/<stamp> -Profile ~/tenantkeep/clients/contoso/profile.json            # report.html (interactive), report.md, checks.json; add -Format Pdf
-New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence ~/tenantkeep/evidence/<stamp>                # discovery from the evidence, then the questions evidence cannot answer
+Import-Module ./Tenantkeep.Posture          # Install-Module Tenantkeep.Posture once it is on the Gallery
+Start-PostureRun                            # sign in, collect everything the account can read, open report.html
 ```
+
+Useful switches: `-TenantId` refuses any other tenant, `-Collector Entra, Intune, Exchange` runs a subset,
+`-DeviceCode` signs in without a browser, `-Client` names the client folder. The step-by-step guide, including the
+manual path with your own sessions, is [docs/guide.md](docs/guide.md). The pieces on their own:
+
+```powershell
+Export-PostureCaSnapshot                                                   # ~/tenantkeep/evidence/<stamp>-ca/, raw wire JSON
+New-PostureCaDocument -Snapshot <stamp>-ca -Format Pdf -Brand ./brand.json  # ca-document.md, .html, .pdf
+Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskRelevantChange
+Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence                    # the evidence folder, every collector with a session
+Invoke-PostureChecks -Evidence <stamp> -Baseline cisa-scuba                # checks.json
+New-PostureReport -Evidence <stamp> -ProfilePath <client>/profile.json -Previous <last>/checks.json   # report.html with trend
+Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the register
+Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title
+```
+
+Nothing leaves the customer's environment: the licence is a signed file verified offline
+([docs/licensing.md](docs/licensing.md)), there is no telemetry, and the scheduled deployment runs as a managed
+identity in the customer's own subscription ([docs/scheduling.md](docs/scheduling.md),
+[docs/footprint.md](docs/footprint.md)). How the parts fit: [docs/architecture.md](docs/architecture.md).
 
 ## Develop
 
 ```powershell
-git config core.hooksPath .githooks            # once per clone: pre-commit secret scanner
+git config core.hooksPath .githooks            # once per clone: secret scan before commit, analyzer and tests before push
 ./build.ps1 -Task Analyze, Test
 ./build.ps1 -Task Package -CertificatePath ./signing.pfx   # release zip; fails without a code-signing cert
 ```
 
-Conventions for contributors and for Claude are in [CLAUDE.md](CLAUDE.md).
+Conventions for maintainers are in [CLAUDE.md](CLAUDE.md). Issues are welcome; pull requests are not accepted yet
+([CONTRIBUTING.md](CONTRIBUTING.md)). Security problems go to [SECURITY.md](SECURITY.md).
