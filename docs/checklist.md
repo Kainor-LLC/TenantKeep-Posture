@@ -158,7 +158,7 @@ status, what, commit. Statuses: `[x]` done and tested, `[~]` in progress, `[ ]` 
 - [ ] One sign-in P1 live: Connor runs New-PostureClientApp.ps1 in Kainor with the Partner Global id, then the client id is committed in app.json
 - [x] One sign-in P3 code (2026-10-22): `Start-PostureRun` (one sign-in; Graph collectors and Azure, then SharePoint and Teams in-process, Exchange and Purview in a child pwsh with access tokens over stdin and no refresh token; hybrid copy; profile discovered non-interactively; report with trend and merged findings; opens the browser; skips uninstalled modules with the install line); `Start-PostureChildCollection` and `Invoke-PostureChildCollection`; tests incl. a real child process
 - [ ] One sign-in P3 live: proven on Kainor then the first customer once the app exists (needs P1 live)
-- [ ] One sign-in P4: guide, site and collection docs rewritten around two lines; consent page on tenantkeep.app; CLAUDE.md edits proposed
+- [x] One sign-in P4 docs (2026-10-22): guide rewritten around the two lines (manual path moved to section 11), collection.md intro, architecture (sign-in app row, one-sign-in run, identities), footprint (consent record instead of the SharePoint app); tenantkeep.app re-rendered with a /consent/ landing page (site commit 0e714ec). CLAUDE.md edits proposed to Connor, not applied
 - [ ] One sign-in P5: retire New-PostureSharePointApp.ps1 after one release; trial licence offer on first run
 - [ ] errors.txt is append-only across processes
 - [ ] errors.txt is append-only across processes into one folder, so a step that failed in an earlier process and succeeded later still counts in the manifest; decide whether a later success should retire the line

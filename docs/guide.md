@@ -4,82 +4,72 @@ Written for the administrator or MSP engineer who runs the report. Everything be
 module writes to it. Each run leaves an evidence folder you keep, a report you deliver, and a findings register you
 work from until the next run.
 
-## 1. What you need
+## 1. Two lines
 
-- PowerShell 7.4 or later on macOS, Windows or Linux.
-- The modules: Microsoft.Graph.Authentication (required), and for the domains you want: ExchangeOnlineManagement,
-  PnP.PowerShell, MicrosoftTeams, Az.Accounts and Az.ResourceGraph.
-- An account that can read: Global Reader covers most of Entra, Intune and Defender; Exchange needs View-Only
-  Organization Management; SharePoint needs SharePoint Administrator; Purview needs Compliance Administrator or Global
-  Reader; Azure needs Reader and Security Reader on the subscriptions. The Graph scopes are listed in docs/collection.md.
-- One Entra app registration for SharePoint, created once by deploy/setup/New-PostureSharePointApp.ps1 (step 3).
+```powershell
+Install-Module Tenantkeep.Posture -Scope CurrentUser
+Start-PostureRun
+```
 
-## 2. Install the module and place the licence
+A browser window asks you to sign in with an admin account. That is the only sign-in. The module gets a token for
+each service from it, runs every collector it can, builds the profile from what the tenant says about itself, writes
+the report and opens it. Twenty minutes later for a mid-sized tenant you are looking at report.html. Until the module
+is on the PowerShell Gallery, clone the repository and `Import-Module ./tenantkeep-posture/Tenantkeep.Posture/Tenantkeep.Posture.psd1`
+instead of the first line.
+
+What you need:
+
+- PowerShell 7.4 or later on macOS, Windows or Linux, and Microsoft.Graph.Authentication. For the other domains,
+  the modules you already use: ExchangeOnlineManagement (Exchange and Purview), PnP.PowerShell (SharePoint),
+  MicrosoftTeams, Az.Accounts with Az.ResourceGraph (Azure). A missing module is skipped with the install line.
+- An account that can read: Global Reader covers Entra, Intune and Defender; Exchange needs View-Only Organization
+  Management; SharePoint needs SharePoint Administrator; Purview a compliance read role; Azure Reader and Security
+  Reader on the subscriptions. The module never reads more than the account can.
+- Consent, once per tenant. Tenantkeep Posture is a multi-tenant app published by Kainor with delegated, read-only
+  permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
+  not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
+
+Useful switches: `-TenantId` refuses a sign-in to any other tenant; `-Collector Entra, Intune, Exchange` runs a
+subset; `-DeviceCode` signs in from a machine without a browser; `-Client` points at a client folder other than the
+default `~/tenantkeep/clients/<tenant name>/`.
+
+## 2. The licence
 
 The Conditional Access tools are free. The full report needs the licence file Kainor sent for your tenant: save it as
 `tenantkeep.lic` in the client folder next to profile.json, and `Get-PostureLicense -Path <file>` tells you its tier and
-expiry. docs/licensing.md explains what is checked (offline, nothing is sent).
+expiry. docs/licensing.md explains what is checked (offline, nothing is sent). Without it, `Start-PostureRun` still
+produces the Conditional Access domain and says what the full tier adds.
 
-## 2a. Install the module
+## 3. What the run leaves behind
 
-```powershell
-git clone https://github.com/Kainor-LLC/tenantkeep-posture
-Import-Module ./tenantkeep-posture/Tenantkeep.Posture/Tenantkeep.Posture.psd1
-```
+- `~/tenantkeep/evidence/<yyyyMMdd-HHmm>/`: the evidence files, checks.json, report.html, report.md, findings.csv.
+- `~/tenantkeep/clients/<tenant name>/`: profile.json (discovered on the first run, yours to edit in the report's
+  Settings view), exceptions.json and findings.csv once you save from the report, tenantkeep.lic, imports/ for the
+  reports you provide (section 8b), hybrid/ for the Windows AD collector's files.
 
-Signed releases come from the PowerShell Gallery once published; the repository works as is.
+Nothing is written anywhere else. Nothing leaves the machine.
 
-## 3. One-time setup per tenant
+## 4. Hybrid tenants
 
-Register the SharePoint app with delegated read permissions, consent to it, and record its id in the profile:
+Run collectors/windows/Get-ADBaseline.ps1 once on a domain-joined Windows machine with RSAT and copy the files it
+wrote into the client folder's `hybrid/`; every later run picks them up. A domain controller has everything the
+script needs; a workstation needs the Active Directory and Group Policy RSAT tools (on Windows Server:
+`Install-WindowsFeature GPMC`; on Windows 10 or 11: `Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`,
+then a new PowerShell window), and without Group Policy the GPO checks are reported as not evaluated. The LAPS check
+reads the schema first, so an unextended schema is reported, not an error.
 
-```powershell
-Connect-MgGraph -TenantId <tenant id> -Scopes Application.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All
-./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ~/tenantkeep/clients/contoso/profile.json
-```
+## 5. The same run, step by step
 
-The script prints what, if anything, is left by hand: the SharePoint Administrator role for the reading account.
-
-## 4. Sign in
-
-Sign in to each service you want collected. Graph first; on macOS import PnP and Az only after that.
-
-```powershell
-Connect-MgGraph -TenantId <tenant id> -Scopes <the scopes in docs/collection.md> -NoWelcome
-Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
-Connect-MicrosoftTeams
-Connect-AzAccount -Tenant <tenant id>
-```
-
-Exchange Online and Purview run in processes of their own (their cmdlet names overlap), each after its own sign-in:
-`Connect-ExchangeOnline -UserPrincipalName <reader>` and `Connect-IPPSSession -UserPrincipalName <reader>`. The
-macOS sign-in workarounds are in docs/collection.md.
-
-## 5. Collect
-
-```powershell
-$folder = Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
-```
-
-Every collector whose session is open runs; the others are skipped with a warning. Exchange, Purview and (if run
-separately) Azure write into the same folder from their own processes:
-
-```powershell
-Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder
-Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder $folder
-```
-
-For hybrid tenants, run collectors/windows/Get-ADBaseline.ps1 once on a domain-joined Windows machine with RSAT and
-copy the files it wrote into `$folder` (not as a subfolder). A domain controller has everything the script needs; a
-workstation needs the Active Directory and Group Policy RSAT tools (on Windows Server: `Install-WindowsFeature GPMC`; on
-Windows 10 or 11: `Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`, then a new
-PowerShell window), and without Group Policy the GPO checks are reported as not evaluated. The LAPS check reads the schema first, so an unextended schema is reported, not an error.
+`Start-PostureRun` is `Connect-PostureSession`, `Invoke-PostureCollection`, `New-PostureProfile`, `New-PostureReport`
+and `Export-PostureFindings` in order. Each is a cmdlet you can run alone; sections 6 to 9 say what each does and the
+switches it takes. Section 11 has the fully manual path, with a sign-in per service and no Kainor app involved.
 
 ## 6. Build the profile
 
-Discovery reads what the tenant says about itself; the wizard asks only what evidence cannot answer: third-party
-controls, thresholds, break-glass accounts and their last test, the Message Center owner, frameworks, audience,
-cadence.
+`Start-PostureRun` writes the profile from discovery alone and leaves every question to the report's Settings view.
+Run the wizard when you would rather answer at the console: discovery reads what the tenant says about itself and it
+asks only what evidence cannot answer: third-party controls, thresholds, break-glass accounts and their last test,
+the Message Center owner, frameworks, audience, cadence.
 
 ```powershell
 New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence $folder
@@ -145,7 +135,7 @@ diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams
 
 Not every organisation has, or wants, anything in Azure. Local runs need no Azure at all: with `azure: none` in the
 profile (the wizard sets it when no subscription is in scope) the Azure collector is skipped and the Azure domain
-reads as not applicable. Nothing is installed in the tenant beyond the SharePoint app registration. What does need
+reads as not applicable. Nothing is installed in the tenant beyond the consent to the Tenantkeep Posture app. What does need
 an Azure subscription is the scheduled cycle, because the Automation account is where it runs; the full inventory of
 what that puts where is in docs/footprint.md. For a nightly Conditional Access cycle without Azure, the GitHub Action
 and launchd samples in deploy/schedules run it from a machine you already have.
@@ -157,3 +147,40 @@ and, with -IncludePosture, the whole posture report monthly: every collector, th
 sign-in by anyone. docs/scheduling.md walks through it. Set the execution policy to AllSigned on anything that runs the module
 unattended: releases are Authenticode-signed, so an edited file refuses to run. The full posture collection on a schedule and the Marketplace listing
 follow.
+
+## 11. Without the Kainor app: a sign-in per service
+
+Some organisations consent to no third-party app, published or not. The module works the same way with your own
+sessions; `Invoke-PostureCollection` uses whatever is open and says what is not.
+
+Register an app of your own for SharePoint (PnP.PowerShell needs an app id to sign the admin in) and record it in
+the profile:
+
+```powershell
+Connect-MgGraph -TenantId <tenant id> -Scopes Application.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All
+./deploy/setup/New-PostureSharePointApp.ps1 -Tenant contoso.onmicrosoft.com -ProfilePath ~/tenantkeep/clients/contoso/profile.json
+```
+
+Then sign in to each service you want collected. Graph first; on macOS import PnP and Az only after that.
+
+```powershell
+Connect-MgGraph -TenantId <tenant id> -Scopes <the scopes in docs/collection.md> -NoWelcome
+Connect-PnPOnline -Url https://contoso-admin.sharepoint.com -ClientId <sharePointClientId> -Interactive
+Connect-MicrosoftTeams
+Connect-AzAccount -Tenant <tenant id>
+$folder = Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
+```
+
+Exchange Online and Purview run in processes of their own (their cmdlet names overlap), each after its own sign-in,
+writing into the same folder:
+
+```powershell
+Connect-ExchangeOnline -UserPrincipalName <reader>
+Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder
+Connect-IPPSSession -UserPrincipalName <reader>
+Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder $folder
+```
+
+The macOS sign-in workarounds are in docs/collection.md. Copy the AD collector's files into `$folder` for hybrid
+tenants, then continue at section 6. Or sign in once with a registration of your own that carries the same delegated
+permissions as app.json: `Connect-PostureSession -ClientId <your app id>` and `Start-PostureRun` from there.

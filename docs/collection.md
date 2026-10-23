@@ -1,5 +1,9 @@
 # Evidence collection
 
+`Start-PostureRun` signs in once and runs everything on this page, in the right processes, from that sign-in
+(docs/guide.md section 1). What follows is what each collector writes and what it needs, for reading a run folder and
+for the manual path, where you open each session yourself.
+
 `Invoke-PostureCollection` writes one run folder, `<OutRoot>/<yyyyMMdd-HHmm>/`, with the audit plan's file names
 (Appendix A) so findings and checks reference the same evidence whether it came from the module or from the
 original scripts. Read-only. Every step is independent: a permission failure is one line in `errors.txt` and the
