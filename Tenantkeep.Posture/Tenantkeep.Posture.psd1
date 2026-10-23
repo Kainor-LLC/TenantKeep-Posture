@@ -27,7 +27,8 @@
         'Invoke-PostureCollection',
         'New-PostureCaDocument',
         'New-PostureProfile',
-        'New-PostureReport'
+        'New-PostureReport',
+        'Start-PostureRun'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
