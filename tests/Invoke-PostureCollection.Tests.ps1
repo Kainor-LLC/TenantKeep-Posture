@@ -426,7 +426,13 @@ Describe 'Invoke-PostureCollection' {
             $m.graphApiVersions | Should -Be @('beta', 'v1.0') -Because 'the per-user MFA batch is the one beta call'
             $m.files | Should -Contain '06-users.csv'
             $m.errorCount | Should -Be 1
-            (& $script:Read 'metadata').snapshotType | Should -Be 'conditional-access'
+            $m.powerShell | Should -Be $PSVersionTable.PSVersion.ToString()
+            $m.os | Should -Not -BeNullOrEmpty
+            @($m.modules.PSObject.Properties.Name) | Should -Contain 'Microsoft.Graph.Authentication' -Because 'the run records every service module version, null when not installed'
+            @($m.modules.PSObject.Properties.Name) | Should -Contain 'ExchangeOnlineManagement'
+            $meta = & $script:Read 'metadata'
+            $meta.snapshotType | Should -Be 'conditional-access'
+            @($meta.modules.PSObject.Properties.Name) | Should -Contain 'Microsoft.Graph.Authentication'
         }
 
         It 'warns about optional scopes that are missing' {

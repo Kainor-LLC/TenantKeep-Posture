@@ -35,6 +35,7 @@ Invoke-PostureChecks -Evidence <stamp> -Baseline cisa-scuba                # che
 New-PostureReport -Evidence <stamp> -ProfilePath <client>/profile.json -Previous <last>/checks.json   # report.html with trend
 Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the register
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title
+Get-PostureRequirement | Format-Table Name, Installed, Tested, Status      # service modules here against the tested versions
 ```
 
 Nothing leaves the customer's environment: the licence is a signed file verified offline

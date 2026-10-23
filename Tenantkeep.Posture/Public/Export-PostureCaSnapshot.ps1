@@ -130,6 +130,7 @@ function Export-PostureCaSnapshot {
             timestampUtc    = $startedUtc.ToString('o')
             completedUtc    = [datetime]::UtcNow.ToString('o')
             graphApiVersions = @($script:GraphApiVersionsUsed | Sort-Object)
+            modules         = (Get-PostureModuleVersionUsed)
             policyCount     = $policies.Count
             namedLocationCount = $locations.Count
             authStrengthCount  = $strengths.Count

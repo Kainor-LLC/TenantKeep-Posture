@@ -23,6 +23,7 @@
         'Export-PostureFindings',
         'Get-PostureLicense',
         'Get-PostureCheckCatalog',
+        'Get-PostureRequirement',
         'Invoke-PostureChecks',
         'Invoke-PostureCollection',
         'New-PostureCaDocument',

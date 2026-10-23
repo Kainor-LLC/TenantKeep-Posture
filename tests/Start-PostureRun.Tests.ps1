@@ -25,6 +25,7 @@ Describe 'Start-PostureRun' {
             Mock Assert-PostureGraphScope { @{ TenantId = $script:TestTid; Account = 'admin@contoso.example'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'ThreatHunting.Read.All') } }
             Mock Connect-PostureService { $script:Calls.Add("connect:$Name") }
             Mock Get-Module { $true } -ParameterFilter { $ListAvailable }
+            Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }   # nothing loaded: the run manifest records the installed version
             Mock Invoke-PostureCollection {
                 $script:Calls.Add("collect:$($Collector -join '+')")
                 $f = $(if ($OutputFolder) { $OutputFolder } else { Join-Path $script:TestOutRoot '20261022-1200' })
@@ -115,6 +116,20 @@ Describe 'Start-PostureRun' {
             $result.Skipped['Azure'] | Should -Match 'Az.Accounts'
             $result.Report | Should -BeNullOrEmpty
             @($script:Calls) | Should -Be @('signin', 'collect:Entra+Intune+Defender', 'profile')
+        }
+    }
+
+    It 'warns once when a module is older than the tested version and still runs its collector' {
+        InModuleScope Tenantkeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            Mock Get-Module { [pscustomobject]@{ Name = $Name; Version = [version]'1.0.0' } } -ParameterFilter { $ListAvailable }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru -WarningVariable warn 6>$null
+            $result.Skipped.Keys | Should -Not -Contain 'SharePoint'
+            @($script:Calls) | Should -Contain 'collect:SharePoint+Teams'
+            @($script:Calls) | Should -Contain 'child:Exchange+Purview'
+            @($warn | Where-Object { "$_" -match '^PnP\.PowerShell 1\.0\.0 is older' }).Count | Should -Be 1
+            @($warn | Where-Object { "$_" -match '^Az\.Accounts 1\.0\.0 is older' }).Count | Should -Be 1
+            @($warn | Where-Object { "$_" -match '^ExchangeOnlineManagement 1\.0\.0 is older' }).Count | Should -Be 1
         }
     }
 }

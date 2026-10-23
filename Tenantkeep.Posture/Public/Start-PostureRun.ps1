@@ -20,7 +20,9 @@ function Start-PostureRun {
           7. The report opens in the browser.
 
         A collector whose module is not installed, or whose session fails, is skipped with a note and the report
-        says what was not collected. The run folder keeps everything that was.
+        says what was not collected. A module older than the version the collectors were tested with gets a warning
+        (Get-PostureRequirement lists them); the versions used are recorded in collection.json. The run folder keeps
+        everything that was collected.
 
         Read-only throughout. Nothing leaves the machine: evidence under -OutRoot, client files under -Client.
     .PARAMETER TenantId
@@ -65,6 +67,14 @@ function Start-PostureRun {
     if (-not $PSCmdlet.ShouldProcess($(if ($TenantId) { $TenantId } else { 'the tenant you sign in to' }), 'Sign in, collect read-only evidence, write the report')) { return }
     $skipped = [ordered]@{}
     $step = { param([string] $Text) Write-Host "> $Text" -ForegroundColor Cyan }
+    # Module versions against the tested ones (Get-PostureRequirement): missing skips the collector, older warns once.
+    $warned = [System.Collections.Generic.HashSet[string]]::new()
+    $usable = {
+        param([string] $Module)
+        $check = Test-PostureModuleRequirement -Name $Module
+        if ($check.status -eq 'older' -and $warned.Add($Module)) { Write-Warning $check.message }
+        $check
+    }
 
     # 1. One sign-in.
     $connect = @{}
@@ -104,7 +114,8 @@ function Start-PostureRun {
         else { $skipped['Defender'] = 'ThreatHunting.Read.All is not on the token; the tenant consented without it.' }
     }
     if ('Azure' -in $Collector) {
-        if ((Get-Module -ListAvailable Az.Accounts) -and (Get-Module -ListAvailable Az.ResourceGraph)) {
+        $az = @('Az.Accounts', 'Az.ResourceGraph' | ForEach-Object { & $usable $_ })
+        if (@($az | Where-Object { $_.status -eq 'missing' }).Count -eq 0) {
             try { Connect-PostureService -Name azure; $main += 'Azure' }
             catch { $skipped['Azure'] = "Azure sign-in failed: $($_.Exception.Message)" }
         }
@@ -121,7 +132,8 @@ function Start-PostureRun {
     $need = @{ SharePoint = 'PnP.PowerShell'; Teams = 'MicrosoftTeams' }
     foreach ($name in 'SharePoint', 'Teams') {
         if ($name -notin $Collector) { continue }
-        if (-not (Get-Module -ListAvailable $need[$name])) { $skipped[$name] = "$($need[$name]) is not installed: Install-Module $($need[$name]) -Scope CurrentUser"; continue }
+        $check = & $usable $need[$name]
+        if ($check.status -eq 'missing') { $skipped[$name] = $check.message; continue }
         try { Connect-PostureService -Name $name.ToLowerInvariant(); $local.Add($name) }
         catch { $skipped[$name] = "$name sign-in failed: $($_.Exception.Message)" }
     }
@@ -134,7 +146,8 @@ function Start-PostureRun {
     # 5. Exchange and Purview in their own process, tokens over standard input.
     $child = @($Collector | Where-Object { $_ -in 'Exchange', 'Purview' })
     if ($child.Count -gt 0) {
-        if (-not (Get-Module -ListAvailable ExchangeOnlineManagement)) { foreach ($n in $child) { $skipped[$n] = 'ExchangeOnlineManagement is not installed: Install-Module ExchangeOnlineManagement -Scope CurrentUser' } }
+        $exo = & $usable 'ExchangeOnlineManagement'
+        if ($exo.status -eq 'missing') { foreach ($n in $child) { $skipped[$n] = $exo.message } }
         else {
             & $step "Collecting $($child -join ', ') in a second process$(if ('Purview' -in $child) { ' (Purview opens a sign-in of its own)' })"
             $tokens = @{}
@@ -179,6 +192,8 @@ function Start-PostureRun {
     if (Test-Path -LiteralPath $errorsFile) { $errorCount = @(Get-Content -LiteralPath $errorsFile | Where-Object { $_.Trim() }).Count }
     Write-Host ''
     Write-Host "Run folder: $folder"
+    $versions = Get-PostureModuleVersionUsed
+    Write-Host "PowerShell $($PSVersionTable.PSVersion); modules: $(@($versions.Keys | ForEach-Object { "$_ $(if ($versions[$_]) { $versions[$_] } else { 'not installed' })" }) -join ', ')"
     if ($reportFile) { Write-Host "Report: $reportFile" }
     if ($errorCount -gt 0) { Write-Host "$errorCount step(s) logged in errors.txt" -ForegroundColor Yellow }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }

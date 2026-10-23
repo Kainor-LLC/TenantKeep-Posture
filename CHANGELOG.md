@@ -23,6 +23,9 @@ Everything so far, built 2026-10-13 to 2026-10-23.
 - One sign-in: `Connect-PostureSession`, `Disconnect-PostureSession` and `Start-PostureRun`, which runs every
   collector from one delegated sign-in through the Kainor-published multi-tenant app and opens the report.
   Purview signs in on its own because Security and Compliance PowerShell issues no token to a third-party app.
+- Requirements: `Get-PostureRequirement` shows each service module installed against the version the collectors
+  were tested with; `Start-PostureRun` warns on an older one, and collection.json records the module versions,
+  PowerShell version and operating system of every run.
 - Licensing: offline, signed licence files verified against public keys in the module; the Conditional Access domain
   is free, the rest needs the Full tier. Signed integrity manifest and build state in every report.
 - Deployment: Azure Automation templates and runbooks for the scheduled Conditional Access cycle and the monthly

@@ -22,6 +22,9 @@ What you need:
 - PowerShell 7.4 or later on macOS, Windows or Linux, and Microsoft.Graph.Authentication. For the other domains,
   the modules you already use: ExchangeOnlineManagement (Exchange and Purview), PnP.PowerShell (SharePoint),
   MicrosoftTeams, Az.Accounts with Az.ResourceGraph (Azure). A missing module is skipped with the install line.
+  `Get-PostureRequirement` lists what is installed against the versions the collectors were tested with
+  (Graph 2.39, Exchange 3.10, PnP 3.2, Teams 7.9, Az.Accounts 5.5, Az.ResourceGraph 1.3 as of October 2026); an
+  older version runs with a warning, and every run records the versions it used in collection.json.
 - An account that can read: Global Reader covers Entra, Intune and Defender; Exchange needs View-Only Organization
   Management; SharePoint needs SharePoint Administrator; Purview a compliance read role; Azure Reader and Security
   Reader on the subscriptions. The module never reads more than the account can.

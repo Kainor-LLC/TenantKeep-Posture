@@ -228,6 +228,11 @@ function Invoke-PostureCollection {
         $manifestPath = Join-Path $folder 'collection.json'
         if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
         $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
+        # Module versions: what this process loaded, over what an earlier process into the same folder recorded.
+        $modules = [ordered]@{}
+        if ($previous -and $previous['modules']) { foreach ($k in @($previous['modules'].Keys)) { $modules[$k] = $previous['modules'][$k] } }
+        $used = Get-PostureModuleVersionUsed
+        foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
         $manifest = [ordered]@{
             product          = 'Tenantkeep.Posture'
             moduleVersion    = $script:ModuleVersion
@@ -239,6 +244,9 @@ function Invoke-PostureCollection {
             timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
             completedUtc     = [datetime]::UtcNow.ToString('o')
             graphApiVersions = @($script:GraphApiVersionsUsed | Sort-Object)
+            modules          = $modules
+            powerShell       = $PSVersionTable.PSVersion.ToString()
+            os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
             staleDays        = $StaleDays
             files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'errors.txt') } | ForEach-Object { $_.Name } | Sort-Object)
             errorCount       = $errors.Count
