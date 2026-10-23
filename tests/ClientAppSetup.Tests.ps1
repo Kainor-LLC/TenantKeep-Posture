@@ -11,6 +11,7 @@ BeforeAll {
     $env:TKP_CLIENTAPP_LOG = Join-Path $script:Root 'requests.jsonl'
     $env:TKP_CLIENTAPP_JSON = $script:AppJson
     $script:ReadRequests = { @(Get-Content -LiteralPath $env:TKP_CLIENTAPP_LOG -ErrorAction SilentlyContinue | ForEach-Object { $_ | ConvertFrom-Json -Depth 10 }) }
+    function global:Start-Sleep { param($Seconds) $env:TKP_CLIENTAPP_SLEPT = [int]$env:TKP_CLIENTAPP_SLEPT + [int]$Seconds }
     function global:Get-MgContext { [pscustomobject]@{ TenantId = '11111111-1111-1111-1111-111111111111'; Account = 'admin@kainor.example'; Scopes = @('Application.ReadWrite.All') } }
     function global:Invoke-MgGraphRequest {
         param([string] $Method = 'GET', [string] $Uri, $Body, [string] $ContentType, [string] $OutputType)
@@ -33,15 +34,18 @@ BeforeAll {
             return @{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001'; publisherDomain = 'kainor.onmicrosoft.com' }
         }
         if ($u -match 'applications/obj-1$' -and $Method -eq 'PATCH') { return $null }
-        if ($u -match 'setVerifiedPublisher$' -and $Method -eq 'POST') { return $null }
+        if ($u -match 'setVerifiedPublisher$' -and $Method -eq 'POST') {
+            if ([int]$env:TKP_CLIENTAPP_VERIFY_404 -gt 0) { $env:TKP_CLIENTAPP_VERIFY_404 = [int]$env:TKP_CLIENTAPP_VERIFY_404 - 1; throw "POST $u HTTP/1.1 404 Not Found: The target application (obj-1) cannot be found." }
+            return $null
+        }
         throw "Stub has no answer for $Method $u"
     }
 }
 
 AfterAll {
     Remove-Item -LiteralPath $script:Root -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item Function:\global:Get-MgContext, Function:\global:Invoke-MgGraphRequest -ErrorAction SilentlyContinue
-    Remove-Item Env:TKP_CLIENTAPP_LOG, Env:TKP_CLIENTAPP_EXISTS, Env:TKP_CLIENTAPP_JSON -ErrorAction SilentlyContinue
+    Remove-Item Function:\global:Get-MgContext, Function:\global:Invoke-MgGraphRequest, Function:\global:Start-Sleep -ErrorAction SilentlyContinue
+    Remove-Item Env:TKP_CLIENTAPP_LOG, Env:TKP_CLIENTAPP_EXISTS, Env:TKP_CLIENTAPP_JSON, Env:TKP_CLIENTAPP_VERIFY_404, Env:TKP_CLIENTAPP_SLEPT -ErrorAction SilentlyContinue
 }
 
 Describe 'Tenantkeep.Posture/app.json' {
@@ -74,7 +78,13 @@ Describe 'Tenantkeep.Posture/app.json' {
 }
 
 Describe 'New-PostureClientApp.ps1' {
-    BeforeEach { Remove-Item -LiteralPath $env:TKP_CLIENTAPP_LOG -ErrorAction SilentlyContinue; Copy-Item -LiteralPath $script:ShippedManifest -Destination $script:AppJson -Force }
+    BeforeEach {
+        Remove-Item -LiteralPath $env:TKP_CLIENTAPP_LOG -ErrorAction SilentlyContinue
+        Copy-Item -LiteralPath $script:ShippedManifest -Destination $script:AppJson -Force
+        # The shipped manifest carries the real client id; the tests start from an unregistered one.
+        (Get-Content -LiteralPath $script:AppJson -Raw) -replace '"clientId":\s*"[^"]*"', '"clientId": ""' | Set-Content -LiteralPath $script:AppJson -NoNewline
+        $env:TKP_CLIENTAPP_VERIFY_404 = '0'; $env:TKP_CLIENTAPP_SLEPT = '0'
+    }
 
     It 'creates a multi-tenant public client with delegated scopes only, verifies the publisher and writes the client id back' {
         $env:TKP_CLIENTAPP_EXISTS = '0'
@@ -91,7 +101,8 @@ Describe 'New-PostureClientApp.ps1' {
         $domain[0].Body.publisherDomain | Should -Be 'kainor.com'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
-        @($create[0].Body.requiredResourceAccess).Count | Should -Be 6
+        @($create[0].Body.requiredResourceAccess).Count | Should -Be 5
+        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Not -Contain '00000007-0000-0ff1-ce00-000000000000'
         foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
         @($graphAccess.resourceAccess).id | Should -Contain 'id-Policy.Read.All'
@@ -102,6 +113,22 @@ Describe 'New-PostureClientApp.ps1' {
         $verify[0].Body.verifiedPublisherId | Should -Be '1234567'
         (Get-Content -LiteralPath $script:AppJson -Raw | ConvertFrom-Json).clientId | Should -Be 'aaaaaaaa-0000-0000-0000-000000000001'
         ($out -join "`n") | Should -Match 'adminconsent\?client_id=aaaaaaaa-0000-0000-0000-000000000001'
+    }
+
+    It 'writes the client id before verifying, and waits for a new registration to replicate before setVerifiedPublisher' {
+        $env:TKP_CLIENTAPP_EXISTS = '0'; $env:TKP_CLIENTAPP_VERIFY_404 = '2'
+        $null = & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' -PartnerId 1234567 -WarningAction SilentlyContinue 6>&1
+        $requests = & $script:ReadRequests
+        @($requests | Where-Object { $_.Uri -match 'setVerifiedPublisher$' }).Count | Should -Be 3
+        [int]$env:TKP_CLIENTAPP_SLEPT | Should -Be 20
+        (Get-Content -LiteralPath $script:AppJson -Raw | ConvertFrom-Json).clientId | Should -Be 'aaaaaaaa-0000-0000-0000-000000000001'
+    }
+
+    It 'keeps the client id and warns when verification keeps failing' {
+        $env:TKP_CLIENTAPP_EXISTS = '0'; $env:TKP_CLIENTAPP_VERIFY_404 = '9'
+        $null = & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' -PartnerId 1234567 -WarningVariable warnings -WarningAction SilentlyContinue 6>&1
+        @($warnings | Where-Object { $_ -match 'Publisher verification failed' }).Count | Should -Be 1
+        (Get-Content -LiteralPath $script:AppJson -Raw | ConvertFrom-Json).clientId | Should -Be 'aaaaaaaa-0000-0000-0000-000000000001'
     }
 
     It 'updates an existing registration in place instead of creating a second one' {

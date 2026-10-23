@@ -5,8 +5,11 @@ function Connect-PostureService {
         The one place in the module that opens a service session, always with an access token from the broker.
     .DESCRIPTION
         Delegated tokens only: no secret, no certificate, no password ever passes through here. Each service module
-        is given its token and the companions it documents. A session that is already open for the same tenant is
-        left alone unless -Force. The read-only guard in the tests allows Connect-* calls in this file only.
+        is given its token and the companions it documents. The one exception is Purview: the Exchange Online
+        Protection principal exposes no delegated scopes, so no third-party app can get a Security & Compliance
+        PowerShell token, and the Exchange module signs the same admin in with its own app (a browser window, or a
+        device code when the run has none). A session that is already open for the same tenant is left alone unless
+        -Force. The read-only guard in the tests allows Connect-* calls in this file only.
     .PARAMETER Name
         graph, exchange, purview, sharepoint, teams or azure.
     #>
@@ -34,10 +37,14 @@ function Connect-PostureService {
             Connect-ExchangeOnline -AccessToken $token -UserPrincipalName $account -ShowBanner:$false
         }
         'purview' {
-            # ExchangeOnlineManagement 3.8+. Audience https://ps.compliance.protection.outlook.com, owned by the Exchange Online
-            # Protection principal. No published report of a custom app's delegated token here yet (verify on the spike).
-            $token = Get-PostureToken -Resource purview
-            Connect-IPPSSession -AccessToken $token -UserPrincipalName $account -Organization "$($session['tenantName']).onmicrosoft.com" -ShowBanner:$false
+            # Seen live in Kainor, 2026-10-23: the Exchange Online Protection principal (00000007-0000-0ff1-ce00-000000000000)
+            # exposes no delegated scopes at all, so the sign-in app cannot ask for one and the broker has no token to give.
+            # Security & Compliance PowerShell signs the same admin in again through the Exchange module's own first-party
+            # app. Still delegated, still bounded by that admin's roles, nothing stored. -Device when the run has no browser
+            # (verify: Connect-IPPSSession -Device on the first live run).
+            $ipps = @{ UserPrincipalName = $account; ShowBanner = $false }
+            if ($session.ContainsKey('purviewSignIn') -and [string]$session['purviewSignIn'] -eq 'device') { $ipps['Device'] = $true }
+            Connect-IPPSSession @ipps
         }
         'sharepoint' {
             # PnP cannot refresh a supplied token and the audience must match -Url (pnp/powershell #305), so the token is for

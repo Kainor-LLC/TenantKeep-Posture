@@ -56,7 +56,8 @@ Describe 'Start-PostureRun' {
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 1
             @($script:Calls) | Should -Be @('signin', 'connect:azure', 'collect:Entra+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'child:Exchange+Purview', 'profile', 'report:none', 'findings', 'open:report.html')
-            $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph', 'purview')
+            $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph')
+            $script:ChildRequest['purviewSignIn'] | Should -Be 'browser'
             $script:ChildRequest['tokens']['graph']['accessToken'] | Should -Be 'g'
             $script:ChildRequest.Keys | Should -Not -Contain 'refreshToken'
             Test-Path (Join-Path $client 'profile.json') | Should -BeTrue
@@ -133,11 +134,12 @@ Describe 'The child process hand-off' {
             Mock Connect-PostureService { $script:ChildCalls.Add("connect:$Name"); if ($Name -eq 'purview') { throw 'no purview for you' } }
             Mock Invoke-PostureCollection { $script:ChildCalls.Add("collect:$($Collector -join '+'):$(Split-Path $OutputFolder -Leaf)") }
             $exp = [datetime]::UtcNow.AddMinutes(50).ToString('o')
-            $json = @{ clientId = 'c'; tenantId = 't'; tenantName = 'contoso'; account = 'a@b'; folder = (Join-Path $root 'run1'); profilePath = ''; collectors = @('Exchange', 'Purview'); tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = $exp }; exchange = @{ accessToken = 'e'; expiresUtc = $exp }; purview = @{ accessToken = 'p'; expiresUtc = $exp } } } | ConvertTo-Json -Depth 10
+            $json = @{ clientId = 'c'; tenantId = 't'; tenantName = 'contoso'; account = 'a@b'; folder = (Join-Path $root 'run1'); profilePath = ''; collectors = @('Exchange', 'Purview'); purviewSignIn = 'device'; tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = $exp }; exchange = @{ accessToken = 'e'; expiresUtc = $exp } } } | ConvertTo-Json -Depth 10
             $failed = Invoke-PostureChildCollection -InputJson $json 6>$null
             $failed | Should -Be 1
             @($script:ChildCalls) | Should -Be @('connect:graph', 'connect:exchange', 'collect:Exchange:run1', 'connect:purview')
             $script:PostureSession['refreshToken'] | Should -Be ''
+            $script:PostureSession['purviewSignIn'] | Should -Be 'device'
             (Get-PostureToken -Resource exchange) | Should -Be 'e'
             { Invoke-PostureChildCollection -InputJson ($json -replace [regex]::Escape($exp), [datetime]::UtcNow.AddMinutes(-1).ToString('o')) 6>$null } | Should -Throw '*already expired*'
             $script:PostureSession = $null

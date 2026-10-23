@@ -37,7 +37,7 @@ Delegated permissions it requests (all read):
 |---|---|
 | Microsoft Graph | the collectors' scopes as today: Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, OnPremDirectorySynchronization.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All, DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLockerKey.ReadBasic.All, AttackSimulation.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All, Sites.Read.All, Organization.Read.All, Application.Read.All, Reports.Read.All |
 | Office 365 Exchange Online | Exchange.Manage (the delegated scope Exchange Online PowerShell uses) |
-| Microsoft Exchange Online Protection | Exchange.Manage, for Security & Compliance PowerShell (verify the delegated scope name) |
+| Microsoft Exchange Online Protection | none. The principal exposes no delegated scopes at all (live, Kainor, 2026-10-23), so no third-party app can get a Security & Compliance PowerShell token. Purview signs the same admin in through the Exchange module's own app: a second window, for that one service |
 | Office 365 SharePoint Online | AllSites.FullControl, which PnP's tenant reads require even for reading (proven on the per-customer app) |
 | Skype and Teams Tenant Admin API | user_impersonation (proven through the Azure CLI route) |
 | Azure Service Management | user_impersonation, used only when the profile says Azure is in scope |
@@ -133,9 +133,9 @@ Rakhesh and Maester); what is left is the live run, marked (verify):
    Exchange Online Protection principal, -Organization takes the onmicrosoft.com name. No published report of a
    custom app's delegated token here; the setup script lists what delegated scopes that principal exposes. (verify)
    Live, 2026-10-23 (Connor, Kainor): the Exchange Online Protection principal exposes no delegated scope named
-   Exchange.Manage, so the first registration attempt left Purview out; the script now prints what that principal
-   does expose. If it exposes nothing delegated, Purview keeps its own sign-in through Connect-IPPSSession and the
-   one sign-in covers every other service (verify on the rerun).
+   Exchange.Manage; the rerun showed it exposes no delegated scopes at all. Settled: Purview keeps its own sign-in
+   through Connect-IPPSSession (the Exchange module's first-party app, -Device when the run has no browser) and the
+   one sign-in covers every other service. The purview resource is out of app.json.
 3. Connect-PnPOnline -Url -AccessToken: the token's audience must match the host in -Url (pnp/powershell #305), so
    the broker asks for `https://<tenant>-admin.sharepoint.com/.default` and connects to the admin site. (verify)
 4. Get-MgContext after Connect-MgGraph -AccessToken: the SDK fills Scopes from the token's scp claim
@@ -152,7 +152,7 @@ Rakhesh and Maester); what is left is the live run, marked (verify):
 | | Deliverable | Needs |
 |---|---|---|
 | P0 | The four spikes, results written here | Connor's sign-ins on the Mac and a Windows box |
-| P1 | The app registration in the Kainor tenant, manifest committed as Tenantkeep.Posture/app.json (decision 1), publisher verification | Connor: the Partner Center MPN id, a go on creating the app |
+| P1 | The app registration in the Kainor tenant, manifest committed as Tenantkeep.Posture/app.json (decision 1), publisher verification. Registered 2026-10-23, client id e5b148e7-9689-40b2-9b09-9d0bef133049; verification retried on the next run | Connor: the Partner Center MPN id, a go on creating the app |
 | P2 | `Connect-PostureSession` and `Get-PostureToken` with tests against a stubbed token endpoint | nothing |
 | P3 | `Start-PostureRun` end to end on Kainor, then the first customer | consent once per tenant |
 | P4 | Guide, site and collection docs rewritten around the two lines; consent page on tenantkeep.app | nothing |

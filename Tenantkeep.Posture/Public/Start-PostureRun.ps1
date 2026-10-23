@@ -10,7 +10,9 @@ function Start-PostureRun {
              when the profile does not say azure: none and the Az modules are installed.
           2. SharePoint and Teams in this process, with tokens from the broker.
           3. Exchange and Purview in a fresh process, tokens handed over standard input (the Exchange and PnP modules
-             do not share a process well on macOS).
+             do not share a process well on macOS). Purview is the one service with a sign-in of its own: Security &
+             Compliance PowerShell issues no delegated token to a third-party app, so a second window opens for the
+             same admin (a device code with -DeviceCode or -NoBrowser).
           4. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are copied into the run.
           5. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
              answer the wizard would ask left to the report's Settings view.
@@ -134,13 +136,13 @@ function Start-PostureRun {
     if ($child.Count -gt 0) {
         if (-not (Get-Module -ListAvailable ExchangeOnlineManagement)) { foreach ($n in $child) { $skipped[$n] = 'ExchangeOnlineManagement is not installed: Install-Module ExchangeOnlineManagement -Scope CurrentUser' } }
         else {
-            & $step "Collecting $($child -join ', ') in a second process"
+            & $step "Collecting $($child -join ', ') in a second process$(if ('Purview' -in $child) { ' (Purview opens a sign-in of its own)' })"
             $tokens = @{}
-            foreach ($name in @('graph') + @($child | ForEach-Object { $_.ToLowerInvariant() })) {
+            foreach ($name in @('graph') + @($child | Where-Object { $_ -eq 'Exchange' } | ForEach-Object { 'exchange' })) {
                 $null = Get-PostureToken -Resource $name -Force
                 $tokens[$name] = @{ accessToken = $script:PostureSession['tokens'][$name]['accessToken']; expiresUtc = $script:PostureSession['tokens'][$name]['expiresUtc'].ToString('o') }
             }
-            $request = @{ clientId = $session.clientId; tenantId = $session.tenantId; tenantName = $session.tenantName; account = $session.account; folder = $folder; profilePath = $(if ($profileParam.Count -gt 0) { $profilePath } else { '' }); collectors = $child; tokens = $tokens }
+            $request = @{ clientId = $session.clientId; tenantId = $session.tenantId; tenantName = $session.tenantName; account = $session.account; folder = $folder; profilePath = $(if ($profileParam.Count -gt 0) { $profilePath } else { '' }); collectors = $child; tokens = $tokens; purviewSignIn = $(if ($DeviceCode -or $NoBrowser) { 'device' } else { 'browser' }) }
             $exit = Start-PostureChildCollection -Request $request
             if ($exit -ne 0) { $skipped['Exchange or Purview'] = "The second process reported $exit failed collector(s); see errors.txt in the run folder." }
         }

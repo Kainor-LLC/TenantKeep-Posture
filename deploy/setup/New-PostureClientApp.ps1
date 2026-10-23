@@ -22,7 +22,8 @@
          Needs a Global Administrator who is also an account admin on the Partner Center account, signed in with MFA,
          and the publisher domain verified on both sides (verify: the Partner Global Account id is what Microsoft
          expects; a Location id fails with MPNGlobalAccountNotFound).
-      5. Writes the client id back into app.json so the module and the docs carry it.
+      5. Writes the client id back into app.json so the module and the docs carry it, then verifies the publisher
+         (retried while a new registration replicates).
 
     Needs a delegated Graph session in the Kainor tenant with Application.ReadWrite.All:
       Connect-MgGraph -TenantId <kainor tenant id> -Scopes Application.ReadWrite.All -NoWelcome
@@ -117,22 +118,32 @@ if ($app.id -and $wantDomain -and $haveDomain -ne $wantDomain -and $PSCmdlet.Sho
     catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > Tenantkeep Posture > Branding & properties > Publisher domain." }
 }
 
-# 4. Publisher verification, through Graph. Microsoft checks the signed-in user against the Partner Center account.
-if ($PartnerId -and $app.id) {
-    $have = [string]$(if ($app.ContainsKey('verifiedPublisher') -and $app.verifiedPublisher) { $app.verifiedPublisher.verifiedPublisherId })
-    if ($have -eq $PartnerId) { Write-Host "Publisher already verified as partner $PartnerId" }
-    elseif ($PSCmdlet.ShouldProcess($name, "Set verified publisher $PartnerId")) {
-        $null = Send-GraphPost "$graph/applications/$($app.id)/setVerifiedPublisher" @{ verifiedPublisherId = $PartnerId }
-        Write-Host "Publisher verified as partner $PartnerId"
-    }
-}
-
-# 5. Record the client id where the module reads it.
+# 4. Record the client id where the module reads it, before anything that can still fail.
 if ($app.appId -and [string]$manifest['clientId'] -ne [string]$app.appId -and $PSCmdlet.ShouldProcess($appJsonPath, "Write clientId $($app.appId)")) {
     $raw = Get-Content -LiteralPath $appJsonPath -Raw
     $raw = $raw -replace '"clientId":\s*"[^"]*"', ('"clientId": "' + $app.appId + '"')
     Set-Content -LiteralPath $appJsonPath -Value $raw -NoNewline
     Write-Host "clientId written to $appJsonPath"
+}
+
+# 5. Publisher verification, through Graph. Microsoft checks the signed-in user against the Partner Center account. A
+#    registration created seconds ago answers 404 here until it has replicated (seen live 2026-10-23), so this waits.
+if ($PartnerId -and $app.id) {
+    $have = [string]$(if ($app.ContainsKey('verifiedPublisher') -and $app.verifiedPublisher) { $app.verifiedPublisher.verifiedPublisherId })
+    if ($have -eq $PartnerId) { Write-Host "Publisher already verified as partner $PartnerId" }
+    elseif ($PSCmdlet.ShouldProcess($name, "Set verified publisher $PartnerId")) {
+        $attempt = 0
+        while ($true) {
+            $attempt++
+            try { $null = Send-GraphPost "$graph/applications/$($app.id)/setVerifiedPublisher" @{ verifiedPublisherId = $PartnerId }; Write-Host "Publisher verified as partner $PartnerId"; break }
+            catch {
+                $text = $_.Exception.Message
+                if ($attempt -lt 6 -and $text -match '404|cannot be found') { Write-Host "The registration has not replicated yet (attempt $attempt of 6); waiting 10 seconds."; Start-Sleep -Seconds 10; continue }
+                Write-Warning "Publisher verification failed: $text  The registration and app.json are done; run the script again with -PartnerId to retry this step alone."
+                break
+            }
+        }
+    }
 }
 
 Write-Host @"

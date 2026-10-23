@@ -9,7 +9,8 @@ function Start-PostureChildCollection {
         refresh token), as one JSON document on standard input: not an argument, not an environment variable, not a
         file. Its console output is the parent's console. The exit code says whether every named collector ran.
     .PARAMETER Request
-        tokens (graph, exchange, purview), account, tenantId, tenantName, folder, profilePath, collectors.
+        tokens (graph, exchange), account, tenantId, tenantName, folder, profilePath, collectors, purviewSignIn
+        (browser or device).
     .PARAMETER Command
         The command the child runs. Default: import this module and run Invoke-PostureChildCollection in it.
     #>
@@ -29,7 +30,8 @@ function Start-PostureChildCollection {
     $psi.FileName = $exe
     $psi.UseShellExecute = $false
     $psi.RedirectStandardInput = $true
-    foreach ($a in '-NoProfile', '-NonInteractive', '-Command', $Command) { $psi.ArgumentList.Add($a) }
+    # Not -NonInteractive: the Purview sign-in in the child opens a browser through the Exchange module (verify live).
+    foreach ($a in '-NoProfile', '-Command', $Command) { $psi.ArgumentList.Add($a) }
     $process = [System.Diagnostics.Process]::Start($psi)
     try {
         $process.StandardInput.Write(($Request | ConvertTo-Json -Depth 10 -Compress))
@@ -69,6 +71,7 @@ function Invoke-PostureChildCollection {
     $script:PostureSession = @{
         clientId = [string]$request['clientId']; tenantId = [string]$request['tenantId']; tenantName = [string]$request['tenantName']
         account = [string]$request['account']; refreshToken = ''; signedInUtc = $now; tokens = $tokens
+        purviewSignIn = [string]$(if ($request.ContainsKey('purviewSignIn')) { $request['purviewSignIn'] } else { 'browser' })
     }
     Connect-PostureService -Name graph
     $failed = 0
