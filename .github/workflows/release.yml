@@ -1,0 +1,88 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# A tag v<version> opens a draft GitHub release: the changelog section for that version as the notes, the unsigned
+# staged module and the catalog page attached. Signing, the integrity manifest and the package happen on a
+# maintainer's machine with the certificate and the licence key (build.ps1 -Task Sign, Integrity, Package); the
+# signed zip and its SHA-256 are added to the draft by hand before it is published. Neither key ever enters CI.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          Install-PSResource -Name PSScriptAnalyzer -Version '[1.22.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          Install-PSResource -Name Pester -Version '[5.5.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+
+      - name: Tag matches the manifest
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $data = Import-PowerShellDataFile -Path ./Tenantkeep.Posture/Tenantkeep.Posture.psd1
+          $version = [string]$data.ModuleVersion
+          $pre = [string]$data.PrivateData.PSData.Prerelease
+          $expected = "v$version$(if ($pre) { "-$pre" })"
+          if ($tag -ne $expected) { throw "Tag $tag does not match the manifest, which says $expected. Bump ModuleVersion and Prerelease first." }
+          "version=$version$(if ($pre) { "-$pre" })" >> $env:GITHUB_OUTPUT
+          "prerelease=$([bool]$pre)" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $expected"
+
+      - name: Changelog has a section for this version
+        id: notes
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $lines = Get-Content -Path ./CHANGELOG.md
+          $start = -1
+          for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match "^## $([regex]::Escape($version))\b") { $start = $i; break } }
+          if ($start -lt 0) { throw "CHANGELOG.md has no '## $version' section. Move the Unreleased entries under that heading first." }
+          $end = $lines.Count
+          for ($i = $start + 1; $i -lt $lines.Count; $i++) { if ($lines[$i] -match '^## ') { $end = $i; break } }
+          $body = @($lines[($start + 1)..($end - 1)]) -join "`n"
+          $body += "`n`nThe unsigned zip below is the build CI produced for reference. Install the Authenticode-signed package, which the maintainer attaches before this release is published, and check its SHA-256 against the .sha256 file.`n"
+          Set-Content -Path ./out-notes.md -Value $body
+          Write-Host $body
+
+      - name: Analyze and test
+        shell: pwsh
+        run: ./build.ps1 -Task Analyze, Test -SkipInstall
+
+      - name: Build and render the catalog page
+        shell: pwsh
+        run: ./build.ps1 -Task Build, Catalog -SkipInstall
+
+      - name: Zip the unsigned staged module
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $zip = "./out/Tenantkeep.Posture-$version-unsigned.zip"
+          Compress-Archive -Path ./out/Tenantkeep.Posture -DestinationPath $zip
+          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
+          Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path $zip -Leaf)"
+          Write-Host "SHA256 $hash"
+
+      - name: Open the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          flags=(--draft --title "Tenantkeep Posture $version" --notes-file ./out-notes.md)
+          if [ '${{ steps.version.outputs.prerelease }}' = 'True' ]; then flags+=(--prerelease); fi
+          gh release create '${{ github.ref_name }}' "${flags[@]}" \
+            "./out/Tenantkeep.Posture-$version-unsigned.zip" \
+            "./out/Tenantkeep.Posture-$version-unsigned.zip.sha256" \
+            ./out/catalog.md ./out/catalog.html

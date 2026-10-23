@@ -1,0 +1,11 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# Keeps the GitHub Actions this repository runs on current. PowerShell module floors live in the workflows and
+# build.ps1 and are bumped by hand after the Monday fresh-install run shows a new version is fine.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies]

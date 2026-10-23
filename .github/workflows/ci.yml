@@ -5,9 +5,19 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Mondays 06:00 UTC: a fresh install of the newest analyzer, Pester and Graph modules, so a dependency
+    # change breaks here before it breaks a customer. The cache is skipped on this run on purpose.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -20,12 +30,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache PowerShell modules
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.os == 'Windows' && '~/Documents/PowerShell/Modules' || '~/.local/share/powershell/Modules' }}
+          # Bump the suffix to force a fresh install everywhere.
+          key: psmodules-${{ runner.os }}-1
+
       - name: Install build dependencies
         shell: pwsh
         run: |
           Install-PSResource -Name PSScriptAnalyzer -Version '[1.22.0,)' -Scope CurrentUser -TrustRepository -Quiet
           Install-PSResource -Name Pester -Version '[5.5.0,)' -Scope CurrentUser -TrustRepository -Quiet
           Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          Get-Module -ListAvailable PSScriptAnalyzer, Pester, Microsoft.Graph.Authentication | Format-Table Name, Version
 
       - name: Secret scan of the whole tree
         shell: pwsh
@@ -52,14 +71,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Cache PowerShell modules
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: psmodules-${{ runner.os }}-1
       - name: Install build dependencies
         shell: pwsh
         run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
-      - name: Stage module
+      - name: Stage module and render the catalog page
         shell: pwsh
-        run: ./build.ps1 -Task Build -SkipInstall
+        run: ./build.ps1 -Task Build, Catalog -SkipInstall
       - name: Confirm Package refuses to run without a certificate
         shell: pwsh
         run: |
           try { ./build.ps1 -Task Package -SkipInstall; throw 'Package ran without a signing certificate.' }
           catch { if ($_.Exception.Message -notmatch 'No signing certificate') { throw } ; Write-Host "Refused as expected: $($_.Exception.Message)" }
+      - name: Upload the catalog page
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog
+          path: |
+            out/catalog.md
+            out/catalog.html
