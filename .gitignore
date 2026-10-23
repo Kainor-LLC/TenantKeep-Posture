@@ -1,9 +1,6 @@
 # local notes with tenant and account details (CLAUDE.md: never commit)
 CLAUDE.local.md
 
-# separate product spec, not part of this repo
-docs/oncall-app-spec.md
-
 # build output
 out/
 *.nupkg
@@ -35,4 +32,13 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
-docs/
+
+# planning material stays local; the product docs are tracked by name
+docs/*
+!docs/guide.md
+!docs/licensing.md
+!docs/footprint.md
+!docs/architecture.md
+!docs/collection.md
+!docs/scheduling.md
+!docs/profile.md
