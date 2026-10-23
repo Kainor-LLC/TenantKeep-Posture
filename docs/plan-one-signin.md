@@ -148,7 +148,7 @@ Rakhesh and Maester); what is left is the live run, marked (verify):
 | | Deliverable | Needs |
 |---|---|---|
 | P0 | The four spikes, results written here | Connor's sign-ins on the Mac and a Windows box |
-| P1 | The app registration in the Kainor tenant, manifest committed under deploy/app/, publisher verification | Connor: the Partner Center MPN id, a go on creating the app |
+| P1 | The app registration in the Kainor tenant, manifest committed as Tenantkeep.Posture/app.json (decision 1), publisher verification | Connor: the Partner Center MPN id, a go on creating the app |
 | P2 | `Connect-PostureSession` and `Get-PostureToken` with tests against a stubbed token endpoint | nothing |
 | P3 | `Start-PostureRun` end to end on Kainor, then the first customer | consent once per tenant |
 | P4 | Guide, site and collection docs rewritten around the two lines; consent page on tenantkeep.app | nothing |

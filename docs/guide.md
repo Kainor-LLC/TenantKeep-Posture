@@ -28,6 +28,9 @@ What you need:
 - Consent, once per tenant. Tenantkeep Posture is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
+- Conditional Access. A policy that blocks sign-ins to unapproved apps, or requires a compliant device, stops the run
+  with the app id in the message. Allow the app or exclude the admin running the report; the module works around
+  nothing.
 
 Useful switches: `-TenantId` refuses a sign-in to any other tenant; `-Collector Entra, Intune, Exchange` runs a
 subset; `-DeviceCode` signs in from a machine without a browser; `-Client` points at a client folder other than the

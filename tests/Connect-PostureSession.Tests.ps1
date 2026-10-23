@@ -88,6 +88,14 @@ Describe 'Connect-PostureSession in the browser flow' {
         }
     }
 
+    It 'reports a Conditional Access block with the app id and does not retry' {
+        InModuleScope Tenantkeep.Posture {
+            Mock Invoke-PostureTokenRequest { throw 'Sign-in failed (access_denied): AADSTS53003: Access has been blocked by Conditional Access policies. The access policy does not allow token issuance.' }
+            { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*Conditional Access policy*app id aaaaaaaa-0000-0000-0000-000000000001*'
+            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly
+        }
+    }
+
     It 'Disconnect-PostureSession forgets the tokens' {
         InModuleScope Tenantkeep.Posture {
             Mock Disconnect-PostureService { }

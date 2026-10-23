@@ -10,8 +10,9 @@ function Connect-PostureSession {
         (Get-PostureToken) and opens the Graph session right away. The refresh token lives in this process only and
         is never written to disk. Every token is the signed-in admin's, bounded by that admin's own roles.
 
-        A tenant that has not consented to the app yet is told so, with the admin consent link. Pass -TenantId to
-        refuse a sign-in to any other tenant.
+        A tenant that has not consented to the app yet is told so, with the admin consent link. A Conditional Access
+        policy that blocks the sign-in is reported with the app id, so the admin can allow it; the module does not
+        work around it. Pass -TenantId to refuse a sign-in to any other tenant.
     .PARAMETER TenantId
         Tenant id or a verified domain. Default: organizations, which lets the admin pick the tenant in the browser.
         With a tenant id, the sign-in is refused if the account that signs in belongs to another tenant.
@@ -92,6 +93,9 @@ function Connect-PostureSession {
         $text = $_.Exception.Message
         if ($text -match 'AADSTS65001|consent_required|AADSTS650') {
             throw "This tenant has not consented to Tenantkeep Posture yet. An admin consents once, here: $consentLink  Then run the command again. ($text)"
+        }
+        if ($text -match 'AADSTS5300\d|AADSTS530032') {
+            throw "A Conditional Access policy in this tenant blocked this sign-in to Tenantkeep Posture (app id $clientId). The policy says what it wants: a compliant device, an approved app, or an exclusion for the admin running the report. Nothing was read. ($text)"
         }
         throw
     }
