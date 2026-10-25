@@ -6,7 +6,12 @@ work landed on main.
 
 ## Unreleased
 
-Everything so far, built 2026-10-13 to 2026-10-23.
+Nothing yet.
+
+## 0.1.0-alpha (2026-10-25)
+
+First tagged pre-release, from a public repository under PolyForm Shield 1.0.0. Everything built 2026-10-13 to
+2026-10-25. Not yet on the PowerShell Gallery; install from the release zip or a clone.
 
 - Conditional Access: `Export-PostureCaSnapshot` (raw wire JSON, name resolution, group scope hashes),
   `New-PostureCaDocument` (Markdown, self-contained HTML, PDF, coverage findings) and `Compare-PostureCaSnapshot`
