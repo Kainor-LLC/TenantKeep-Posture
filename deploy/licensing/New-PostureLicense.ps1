@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 <#
 .SYNOPSIS
-    Issues a Tenantkeep licence file. Kainor-side only: it needs the private signing key, which lives in Kainor's Azure
+    Issues a TenantKeep licence file. Kainor-side only: it needs the private signing key, which lives in Kainor's Azure
     Key Vault (or, for development, a local PEM that never enters this repository). Customers never run this.
 .DESCRIPTION
     Writes <tenantId>.tenantkeep.lic: the licence fields, the key id and an ECDSA P-256 signature (SHA-256, IEEE P1363

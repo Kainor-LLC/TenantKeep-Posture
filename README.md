@@ -1,4 +1,4 @@
-# Tenantkeep Posture
+# TenantKeep Posture
 
 Read-only Microsoft 365 security posture report, with Conditional Access documentation and diff.
 PowerShell 7. Mac first; Windows and Linux supported.

@@ -1,6 +1,6 @@
 # Security
 
-Tenantkeep Posture reads a tenant and writes nothing back to it. If you find a way to make it do otherwise, a way
+TenantKeep Posture reads a tenant and writes nothing back to it. If you find a way to make it do otherwise, a way
 to make it send data outside the customer's environment, a way around the licence check that matters to you, or any
 other security problem, tell Kainor privately first.
 

@@ -1,4 +1,4 @@
-# How Tenantkeep Posture works
+# How TenantKeep Posture works
 
 One page for the person who has to reason about the whole thing: what runs where, as whom, reading what, writing
 where. The itemised inventory of what each way of running installs, and how to remove it, is docs/footprint.md. The spec (posture-spec.md) says what the product is; this says how it is put together. Dated statements are
@@ -11,7 +11,7 @@ decisions; `(verify)` marks what has not been proven live yet.
 | Module `Tenantkeep.Posture` | this repo, PowerShell Gallery and signed zips | Collectors, check engine, catalog, report renderers, licence verifier. Read-only against the tenant, always. |
 | Check catalog and baselines | `checks/`, `baselines/` | Data, not code: 204 checks in 13 domains, baselines that select and weight them, framework crosswalks. |
 | Report | `templates/`, rendered by the module | One self-contained HTML file per run (inline CSS and JS, no CDN), plus Markdown and optional PDF. |
-| Sign-in app **Tenantkeep Posture** | one app registration in the Kainor tenant, manifest in `Tenantkeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated, read-only permissions and no credentials. Customers consent once; `Connect-PostureSession` signs the admin in to it with PKCE on a loopback port and brokers a token per service from that one sign-in (plan: docs/plan-one-signin.md, 2026-10-22). |
+| Sign-in app **TenantKeep Posture** | one app registration in the Kainor tenant, manifest in `Tenantkeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated, read-only permissions and no credentials. Customers consent once; `Connect-PostureSession` signs the admin in to it with PKCE on a loopback port and brokers a token per service from that one sign-in (plan: docs/plan-one-signin.md, 2026-10-22). |
 | Windows AD collector | `collectors/windows/Get-ADBaseline.ps1` | Standalone read-only script for a domain-joined machine; its files join the evidence folder. |
 | Customer-side setup | `deploy/setup/`, `deploy/automation/Grant-ManagedIdentityGraphRole.ps1` | The only tenant writes in the repo: app registration, consents, role grants. Run once by the customer's admin, never by the module. |
 | Automation deployment | `deploy/automation/` (Bicep, deploy.ps1), `deploy/schedules/` (runbooks) | Option B: an Automation account in the customer's subscription with a managed identity, a nightly Conditional Access cycle and a monthly full posture cycle. |
@@ -20,7 +20,7 @@ decisions; `(verify)` marks what has not been proven live yet.
 
 ## A run, end to end
 
-1. **Sign in.** Locally, once: `Start-PostureRun` opens the browser for the admin's sign-in to the Tenantkeep Posture
+1. **Sign in.** Locally, once: `Start-PostureRun` opens the browser for the admin's sign-in to the TenantKeep Posture
    app, then gets a delegated token per service (Graph, Exchange, SharePoint, Teams, Azure) from the refresh token it
    holds in memory. `Connect-PostureService` is the only file in the module that opens a session, always with one of
    those tokens, except Purview: Security and Compliance PowerShell issues no delegated token to a third-party app, so
@@ -48,7 +48,7 @@ decisions; `(verify)` marks what has not been proven live yet.
 
 ## Identities and permissions
 
-- **Local runs** use the signed-in admin's delegated permissions through the Tenantkeep Posture app: every token is
+- **Local runs** use the signed-in admin's delegated permissions through the TenantKeep Posture app: every token is
   that admin's and goes no further than their roles. Global Reader covers most reads; Exchange needs View-Only
   Organization Management, SharePoint the SharePoint Administrator role, Purview a compliance read role, Azure Reader
   and Security Reader. The app itself has no credentials, so there is nothing in it to steal; what Kainor controls is

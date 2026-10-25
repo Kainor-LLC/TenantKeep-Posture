@@ -32,7 +32,7 @@
 .PARAMETER Tenant
     The tenant's onmicrosoft.com name, for example contoso.onmicrosoft.com.
 .PARAMETER ApplicationName
-    Display name of the app registration, so admins can tell what it belongs to. Default: Tenantkeep Posture (SharePoint).
+    Display name of the app registration, so admins can tell what it belongs to. Default: TenantKeep Posture (SharePoint).
 .PARAMETER ProfilePath
     profile.json to update with sharePointClientId.
 .PARAMETER ClientId
@@ -55,7 +55,7 @@
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'One-time admin script output is for the console.')]
 param(
     [Parameter(Mandatory)] [ValidatePattern('^[A-Za-z0-9-]+\.onmicrosoft\.com$')] [string] $Tenant,
-    [string] $ApplicationName = 'Tenantkeep Posture (SharePoint)',
+    [string] $ApplicationName = 'TenantKeep Posture (SharePoint)',
     [string] $ProfilePath,
     [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
     [switch] $ReadOnlyPermission,

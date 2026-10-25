@@ -32,7 +32,7 @@ function ConvertTo-PostureReportMarkdown {
     if ($b.client.name) { $prepared += " for $($b.client.name)" }
     & $line "Prepared by $prepared. Tenant $(if ($r.tenantName) { "$($r.tenantName) " })``$($r.tenantId)``. Evidence collected $(& $fmtDate $r.collectedUtc). Report generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $($r.appendix.moduleVersion), catalog $($r.appendix.catalogVersion), baseline $($r.appendix.baseline). $($r.template) template.$(if ($r.licence -and $r.licence.licensed) { " Licensed to $($r.licence.customer), $($r.licence.tier) tier, until $(& $fmtDate $r.licence.expiresUtc)." })$(if ($r.build) { " $($r.build.detail)" })"
     if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) { & $line ''; & $line "**Licence:** $(if ($r.licence.reason) { $r.licence.reason } else { 'not licensed' })" }
-    if ($r.build -and $r.build.state -eq 'modified') { & $line ''; & $line "**Build:** $($r.build.detail) This report was not produced by an intact Tenantkeep release." }
+    if ($r.build -and $r.build.state -eq 'modified') { & $line ''; & $line "**Build:** $($r.build.detail) This report was not produced by an intact TenantKeep release." }
     if ($b.confidentiality) { & $line; & $line "*$($b.confidentiality)*" }
     & $line
 

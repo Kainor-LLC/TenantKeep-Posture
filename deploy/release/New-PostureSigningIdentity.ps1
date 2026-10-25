@@ -48,7 +48,7 @@ param(
     [Parameter(Mandatory)] [string] $KeyName,
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')] [string] $Repository = 'Kainor-LLC/tenantkeep-posture',
     [string] $Environment = 'release',
-    [string] $AppName = 'Tenantkeep Posture release signing'
+    [string] $AppName = 'TenantKeep Posture release signing'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest

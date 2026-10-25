@@ -39,7 +39,7 @@ function Get-CaChangeNotificationContent {
 <p>Between <strong>$(& $h $BeforeName)</strong> and <strong>$(& $h $AfterName)</strong>. Policies added $($c.added), removed $($c.removed), renamed $($c.renamed), state changed $($c.stateChanged), modified $($c.modified); locations $($c.locations), strengths $($c.strengths), groups drifted $($c.scope).</p>
 $(if ($count -gt 0) { "<table style=`"border-collapse:collapse;border:1px solid #d9dee3`"><thead><tr><th style=`"text-align:left;padding:4px 8px`">Rule</th><th style=`"text-align:left;padding:4px 8px`">Subject</th><th style=`"text-align:left;padding:4px 8px`">Detail</th></tr></thead><tbody>$($rows -join '')</tbody></table>" } else { '<p>No risk-relevant changes.</p>' })
 <p>The full change report is attached (ca-changes.html) and in the snapshot folder.</p>
-<p style="color:#5c6670;font-size:12px">Sent by the Tenantkeep Posture schedule in your environment. Nothing was sent anywhere else.</p>
+<p style="color:#5c6670;font-size:12px">Sent by the TenantKeep Posture schedule in your environment. Nothing was sent anywhere else.</p>
 </body></html>
 "@
     return @{ Subject = $subject; Body = $body }

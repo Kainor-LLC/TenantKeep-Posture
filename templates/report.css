@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md. */
-/* Tenantkeep Posture report. Tokens first, light and dark, then layout, then the interactive parts. No external assets. */
+/* TenantKeep Posture report. Tokens first, light and dark, then layout, then the interactive parts. No external assets. */
 :root {
   --primary: #1F3A5F; --accent: #E8A33D; --font: Inter, "Segoe UI", Helvetica, Arial, sans-serif;
   --bg: #f7f8fa; --fg: #1b1f23; --muted: #5c6670; --line: #d9dee3; --card: #ffffff; --panel: #ffffff; --soft: #eef1f5;

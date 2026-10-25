@@ -1,4 +1,4 @@
-Tenantkeep Posture is source-available and does not accept external pull requests yet (see CONTRIBUTING.md). If you
+TenantKeep Posture is source-available and does not accept external pull requests yet (see CONTRIBUTING.md). If you
 are not a maintainer, please close this and open an issue describing the change instead; it will be credited.
 
 Maintainer checklist:

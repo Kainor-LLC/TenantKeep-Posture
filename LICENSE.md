@@ -1,12 +1,12 @@
-# Tenantkeep Posture License
+# TenantKeep Posture License
 
-Tenantkeep Posture is licensed under the PolyForm Shield License 1.0.0, reproduced in full below. In plain
+TenantKeep Posture is licensed under the PolyForm Shield License 1.0.0, reproduced in full below. In plain
 words: you may read, run, change and redistribute this software for any purpose except providing a product that
 competes with it or with Kainor's other products built on it. There is no warranty.
 
 Required Notice: Copyright Kainor LLC (https://kainor.com)
 
-Licensor Line of Business: Tenantkeep Posture, Microsoft 365 security posture reporting (https://tenantkeep.app)
+Licensor Line of Business: TenantKeep Posture, Microsoft 365 security posture reporting (https://tenantkeep.app)
 
 The licence tiers described in docs/licensing.md (the free Conditional Access domain and the paid Full tier,
 unlocked by a signed licence file) are a product entitlement, separate from this copyright licence. Later versions

@@ -4,7 +4,7 @@ function Connect-PostureSession {
     .SYNOPSIS
         One sign-in for every service the posture run reads. Opens the browser, holds the session in memory.
     .DESCRIPTION
-        Signs the admin in to the Tenantkeep Posture app (a multi-tenant public client with delegated, read-only
+        Signs the admin in to the TenantKeep Posture app (a multi-tenant public client with delegated, read-only
         permissions; see app.json and docs/plan-one-signin.md) with the authorization code flow and PKCE on a loopback
         port, in plain PowerShell. From that one sign-in the module gets a token for each service as it needs one
         (Get-PostureToken) and opens the Graph session right away. The refresh token lives in this process only and
@@ -83,7 +83,7 @@ function Connect-PostureSession {
                 try { Start-Process $url; $opened = $true } catch { Write-Verbose "Browser did not open: $($_.Exception.Message)" }
             }
             Write-Host ''
-            if ($opened) { Write-Host 'Sign in to Tenantkeep Posture in the browser window that just opened.' -ForegroundColor Cyan }
+            if ($opened) { Write-Host 'Sign in to TenantKeep Posture in the browser window that just opened.' -ForegroundColor Cyan }
             else { Write-Host 'Open this address in a browser and sign in:' -ForegroundColor Cyan; Write-Host "  $url" }
             $code = Wait-PostureAuthCode -Loopback $loopback -State $state -TimeoutSeconds $TimeoutSeconds
             $tokens = Invoke-PostureTokenRequest -Endpoint token -TenantId $TenantId -Form @{ grant_type = 'authorization_code'; client_id = $clientId; code = $code; redirect_uri = $loopback['redirectUri']; code_verifier = $verifier; scope = $scope }
@@ -92,10 +92,10 @@ function Connect-PostureSession {
     catch {
         $text = $_.Exception.Message
         if ($text -match 'AADSTS65001|consent_required|AADSTS650') {
-            throw "This tenant has not consented to Tenantkeep Posture yet. An admin consents once, here: $consentLink  Then run the command again. ($text)"
+            throw "This tenant has not consented to TenantKeep Posture yet. An admin consents once, here: $consentLink  Then run the command again. ($text)"
         }
         if ($text -match 'AADSTS5300\d|AADSTS530032') {
-            throw "A Conditional Access policy in this tenant blocked this sign-in to Tenantkeep Posture (app id $clientId). The policy says what it wants: a compliant device, an approved app, or an exclusion for the admin running the report. Nothing was read. ($text)"
+            throw "A Conditional Access policy in this tenant blocked this sign-in to TenantKeep Posture (app id $clientId). The policy says what it wants: a compliant device, an approved app, or an exclusion for the admin running the report. Nothing was read. ($text)"
         }
         throw
     }

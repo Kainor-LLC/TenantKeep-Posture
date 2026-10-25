@@ -1,4 +1,4 @@
-# Tenantkeep Posture
+# TenantKeep Posture
 
 Microsoft security posture report for Entra, Intune, Defender, Exchange, Purview, SharePoint, Teams, Copilot readiness, Azure and hybrid AD, plus a Conditional Access documentation and diff generator. PowerShell 7 module. Read-only against the tenant, always. Publisher: Kainor LLC. Product name decided 2026-10-13.
 
@@ -70,3 +70,10 @@ PSScriptAnalyzerSettings.psd1
 See `docs/posture-spec.md` section 9. Start with the CA snapshot, document and diff (section 5). First deliverable: `Export-PostureCaSnapshot`.
 
 Progress is tracked in `docs/checklist.md`, one line per deliverable with its commit. It is local and never committed (docs/* is ignored); update it at every checkpoint commit all the same.
+
+## Name
+
+- **The name is TenantKeep, capital K, everywhere it is written.** Decided 2026-10-25. The
+  app is TenantKeep On-Call; the report is TenantKeep Posture; the credentials module is
+  LAPSlock. The domain stays lowercase, tenantkeep.com. The PowerShell module identifier
+  `Tenantkeep.Posture` is the one exception until that module is renamed on purpose.

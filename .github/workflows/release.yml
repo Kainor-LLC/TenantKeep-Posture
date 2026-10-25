@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           version='${{ steps.version.outputs.version }}'
-          flags=(--draft --title "Tenantkeep Posture $version" --notes-file ./out-notes.md)
+          flags=(--draft --title "TenantKeep Posture $version" --notes-file ./out-notes.md)
           if [ '${{ steps.version.outputs.prerelease }}' = 'True' ]; then flags+=(--prerelease); fi
           gh release create '${{ github.ref_name }}' "${flags[@]}" \
             "./out/Tenantkeep.Posture-$version-unsigned.zip" \

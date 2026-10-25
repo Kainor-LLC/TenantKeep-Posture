@@ -57,7 +57,7 @@ param organization string = ''
 param sharePointAdminUrl string = ''
 
 param tags object = {
-  product: 'Tenantkeep Posture'
+  product: 'TenantKeep Posture'
   component: 'ca-monitor'
 }
 
@@ -195,7 +195,7 @@ resource runtimeEnvironment 'Microsoft.Automation/automationAccounts/runtimeEnvi
   properties: {
     runtime: { language: 'PowerShell', version: '7.4' }
     defaultPackages: { az: '12.3.0' } // (verify) Az version offered for 7.4 runtimes
-    description: 'PowerShell 7.4 with Az, for Tenantkeep Posture'
+    description: 'PowerShell 7.4 with Az, for TenantKeep Posture'
   }
 }
 

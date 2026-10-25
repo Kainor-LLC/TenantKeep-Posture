@@ -119,7 +119,7 @@ function Invoke-Catalog {
     $byDomain = @{}
     foreach ($f in $files) { $d = Get-Content -Raw $f.FullName | ConvertFrom-Json; $byDomain[[string]$d.domain] = @($d.checks) }
     $md = [System.Collections.Generic.List[string]]::new()
-    $md.Add("# Tenantkeep Posture check catalog $version"); $md.Add('')
+    $md.Add("# TenantKeep Posture check catalog $version"); $md.Add('')
     $md.Add('Every check the product evaluates, by domain. The pass logic, remediation and framework mappings are part of the product; this page lists what is checked and the licence each check needs.'); $md.Add('')
     $total = 0
     $esc = { param([string] $x) $x -replace '\|', '\|' }
@@ -135,8 +135,8 @@ function Invoke-Catalog {
     [System.IO.File]::WriteAllText($mdPath, ($md -join "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     $h = { param([string] $x) [System.Net.WebUtility]::HtmlEncode($x) }
     $html = [System.Collections.Generic.List[string]]::new()
-    $html.Add('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tenantkeep Posture check catalog</title><style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#1b1b1b}table{border-collapse:collapse;width:100%;margin-bottom:2rem}th,td{border:1px solid #ddd;padding:.4rem .6rem;text-align:left;vertical-align:top;font-size:.92rem}th{background:#f3f3f3}h2{margin-top:2rem}</style></head><body>')
-    $html.Add("<h1>Tenantkeep Posture check catalog $(& $h $version)</h1><p>Every check the product evaluates, by domain. The pass logic, remediation and framework mappings are part of the product; this page lists what is checked and the licence each check needs.</p>")
+    $html.Add('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TenantKeep Posture check catalog</title><style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#1b1b1b}table{border-collapse:collapse;width:100%;margin-bottom:2rem}th,td{border:1px solid #ddd;padding:.4rem .6rem;text-align:left;vertical-align:top;font-size:.92rem}th{background:#f3f3f3}h2{margin-top:2rem}</style></head><body>')
+    $html.Add("<h1>TenantKeep Posture check catalog $(& $h $version)</h1><p>Every check the product evaluates, by domain. The pass logic, remediation and framework mappings are part of the product; this page lists what is checked and the licence each check needs.</p>")
     foreach ($dom in $order) {
         if (-not $byDomain.ContainsKey($dom)) { continue }
         $checks = @($byDomain[$dom])

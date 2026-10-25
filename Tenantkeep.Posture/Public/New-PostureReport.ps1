@@ -23,7 +23,7 @@ function New-PostureReport {
     .PARAMETER Format
         One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
     .PARAMETER LicensePath
-        Tenantkeep licence file. Default: TENANTKEEP_LICENSE, <Client>/tenantkeep.lic, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated and the report says so (docs/licensing.md).
+        TenantKeep licence file. Default: TENANTKEEP_LICENSE, <Client>/tenantkeep.lic, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated and the report says so (docs/licensing.md).
     .PARAMETER Previous
         An earlier run's checks.json, or the folder holding one, for the Trend view: score and domain deltas, checks
         that started or stopped failing, affected counts that moved.

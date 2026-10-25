@@ -25,7 +25,7 @@ BeforeAll {
             $scopes = @($resource['scopes'] | Where-Object { $_ -ne 'Reports.Read.All' } | ForEach-Object { @{ id = "id-$_"; value = $_ } })
             return @{ value = @(@{ id = "sp-$appId"; displayName = $resource['label']; oauth2PermissionScopes = $scopes }) }
         }
-        if ($u -match "applications\?\`$filter=displayName eq 'Tenantkeep Posture'") {
+        if ($u -match "applications\?\`$filter=displayName eq 'TenantKeep Posture'") {
             if ($env:TKP_CLIENTAPP_EXISTS -eq '1') { return @{ value = @(@{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001'; publisherDomain = 'kainor.example'; verifiedPublisher = @{ verifiedPublisherId = $null } }) } }
             return @{ value = @() }
         }
@@ -52,7 +52,7 @@ Describe 'Tenantkeep.Posture/app.json' {
     BeforeAll { $script:Manifest = Get-Content -LiteralPath $script:ShippedManifest -Raw | ConvertFrom-Json -AsHashtable }
 
     It 'names the app, the loopback redirect and the consent page' {
-        $script:Manifest['displayName'] | Should -Be 'Tenantkeep Posture'
+        $script:Manifest['displayName'] | Should -Be 'TenantKeep Posture'
         $script:Manifest['redirectUri'] | Should -Be 'http://localhost'
         $script:Manifest['consentRedirectUri'] | Should -Match '^https://tenantkeep\.app/'
     }

@@ -119,8 +119,8 @@ Describe 'New-PostureCaDocument' {
 
         It 'uses the free-tier branding by default' {
             $script:Md | Should -Match '^# Conditional Access documentation: 00000000-aaaa-bbbb-cccc-000000000000'
-            $script:Md | Should -Match 'Prepared by Tenantkeep Posture\.'
-            $script:Md | Should -Match 'Prepared with Tenantkeep Posture'
+            $script:Md | Should -Match 'Prepared by TenantKeep Posture\.'
+            $script:Md | Should -Match 'Prepared with TenantKeep Posture'
         }
 
         It 'renders the device filter rule' {
@@ -160,7 +160,7 @@ Describe 'New-PostureCaDocument' {
             $md | Should -Match '\*Confidential\. Prepared for Contoso Ltd\.\*'
             $md | Should -Match 'Prepared by Example MSP\s*$'
             $r.Document.naming.pattern | Should -Be $script:Pattern
-            $md | Should -Not -Match 'Prepared with Tenantkeep Posture'
+            $md | Should -Not -Match 'Prepared with TenantKeep Posture'
         }
     }
 

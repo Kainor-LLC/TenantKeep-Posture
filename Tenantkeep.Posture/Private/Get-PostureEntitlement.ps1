@@ -41,12 +41,12 @@ function Get-PostureEntitlement {
     $candidates.Add((Join-Path $HOME 'tenantkeep' 'tenantkeep.lic'))
     $path = $null
     foreach ($c in $candidates) { $p = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($c); if (Test-Path -LiteralPath $p -PathType Leaf) { $path = $p; break } }
-    if (-not $path) { return & $free "No licence file found (looked for $($candidates -join ', ')). The Conditional Access domain is evaluated; the other domains need a Tenantkeep Posture licence (docs/licensing.md)." }
+    if (-not $path) { return & $free "No licence file found (looked for $($candidates -join ', ')). The Conditional Access domain is evaluated; the other domains need a TenantKeep Posture licence (docs/licensing.md)." }
 
     $check = Test-PostureLicense -Path $path -TenantId $tenantId -AsOfUtc $asOf
     if (-not $check.valid) { return & $free "$($check.reason) The Conditional Access domain is evaluated; the other domains need a valid licence (docs/licensing.md)." }
     $domains = $(if ($check.tier -eq 'full') { '*' } else { @('ca') })
-    $reason = $(if ($check.tier -eq 'full') { $null } else { 'Tenantkeep CA licence: the Conditional Access domain and the scheduled CA cycle. The other domains need the Posture (full) tier.' })
+    $reason = $(if ($check.tier -eq 'full') { $null } else { 'TenantKeep CA licence: the Conditional Access domain and the scheduled CA cycle. The other domains need the Posture (full) tier.' })
     return @{ licensed = $true; tier = $check.tier; domains = $domains; reason = $reason; source = $path; licence = $check.licence; tenantId = $tenantId }
 }
 

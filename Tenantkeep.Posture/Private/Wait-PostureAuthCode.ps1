@@ -48,8 +48,8 @@ function Wait-PostureAuthCode {
         $error1 = [string]$query['error']
         $code = [string]$query['code']
         $ok = (-not $error1) -and $code -and ([string]$query['state'] -eq $State)
-        $html = if ($ok) { '<!doctype html><title>Tenantkeep Posture</title><body style="font-family:system-ui;margin:3rem"><h1>Signed in</h1><p>You can close this window and go back to the terminal.</p></body>' }
-        else { '<!doctype html><title>Tenantkeep Posture</title><body style="font-family:system-ui;margin:3rem"><h1>Sign-in did not complete</h1><p>Go back to the terminal for the reason.</p></body>' }
+        $html = if ($ok) { '<!doctype html><title>TenantKeep Posture</title><body style="font-family:system-ui;margin:3rem"><h1>Signed in</h1><p>You can close this window and go back to the terminal.</p></body>' }
+        else { '<!doctype html><title>TenantKeep Posture</title><body style="font-family:system-ui;margin:3rem"><h1>Sign-in did not complete</h1><p>Go back to the terminal for the reason.</p></body>' }
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($html)
         $context.Response.ContentType = 'text/html; charset=utf-8'
         $context.Response.ContentLength64 = $bytes.Length

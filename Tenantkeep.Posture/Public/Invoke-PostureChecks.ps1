@@ -23,7 +23,7 @@ function Invoke-PostureChecks {
     .PARAMETER Domain
         Limit to these domains, for example ca.
     .PARAMETER LicensePath
-        Tenantkeep licence file. Default: TENANTKEEP_LICENSE, the profile's folder, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated (docs/licensing.md).
+        TenantKeep licence file. Default: TENANTKEEP_LICENSE, the profile's folder, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated (docs/licensing.md).
     .PARAMETER OutputPath
         Folder for checks.json. Default: the evidence folder.
     .PARAMETER PassThru

@@ -2,7 +2,7 @@
 function Get-PostureLicense {
     <#
     .SYNOPSIS
-        Shows whether a Tenantkeep licence file is valid, for which tenant and tier, and when it expires. Verification
+        Shows whether a TenantKeep licence file is valid, for which tenant and tier, and when it expires. Verification
         is offline: an ECDSA signature checked against the public keys built into the module. Nothing is sent anywhere.
     .DESCRIPTION
         Without -Path the file is looked for in TENANTKEEP_LICENSE, then ~/tenantkeep/tenantkeep.lic. With -Evidence

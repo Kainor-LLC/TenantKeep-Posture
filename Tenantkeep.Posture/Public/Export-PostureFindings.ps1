@@ -15,7 +15,7 @@ function Export-PostureFindings {
     .PARAMETER OutputPath
         Where to write findings.csv. Default: next to the checks.json.
     .PARAMETER LicensePath
-        Tenantkeep licence file; the same lookup as New-PostureReport. Findings from unlicensed domains are left out and every row carries the licence id.
+        TenantKeep licence file; the same lookup as New-PostureReport. Findings from unlicensed domains are left out and every row carries the licence id.
     .PARAMETER Merge
         An earlier findings.csv whose Owner, Status, Effort and Dependency survive for the same IDs.
     .PARAMETER IncludePassed

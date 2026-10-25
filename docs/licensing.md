@@ -1,6 +1,6 @@
 # Licensing: how the licence file works
 
-Tenantkeep Posture is source-available (PolyForm Shield 1.0.0, LICENSE.md) and its entitlement is a signed file, verified offline. Nothing is
+TenantKeep Posture is source-available (PolyForm Shield 1.0.0, LICENSE.md) and its entitlement is a signed file, verified offline. Nothing is
 sent anywhere to check it. This page is for the customer who received one and for the reviewer who wants to know what
 the module does with it.
 
@@ -9,8 +9,8 @@ the module does with it.
 | Tier | What it covers | Licence needed |
 |---|---|---|
 | Free | `Export-PostureCaSnapshot`, `New-PostureCaDocument`, `Compare-PostureCaSnapshot`, the Conditional Access domain in any report, any number of tenants | none |
-| Tenantkeep CA | The scheduled CA cycle (nightly snapshot, diff, alerts) in the customer's own automation | `ca` |
-| Tenantkeep Posture | Every domain in the report, the findings register, the trend, the framework crosswalks | `full` |
+| TenantKeep CA | The scheduled CA cycle (nightly snapshot, diff, alerts) in the customer's own automation | `ca` |
+| TenantKeep Posture | Every domain in the report, the findings register, the trend, the framework crosswalks | `full` |
 
 Without a valid Full licence the report still generates: the Conditional Access domain is evaluated, every other
 check reads as not evaluated with the licence reason, and the report's header says so.
@@ -39,7 +39,7 @@ of them can change. Example shape:
 1. The key id names a public key built into the module (`Tenantkeep.Posture/Private/Test-PostureLicense.ps1`).
    The private keys live in Kainor's Azure Key Vault and never leave it.
 2. The signature verifies against the canonical fields. Any edit, including the tenant id, tier or expiry, fails here.
-3. The product is Tenantkeep and the tier is one the module knows.
+3. The product is TenantKeep and the tier is one the module knows.
 4. The tenant id matches the tenant recorded in the evidence folder (`collection.json`, else `metadata.json`), which
    the collector wrote from the signed-in Graph session. A licence for one tenant does nothing against another.
 5. The licence is not expired at the later of the current clock and the collection time, so a rolled-back clock does

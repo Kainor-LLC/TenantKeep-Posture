@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md. */
-/* Tenantkeep Posture report behaviour. Plain JS, no dependencies, no network. The page is fully rendered without
+/* TenantKeep Posture report behaviour. Plain JS, no dependencies, no network. The page is fully rendered without
    it; this adds view switching, filters, the check drawer with the exception form, the live re-score, the risk
    register, the settings view, and saving into the client folder through the browser's folder picker (Chromium),
    with file downloads as the fallback everywhere else. */

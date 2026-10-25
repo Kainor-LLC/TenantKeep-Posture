@@ -115,7 +115,7 @@ $wantDomain = [string]$manifest['publisherDomain']
 $haveDomain = [string]$(if ($app.ContainsKey('publisherDomain')) { $app.publisherDomain })
 if ($app.id -and $wantDomain -and $haveDomain -ne $wantDomain -and $PSCmdlet.ShouldProcess($name, "Set publisher domain $wantDomain")) {
     try { $null = Send-GraphPatch "$graph/applications/$($app.id)" @{ publisherDomain = $wantDomain }; Write-Host "Publisher domain set to $wantDomain" }
-    catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > Tenantkeep Posture > Branding & properties > Publisher domain." }
+    catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > TenantKeep Posture > Branding & properties > Publisher domain." }
 }
 
 # 4. Record the client id where the module reads it, before anything that can still fail.

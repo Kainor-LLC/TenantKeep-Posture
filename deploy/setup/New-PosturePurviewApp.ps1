@@ -32,7 +32,7 @@ param(
     [Parameter(Mandatory)] [string] $ResourceGroup,
     [Parameter(Mandatory)] [string] $AutomationAccount,
     [Parameter(Mandatory)] [string] $VaultName,
-    [string] $AppName = 'Tenantkeep Posture (Purview)',
+    [string] $AppName = 'TenantKeep Posture (Purview)',
     [string] $CertificateName = 'tenantkeep-purview',
     [ValidateRange(3, 36)] [int] $ValidityMonths = 24
 )
@@ -86,7 +86,7 @@ $apps = @((Get-G "$graph/applications?`$filter=displayName eq '$($AppName -repla
 $keyCredential = @{ type = 'AsymmetricX509Cert'; usage = 'Verify'; key = $cerBase64; displayName = "$CertificateName $thumbprint" }
 if ($apps.Count -eq 0) {
     if ($PSCmdlet.ShouldProcess($AppName, 'Create the app registration')) {
-        $app = Send-GraphPost "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @($manageAsAppRoles.Keys | ForEach-Object { @{ resourceAppId = $_; resourceAccess = @(@{ id = $manageAsAppRoles[$_].role.id; type = 'Role' }) } }); notes = 'Tenantkeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
+        $app = Send-GraphPost "$graph/applications" @{ displayName = $AppName; signInAudience = 'AzureADMyOrg'; keyCredentials = @($keyCredential); requiredResourceAccess = @($manageAsAppRoles.Keys | ForEach-Object { @{ resourceAppId = $_; resourceAccess = @(@{ id = $manageAsAppRoles[$_].role.id; type = 'Role' }) } }); notes = 'TenantKeep Posture: app-only Purview reads for the scheduled posture run. Certificate in Key Vault; read-only use. Safe to delete to revoke.' }
         Write-Host "App registration created: $($app.appId)"
     }
 }
@@ -146,7 +146,7 @@ role group on the app's service principal (a Security & Compliance PowerShell se
 
   Connect-IPPSSession -UserPrincipalName <admin>
   New-ServicePrincipal -AppId $($app.appId) -ObjectId $($sp.id) -DisplayName '$AppName'
-  New-RoleGroup -Name 'Tenantkeep Posture (view only)' -DisplayName 'Tenantkeep Posture (view only)' -Description 'Read-only roles for the Tenantkeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
+  New-RoleGroup -Name 'TenantKeep Posture (view only)' -DisplayName 'TenantKeep Posture (view only)' -Description 'Read-only roles for the TenantKeep Posture scheduled run' -Roles 'View-Only Audit Logs', 'Insider Risk Management Audit', 'View-Only Retention Management', 'View-Only DLP Compliance Management', 'View-Only IB Compliance Management' -Members $($sp.id)
   # Role names as listed by Get-ManagementRole (2026-10-15). Proven in Kainor: this group opens Insider Risk policies.
   # Audit retention policies (Get-UnifiedAuditLogRetentionPolicy) stay hidden with View-Only Audit Logs; add the 'Audit Logs'
   # role to the group if you want that read in the scheduled run (verify it is the least role that works).

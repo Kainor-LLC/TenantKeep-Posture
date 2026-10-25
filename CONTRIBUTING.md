@@ -11,7 +11,7 @@ a real tenant; describe the shape instead. Security problems go to [SECURITY.md]
 
 ## Pull requests
 
-Tenantkeep Posture is source-available, not open source ([LICENSE.md](LICENSE.md), PolyForm Shield 1.0.0). The
+TenantKeep Posture is source-available, not open source ([LICENSE.md](LICENSE.md), PolyForm Shield 1.0.0). The
 licence lets you change it for your own use, but there is no contributor agreement yet, so external pull requests
 are closed with thanks and the idea goes into an issue. If you have a fix, open an issue describing it; a maintainer will write it, credit you
 in the changelog and reference the issue.

@@ -1,4 +1,4 @@
-# Using Tenantkeep Posture, step by step
+# Using TenantKeep Posture, step by step
 
 Written for the administrator or MSP engineer who runs the report. Everything below reads the tenant; nothing in the
 module writes to it. Each run leaves an evidence folder you keep, a report you deliver, and a findings register you
@@ -29,7 +29,7 @@ What you need:
 - An account that can read: Global Reader covers Entra, Intune and Defender; Exchange needs View-Only Organization
   Management; SharePoint needs SharePoint Administrator; Purview a compliance read role; Azure Reader and Security
   Reader on the subscriptions. The module never reads more than the account can.
-- Consent, once per tenant. Tenantkeep Posture is a multi-tenant app published by Kainor with delegated, read-only
+- Consent, once per tenant. TenantKeep Posture is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
 - Purview is the one service with a second sign-in. Security and Compliance PowerShell issues no token to a
@@ -145,7 +145,7 @@ diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams
 
 Not every organisation has, or wants, anything in Azure. Local runs need no Azure at all: with `azure: none` in the
 profile (the wizard sets it when no subscription is in scope) the Azure collector is skipped and the Azure domain
-reads as not applicable. Nothing is installed in the tenant beyond the consent to the Tenantkeep Posture app. What does need
+reads as not applicable. Nothing is installed in the tenant beyond the consent to the TenantKeep Posture app. What does need
 an Azure subscription is the scheduled cycle, because the Automation account is where it runs; the full inventory of
 what that puts where is in docs/footprint.md. For a nightly Conditional Access cycle without Azure, the GitHub Action
 and launchd samples in deploy/schedules run it from a machine you already have.
