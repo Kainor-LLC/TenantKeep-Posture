@@ -2,7 +2,7 @@
 
 Microsoft security posture report for Entra, Intune, Defender, Exchange, Purview, SharePoint, Teams, Copilot readiness, Azure and hybrid AD, plus a Conditional Access documentation and diff generator. PowerShell 7 module. Read-only against the tenant, always. Publisher: Kainor LLC. Product name decided 2026-10-13.
 
-The full specification is in `docs/posture-spec.md`. Read it before touching anything. `docs/architecture.md` is the one-page account of how the parts fit: what runs where, as whom, reading and writing what. The audit plan it was designed around is `docs/m365-environment-audit-plan.md`; its Appendix A scripts define the evidence file names this module consumes.
+The full specification is in `docs/posture-spec.md`. Read it before touching anything. `docs/architecture.md` is the one-page account of how the parts fit: what runs where, as whom, reading and writing what. The audit plan it was designed around is `docs/m365-environment-audit-plan.md`; its Appendix A scripts define the evidence file names this module consumes. The spec, the audit plan and the other planning docs are local to Connor's machine and never committed (see Layout); the product docs are.
 
 ## Non-negotiables
 
@@ -23,6 +23,7 @@ checks/                     catalog JSON, one file per domain (identity, auth, c
 baselines/                  standard, copilot-readiness, nist-csf-2, nist-800-171, cmmc-2, cisa-scuba, iso-27001-2022, hipaa (no CIS: benchmark content is licensed, decided 2026-10-15)
 collectors/                 Get-EntraBaseline, Get-ExchangePurviewBaseline, Get-SpoTeamsBaseline, Get-DefenderBaseline, Get-AzureBaseline, windows/Get-ADBaseline
 templates/                  the interactive HTML report (single file, inline CSS/JS, no CDN), print stylesheet
+docs/                       product docs tracked by name (guide, licensing, footprint, architecture, collection, scheduling, profile); everything else under docs/ is planning material, gitignored by `docs/*`, edited locally and never committed. A new doc is tracked only by adding a `!docs/<name>.md` line after a scan for tenant ids, account names and resource names
 deploy/                     Bicep -> mainTemplate.json, createUiDefinition.json, runbook wrapper, Static Web App opt-in; schedules/ holds the 5.4 cycle script and the runbook, GitHub Action and launchd samples; setup/ holds the one-time customer-side tenant setup scripts (app registrations, role grants): the only tenant writes in the repo, run by the customer's admin, never by the module
 tests/                      Pester 5.5+ (6 works); one test file per public cmdlet; catalog schema tests
 samples/                    anonymized evidence folder for tests and demos; never real tenant data
@@ -56,7 +57,7 @@ PSScriptAnalyzerSettings.psd1
 
 ## Licensing (D22, decided: source-available, public repo)
 
-- The repository is public. Source published, not open source: a custom source-available license (read, audit, run under a license tier; no redistribution, no derivative works, no competing products, no circumventing the entitlement check). `LICENSE.md` holds it; every file carries a short copyright header. Header text: `# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.` (a Pester test checks for it).
+- The repository is written as public and will be: it stays private only until LICENSE.md carries real terms and the history is clean of customer names (both tracked in the local checklist). Source published, not open source: a custom source-available license (read, audit, run under a license tier; no redistribution, no derivative works, no competing products, no circumventing the entitlement check). `LICENSE.md` holds it; every file carries a short copyright header. Header text: `# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.` (a Pester test checks for it).
 - Because the repo is public: never commit secrets, real tenant evidence, customer names, or anything from the employer. `CLAUDE.local.md` is gitignored. `samples/` holds anonymized data only. Add a pre-commit secret scanner on day one and refuse to commit if it fails.
 - One module, `Tenantkeep.Posture`. Tiers are enforced by the entitlement check at runtime, not by hiding code.
 - Every release is Authenticode-signed; the build script fails if the signing cert is missing. Published to the PowerShell Gallery with the license URI set, plus signed zips.
@@ -68,4 +69,4 @@ PSScriptAnalyzerSettings.psd1
 
 See `docs/posture-spec.md` section 9. Start with the CA snapshot, document and diff (section 5). First deliverable: `Export-PostureCaSnapshot`.
 
-Progress is tracked in `docs/checklist.md`, one line per deliverable with its commit. Update it in the same commit as every checkpoint.
+Progress is tracked in `docs/checklist.md`, one line per deliverable with its commit. It is local and never committed (docs/* is ignored); update it at every checkpoint commit all the same.
