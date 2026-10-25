@@ -3,7 +3,7 @@
 Read-only Microsoft 365 security posture report, with Conditional Access documentation and diff.
 PowerShell 7. Mac first; Windows and Linux supported.
 
-**Source published, not open source.** Read every line; you can't fork it. See [LICENSE.md](LICENSE.md).
+**Source published, not open source.** Read every line, run it, change it for your own use; you may not build a competing product on it. PolyForm Shield 1.0.0, see [LICENSE.md](LICENSE.md).
 
 ## Status
 

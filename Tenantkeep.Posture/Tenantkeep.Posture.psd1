@@ -5,7 +5,7 @@
     GUID              = '3f1c2a7e-9b64-4e0d-a5c1-7d2e8f6b0c41'
     Author            = 'Connor Johnson'
     CompanyName       = 'Kainor LLC'
-    Copyright         = '(c) 2026 Kainor LLC. All rights reserved. Source-available, see LICENSE.md.'
+    Copyright         = '(c) 2026 Kainor LLC. PolyForm Shield 1.0.0, see LICENSE.md.'
     Description       = 'Read-only Microsoft 365 security posture report with Conditional Access documentation and diff.'
     PowerShellVersion = '7.4'
     CompatiblePSEditions = @('Core')

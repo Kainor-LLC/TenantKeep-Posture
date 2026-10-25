@@ -1,6 +1,6 @@
 # Licensing: how the licence file works
 
-Tenantkeep Posture is source-available (LICENSE.md) and its entitlement is a signed file, verified offline. Nothing is
+Tenantkeep Posture is source-available (PolyForm Shield 1.0.0, LICENSE.md) and its entitlement is a signed file, verified offline. Nothing is
 sent anywhere to check it. This page is for the customer who received one and for the reviewer who wants to know what
 the module does with it.
 

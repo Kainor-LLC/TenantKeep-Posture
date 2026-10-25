@@ -26,6 +26,8 @@ Everything so far, built 2026-10-13 to 2026-10-23.
 - Requirements: `Get-PostureRequirement` shows each service module installed against the version the collectors
   were tested with; `Start-PostureRun` warns on an older one, and collection.json records the module versions,
   PowerShell version and operating system of every run.
+- Licence: PolyForm Shield 1.0.0 (use, change and redistribute for anything except a competing product) replaces the
+  placeholder text, with Kainor's Required Notice and Licensor Line of Business lines.
 - Licensing: offline, signed licence files verified against public keys in the module; the Conditional Access domain
   is free, the rest needs the Full tier. Signed integrity manifest and build state in every report.
 - Deployment: Azure Automation templates and runbooks for the scheduled Conditional Access cycle and the monthly
