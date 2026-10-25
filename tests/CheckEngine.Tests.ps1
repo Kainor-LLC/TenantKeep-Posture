@@ -2,8 +2,8 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CheckEngineFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-engine-$([guid]::NewGuid().ToString('n'))"
     $script:Fx = Initialize-CheckEngineFixture -Root $script:Root
@@ -17,7 +17,7 @@ AfterAll {
 
 Describe 'Import-PostureCheckCatalog' {
     It 'loads the fixture catalog with its version' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $script:Fx.Checks } {
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $script:Fx.Checks } {
             $c = Import-PostureCheckCatalog -Path $P
             $c.version | Should -Be 'test.1'
             $c.checks.Count | Should -Be 7
@@ -29,18 +29,18 @@ Describe 'Import-PostureCheckCatalog' {
         $bad = Join-Path $script:Root 'bad'
         New-Item -ItemType Directory -Path $bad -Force | Out-Null
         '{ "domain": "x", "checks": [ { "id": "XX-001", "title": "t" } ] }' | Set-Content (Join-Path $bad 'x.json')
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw "*XX-001*missing: domain, severityDefault*" }
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw "*XX-001*missing: domain, severityDefault*" }
         '{ "domain": "x", "checks": [ { "id": "XX-001", "domain": "x", "title": "t", "severityDefault": "Urgent", "license": [], "applicableWhen": {}, "coveredBy": [], "thresholds": {}, "evidence": [], "pass": "true", "remediation": "", "learn": "", "deepLink": null, "narrative": "", "frameworks": {} } ] }' | Set-Content (Join-Path $bad 'x.json')
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw "*severityDefault 'Urgent'*" }
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw "*severityDefault 'Urgent'*" }
         Copy-Item (Join-Path $script:Fx.Checks 'test.json') (Join-Path $bad 'x.json') -Force
         Copy-Item (Join-Path $script:Fx.Checks 'test.json') (Join-Path $bad 'y.json') -Force
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw '*Duplicate check id*' }
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw '*Duplicate check id*' }
     }
 }
 
 Describe 'Invoke-PostureCheckEvaluation' {
     BeforeAll {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Fx = $script:Fx; Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Fx = $script:Fx; Ev = $script:Evidence } {
             $script:Catalog = Import-PostureCheckCatalog -Path $Fx.Checks
             $script:Std = Import-PostureBaseline -Baseline (Join-Path $Fx.Baselines 'standard.json')
             $script:Strict = Import-PostureBaseline -Baseline (Join-Path $Fx.Baselines 'strict.json')
@@ -54,7 +54,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'evaluates pass and fail from facts and thresholds' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:ById['TS-001'].status | Should -Be 'fail'   # count 3 > max 2
             $script:ById['TS-001'].affectedCount | Should -Be 3
             $script:ById['TS-001'].evidence | Should -Contain 'provider.json'
@@ -65,7 +65,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'marks a missing fact and a missing provider as not evaluated with the reason' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:ById['TS-005'].status | Should -Be 'notEvaluated'
             $script:ById['TS-005'].reason | Should -Match "Data missing: Unknown reference 'facts.nope'"
             $script:ById['OT-001'].status | Should -Be 'notEvaluated'
@@ -74,7 +74,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'applies the profile: license gate, applicability, third-party coverage, global thresholds' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:Profile -Evidence $Ev -FactProvider $script:Provider
             $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
             $by['TS-002'].status | Should -Be 'notEvaluated'
@@ -89,7 +89,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'treats a third-party category set to none as not covered' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $p = Import-PostureProfile
             $p.present = $true; $p.thirdParty = @{ mfa = 'none' }
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $p -Evidence $Ev -FactProvider $script:Provider
@@ -98,7 +98,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'applies the baseline: selection, per-check thresholds, severity override' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Strict -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $script:Provider
             @($run.results | ForEach-Object { $_.id }) | Should -Be @('TS-001', 'TS-006')
             ($run.results | Where-Object id -eq 'TS-001').status | Should -Be 'pass'
@@ -109,7 +109,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'passes merged domain thresholds to the provider' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $spy = @{ test = { param($Evidence, $OrgProfile, $Thresholds) $script:SeenThresholds = $Thresholds; @{ facts = @{ count = 0; enabled = $true } } } }
             $null = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Strict -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $spy
             $script:SeenThresholds.max | Should -Be 5
@@ -117,7 +117,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'turns a failing check into accepted risk through a check-level exception' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Exception $script:Exceptions -Evidence $Ev -FactProvider $script:Provider
             $r = $run.results | Where-Object id -eq 'TS-006'
             $r.status | Should -Be 'acceptedRisk'
@@ -126,7 +126,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'removes excepted objects from the affected list and ignores expired exceptions' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Exception $script:Exceptions -Evidence $Ev -FactProvider $script:Provider
             $r = $run.results | Where-Object id -eq 'TS-001'
             $r.status | Should -Be 'fail'
@@ -136,7 +136,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'becomes accepted risk when every affected object is excepted' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $script:Evidence } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
             $all = @('alpha', 'beta', 'gamma' | ForEach-Object { [ordered]@{ check = 'TS-001'; object = $_; justification = 'ok'; owner = 'o'; approver = 'a'; expires = [datetime]'2099-01-01'; expired = $false } })
             $run = Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Exception $all -Evidence $Ev -FactProvider $script:Provider
             ($run.results | Where-Object id -eq 'TS-001').status | Should -Be 'acceptedRisk'
@@ -144,7 +144,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
     }
 
     It 'counts statuses and records the catalog version' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Run.catalogVersion | Should -Be 'test.1'
             $script:Run.counts.fail | Should -Be 2
             $script:Run.counts.pass | Should -Be 3

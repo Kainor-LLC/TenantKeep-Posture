@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     . (Join-Path $PSScriptRoot 'Fixtures' 'CaDiffFixture.ps1')
     . (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'ca-notifications.ps1')
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'

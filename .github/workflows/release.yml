@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
-          $data = Import-PowerShellDataFile -Path ./Tenantkeep.Posture/Tenantkeep.Posture.psd1
+          $data = Import-PowerShellDataFile -Path ./TenantKeep.Posture/TenantKeep.Posture.psd1
           $version = [string]$data.ModuleVersion
           $pre = [string]$data.PrivateData.PSData.Prerelease
           $expected = "v$version$(if ($pre) { "-$pre" })"
@@ -68,8 +68,8 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
-          $zip = "./out/Tenantkeep.Posture-$version-unsigned.zip"
-          Compress-Archive -Path ./out/Tenantkeep.Posture -DestinationPath $zip
+          $zip = "./out/TenantKeep.Posture-$version-unsigned.zip"
+          Compress-Archive -Path ./out/TenantKeep.Posture -DestinationPath $zip
           $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
           Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path $zip -Leaf)"
           Write-Host "SHA256 $hash"
@@ -83,6 +83,6 @@ jobs:
           flags=(--draft --title "TenantKeep Posture $version" --notes-file ./out-notes.md)
           if [ '${{ steps.version.outputs.prerelease }}' = 'True' ]; then flags+=(--prerelease); fi
           gh release create '${{ github.ref_name }}' "${flags[@]}" \
-            "./out/Tenantkeep.Posture-$version-unsigned.zip" \
-            "./out/Tenantkeep.Posture-$version-unsigned.zip.sha256" \
+            "./out/TenantKeep.Posture-$version-unsigned.zip" \
+            "./out/TenantKeep.Posture-$version-unsigned.zip.sha256" \
             ./out/catalog.md ./out/catalog.html

@@ -6,7 +6,7 @@ other security problem, tell Kainor privately first.
 
 ## Reporting
 
-Email security@kainor.com with the module version (`Get-Module Tenantkeep.Posture`), the PowerShell version and
+Email security@kainor.com with the module version (`Get-Module TenantKeep.Posture`), the PowerShell version and
 operating system, what you ran and what happened. Do not attach evidence folders or reports from a real tenant;
 describe the shape of the data instead. Once the repository is public, GitHub's private vulnerability reporting on
 this repository works too.

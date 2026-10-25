@@ -2,8 +2,8 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-findings-$([guid]::NewGuid().ToString('n'))"
     $script:Ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'evidence')

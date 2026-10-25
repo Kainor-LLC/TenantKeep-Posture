@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     $script:Ctx = @{
         facts      = @{ count = 3; percent = 98.5; name = 'Contoso'; enabled = $true; missing = $null; nested = @{ deep = 7 } }
         thresholds = @{ max = 2; minPercent = 100; label = 'contoso' }
@@ -26,19 +26,19 @@ Describe 'Invoke-PostureExpression' {
         @{ Expr = 'true && false'; Expected = $false }
         @{ Expr = "'a' < 'b'"; Expected = $true }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Expr = $Expr; Expected = $Expected; Ctx = $script:Ctx } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Expr = $Expr; Expected = $Expected; Ctx = $script:Ctx } {
             Invoke-PostureExpression -Expression $Expr -Context $Ctx | Should -Be $Expected
         }
     }
 
     It 'throws on an unknown reference so the engine can mark data missing' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ctx = $script:Ctx } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ctx = $script:Ctx } {
             { Invoke-PostureExpression -Expression 'facts.nope >= 1' -Context $Ctx } | Should -Throw "*Unknown reference 'facts.nope'*"
         }
     }
 
     It 'rejects anything that is not the grammar' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Ctx = $script:Ctx } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ctx = $script:Ctx } {
             { Invoke-PostureExpression -Expression 'facts.count; Remove-Item /' -Context $Ctx } | Should -Throw '*Cannot parse*'
             { Invoke-PostureExpression -Expression '$(Get-Date)' -Context $Ctx } | Should -Throw '*Cannot parse*'
             { Invoke-PostureExpression -Expression '(facts.count == 1' -Context $Ctx } | Should -Throw "*Expected ')'*"

@@ -46,7 +46,7 @@ param(
     [Parameter(Mandatory)] [ValidatePattern('^https://[a-z]+\.codesigning\.azure\.net/?$')] [string] $Endpoint,
     [Parameter(Mandatory)] [string] $VaultName,
     [Parameter(Mandatory)] [string] $KeyName,
-    [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')] [string] $Repository = 'Kainor-LLC/tenantkeep-posture',
+    [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')] [string] $Repository = 'Kainor-LLC/TenantKeep-Posture',
     [string] $Environment = 'release',
     [string] $AppName = 'TenantKeep Posture release signing'
 )

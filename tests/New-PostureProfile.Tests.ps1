@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-profile-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $script:Skus = @(
@@ -17,13 +17,13 @@ AfterAll {
 
 Describe 'Get-PostureLicenseToken' {
     It 'expands bundles into the tokens the catalog gates on' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ S = $script:Skus } {
+        InModuleScope TenantKeep.Posture -Parameters @{ S = $script:Skus } {
             Get-PostureLicenseToken -Sku $S | Should -Be @('BusinessPremium', 'Intune', 'MDEBusiness', 'MDO1', 'P1', 'P2')
         }
     }
 
     It 'reads the audit plan CSV-shaped rows too' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $rows = @(@{ SkuPartNumber = 'SPE_E5'; ServicePlans = 'AAD_PREMIUM;AAD_PREMIUM_P2;WINDEFATP;THREAT_INTELLIGENCE;INTUNE_A;MIP_S_CLP2' })
             Get-PostureLicenseToken -Sku $rows | Should -Be @('E5', 'Intune', 'MDE2', 'MDO2', 'P1', 'P2', 'Purview')
             Get-PostureLicenseToken -Sku @() | Should -BeNullOrEmpty
@@ -51,7 +51,7 @@ Describe 'New-PostureProfile' {
             $j.thresholds.reportOnlyMaxDays | Should -Be 90
             $j.breakGlass | Should -Be @('bg01@contoso.example')
             $j.licensesSource | Should -Be 'manual'
-            InModuleScope Tenantkeep.Posture -Parameters @{ P = $path } {
+            InModuleScope TenantKeep.Posture -Parameters @{ P = $path } {
                 $m = Import-PostureProfile -Path $P
                 $m.present | Should -BeTrue
                 $m.licenses | Should -Be @('P1', 'Intune')
@@ -114,7 +114,7 @@ Describe 'New-PostureProfile' {
             @($p.discovery.keys) | Should -Not -Contain 'platforms'
             @($p.discovery.keys) | Should -Contain 'identityModel'
             $p.discovery.sources.identityModel | Should -Match 'federated=1'
-            InModuleScope Tenantkeep.Posture -Parameters @{ Ev = $ev } {
+            InModuleScope TenantKeep.Posture -Parameters @{ Ev = $ev } {
                 $d = Get-PostureProfileDiscovery -Evidence $Ev
                 @($d.facts.platforms) | Should -Be @('iOS', 'macOS', 'windows') -Because 'Android and Linux have one device each, under the floor'
             }
@@ -130,16 +130,16 @@ Describe 'New-PostureProfile' {
         }
 
         It 'detects licenses from Graph with a read-only scope' {
-            Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Organization.Read.All') } }
-            Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest { @{ value = $script:Skus } }
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Organization.Read.All') } }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest { @{ value = $script:Skus } }
             $p = New-PostureProfile -Path (Join-Path $script:Root 'c.json') -NonInteractive -FromGraph -PassThru
             $p.licenses | Should -Contain 'BusinessPremium'
             $p.licensesSource | Should -Match '^graph:\d{4}-\d{2}-\d{2}$'
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/v1.0/subscribedSkus' }
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/v1.0/subscribedSkus' }
         }
 
         It 'refuses -FromGraph without a suitable scope' {
-            Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }
             { New-PostureProfile -Path (Join-Path $script:Root 'd.json') -NonInteractive -FromGraph } | Should -Throw '*needs one of: Organization.Read.All, Directory.Read.All*'
         }
 
@@ -152,7 +152,7 @@ Describe 'New-PostureProfile' {
 
     Context 'interactive' {
         It 'asks every question with defaults and writes the answers' {
-            Mock -ModuleName Tenantkeep.Posture Read-PostureAnswer {
+            Mock -ModuleName TenantKeep.Posture Read-PostureAnswer {
                 switch -Wildcard ($Question) {
                     'Client or tenant*' { 'Fabrikam' }
                     'Licenses present*' { @('E5', 'P2') }
@@ -179,12 +179,12 @@ Describe 'New-PostureProfile' {
             $p.thresholds.namePattern | Should -Be '^CA-'
             $p.thresholds.staleDeviceDays | Should -Be 90
             $p.breakGlass | Should -Be @('bg@fabrikam.example')
-            Should -Invoke -ModuleName Tenantkeep.Posture Read-PostureAnswer -Times 28 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence'
+            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 28 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence'
         }
 
         It 'asks before overwriting and respects no' {
             $path = Join-Path $script:Root 'i.json'
-            Mock -ModuleName Tenantkeep.Posture Read-PostureAnswer { if ($Question -like 'Overwrite*') { 'no' } else { $Default } }
+            Mock -ModuleName TenantKeep.Posture Read-PostureAnswer { if ($Question -like 'Overwrite*') { 'no' } else { $Default } }
             $stamp = (Get-Item $path).LastWriteTimeUtc
             $out = New-PostureProfile -Path $path -WarningAction SilentlyContinue
             $out | Should -BeNullOrEmpty
@@ -195,7 +195,7 @@ Describe 'New-PostureProfile' {
 
 Describe 'Read-PostureAnswer' {
     It 'validates choices, takes the default on empty input, splits lists' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             Mock Read-Host { '' }
             Read-PostureAnswer -Question 'q' -Choices @('a', 'b') -Default 'b' | Should -Be 'b'
             Mock Read-Host { 'A' }

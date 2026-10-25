@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Module version
-      description: Output of `(Get-Module Tenantkeep.Posture).Version`, or the commit if you run from a clone.
+      description: Output of `(Get-Module TenantKeep.Posture).Version`, or the commit if you run from a clone.
     validations:
       required: true
   - type: input

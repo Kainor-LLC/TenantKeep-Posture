@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Kainor-side, once: registers the multi-tenant public client that Start-PostureRun signs in to, from the manifest
-    the module ships (Tenantkeep.Posture/app.json), and marks it publisher verified.
+    the module ships (TenantKeep.Posture/app.json), and marks it publisher verified.
 .DESCRIPTION
     This is the one app registration behind the one sign-in (docs/plan-one-signin.md). It lives in the Kainor tenant
     and is used by every customer tenant after their admin consents once. It is a public client: no secret, no
@@ -28,7 +28,7 @@
     Needs a delegated Graph session in the Kainor tenant with Application.ReadWrite.All:
       Connect-MgGraph -TenantId <kainor tenant id> -Scopes Application.ReadWrite.All -NoWelcome
 .PARAMETER AppJsonPath
-    The manifest to read and write back to. Default: Tenantkeep.Posture/app.json next to this repository's module.
+    The manifest to read and write back to. Default: TenantKeep.Posture/app.json next to this repository's module.
 .PARAMETER PartnerId
     The Partner Center Partner One id (Partner Global Account) for publisher verification. Omit to skip that step.
 .PARAMETER TenantId
@@ -40,7 +40,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'One-time admin script output is for the console.')]
 param(
-    [string] $AppJsonPath = (Join-Path $PSScriptRoot '..' '..' 'Tenantkeep.Posture' 'app.json'),
+    [string] $AppJsonPath = (Join-Path $PSScriptRoot '..' '..' 'TenantKeep.Posture' 'app.json'),
     [ValidatePattern('^\d{5,10}$')] [string] $PartnerId,
     [Parameter(Mandatory)] [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $TenantId
 )

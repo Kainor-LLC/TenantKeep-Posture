@@ -2,21 +2,21 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-collect-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $env:TKP_TEST_PIM = 'ok'
 
-    Mock -ModuleName Tenantkeep.Posture Get-MgContext {
+    Mock -ModuleName TenantKeep.Posture Get-MgContext {
         [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'User.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskEvent.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All') }
     }
-    Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Test-PostureAzureSession { $false }
+    Mock -ModuleName TenantKeep.Posture Start-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Test-PostureAzureSession { $false }
 
     # Synthetic tenant, routed by path. Every value is made up.
-    Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest {
+    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest {
         $path = [uri]::UnescapeDataString(([uri]$Uri).PathAndQuery) -replace '^/(v1\.0|beta)/', ''
         $u = { param($items) @{ value = $items } }
         switch -Regex ($path) {
@@ -317,7 +317,7 @@ Describe 'Invoke-PostureCollection' {
             $ss.ByCategory.Identity | Should -Be 212.5
             @(& $script:Read 'def-06-secure-score-controls').Count | Should -Be 1 -Because 'deprecated profiles are left out'
             @(& $script:Read 'def-06-secure-score-controls')[0].State | Should -Be 'ThirdParty' -Because 'the latest state update wins'
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 32 -Exactly -Scope Context -ParameterFilter { $Uri -like '*runHuntingQuery' -and $Method -eq 'POST' -and ([string]$Body -match 'DeviceInfo|DeviceTvmInfoGathering') } -Because 'two device tables, sixteen shards each'
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 32 -Exactly -Scope Context -ParameterFilter { $Uri -like '*runHuntingQuery' -and $Method -eq 'POST' -and ([string]$Body -match 'DeviceInfo|DeviceTvmInfoGathering') } -Because 'two device tables, sixteen shards each'
         }
 
         It 'records the verified domains with their authentication type' {
@@ -362,7 +362,7 @@ Describe 'Invoke-PostureCollection' {
             $s.Enforced | Should -Be 1
             $s.Disabled | Should -Be 2
             (& $script:Read '05-per-user-mfa' | Where-Object UserPrincipalName -eq 'admin2@contoso.example').PerUserMfaState | Should -Be 'enforced'
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/$batch' -and $Method -eq 'POST' } -Because 'authentication/requirements exists only in beta'
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/$batch' -and $Method -eq 'POST' } -Because 'authentication/requirements exists only in beta'
         }
 
         It 'collects Entra devices with join type and staleness' {
@@ -504,7 +504,7 @@ Describe 'Invoke-PostureCollection' {
 
     Context 'scope check' {
         It 'refuses without the core scopes' {
-            Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }
             { Invoke-PostureCollection -OutRoot $script:Root } | Should -Throw '*missing scope(s)*'
         }
     }
@@ -512,7 +512,7 @@ Describe 'Invoke-PostureCollection' {
 
 Describe 'Azure optional' {
     It 'skips the Azure collector when the profile says azure: none and no collector list was given' {
-        $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
+        $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
         $src | Should -Match ([regex]::Escape("eq 'none' -and 'Azure' -in `$Collector"))
         $src | Should -Match ([regex]::Escape("ContainsKey('Collector')")) -Because 'a named collector list always wins'
         $rb = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1')

@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-run-$([guid]::NewGuid().ToString('n'))"
     $script:OutRoot = Join-Path $script:Root 'evidence'
     $script:Client = Join-Path $script:Root 'clients' 'contoso'
@@ -11,13 +11,13 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Tenantkeep.Posture -Force -ErrorAction SilentlyContinue
+    Remove-Module TenantKeep.Posture -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $script:Root -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Describe 'Start-PostureRun' {
     BeforeAll {
-        InModuleScope Tenantkeep.Posture -Parameters @{ outRoot = $script:OutRoot; tid = $script:Tid } {
+        InModuleScope TenantKeep.Posture -Parameters @{ outRoot = $script:OutRoot; tid = $script:Tid } {
             $script:TestOutRoot = $outRoot
             $script:TestTid = $tid
             $script:Calls = [System.Collections.Generic.List[string]]::new()
@@ -48,10 +48,10 @@ Describe 'Start-PostureRun' {
             $script:PostureSession = @{ tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = [datetime]::UtcNow.AddHours(1) }; exchange = @{ accessToken = 'e'; expiresUtc = [datetime]::UtcNow.AddHours(1) }; purview = @{ accessToken = 'p'; expiresUtc = [datetime]::UtcNow.AddHours(1) } } }
         }
     }
-    AfterAll { InModuleScope Tenantkeep.Posture { $script:PostureSession = $null } }
+    AfterAll { InModuleScope TenantKeep.Posture { $script:PostureSession = $null } }
 
     It 'runs the whole cycle in order from one sign-in and opens the report' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ client = $script:Client } {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -PassThru 6>$null
             $result.Folder | Should -Be (Join-Path $script:TestOutRoot '20261022-1200')
@@ -70,7 +70,7 @@ Describe 'Start-PostureRun' {
     }
 
     It 'on the next run keeps the profile, finds the previous run for the trend, copies hybrid files and honours azure: none' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ client = $script:Client } {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             $p = Join-Path $client 'profile.json'
             Set-Content -LiteralPath $p -Value (@{ tenantId = $script:TestTid; clientName = 'Contoso Ltd'; azure = 'none' } | ConvertTo-Json)
@@ -91,7 +91,7 @@ Describe 'Start-PostureRun' {
     }
 
     It 'refuses a client folder that belongs to another tenant before anything is read' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $other = Join-Path $root 'clients' 'other'
             New-Item -ItemType Directory -Path $other -Force | Out-Null
             Set-Content -LiteralPath (Join-Path $other 'profile.json') -Value (@{ tenantId = '44444444-4444-4444-4444-444444444444' } | ConvertTo-Json)
@@ -101,7 +101,7 @@ Describe 'Start-PostureRun' {
     }
 
     It 'skips what is not installed with a note that says how to install it, and names the default client folder after the tenant' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $script:Calls.Clear()
             Mock Get-Module { $false } -ParameterFilter { $ListAvailable }
             $saved = $HOME
@@ -120,7 +120,7 @@ Describe 'Start-PostureRun' {
     }
 
     It 'warns once when a module is older than the tested version and still runs its collector' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ client = $script:Client } {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             Mock Get-Module { [pscustomobject]@{ Name = $Name; Version = [version]'1.0.0' } } -ParameterFilter { $ListAvailable }
             $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru -WarningVariable warn 6>$null
@@ -136,7 +136,7 @@ Describe 'Start-PostureRun' {
 
 Describe 'The child process hand-off' {
     It 'passes the request over standard input to a fresh PowerShell and returns its exit code' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $echo = Join-Path $root 'stdin.json'
             $code = Start-PostureChildCollection -Request @{ collectors = @('Exchange'); tokens = @{ exchange = @{ accessToken = 'secret-token' } } } -Command "[Console]::In.ReadToEnd() | Set-Content -LiteralPath '$echo'; exit 3"
             $code | Should -Be 3
@@ -146,7 +146,7 @@ Describe 'The child process hand-off' {
     }
 
     It 'the child side opens Graph and each named service with the tokens it was given, never a refresh token, and counts failures' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $script:ChildCalls = [System.Collections.Generic.List[string]]::new()
             Mock Connect-PostureService { $script:ChildCalls.Add("connect:$Name"); if ($Name -eq 'purview') { throw 'no purview for you' } }
             Mock Invoke-PostureCollection { $script:ChildCalls.Add("collect:$($Collector -join '+'):$(Split-Path $OutputFolder -Leaf)") }

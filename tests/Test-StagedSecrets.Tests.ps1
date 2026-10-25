@@ -44,7 +44,7 @@ function Export-PostureCaSnapshot {
     $password = Read-Host -AsSecureString
 }
 '@
-            @(Test-PostureStagedContent -Path 'Tenantkeep.Posture/Public/Export-PostureCaSnapshot.ps1' -Content $clean) | Should -BeNullOrEmpty
+            @(Test-PostureStagedContent -Path 'TenantKeep.Posture/Public/Export-PostureCaSnapshot.ps1' -Content $clean) | Should -BeNullOrEmpty
         }
 
         It 'skips a line carrying the allow marker' {

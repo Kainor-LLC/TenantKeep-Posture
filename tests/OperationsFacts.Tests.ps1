@@ -2,8 +2,8 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-ops-$([guid]::NewGuid().ToString('n'))"
     $script:Ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'evidence')
@@ -21,7 +21,7 @@ AfterAll { if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -
 
 Describe 'Get-PostureOperationsFact' {
     It 'reads the operations answers, compares Secure Score and builds the expiry calendar soonest first' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ E = $script:Ev; P = $script:ProfilePath; AsOf = $script:AsOf } {
+        InModuleScope TenantKeep.Posture -Parameters @{ E = $script:Ev; P = $script:ProfilePath; AsOf = $script:AsOf } {
             $r = Get-PostureOperationsFact -Evidence $E -OrgProfile (Import-PostureProfile -Path $P) -Thresholds @{} -AsOf $AsOf
             $r.facts.siemInPlace | Should -BeTrue
             $r.facts.backupDecisionRecorded | Should -BeFalse
@@ -39,7 +39,7 @@ Describe 'Get-PostureOperationsFact' {
     }
 
     It 'leaves the answered checks not evaluated without a profile' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf } {
+        InModuleScope TenantKeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf } {
             $r = Get-PostureOperationsFact -Evidence $E -OrgProfile (Import-PostureProfile) -Thresholds @{} -AsOf $AsOf
             $r.notEvaluated.Keys | Should -Contain 'OP-003'
             $r.facts.expiringWithinWarning | Should -Be 4

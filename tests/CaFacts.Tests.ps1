@@ -2,12 +2,12 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-cafacts-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
-    InModuleScope Tenantkeep.Posture -Parameters @{ S = $script:Sample } {
+    InModuleScope TenantKeep.Posture -Parameters @{ S = $script:Sample } {
         $script:F = Get-PostureCaFact -Evidence $S -OrgProfile (Import-PostureProfile) -Thresholds @{}
     }
 }
@@ -18,7 +18,7 @@ AfterAll {
 
 Describe 'Get-PostureCaFact on the sample snapshot' {
     It 'is available and names its evidence' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:F.available | Should -BeTrue
             $script:F.evidence | Should -Contain 'policies.json'
             $script:F.facts.policyCount | Should -Be 8
@@ -48,13 +48,13 @@ Describe 'Get-PostureCaFact on the sample snapshot' {
         @{ Fact = 'disabledOverThreshold'; Expected = 1 }
         @{ Fact = 'namingPatternConfigured'; Expected = $false }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } {
             $script:F.facts[$Fact] | Should -Be $Expected
         }
     }
 
     It 'lists the affected objects behind the facts' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:F.affected.exclusionGroupsOverThreshold.name | Should -Be @('CA-Exclude-MFA-Legacy')
             $script:F.affected.exclusionGroupsOverThreshold[0].detail | Should -Match '341 members, excluded from: CA-002.*CA-005'
             $script:F.affected.mfaAllUsersWithExtraExclusions.name | Should -Be @('CA-002-Users-Require MFA for all cloud apps')
@@ -70,7 +70,7 @@ Describe 'Get-PostureCaFact on the sample snapshot' {
     }
 
     It 'honours thresholds, the profile break-glass list, platforms and a name pattern' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ S = $script:Sample } {
+        InModuleScope TenantKeep.Posture -Parameters @{ S = $script:Sample } {
             $p = Import-PostureProfile
             $p.breakGlass = @('breakglass01@contoso.example', 'breakglass02@contoso.example')
             $p.platforms = @('windows')
@@ -86,7 +86,7 @@ Describe 'Get-PostureCaFact on the sample snapshot' {
     }
 
     It 'reports unavailable for a folder without a snapshot' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ R = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ R = $script:Root } {
             $f = Get-PostureCaFact -Evidence $R
             $f.available | Should -BeFalse
             $f.reason | Should -Match 'No Conditional Access snapshot'

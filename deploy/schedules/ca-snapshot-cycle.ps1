@@ -58,7 +58,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-if (-not (Get-Module -Name Tenantkeep.Posture)) { Import-Module Tenantkeep.Posture -ErrorAction Stop }
+if (-not (Get-Module -Name TenantKeep.Posture)) { Import-Module TenantKeep.Posture -ErrorAction Stop }
 . (Join-Path $PSScriptRoot 'ca-notifications.ps1')
 if ($EmailTo -and -not $EmailFrom) { throw '-EmailFrom is required with -EmailTo.' }
 

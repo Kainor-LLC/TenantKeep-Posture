@@ -32,7 +32,7 @@ function ConvertTo-PostureCaMarkdown {
     & $line
     $prepared = $b.preparedBy.name
     if ($b.client.name) { $prepared = "$prepared for $($b.client.name)" }
-    & $line "Prepared by $prepared. Snapshot taken $(& $fmtDate $d.snapshot.timestampUtc) by $($d.snapshot.account) in tenant ``$($d.snapshot.tenantId)``. Document generated $(& $fmtDate $d.generatedUtc) with Tenantkeep.Posture $($d.snapshot.moduleVersion)."
+    & $line "Prepared by $prepared. Snapshot taken $(& $fmtDate $d.snapshot.timestampUtc) by $($d.snapshot.account) in tenant ``$($d.snapshot.tenantId)``. Document generated $(& $fmtDate $d.generatedUtc) with TenantKeep.Posture $($d.snapshot.moduleVersion)."
     if ($b.confidentiality) { & $line; & $line "*$($b.confidentiality)*" }
     & $line
 

@@ -8,14 +8,14 @@ decisions; `(verify)` marks what has not been proven live yet.
 
 | Part | Where it lives | What it is |
 |---|---|---|
-| Module `Tenantkeep.Posture` | this repo, PowerShell Gallery and signed zips | Collectors, check engine, catalog, report renderers, licence verifier. Read-only against the tenant, always. |
+| Module `TenantKeep.Posture` | this repo, PowerShell Gallery and signed zips | Collectors, check engine, catalog, report renderers, licence verifier. Read-only against the tenant, always. |
 | Check catalog and baselines | `checks/`, `baselines/` | Data, not code: 204 checks in 13 domains, baselines that select and weight them, framework crosswalks. |
 | Report | `templates/`, rendered by the module | One self-contained HTML file per run (inline CSS and JS, no CDN), plus Markdown and optional PDF. |
-| Sign-in app **TenantKeep Posture** | one app registration in the Kainor tenant, manifest in `Tenantkeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated, read-only permissions and no credentials. Customers consent once; `Connect-PostureSession` signs the admin in to it with PKCE on a loopback port and brokers a token per service from that one sign-in (plan: docs/plan-one-signin.md, 2026-10-22). |
+| Sign-in app **TenantKeep Posture** | one app registration in the Kainor tenant, manifest in `TenantKeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated, read-only permissions and no credentials. Customers consent once; `Connect-PostureSession` signs the admin in to it with PKCE on a loopback port and brokers a token per service from that one sign-in (plan: docs/plan-one-signin.md, 2026-10-22). |
 | Windows AD collector | `collectors/windows/Get-ADBaseline.ps1` | Standalone read-only script for a domain-joined machine; its files join the evidence folder. |
 | Customer-side setup | `deploy/setup/`, `deploy/automation/Grant-ManagedIdentityGraphRole.ps1` | The only tenant writes in the repo: app registration, consents, role grants. Run once by the customer's admin, never by the module. |
 | Automation deployment | `deploy/automation/` (Bicep, deploy.ps1), `deploy/schedules/` (runbooks) | Option B: an Automation account in the customer's subscription with a managed identity, a nightly Conditional Access cycle and a monthly full posture cycle. |
-| Licensing | `Tenantkeep.Posture/Private/Test-PostureLicense.ps1`, `deploy/licensing/`, private repo `Kainor-LLC/tenantkeep-licensing` | A signed licence file per tenant, verified offline; issued by a Stripe-driven function in the Kainor tenant that signs through Key Vault. |
+| Licensing | `TenantKeep.Posture/Private/Test-PostureLicense.ps1`, `deploy/licensing/`, private repo `Kainor-LLC/tenantkeep-licensing` | A signed licence file per tenant, verified offline; issued by a Stripe-driven function in the Kainor tenant that signs through Key Vault. |
 | Websites | repos `Kainor-LLC/kainor.com`, `Kainor-LLC/tenantkeep.app` | Company site and the product family site (guide, generated catalog page). |
 
 ## A run, end to end
@@ -109,7 +109,7 @@ re-scores the page immediately; the next run makes it permanent. Design details 
 
 | Repo | Visibility | Holds |
 |---|---|---|
-| Kainor-LLC/tenantkeep-posture | source-available (currently private on GitHub; the licence assumes readers) | the module, catalog, deployment, docs |
+| Kainor-LLC/TenantKeep-Posture | source-available (currently private on GitHub; the licence assumes readers) | the module, catalog, deployment, docs |
 | Kainor-LLC/tenantkeep-licensing | private | the issuing function |
 | Kainor-LLC/tenantkeep.app, Kainor-LLC/kainor.com | public | the websites, served by Cloudflare Pages (GitHub Pages does not allow purchase links) |
 | Kainor-LLC/LAPSlock (public), Kainor-LLC/tenantkeep-oncall (private) | | the other products |

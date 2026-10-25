@@ -96,13 +96,13 @@ $apiVersion = '2023-05-15-preview'
 if (-not $SkipModuleImport) {
     if ($IntegrityVaultName) { & (Join-Path $repo 'build.ps1') -Task Build, Integrity -VaultName $IntegrityVaultName -KeyName $IntegrityKeyName | Out-Null }
     else { & (Join-Path $repo 'build.ps1') -Task Build | Out-Null }
-    $version = (Import-PowerShellDataFile (Join-Path $repo 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1')).ModuleVersion
-    $staged = Join-Path $repo 'out' 'Tenantkeep.Posture' $version
-    $zip = Join-Path $repo 'out' "Tenantkeep.Posture-$version-unsigned.zip"
+    $version = (Import-PowerShellDataFile (Join-Path $repo 'TenantKeep.Posture' 'TenantKeep.Posture.psd1')).ModuleVersion
+    $staged = Join-Path $repo 'out' 'TenantKeep.Posture' $version
+    $zip = Join-Path $repo 'out' "TenantKeep.Posture-$version-unsigned.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
     # Automation expects the module folder at the zip root (module.psd1 directly inside).
     Compress-Archive -Path (Join-Path $staged '*') -DestinationPath $zip
-    $blobName = "Tenantkeep.Posture-$version-$((Get-Date).ToString('yyyyMMddHHmm')).zip"
+    $blobName = "TenantKeep.Posture-$version-$((Get-Date).ToString('yyyyMMddHHmm')).zip"
     # The deployer's blob role comes from the same deployment; RBAC can take a minute or two to propagate.
     $attempt = 0
     while ($true) {
@@ -114,8 +114,8 @@ if (-not $SkipModuleImport) {
     $sas = [string]$sas
     $sas = $sas.Trim('"')
     $body = @{ properties = @{ contentLink = @{ uri = $sas } } } | ConvertTo-Json -Compress
-    $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/Tenantkeep.Posture?api-version=$apiVersion" --body $body -o none
-    Write-Host "Imported Tenantkeep.Posture $version into runtime environment $runtimeEnv"
+    $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/TenantKeep.Posture?api-version=$apiVersion" --body $body -o none
+    Write-Host "Imported TenantKeep.Posture $version into runtime environment $runtimeEnv"
 
     # 3. Dependency from the Gallery
     $galleryUri = "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/$GraphAuthenticationVersion"

@@ -234,7 +234,7 @@ function Invoke-PostureCollection {
         $used = Get-PostureModuleVersionUsed
         foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
         $manifest = [ordered]@{
-            product          = 'Tenantkeep.Posture'
+            product          = 'TenantKeep.Posture'
             moduleVersion    = $script:ModuleVersion
             collectors       = $allCollectors
             tenantId         = $context.TenantId

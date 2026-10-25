@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 <#
 .SYNOPSIS
-  Build script for Tenantkeep.Posture.
+  Build script for TenantKeep.Posture.
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website). Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the sign-release workflow through Azure Artifact Signing,
@@ -46,7 +46,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Root       = $PSScriptRoot
-$ModuleName = 'Tenantkeep.Posture'
+$ModuleName = 'TenantKeep.Posture'
 $SrcPath    = Join-Path $Root $ModuleName
 $OutRoot    = Join-Path $Root 'out'
 $Manifest   = Join-Path $SrcPath "$ModuleName.psd1"

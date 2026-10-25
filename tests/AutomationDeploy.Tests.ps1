@@ -107,7 +107,7 @@ Describe 'deploy scripts' {
 
     It 'the grant script lists every Graph role the collection warns about, plus the Exchange, SharePoint and Teams app roles' {
         $grant = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1')
-        $collection = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
+        $collection = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'Public' 'Invoke-PostureCollection.ps1')
         $warned = [regex]::Matches($collection, "'([A-Za-z]+\.[A-Za-z.]+)'\s+= '") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
         $warned.Count | Should -BeGreaterThan 15
         foreach ($scope in $warned) { $grant | Should -Match ([regex]::Escape("'$scope'")) -Because "$scope is a collector scope" }

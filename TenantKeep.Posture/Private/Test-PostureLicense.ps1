@@ -74,7 +74,7 @@ function Test-PostureLicense {
     catch { return & $fail "Licence signature could not be checked: $($_.Exception.Message)" }
     if (-not $ok) { return & $fail 'Licence signature does not match its contents. The file was edited or is not from Kainor.' }
 
-    if ([string]$lic['product'] -ne 'tenantkeep') { return & $fail "Licence is for product '$($lic['product'])', not Tenantkeep." }
+    if ([string]$lic['product'] -ne 'tenantkeep') { return & $fail "Licence is for product '$($lic['product'])', not TenantKeep." }
     $tier = ([string]$lic['tier']).ToLowerInvariant()
     if ($tier -notin @('ca', 'full')) { return & $fail "Licence tier '$tier' is not one this module knows." }
     if ($TenantId -and ([string]$lic['tenantId']).ToLowerInvariant() -ne $TenantId.ToLowerInvariant()) { return & $fail "Licence is for tenant $($lic['tenantId']), not $TenantId." }

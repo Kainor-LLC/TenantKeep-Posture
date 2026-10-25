@@ -119,7 +119,7 @@ function Export-PostureCaSnapshot {
         $errorsPath = Join-Path $folder 'errors.txt'
         $errorCount = if (Test-Path $errorsPath) { @(Get-Content -Path $errorsPath).Count } else { 0 }
         $metadata = [ordered]@{
-            product         = 'Tenantkeep.Posture'
+            product         = 'TenantKeep.Posture'
             moduleVersion   = $script:ModuleVersion
             snapshotType    = 'conditional-access'
             snapshotSchema  = 1

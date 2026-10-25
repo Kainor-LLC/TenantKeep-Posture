@@ -2,13 +2,13 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-idauth-$([guid]::NewGuid().ToString('n'))"
     $script:Ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'evidence')
     $script:AsOf = [datetime]::new(2026, 10, 14, 0, 0, 0, [System.DateTimeKind]::Utc)
-    InModuleScope Tenantkeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf } {
+    InModuleScope TenantKeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf } {
         $script:Id = Get-PostureIdentityFact -Evidence $E -OrgProfile (Import-PostureProfile) -Thresholds @{} -AsOf $AsOf
         $script:Au = Get-PostureAuthFact -Evidence $E -OrgProfile (Import-PostureProfile) -Thresholds @{}
     }
@@ -40,11 +40,11 @@ Describe 'Get-PostureIdentityFact' {
         @{ Fact = 'pimPolicyRolesChecked'; Expected = 4 }
         @{ Fact = 'pimPolicyCompliantRoles'; Expected = 2 }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Id.facts[$Fact] | Should -Be $Expected }
+        InModuleScope TenantKeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Id.facts[$Fact] | Should -Be $Expected }
     }
 
     It 'names the affected objects and the checks it cannot evaluate' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Id.affected.permanentPrivilegedOutsideBreakGlass.name | Should -Be @('Admin One: Global Administrator', 'Admin Two: Global Administrator')
             $script:Id.affected.adminsWithLicenses.name | Should -Be @('admin1@contoso.example')
             $script:Id.affected.inactiveGuests.name | Should -Be @('old_guest#EXT#@contoso.example', 'never_guest#EXT#@contoso.example')
@@ -60,7 +60,7 @@ Describe 'Get-PostureIdentityFact' {
     }
 
     It 'uses the profile break-glass list and marks missing files' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf; Root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ E = $script:Ev; AsOf = $script:AsOf; Root = $script:Root } {
             $p = Import-PostureProfile; $p.breakGlass = @('admin1@contoso.example')
             $f = Get-PostureIdentityFact -Evidence $E -OrgProfile $p -Thresholds @{ maxGlobalAdmins = 2 } -AsOf $AsOf
             $f.facts.permanentPrivilegedOutsideBreakGlass | Should -Be 2 -Because 'BreakGlass-01 is no longer break-glass by the profile list, Admin One is'
@@ -95,11 +95,11 @@ Describe 'Get-PostureAuthFact' {
         @{ Fact = 'perUserMfaEnforced'; Expected = 1 }
         @{ Fact = 'perUserMfaEnabled'; Expected = 0 }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Au.facts[$Fact] | Should -Be $Expected }
+        InModuleScope TenantKeep.Posture -Parameters @{ Fact = $Fact; Expected = $Expected } { $script:Au.facts[$Fact] | Should -Be $Expected }
     }
 
     It 'marks AU-009 not evaluated when every per-user MFA read failed' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Root = $script:Root } {
             $dir = Join-Path $Root 'mfa-errors'; New-Item -ItemType Directory -Path $dir -Force | Out-Null
             @{ Users = 5; Enforced = 0; Enabled = 0; Disabled = 0; Errors = 5; FirstError = "400 Resource not found for the segment 'requirements'." } | ConvertTo-Json | Set-Content (Join-Path $dir '05-per-user-mfa-summary.json')
             $f = Get-PostureAuthFact -Evidence $dir
@@ -108,7 +108,7 @@ Describe 'Get-PostureAuthFact' {
     }
 
     It 'lists admins without a phishing-resistant method, joining roles and the report' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Au.affected.adminsWithoutPhishingResistant.name | Should -Be @('admin1@contoso.example', 'admin3@contoso.example', 'auditor@contoso.example')
             $script:Au.notEvaluated.Keys | Should -BeNullOrEmpty
             $script:Au.affected.perUserMfaEnforced.name | Should -Be @('admin2@contoso.example')

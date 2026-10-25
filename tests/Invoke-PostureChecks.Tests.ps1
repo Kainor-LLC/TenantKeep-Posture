@@ -2,19 +2,19 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'CheckEngineFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-checks-$([guid]::NewGuid().ToString('n'))"
     $script:Fx = Initialize-CheckEngineFixture -Root $script:Root
     $script:Evidence = Join-Path $script:Root 'evidence'
     New-Item -ItemType Directory -Path $script:Evidence | Out-Null
     # Point the catalog loader at the fixture and give the engine the fixture provider.
-    Mock -ModuleName Tenantkeep.Posture Get-PostureDataFolder { param($Name) if ($Name -eq 'checks') { $env:TKP_TEST_CHECKS } elseif ($Name -eq 'baselines') { $env:TKP_TEST_BASELINES } }
+    Mock -ModuleName TenantKeep.Posture Get-PostureDataFolder { param($Name) if ($Name -eq 'checks') { $env:TKP_TEST_CHECKS } elseif ($Name -eq 'baselines') { $env:TKP_TEST_BASELINES } }
     $env:TKP_TEST_CHECKS = $script:Fx.Checks
     $env:TKP_TEST_BASELINES = $script:Fx.Baselines
     # The engine looks up Get-Posture<Domain>Fact; define the fixture provider as that function inside the module.
-    InModuleScope Tenantkeep.Posture -Parameters @{ P = $script:Fx.Provider } { Set-Item -Path 'function:script:Get-PostureTestFact' -Value $P }
+    InModuleScope TenantKeep.Posture -Parameters @{ P = $script:Fx.Provider } { Set-Item -Path 'function:script:Get-PostureTestFact' -Value $P }
 }
 
 AfterAll {

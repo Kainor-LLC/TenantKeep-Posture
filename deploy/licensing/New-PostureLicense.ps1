@@ -6,7 +6,7 @@
     Key Vault (or, for development, a local PEM that never enters this repository). Customers never run this.
 .DESCRIPTION
     Writes <tenantId>.tenantkeep.lic: the licence fields, the key id and an ECDSA P-256 signature (SHA-256, IEEE P1363
-    r||s, base64) over the canonical text the module verifies (Tenantkeep.Posture/Private/Test-PostureLicense.ps1).
+    r||s, base64) over the canonical text the module verifies (TenantKeep.Posture/Private/Test-PostureLicense.ps1).
     Two signing modes:
       -PrivateKeyPath   a PEM file (development, or an emergency copy you then destroy)
       -VaultName/-KeyName   az keyvault key sign with ES256 against a Key Vault EC P-256 key; the key never leaves the

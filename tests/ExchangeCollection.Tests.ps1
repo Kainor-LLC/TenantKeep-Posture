@@ -2,21 +2,21 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     . (Join-Path $PSScriptRoot 'Fixtures' 'ExchangeFixture.ps1')
     . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-exo-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $env:TKP_EXO_FIXTURE = (Join-Path $PSScriptRoot 'Fixtures' 'ExchangeFixture.ps1')
 
-    Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All') } }
-    Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Test-PostureExoSession { $env:TKP_EXO_CONNECTED -eq '1' }
+    Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All') } }
+    Mock -ModuleName TenantKeep.Posture Start-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Test-PostureExoSession { $env:TKP_EXO_CONNECTED -eq '1' }
     # Mock bodies run in the module scope, so the fixture is dot-sourced from the path in the environment.
-    Mock -ModuleName Tenantkeep.Posture Invoke-PostureExoCommand { . $env:TKP_EXO_FIXTURE; if ($Name -eq 'Get-RoleGroup' -and $env:TKP_EXO_FAIL -eq '1') { throw 'Access denied: View-Only Organization Management required' }; @(Get-ExchangeFixtureObject -Name $Name) }
-    Mock -ModuleName Tenantkeep.Posture Resolve-PostureDnsRecord { . $env:TKP_EXO_FIXTURE; @(Get-ExchangeFixtureDnsRecord -Name $Name -Type $Type) }
+    Mock -ModuleName TenantKeep.Posture Invoke-PostureExoCommand { . $env:TKP_EXO_FIXTURE; if ($Name -eq 'Get-RoleGroup' -and $env:TKP_EXO_FAIL -eq '1') { throw 'Access denied: View-Only Organization Management required' }; @(Get-ExchangeFixtureObject -Name $Name) }
+    Mock -ModuleName TenantKeep.Posture Resolve-PostureDnsRecord { . $env:TKP_EXO_FIXTURE; @(Get-ExchangeFixtureDnsRecord -Name $Name -Type $Type) }
 }
 
 AfterAll {
@@ -109,21 +109,21 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
         }
 
         It 'never connects on its own' {
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-PostureExoCommand -Times 0 -Scope It
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-PostureExoCommand -Times 0 -Scope It
         }
     }
 }
 
 Describe 'Invoke-PostureExoCommand' {
     It 'accepts Get- names only' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             { Invoke-PostureExoCommand -Name 'Set-Mailbox' } | Should -Throw
             { Invoke-PostureExoCommand -Name 'Remove-TransportRule' } | Should -Throw
         }
     }
 
     It 'projects rich objects to scalars and string lists' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $obj = [pscustomobject]@{ Name = 'x'; When = [datetime]'2026-01-01'; Tags = @('a', 'b'); Nested = [pscustomobject]@{ A = 1 }; Id = [guid]::Empty }
             $flat = $obj | ConvertTo-PostureFlatObject
             $flat.Name | Should -Be 'x'

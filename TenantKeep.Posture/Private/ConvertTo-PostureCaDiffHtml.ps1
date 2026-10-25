@@ -40,7 +40,7 @@ function ConvertTo-PostureCaDiffHtml {
     & $w "<h1>$(& $h $r.title)</h1>"
     $prepared = [string]$b.preparedBy.name
     if ($b.client.name) { $prepared += " for $($b.client.name)" }
-    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Before: $(& $fmtDate $d.before.timestampUtc) ($($d.before.policyCount) policies). After: $(& $fmtDate $d.after.timestampUtc) ($($d.after.policyCount) policies). Tenant <code>$(& $h $d.after.tenantId)</code>. Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $(& $h $r.moduleVersion).</div>"
+    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Before: $(& $fmtDate $d.before.timestampUtc) ($($d.before.policyCount) policies). After: $(& $fmtDate $d.after.timestampUtc) ($($d.after.policyCount) policies). Tenant <code>$(& $h $d.after.tenantId)</code>. Generated $(& $fmtDate $r.generatedUtc) with TenantKeep.Posture $(& $h $r.moduleVersion).</div>"
     if ($b.confidentiality) { & $w "<div class=`"confidential`">$(& $h $b.confidentiality)</div>" }
     & $w '</div></div></header><main>'
 

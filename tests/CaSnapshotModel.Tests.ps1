@@ -2,10 +2,10 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'
     $script:Pattern = '^CA-\d{3}-(Admins|Users|Guests|WorkloadIDs)-.+$'
-    InModuleScope Tenantkeep.Posture -Parameters @{ Sample = $script:Sample; Pattern = $script:Pattern } {
+    InModuleScope TenantKeep.Posture -Parameters @{ Sample = $script:Sample; Pattern = $script:Pattern } {
         $script:Snap = Import-PostureCaSnapshot -Path $Sample
         $script:Models = ConvertTo-PostureCaPolicyModel -Snapshot $script:Snap -NamePattern $Pattern
         $script:ById = @{}
@@ -15,7 +15,7 @@ BeforeAll {
 
 Describe 'Import-PostureCaSnapshot' {
     It 'loads the sample snapshot with every collection' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Snap.Policies.Count | Should -Be 8
             $script:Snap.NamedLocations.Count | Should -Be 2
             $script:Snap.AuthStrengths.Count | Should -Be 3
@@ -31,13 +31,13 @@ Describe 'Import-PostureCaSnapshot' {
         $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-bad-$([guid]::NewGuid().ToString('n'))"
         New-Item -ItemType Directory -Path $tmp | Out-Null
         try {
-            InModuleScope Tenantkeep.Posture -Parameters @{ Tmp = $tmp } { { Import-PostureCaSnapshot -Path $Tmp } | Should -Throw '*Not a CA snapshot folder*' }
+            InModuleScope TenantKeep.Posture -Parameters @{ Tmp = $tmp } { { Import-PostureCaSnapshot -Path $Tmp } | Should -Throw '*Not a CA snapshot folder*' }
         }
         finally { Remove-Item -LiteralPath $tmp -Recurse -Force }
     }
 
     It 'refuses a missing folder' {
-        InModuleScope Tenantkeep.Posture { { Import-PostureCaSnapshot -Path '/definitely/not/here' } | Should -Throw '*not found*' }
+        InModuleScope TenantKeep.Posture { { Import-PostureCaSnapshot -Path '/definitely/not/here' } | Should -Throw '*not found*' }
     }
 }
 
@@ -59,7 +59,7 @@ Describe 'ConvertTo-PostureCaPolicyModel on policies the sample lacks' {
             sessionControls = $null
         }
         ConvertTo-Json -InputObject $policies -Depth 20 | Set-Content -LiteralPath $policiesPath
-        InModuleScope Tenantkeep.Posture -Parameters @{ Extra = $script:Extra } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Extra = $script:Extra } {
             $script:ExtraSnap = Import-PostureCaSnapshot -Path $Extra
             $script:ExtraModels = @(ConvertTo-PostureCaPolicyModel -Snapshot $script:ExtraSnap)
         }
@@ -67,7 +67,7 @@ Describe 'ConvertTo-PostureCaPolicyModel on policies the sample lacks' {
     AfterAll { Remove-Item -LiteralPath $script:Extra -Recurse -Force -ErrorAction SilentlyContinue }
 
     It 'models the guest type object, the authentication context and the admin portals value without an error' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:ExtraModels.Count | Should -Be 9
             $m = $script:ExtraModels | Where-Object { $_.id -eq 'p-extra' }
             $m.assignments.includeGuestsOrExternal.guestOrExternalUserTypes | Should -Match 'b2bCollaborationGuest'
@@ -80,13 +80,13 @@ Describe 'ConvertTo-PostureCaPolicyModel on policies the sample lacks' {
     It 'renders the document and evaluates the facts over it' {
         $out = Join-Path $script:Extra 'out'
         { New-PostureCaDocument -Snapshot $script:Extra -Format Html -OutputPath $out } | Should -Not -Throw
-        InModuleScope Tenantkeep.Posture -Parameters @{ Extra = $script:Extra } { (Get-PostureCaFact -Evidence $Extra).facts.policyCount | Should -Be 9 }
+        InModuleScope TenantKeep.Posture -Parameters @{ Extra = $script:Extra } { (Get-PostureCaFact -Evidence $Extra).facts.policyCount | Should -Be 9 }
     }
 }
 
 Describe 'ConvertTo-PostureCaPolicyModel' {
     It 'returns one model per policy sorted by name' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Models.Count | Should -Be 8
             $names = @($script:Models | ForEach-Object { $_.name })
             $names | Should -Be @($names | Sort-Object)
@@ -94,7 +94,7 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
     }
 
     It 'maps state to enabled, reportOnly, disabled' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:ById['p-001'].state | Should -Be 'enabled'
             $script:ById['p-004'].state | Should -Be 'reportOnly'
             $script:ById['p-004'].stateLabel | Should -Be 'Report-only'
@@ -103,7 +103,7 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
     }
 
     It 'resolves ids to names with member counts and deleted markers' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $m = $script:ById['p-005']
             $m.assignments.excludeUsers[0].name | Should -Be 'BreakGlass-01'
             $m.assignments.excludeUsers[0].userPrincipalName | Should -Be 'breakglass01@contoso.example'
@@ -117,7 +117,7 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
     }
 
     It 'parses dates as UTC regardless of the machine time zone' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:ById['p-001'].modified.Kind | Should -Be 'Utc'
             $script:ById['p-001'].modified.ToString('yyyy-MM-dd HH:mm') | Should -Be '2026-01-15 09:30'
             $script:ById['p-003'].created.ToString('yyyy-MM-dd HH:mm') | Should -Be '2025-03-04 10:10'
@@ -125,7 +125,7 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
     }
 
     It 'normalises strings, local DateTimes and DateTimeOffsets to UTC' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             (ConvertTo-PostureUtcDateTime '2025-03-04T10:10:00Z').ToString('HH:mm') | Should -Be '10:10'
             (ConvertTo-PostureUtcDateTime '2025-03-04T10:10:00+02:00').ToString('HH:mm') | Should -Be '08:10'
             $local = [datetime]::new(2025, 3, 4, 10, 10, 0, [System.DateTimeKind]::Utc).ToLocalTime()
@@ -136,7 +136,7 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
     }
 
     It 'keeps the raw policy' {
-        InModuleScope Tenantkeep.Posture { $script:ById['p-003'].raw.displayName | Should -Be 'Block legacy authentication' }
+        InModuleScope TenantKeep.Posture { $script:ById['p-003'].raw.displayName | Should -Be 'Block legacy authentication' }
     }
 }
 
@@ -151,7 +151,7 @@ Describe 'Get-PostureCaPolicySummary' {
         @{ Id = 'p-007'; Expected = "Block access for all users, the action 'register security information', any platform, from any location except trusted locations, <deleted namedLocation 55555555-5555-5555-5555-555555555599>." }
         @{ Id = 'p-008'; Expected = 'Report-only: Require MFA for all users, all cloud apps, any platform, when sign-in risk is high or medium.' }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Id = $Id; Expected = $Expected } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Id = $Id; Expected = $Expected } {
             $script:ById[$Id].summary | Should -Be $Expected
         }
     }
@@ -159,7 +159,7 @@ Describe 'Get-PostureCaPolicySummary' {
 
 Describe 'Get-PostureCaSessionSummary' {
     It 'describes session-only policies instead of calling them uncontrolled' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $base = [ordered]@{
                 state = 'enabled'
                 assignments = [ordered]@{ includeUsers = @([ordered]@{ id = 'All'; name = 'All (built-in)'; type = 'builtIn'; deleted = $false }); excludeUsers = @(); includeGroups = @(); excludeGroups = @(); includeRoles = @(); excludeRoles = @(); includeGuestsOrExternal = $null; excludeGuestsOrExternal = $null; includeServicePrincipals = @(); excludeServicePrincipals = @() }
@@ -190,14 +190,14 @@ Describe 'Get-PostureCaHealthFlag' {
         @{ Id = 'p-007'; Codes = @('deletedReference') }
         @{ Id = 'p-008'; Codes = @('reportOnlyAge', 'namingMismatch') }
     ) {
-        InModuleScope Tenantkeep.Posture -Parameters @{ Id = $Id; Codes = $Codes } {
+        InModuleScope TenantKeep.Posture -Parameters @{ Id = $Id; Codes = $Codes } {
             $actual = @($script:ById[$Id].healthFlags | ForEach-Object { $_.code } | Sort-Object)
             $actual | Should -Be @($Codes | Sort-Object)
         }
     }
 
     It 'measures ages from the snapshot timestamp, not from now' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             # p-004 modified 2026-05-20, snapshot 2026-10-13: 146 days
             $f = $script:ById['p-004'].healthFlags | Where-Object code -eq 'reportOnlyAge'
             $f.message | Should -Match 'for 146 days'
@@ -205,7 +205,7 @@ Describe 'Get-PostureCaHealthFlag' {
     }
 
     It 'honours thresholds and AsOf' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $models = ConvertTo-PostureCaPolicyModel -Snapshot $script:Snap -ExclusionGroupThreshold 500 -ReportOnlyDays 365 -AsOf ([datetime]'2026-06-01T00:00:00Z')
             $m = @{}; foreach ($x in $models) { $m[$x.id] = $x }
             @($m['p-002'].healthFlags).Count | Should -Be 0
@@ -216,7 +216,7 @@ Describe 'Get-PostureCaHealthFlag' {
     }
 
     It 'flags an empty assignment' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $p = [ordered]@{
                 id = 'x'; name = 'x'; state = 'enabled'; modified = [datetime]::UtcNow
                 assignments = [ordered]@{ includeUsers = @(); excludeUsers = @(); includeGroups = @(); excludeGroups = @(); includeRoles = @(); excludeRoles = @(); includeGuestsOrExternal = $null; excludeGuestsOrExternal = $null; includeServicePrincipals = @(); excludeServicePrincipals = @() }

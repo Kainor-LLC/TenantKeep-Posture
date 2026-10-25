@@ -22,9 +22,9 @@ function Start-PostureChildCollection {
     )
 
     $ErrorActionPreference = 'Stop'
-    $psd1 = Join-Path $script:ModuleRoot 'Tenantkeep.Posture.psd1'
+    $psd1 = Join-Path $script:ModuleRoot 'TenantKeep.Posture.psd1'
     # The failed-collector count becomes the exit code; without the exit it would only print (a stray 0 on the first live run).
-    if (-not $Command) { $Command = "Import-Module '$($psd1 -replace "'", "''")' -ErrorAction Stop; exit [int](& (Get-Module Tenantkeep.Posture) { Invoke-PostureChildCollection })" }
+    if (-not $Command) { $Command = "Import-Module '$($psd1 -replace "'", "''")' -ErrorAction Stop; exit [int](& (Get-Module TenantKeep.Posture) { Invoke-PostureChildCollection })" }
     $exe = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     if (-not $PSCmdlet.ShouldProcess($exe, "Start a collection process for $($Request['collectors'] -join ', ')")) { return 0 }
     $psi = [System.Diagnostics.ProcessStartInfo]::new()

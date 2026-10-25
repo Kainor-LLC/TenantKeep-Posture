@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-diff-$([guid]::NewGuid().ToString('n'))"
     $script:BeforeDir = Join-Path $script:Root 'before'
@@ -10,7 +10,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'Fixtures' 'CaDiffFixture.ps1')
     $null = Initialize-CaDiffFixture -Root $script:Root -Sample $script:Sample
 
-    InModuleScope Tenantkeep.Posture -Parameters @{ B = $script:BeforeDir; A = $script:AfterDir } {
+    InModuleScope TenantKeep.Posture -Parameters @{ B = $script:BeforeDir; A = $script:AfterDir } {
         $script:Diff = Compare-PostureCaModel -Before (Import-PostureCaSnapshot -Path $B) -After (Import-PostureCaSnapshot -Path $A)
     }
 }
@@ -21,7 +21,7 @@ AfterAll {
 
 Describe 'ConvertTo-PostureCaFlatMap' {
     It 'flattens references to sorted names, scalars to strings, nulls to empty' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $m = ConvertTo-PostureCaFlatMap ([ordered]@{
                     a = @([ordered]@{ id = '2'; name = 'Zed'; type = 'user' }, [ordered]@{ id = '1'; name = 'Amy'; type = 'user' })
                     b = @('y', 'x'); c = $null; d = [ordered]@{ e = $true; raw = 'skip' }; f = @()
@@ -36,7 +36,7 @@ Describe 'ConvertTo-PostureCaFlatMap' {
     }
 
     It 'reports only changed paths, including one-sided ones' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $c = Compare-PostureCaFlatMap -Before ([ordered]@{ x = '1'; y = '2'; gone = 'g' }) -After ([ordered]@{ x = '1'; y = '3'; new = 'n' })
             @($c | ForEach-Object { $_.path } | Sort-Object) | Should -Be @('gone', 'new', 'y')
             ($c | Where-Object path -eq 'y').before | Should -Be '2'
@@ -47,7 +47,7 @@ Describe 'ConvertTo-PostureCaFlatMap' {
 
 Describe 'Compare-PostureCaModel' {
     It 'classifies added, removed and changed policies' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Diff.policies.added.id | Should -Be @('p-009')
             $script:Diff.policies.removed.id | Should -Be @('p-008')
             @($script:Diff.policies.changed | ForEach-Object { $_.id }) | Should -Be @('p-001', 'p-002', 'p-003', 'p-005')
@@ -55,7 +55,7 @@ Describe 'Compare-PostureCaModel' {
     }
 
     It 'flags rename and state change separately from field changes' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $c = $script:Diff.policies.changed | Where-Object id -eq 'p-003'
             $c.renamed | Should -BeTrue
             $c.nameBefore | Should -Be 'Block legacy authentication'
@@ -68,7 +68,7 @@ Describe 'Compare-PostureCaModel' {
     }
 
     It 'gives field-level before and after with names, not ids' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $c = $script:Diff.policies.changed | Where-Object id -eq 'p-001'
             $f = $c.fields | Where-Object path -eq 'assignments.excludeUsers'
             $f.before | Should -Be 'BreakGlass-01; BreakGlass-02'
@@ -81,7 +81,7 @@ Describe 'Compare-PostureCaModel' {
     }
 
     It 'diffs named locations and strengths' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:Diff.locations.added.name | Should -Be @('Branch VPN')
             ($script:Diff.locations.changed | Where-Object name -eq 'HQ egress').fields.path | Should -Contain 'ipRanges'
             ($script:Diff.strengths.changed | Where-Object name -eq 'Phishing-resistant MFA').fields.path | Should -Be @('allowedCombinations')
@@ -90,7 +90,7 @@ Describe 'Compare-PostureCaModel' {
     }
 
     It 'reports scope drift with member detail when both sides have members' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $big = $script:Diff.scope | Where-Object name -eq 'CA-Exclude-MFA-Legacy'
             $big.countBefore | Should -Be 341
             $big.countAfter | Should -Be 350
@@ -107,7 +107,7 @@ Describe 'Compare-PostureCaModel' {
 
 Describe 'Get-PostureCaRiskChange' {
     It 'raises exactly the expected risk-relevant changes' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $rules = @($script:Diff.risk | ForEach-Object { "$($_.rule):$($_.subject)" } | Sort-Object)
             $rules | Should -Be @(
                 'authStrengthWeakened:CA-001-Admins-Require phishing-resistant MFA'
@@ -124,14 +124,14 @@ Describe 'Get-PostureCaRiskChange' {
     }
 
     It 'does not count a removed report-only policy or an unchanged deleted reference' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             @($script:Diff.risk | Where-Object rule -eq 'enabledPolicyRemoved').Count | Should -Be 0
             @($script:Diff.risk | Where-Object { $_.rule -eq 'deletedReference' -and $_.subject -like 'CA-007*' }).Count | Should -Be 0
         }
     }
 
     It 'uses an explicit break-glass list when given' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $none = Get-PostureCaRiskChange -Diff $script:Diff -BreakGlass @('someone-else@contoso.example')
             @($none | Where-Object rule -eq 'breakGlassExclusionRemoved').Count | Should -Be 0
             $hit = Get-PostureCaRiskChange -Diff $script:Diff -BreakGlass @('breakglass02@contoso.example')
@@ -140,7 +140,7 @@ Describe 'Get-PostureCaRiskChange' {
     }
 
     It 'ranks authentication strength levels' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $mk = { param($combos, $controls) [ordered]@{ grant = [ordered]@{ builtInControls = $controls; authenticationStrength = $(if ($null -ne $combos) { [ordered]@{ id = 's'; name = 's'; deleted = $false; allowedCombinations = $combos } } else { $null }) } } }
             Get-PostureCaStrengthLevel -Policy (& $mk @('fido2', 'windowsHelloForBusiness') @()) | Should -Be 3
             Get-PostureCaStrengthLevel -Policy (& $mk @('fido2', 'microsoftAuthenticatorPush') @()) | Should -Be 2
@@ -151,7 +151,7 @@ Describe 'Get-PostureCaRiskChange' {
     }
 
     It 'returns nothing when both snapshots are the same' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ B = $script:BeforeDir } {
+        InModuleScope TenantKeep.Posture -Parameters @{ B = $script:BeforeDir } {
             $same = Compare-PostureCaModel -Before (Import-PostureCaSnapshot -Path $B) -After (Import-PostureCaSnapshot -Path $B)
             @($same.risk).Count | Should -Be 0
             $same.policies.added.Count + $same.policies.removed.Count + $same.policies.changed.Count | Should -Be 0

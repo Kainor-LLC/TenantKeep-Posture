@@ -3,7 +3,7 @@
 
 BeforeAll {
     $script:Script = Join-Path $PSScriptRoot '..' 'deploy' 'setup' 'New-PostureClientApp.ps1'
-    $script:ShippedManifest = Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'app.json'
+    $script:ShippedManifest = Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'app.json'
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-clientapp-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $script:AppJson = Join-Path $script:Root 'app.json'
@@ -48,7 +48,7 @@ AfterAll {
     Remove-Item Env:TKP_CLIENTAPP_LOG, Env:TKP_CLIENTAPP_EXISTS, Env:TKP_CLIENTAPP_JSON, Env:TKP_CLIENTAPP_VERIFY_404, Env:TKP_CLIENTAPP_SLEPT -ErrorAction SilentlyContinue
 }
 
-Describe 'Tenantkeep.Posture/app.json' {
+Describe 'TenantKeep.Posture/app.json' {
     BeforeAll { $script:Manifest = Get-Content -LiteralPath $script:ShippedManifest -Raw | ConvertFrom-Json -AsHashtable }
 
     It 'names the app, the loopback redirect and the consent page' {
@@ -59,7 +59,7 @@ Describe 'Tenantkeep.Posture/app.json' {
 
     It 'asks Graph for exactly the scopes the collection warns about, plus sign-in, refresh and the roles the grant script lists' {
         $graphScopes = @(@($script:Manifest['resources'] | Where-Object { $_['name'] -eq 'graph' })[0]['scopes'])
-        $collection = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Public' 'Invoke-PostureCollection.ps1') -Raw
+        $collection = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'Public' 'Invoke-PostureCollection.ps1') -Raw
         foreach ($scope in @([regex]::Matches($collection, "^\s+'([A-Za-z.]+\.Read[A-Za-z.]*)'\s+= '", 'Multiline') | ForEach-Object { $_.Groups[1].Value })) {
             $graphScopes | Should -Contain $scope
         }

@@ -31,7 +31,7 @@ function ConvertTo-PostureCaDiffMarkdown {
     & $line
     $prepared = [string]$b.preparedBy.name
     if ($b.client.name) { $prepared += " for $($b.client.name)" }
-    & $line "Prepared by $prepared. Before: $(& $fmtDate $d.before.timestampUtc) ($($d.before.policyCount) policies). After: $(& $fmtDate $d.after.timestampUtc) ($($d.after.policyCount) policies). Tenant ``$($d.after.tenantId)``. Generated $(& $fmtDate $r.generatedUtc) with Tenantkeep.Posture $($r.moduleVersion)."
+    & $line "Prepared by $prepared. Before: $(& $fmtDate $d.before.timestampUtc) ($($d.before.policyCount) policies). After: $(& $fmtDate $d.after.timestampUtc) ($($d.after.policyCount) policies). Tenant ``$($d.after.tenantId)``. Generated $(& $fmtDate $r.generatedUtc) with TenantKeep.Posture $($r.moduleVersion)."
     if ($b.confidentiality) { & $line; & $line "*$($b.confidentiality)*" }
     & $line
 

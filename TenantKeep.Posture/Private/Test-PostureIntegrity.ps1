@@ -52,7 +52,7 @@ function New-PostureIntegrityManifest {
     $ErrorActionPreference = 'Stop'
     if (-not $PrivateKeyPath -and -not $Signer) { throw 'New-PostureIntegrityManifest needs -PrivateKeyPath or -Signer.' }
     $root = (Resolve-Path -LiteralPath $ModuleRoot).Path
-    $version = [string](Import-PowerShellDataFile -Path (Join-Path $root 'Tenantkeep.Posture.psd1')).ModuleVersion
+    $version = [string](Import-PowerShellDataFile -Path (Join-Path $root 'TenantKeep.Posture.psd1')).ModuleVersion
     $manifest = [ordered]@{ format = 'tenantkeep-integrity/1'; version = $version; generatedUtc = [datetime]::UtcNow.ToString('o'); keyId = $KeyId; files = $null; algorithm = 'ES256'; signature = $null }
     $files = Get-PostureIntegrityFileList -ModuleRoot $root
     $ordered = [ordered]@{}; foreach ($k in @($files.Keys | Sort-Object -Culture ([cultureinfo]::InvariantCulture))) { $ordered[$k] = $files[$k] }
@@ -86,7 +86,7 @@ function Test-PostureIntegrity {
     $keys = $(if ($PublicKeys) { $PublicKeys } else { $script:PostureLicenceKeys })
     $root = (Resolve-Path -LiteralPath $ModuleRoot).Path
     $manifestPath = Join-Path $root 'integrity.json'
-    $version = $(try { [string](Import-PowerShellDataFile -Path (Join-Path $root 'Tenantkeep.Posture.psd1')).ModuleVersion } catch { '' })
+    $version = $(try { [string](Import-PowerShellDataFile -Path (Join-Path $root 'TenantKeep.Posture.psd1')).ModuleVersion } catch { '' })
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return @{ state = 'development'; detail = 'Development build: no signed release manifest.'; version = $version; changed = @() } }
     $modified = { param([string] $why, [string[]] $changed = @()) @{ state = 'modified'; detail = "Modified build: $why"; version = $version; changed = @($changed) } }
     try { $m = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 5 } catch { return & $modified 'integrity.json is not valid JSON.' }

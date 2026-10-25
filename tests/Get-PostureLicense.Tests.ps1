@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force   # a fresh import: no entitlement override from earlier files
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force   # a fresh import: no entitlement override from earlier files
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-lic-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root -Force | Out-Null
     # A throwaway key pair: the module is told to trust it through the private -PublicKeys parameter only.
@@ -20,7 +20,7 @@ AfterAll { if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -
 
 Describe 'Licence verification (offline, ECDSA P-256)' {
     It 'accepts a licence the issuer signed, for its tenant, before expiry' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant; K = $script:Keys } {
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant; K = $script:Keys } {
             $r = Test-PostureLicense -Path $P -TenantId $T -PublicKeys $K
             $r.valid | Should -BeTrue -Because $r.reason
             $r.tier | Should -Be 'full'
@@ -28,7 +28,7 @@ Describe 'Licence verification (offline, ECDSA P-256)' {
         }
     }
     It 'rejects it for another tenant, after expiry, and when any field is edited' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant; K = $script:Keys; Root = $script:Root } {
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant; K = $script:Keys; Root = $script:Root } {
             (Test-PostureLicense -Path $P -TenantId 'bbbbbbbb-1111-2222-3333-444444444444' -PublicKeys $K).reason | Should -Match 'not bbbbbbbb'
             (Test-PostureLicense -Path $P -TenantId $T -AsOfUtc ([datetime]::UtcNow.AddYears(2)) -PublicKeys $K).reason | Should -Match 'expired'
             $doc = Get-Content -Raw $P | ConvertFrom-Json -AsHashtable
@@ -46,12 +46,12 @@ Describe 'Licence verification (offline, ECDSA P-256)' {
         }
     }
     It 'rejects a licence signed by a key the module does not trust (the shipped table has no test key)' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant } {
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $script:Lic; T = $script:Tenant } {
             (Test-PostureLicense -Path $P -TenantId $T).reason | Should -Match 'unknown key'
         }
     }
     It 'the shipped public key table holds PEM public keys only' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $script:PostureLicenceKeys.Count | Should -BeGreaterThan 0
             foreach ($k in $script:PostureLicenceKeys.Keys) { $script:PostureLicenceKeys[$k] | Should -Match '^-----BEGIN PUBLIC KEY-----' ; $script:PostureLicenceKeys[$k] | Should -Not -Match 'PRIVATE' }
         }
@@ -69,7 +69,7 @@ Describe 'Entitlement gate' {
         @($run.results | Where-Object { $_.domain -eq 'ca' -and $_.reason -match 'Not licensed' }).Count | Should -Be 0 -Because 'the Conditional Access domain is free'
     }
     It 'with a trusted full licence every domain is evaluated' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ K = $script:Keys } { $script:PostureLicenceKeys['test-key'] = $K['test-key'] }   # trust the test key for this one test
+        InModuleScope TenantKeep.Posture -Parameters @{ K = $script:Keys } { $script:PostureLicenceKeys['test-key'] = $K['test-key'] }   # trust the test key for this one test
         try {
             $run = Invoke-PostureChecks -Evidence $script:Ev -Domain ca, identity -LicensePath $script:Lic -PassThru
             $run.entitlement.licensed | Should -BeTrue -Because $run.entitlement.reason
@@ -78,7 +78,7 @@ Describe 'Entitlement gate' {
             @($run.results | Where-Object { $_.domain -eq 'identity' -and $_.reason -match 'Not licensed' }).Count | Should -Be 0
             (Get-PostureLicense -Path $script:Lic -Evidence $script:Ev).Valid | Should -BeTrue
         }
-        finally { InModuleScope Tenantkeep.Posture { $script:PostureLicenceKeys.Remove('test-key') } }
+        finally { InModuleScope TenantKeep.Posture { $script:PostureLicenceKeys.Remove('test-key') } }
     }
     It 'Get-PostureLicense reports a missing file and an untrusted key in plain words' {
         (Get-PostureLicense -Path (Join-Path $script:Root 'nope.lic') -TenantId $script:Tenant).Reason | Should -Match 'No licence file'

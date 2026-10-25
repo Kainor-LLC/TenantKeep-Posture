@@ -18,7 +18,7 @@ first tagged release, the Marketplace listing, the trial licence on first run.
 Two lines. The sign-in is delegated, read-only, and the only one (Purview opens a second window of its own).
 
 ```powershell
-Import-Module ./Tenantkeep.Posture          # Install-Module Tenantkeep.Posture once it is on the Gallery
+Import-Module ./TenantKeep.Posture          # Install-Module TenantKeep.Posture once it is on the Gallery
 Start-PostureRun                            # sign in, collect everything the account can read, open report.html
 ```
 

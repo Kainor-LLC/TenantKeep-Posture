@@ -2,8 +2,8 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'
     $script:Out = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-doc-$([guid]::NewGuid().ToString('n'))"
     $script:Pattern = '^CA-\d{3}-(Admins|Users|Guests|WorkloadIDs)-.+$'
@@ -274,29 +274,29 @@ Describe 'New-PostureCaDocument HTML and PDF' {
 
     Context 'Pdf' {
         It 'prints the HTML through a headless browser and returns all three files' {
-            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { '/fake/msedge' }
-            Mock -ModuleName Tenantkeep.Posture Start-Process {
+            Mock -ModuleName TenantKeep.Posture Find-PostureHeadlessBrowser { '/fake/msedge' }
+            Mock -ModuleName TenantKeep.Posture Start-Process {
                 $pdf = ($ArgumentList | Where-Object { $_ -like '--print-to-pdf=*' }) -replace '^--print-to-pdf=', ''
                 Set-Content -LiteralPath $pdf -Value '%PDF-1.7 fake'
                 [pscustomobject]@{ ExitCode = 0 }
             }
             $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'pdf') -Format Markdown, Pdf -PassThru
             @($r.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.md', '.pdf')
-            Should -Invoke -ModuleName Tenantkeep.Posture Start-Process -Times 1 -Exactly -ParameterFilter {
+            Should -Invoke -ModuleName TenantKeep.Posture Start-Process -Times 1 -Exactly -ParameterFilter {
                 $FilePath -eq '/fake/msedge' -and $ArgumentList -contains '--headless=new' -and $ArgumentList -contains '--no-pdf-header-footer' -and ($ArgumentList -join ' ') -match 'file:///.*ca-document\.html'
             }
         }
 
         It 'fails plainly when no browser is installed, after writing the HTML' {
-            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { $null }
+            Mock -ModuleName TenantKeep.Posture Find-PostureHeadlessBrowser { $null }
             $dir = Join-Path $script:Out 'pdf-nobrowser'
             { New-PostureCaDocument -Snapshot $script:Sample -OutputPath $dir -Format Pdf } | Should -Throw '*No headless browser found*'
             Join-Path $dir 'ca-document.html' | Should -Exist
         }
 
         It 'surfaces a non-zero browser exit code' {
-            Mock -ModuleName Tenantkeep.Posture Find-PostureHeadlessBrowser { '/fake/chrome' }
-            Mock -ModuleName Tenantkeep.Posture Start-Process { [pscustomobject]@{ ExitCode = 21 } }
+            Mock -ModuleName TenantKeep.Posture Find-PostureHeadlessBrowser { '/fake/chrome' }
+            Mock -ModuleName TenantKeep.Posture Start-Process { [pscustomobject]@{ ExitCode = 21 } }
             { New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'pdf-fail') -Format Pdf } | Should -Throw '*exited with code 21*'
         }
     }

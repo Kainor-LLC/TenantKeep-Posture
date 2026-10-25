@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeDiscovery {
-    $script:ModuleRoot = Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture'
+    $script:ModuleRoot = Join-Path $PSScriptRoot '..' 'TenantKeep.Posture'
     $script:PublicNames = @(Get-ChildItem -Path (Join-Path $script:ModuleRoot 'Public') -Filter '*.ps1' -ErrorAction SilentlyContinue |
             ForEach-Object { @{ Name = $_.BaseName; Path = $_.FullName } })
     $script:SourceFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..') -Recurse -Include '*.ps1', '*.psm1', '*.psd1' |
@@ -11,8 +11,8 @@ BeforeDiscovery {
 }
 
 BeforeAll {
-    $script:ModuleRoot = Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture'
-    $script:ManifestPath = Join-Path $script:ModuleRoot 'Tenantkeep.Posture.psd1'
+    $script:ModuleRoot = Join-Path $PSScriptRoot '..' 'TenantKeep.Posture'
+    $script:ManifestPath = Join-Path $script:ModuleRoot 'TenantKeep.Posture.psd1'
     Import-Module $script:ManifestPath -Force
 }
 
@@ -28,7 +28,7 @@ Describe 'Module manifest' {
 
     It 'exports exactly the Public/ basenames' {
         $expected = @(Get-ChildItem -Path (Join-Path $script:ModuleRoot 'Public') -Filter '*.ps1' | Select-Object -ExpandProperty BaseName | Sort-Object)
-        $actual = @((Get-Module Tenantkeep.Posture).ExportedFunctions.Keys | Sort-Object)
+        $actual = @((Get-Module TenantKeep.Posture).ExportedFunctions.Keys | Sort-Object)
         $actual | Should -Be $expected
         $manifestList = @((Import-PowerShellDataFile -Path $script:ManifestPath).FunctionsToExport | Sort-Object)
         $manifestList | Should -Be $expected -Because 'FunctionsToExport must match Public/ so Import-Module from the repo works'
@@ -36,8 +36,8 @@ Describe 'Module manifest' {
 
     It 'points at the Kainor-LLC repository' {
         $data = (Import-PowerShellDataFile -Path $script:ManifestPath).PrivateData.PSData
-        $data.ProjectUri | Should -Be 'https://github.com/Kainor-LLC/tenantkeep-posture'
-        $data.LicenseUri | Should -Be 'https://github.com/Kainor-LLC/tenantkeep-posture/blob/main/LICENSE.md'
+        $data.ProjectUri | Should -Be 'https://github.com/Kainor-LLC/TenantKeep-Posture'
+        $data.LicenseUri | Should -Be 'https://github.com/Kainor-LLC/TenantKeep-Posture/blob/main/LICENSE.md'
         $data.ReleaseNotes | Should -Match 'CHANGELOG\.md'
     }
 

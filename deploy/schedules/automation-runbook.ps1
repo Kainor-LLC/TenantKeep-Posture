@@ -39,8 +39,8 @@ try {
     $null = Connect-AzAccount -Identity
     Connect-MgGraph -Identity -NoWelcome
     Write-Output "step: import module"
-    Import-Module Tenantkeep.Posture
-    Write-Output "module $((Get-Module Tenantkeep.Posture).Version) from $((Get-Module Tenantkeep.Posture).Path)"
+    Import-Module TenantKeep.Posture
+    Write-Output "module $((Get-Module TenantKeep.Posture).Version) from $((Get-Module TenantKeep.Posture).Path)"
     $storage = New-AzStorageContext -StorageAccountName $accountName -UseConnectedAccount
 
     $work = Join-Path ([System.IO.Path]::GetTempPath()) 'tenantkeep-ca'
@@ -61,7 +61,7 @@ try {
         Write-Output "Downloaded previous run $latest"
     }
 
-    $cycle = Join-Path (Split-Path (Get-Module Tenantkeep.Posture).Path) 'schedules' 'ca-snapshot-cycle.ps1'
+    $cycle = Join-Path (Split-Path (Get-Module TenantKeep.Posture).Path) 'schedules' 'ca-snapshot-cycle.ps1'
     if (-not (Test-Path $cycle)) { $cycle = Join-Path $PSScriptRoot 'ca-snapshot-cycle.ps1' }
 
     $params = @{ OutRoot = $work; KeepRuns = 0 }

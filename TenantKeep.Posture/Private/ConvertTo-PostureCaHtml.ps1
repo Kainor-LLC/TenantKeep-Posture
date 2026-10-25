@@ -66,7 +66,7 @@ function ConvertTo-PostureCaHtml {
     & $w "<div><h1>$(& $h $d.title)</h1>"
     $prepared = [string]$b.preparedBy.name
     if ($b.client.name) { $prepared += " for $($b.client.name)" }
-    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Snapshot taken $(& $fmtDate $d.snapshot.timestampUtc) by $(& $h $d.snapshot.account) in tenant <code>$(& $h $d.snapshot.tenantId)</code>. Generated $(& $fmtDate $d.generatedUtc) with Tenantkeep.Posture $(& $h $d.snapshot.moduleVersion).</div>"
+    & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Snapshot taken $(& $fmtDate $d.snapshot.timestampUtc) by $(& $h $d.snapshot.account) in tenant <code>$(& $h $d.snapshot.tenantId)</code>. Generated $(& $fmtDate $d.generatedUtc) with TenantKeep.Posture $(& $h $d.snapshot.moduleVersion).</div>"
     if ($b.confidentiality) { & $w "<div class=`"confidential`">$(& $h $b.confidentiality)</div>" }
     & $w '</div></div>'
     & $w '</header>'

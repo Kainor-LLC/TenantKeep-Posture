@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
 
     # Synthetic tenant. Every id below is made up.
     $script:Ids = @{
@@ -41,15 +41,15 @@ BeforeAll {
         }
     )
 
-    Mock -ModuleName Tenantkeep.Posture Get-MgContext {
+    Mock -ModuleName TenantKeep.Posture Get-MgContext {
         [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'User.Read') }
     }
-    Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Start-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
 
     # Mock at the SDK boundary so the wrapper's paging and API version recording run for real.
     # Responses are shaped like the wire: { value = [...] } for collections, with @odata.nextLink for paging.
-    Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest {
+    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest {
         $u = [uri] $Uri
         $script:LastGraphUri = $Uri
         $path = [uri]::UnescapeDataString($u.PathAndQuery) -replace '^/(v1\.0|beta)/', ''
@@ -162,7 +162,7 @@ Describe 'Export-PostureCaSnapshot' {
             $g = & $script:Read 'group-scope'
             $gone = $g | Where-Object groupId -eq $script:Ids.DeletedGroup
             $gone.deleted | Should -BeTrue
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 0 -Scope Context -ParameterFilter { $Uri -like "*/groups/$($script:Ids.DeletedGroup)/*" }
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 0 -Scope Context -ParameterFilter { $Uri -like "*/groups/$($script:Ids.DeletedGroup)/*" }
         }
 
         It 'records tenant, account, scopes, api versions, module version and counts in metadata' {
@@ -171,7 +171,7 @@ Describe 'Export-PostureCaSnapshot' {
             $m.account | Should -Be 'reader@contoso.example'
             $m.scopes | Should -Contain 'Policy.Read.All'
             $m.graphApiVersions | Should -Be @('v1.0')
-            $m.moduleVersion | Should -Be (Import-PowerShellDataFile (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1')).ModuleVersion
+            $m.moduleVersion | Should -Be (Import-PowerShellDataFile (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1')).ModuleVersion
             $m.policyCount | Should -Be 2
             $m.groupCount | Should -Be 2
             $m.includeMembers | Should -BeFalse
@@ -180,8 +180,8 @@ Describe 'Export-PostureCaSnapshot' {
         }
 
         It 'pins every Graph call to an API version and follows nextLink' {
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 0 -Scope Context -ParameterFilter { $Uri -notmatch '^https://graph\.microsoft\.com/(v1\.0|beta)/' }
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -like '*skiptoken=page2' }
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 0 -Scope Context -ParameterFilter { $Uri -notmatch '^https://graph\.microsoft\.com/(v1\.0|beta)/' }
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -like '*skiptoken=page2' }
         }
 
         It 'writes no errors.txt on a clean run' {
@@ -209,13 +209,13 @@ Describe 'Export-PostureCaSnapshot' {
             $r.PolicyCount | Should -Be 2
             $r.Files.Count | Should -Be 7
             $r.Metadata.graphApiVersions | Should -Be @('beta', 'v1.0')
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies' }
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies' }
         }
     }
 
     Context 'partial failure' {
         It 'logs a failing endpoint to errors.txt and still writes every file' {
-            Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest { throw 'Insufficient privileges to complete the operation.' } -ParameterFilter { $Uri -like '*/identity/conditionalAccess/namedLocations' }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest { throw 'Insufficient privileges to complete the operation.' } -ParameterFilter { $Uri -like '*/identity/conditionalAccess/namedLocations' }
             $r = Export-PostureCaSnapshot -OutRoot $script:OutRoot -PassThru -WarningAction SilentlyContinue
             $r.Errors | Should -Be 1
             Get-Content -LiteralPath (Join-Path $r.Folder 'errors.txt') | Should -Match '^Named locations :: Insufficient'
@@ -227,13 +227,13 @@ Describe 'Export-PostureCaSnapshot' {
 
     Context 'Graph error text' {
         It 'surfaces the Graph error message and the request in the thrown exception' {
-            Mock -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest {
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest {
                 $ex = [System.Exception]::new('Response status code does not indicate success: BadRequest (Bad Request).')
                 $rec = [System.Management.Automation.ErrorRecord]::new($ex, 'x', 'InvalidOperation', $null)
                 $rec.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('GET https://x HTTP/1.1 400 Bad Request' + "`n`n" + '{"error":{"code":"BadRequest","message":"Could not find a property named ''isPrivileged''"}}')
                 throw $rec
             }
-            InModuleScope Tenantkeep.Posture {
+            InModuleScope TenantKeep.Posture {
                 $message = try { Invoke-PostureGraphRequest -Uri 'roleManagement/directory/roleDefinitions?$select=isPrivileged' -ApiVersion v1.0; 'no throw' } catch { $_.Exception.Message }
                 $message | Should -Match 'BadRequest'
                 $message | Should -Match ([regex]::Escape('[GET https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?$select=isPrivileged]'))
@@ -244,14 +244,14 @@ Describe 'Export-PostureCaSnapshot' {
 
     Context 'scope check' {
         It 'refuses to run without a Graph session' {
-            Mock -ModuleName Tenantkeep.Posture Get-MgContext { $null }
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { $null }
             { Export-PostureCaSnapshot -OutRoot $script:OutRoot } | Should -Throw '*No Microsoft Graph session*'
         }
 
         It 'refuses a session missing Policy.Read.All and names the gap' {
-            Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Directory.Read.All', 'Group.Read.All') } }
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Directory.Read.All', 'Group.Read.All') } }
             { Export-PostureCaSnapshot -OutRoot $script:OutRoot } | Should -Throw '*missing scope(s): Policy.Read.All*'
-            Should -Invoke -ModuleName Tenantkeep.Posture Invoke-MgGraphRequest -Times 0 -Exactly -Scope It
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 0 -Exactly -Scope It
         }
     }
 }

@@ -2,17 +2,17 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-purview-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $env:TKP_PV_FIXTURE = (Join-Path $PSScriptRoot 'Fixtures' 'PurviewFixture.ps1')
 
-    Mock -ModuleName Tenantkeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All') } }
-    Mock -ModuleName Tenantkeep.Posture Start-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Stop-Transcript { }
-    Mock -ModuleName Tenantkeep.Posture Test-PosturePurviewSession { $env:TKP_PV_CONNECTED -eq '1' }
-    Mock -ModuleName Tenantkeep.Posture Invoke-PostureExoCommand { . $env:TKP_PV_FIXTURE; @(Get-PurviewFixtureObject -Name $Name) }
+    Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All') } }
+    Mock -ModuleName TenantKeep.Posture Start-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
+    Mock -ModuleName TenantKeep.Posture Test-PosturePurviewSession { $env:TKP_PV_CONNECTED -eq '1' }
+    Mock -ModuleName TenantKeep.Posture Invoke-PostureExoCommand { . $env:TKP_PV_FIXTURE; @(Get-PurviewFixtureObject -Name $Name) }
 }
 
 AfterAll {

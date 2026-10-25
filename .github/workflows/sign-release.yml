@@ -37,7 +37,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = '${{ inputs.tag }}'
-          $data = Import-PowerShellDataFile -Path ./Tenantkeep.Posture/Tenantkeep.Posture.psd1
+          $data = Import-PowerShellDataFile -Path ./TenantKeep.Posture/TenantKeep.Posture.psd1
           $version = [string]$data.ModuleVersion
           $pre = [string]$data.PrivateData.PSData.Prerelease
           $expected = "v$version$(if ($pre) { "-$pre" })"
@@ -62,7 +62,7 @@ jobs:
           endpoint: ${{ vars.SIGNING_ENDPOINT }}
           signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
-          files-folder: ${{ github.workspace }}\out\Tenantkeep.Posture
+          files-folder: ${{ github.workspace }}\out\TenantKeep.Posture
           files-folder-filter: ps1,psm1,psd1
           files-folder-recurse: true
           file-digest: SHA256
@@ -88,6 +88,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $zip = "./out/Tenantkeep.Posture-${{ steps.version.outputs.module }}.zip"
+          $zip = "./out/TenantKeep.Posture-${{ steps.version.outputs.module }}.zip"
           gh release upload '${{ inputs.tag }}' $zip "$zip.sha256" --clobber
           Write-Host "Attached $(Split-Path $zip -Leaf) and its SHA-256 to ${{ inputs.tag }}. Publish the draft when ready."

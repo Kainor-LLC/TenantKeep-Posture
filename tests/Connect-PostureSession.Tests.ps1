@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     function script:New-FakeJwt([hashtable] $Claims) {
         $b64 = { param($o) [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($o | ConvertTo-Json -Compress))).TrimEnd('=').Replace('+', '-').Replace('/', '_') }
         return "$(& $b64 @{ alg = 'none' }).$(& $b64 $Claims).sig"
@@ -11,11 +11,11 @@ BeforeAll {
     $script:GraphJwt = New-FakeJwt @{ tid = $script:Tid; upn = 'admin@contoso.example'; scp = 'Directory.Read.All Policy.Read.All Group.Read.All'; exp = 1 }
 }
 
-AfterAll { Remove-Module Tenantkeep.Posture -Force -ErrorAction SilentlyContinue }
+AfterAll { Remove-Module TenantKeep.Posture -Force -ErrorAction SilentlyContinue }
 
 Describe 'ConvertFrom-PostureJwt' {
     It 'returns the payload claims of a token with base64url padding handled' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ jwt = $script:GraphJwt } {
+        InModuleScope TenantKeep.Posture -Parameters @{ jwt = $script:GraphJwt } {
             $claims = ConvertFrom-PostureJwt -Token $jwt
             $claims['upn'] | Should -Be 'admin@contoso.example'
             $claims['scp'] | Should -Match 'Policy.Read.All'
@@ -25,7 +25,7 @@ Describe 'ConvertFrom-PostureJwt' {
 
 Describe 'Connect-PostureSession in the browser flow' {
     BeforeAll {
-        InModuleScope Tenantkeep.Posture -Parameters @{ jwt = $script:GraphJwt; tid = $script:Tid } {
+        InModuleScope TenantKeep.Posture -Parameters @{ jwt = $script:GraphJwt; tid = $script:Tid } {
             $script:TestJwt = $jwt
             $script:TestTid = $tid
             Mock Start-Process { }
@@ -42,10 +42,10 @@ Describe 'Connect-PostureSession in the browser flow' {
             }
         }
     }
-    AfterAll { InModuleScope Tenantkeep.Posture { $script:PostureSession = $null } }
+    AfterAll { InModuleScope TenantKeep.Posture { $script:PostureSession = $null } }
 
     It 'signs in with PKCE on the loopback, opens Graph, reads the tenant name and keeps the refresh token in memory only' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $result = Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null
             $result.tenantId | Should -Be $script:TestTid
             $result.tenantName | Should -Be 'contoso'
@@ -61,7 +61,7 @@ Describe 'Connect-PostureSession in the browser flow' {
     }
 
     It 'hands out a token per resource from the refresh token, caches it, and rotates the refresh token' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $exo = Get-PostureToken -Resource exchange
             $exo | Should -Be 'token-for-https://outlook.office365.com/.default'
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-2'
@@ -76,20 +76,20 @@ Describe 'Connect-PostureSession in the browser flow' {
     }
 
     It 'refuses a sign-in to another tenant when -TenantId was pinned' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' -TenantId '44444444-4444-4444-4444-444444444444' 6>$null } | Should -Throw '*Signed in to tenant 33333333*'
         }
     }
 
     It 'tells an unconsented tenant where the admin consents, with the app id' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             Mock Invoke-PostureTokenRequest { throw 'Sign-in failed (invalid_grant): AADSTS65001: The user or administrator has not consented to use the application' }
             { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*adminconsent?client_id=aaaaaaaa-0000-0000-0000-000000000001*'
         }
     }
 
     It 'reports a Conditional Access block with the app id and does not retry' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             Mock Invoke-PostureTokenRequest { throw 'Sign-in failed (access_denied): AADSTS53003: Access has been blocked by Conditional Access policies. The access policy does not allow token issuance.' }
             { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*Conditional Access policy*app id aaaaaaaa-0000-0000-0000-000000000001*'
             Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly
@@ -97,7 +97,7 @@ Describe 'Connect-PostureSession in the browser flow' {
     }
 
     It 'Disconnect-PostureSession forgets the tokens' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             Mock Disconnect-PostureService { }
             $script:PostureSession = @{ refreshToken = 'r'; tokens = @{ graph = @{} } }
             Disconnect-PostureSession
@@ -109,7 +109,7 @@ Describe 'Connect-PostureSession in the browser flow' {
 
 Describe 'Connect-PostureSession with a device code' {
     It 'polls through authorization_pending and slow_down until the token arrives' {
-        InModuleScope Tenantkeep.Posture -Parameters @{ jwt = $script:GraphJwt; tid = $script:Tid } {
+        InModuleScope TenantKeep.Posture -Parameters @{ jwt = $script:GraphJwt; tid = $script:Tid } {
             $script:Polls = 0
             $script:TestJwt = $jwt
             Mock Start-Sleep { }
@@ -136,7 +136,7 @@ Describe 'Connect-PostureSession with a device code' {
 
 Describe 'The loopback listener' {
     It 'takes a free port, answers the browser once and returns the code when the state matches' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $loopback = New-PostureLoopbackListener
             $loopback.port | Should -BeGreaterThan 0
             $port = $loopback.port
@@ -148,7 +148,7 @@ Describe 'The loopback listener' {
     }
 
     It 'discards a code whose state does not match' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $loopback = New-PostureLoopbackListener
             $port = $loopback.port
             $job = Start-ThreadJob -ScriptBlock { Start-Sleep -Milliseconds 300; try { Invoke-WebRequest -Uri "http://localhost:$using:port/?code=abc123&state=wrong" -UseBasicParsing | Out-Null } catch { Write-Verbose 'expected' } }

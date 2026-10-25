@@ -7,13 +7,13 @@ BeforeDiscovery {
 }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
 }
 
 Describe 'Shipped check catalog' {
     It 'loads and validates as a whole' {
-        InModuleScope Tenantkeep.Posture {
+        InModuleScope TenantKeep.Posture {
             $c = Import-PostureCheckCatalog
             $c.version | Should -Match '^\d{4}\.\d{1,2}\.\d+$'
             $c.checks | ForEach-Object { $_.custom | Should -BeFalse }
@@ -39,7 +39,7 @@ Describe 'Shipped check catalog' {
         }
 
         It 'every pass expression parses against its own thresholds' {
-            InModuleScope Tenantkeep.Posture -Parameters @{ Doc = $script:Doc } {
+            InModuleScope TenantKeep.Posture -Parameters @{ Doc = $script:Doc } {
                 foreach ($c in $Doc.checks) {
                     $ids = [regex]::Matches($c.pass, 'facts\.[A-Za-z0-9_.]+') | ForEach-Object { $_.Value.Substring(6) } | Select-Object -Unique
                     $facts = @{}; foreach ($i in $ids) { $facts[$i.Split('.')[0]] = 0 }
@@ -55,7 +55,7 @@ Describe 'Shipped check catalog' {
 
     Context 'baseline <Name>' -ForEach $script:BaselineFiles {
         It 'loads and references only known check ids' {
-            InModuleScope Tenantkeep.Posture -Parameters @{ P = $Path } {
+            InModuleScope TenantKeep.Posture -Parameters @{ P = $Path } {
                 $b = Import-PostureBaseline -Baseline $P
                 $known = @((Import-PostureCheckCatalog).checks | ForEach-Object { $_.id })
                 foreach ($id in @($b.checks | Where-Object { $_ -ne '*' -and $_ -notlike 'domain:*' -and $_ -notlike 'framework:*' }) + @($b.exclude) + @($b.thresholds.Keys) + @($b.severity.Keys)) { $known | Should -Contain $id }
@@ -66,7 +66,7 @@ Describe 'Shipped check catalog' {
         }
 
         It 'selects at least one check and its crosswalk references resolve to mapped checks' {
-            InModuleScope Tenantkeep.Posture -Parameters @{ P = $Path } {
+            InModuleScope TenantKeep.Posture -Parameters @{ P = $Path } {
                 $b = Import-PostureBaseline -Baseline $P
                 $catalog = Import-PostureCheckCatalog
                 $run = Invoke-PostureCheckEvaluation -Catalog $catalog -Baseline $b -OrgProfile (Import-PostureProfile) -Exception @() -Evidence (Join-Path ([System.IO.Path]::GetTempPath()) 'tkp-no-evidence')

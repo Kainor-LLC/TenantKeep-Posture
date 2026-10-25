@@ -2,14 +2,14 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
-    InModuleScope Tenantkeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+    InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-email-$([guid]::NewGuid().ToString('n'))"
     New-Item -ItemType Directory -Path $script:Root | Out-Null
     $script:Write = { param([string] $Dir, [string] $Name, $Data) New-Item -ItemType Directory -Path $Dir -Force | Out-Null; ConvertTo-Json -InputObject $Data -Depth 10 | Set-Content -LiteralPath (Join-Path $Dir "$Name.json") }
     $script:Facts = {
         param([string] $Dir, [hashtable] $Thresholds = @{}, [hashtable] $OrgProfile = @{})
-        InModuleScope Tenantkeep.Posture -Parameters @{ D = $Dir; T = $Thresholds; P = $OrgProfile } { Get-PostureEmailFact -Evidence $D -OrgProfile $P -Thresholds $T -AsOf ([datetime]::new(2026, 10, 14, 0, 0, 0, [System.DateTimeKind]::Utc)) }
+        InModuleScope TenantKeep.Posture -Parameters @{ D = $Dir; T = $Thresholds; P = $OrgProfile } { Get-PostureEmailFact -Evidence $D -OrgProfile $P -Thresholds $T -AsOf ([datetime]::new(2026, 10, 14, 0, 0, 0, [System.DateTimeKind]::Utc)) }
     }
 }
 

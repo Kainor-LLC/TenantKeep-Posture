@@ -36,7 +36,7 @@ of them can change. Example shape:
 
 ## What the module checks
 
-1. The key id names a public key built into the module (`Tenantkeep.Posture/Private/Test-PostureLicense.ps1`).
+1. The key id names a public key built into the module (`TenantKeep.Posture/Private/Test-PostureLicense.ps1`).
    The private keys live in Kainor's Azure Key Vault and never leave it.
 2. The signature verifies against the canonical fields. Any edit, including the tenant id, tier or expiry, fails here.
 3. The product is TenantKeep and the tier is one the module knows.
@@ -78,7 +78,7 @@ more edits, make the result visibly tampered, and make the deliverable say so. F
    from its file rather than trusting a record made earlier, so a single edit is not enough.
 
 To produce a report that reads as a signed release while developing: `./build.ps1 -Task Build, Integrity
--LicenseKeyPath <pem>` then `Import-Module ./out/Tenantkeep.Posture/<version>/Tenantkeep.Posture.psd1`.
+-LicenseKeyPath <pem>` then `Import-Module ./out/TenantKeep.Posture/<version>/TenantKeep.Posture.psd1`.
 
 ## Issuing (Kainor side)
 

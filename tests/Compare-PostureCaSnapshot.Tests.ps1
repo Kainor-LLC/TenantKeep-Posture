@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1') -Force
+    Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     . (Join-Path $PSScriptRoot 'Fixtures' 'CaDiffFixture.ps1')
     $script:Sample = Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot'
     $script:Root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-cmp-$([guid]::NewGuid().ToString('n'))"
@@ -90,7 +90,7 @@ Describe 'Compare-PostureCaSnapshot' {
         }
 
         It 'gives a non-zero exit code to a pwsh -Command caller' {
-            $module = Join-Path $PSScriptRoot '..' 'Tenantkeep.Posture' 'Tenantkeep.Posture.psd1'
+            $module = Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1'
             $dir = Join-Path $script:Root 'exit'
             $cmd = "Import-Module '$module'; Compare-PostureCaSnapshot -Before '$($script:Fx.Before)' -After '$($script:Fx.After)' -OutputPath '$dir' -FailOnRiskRelevantChange -WarningAction SilentlyContinue"
             $null = & pwsh -NoProfile -NonInteractive -Command $cmd 2>&1

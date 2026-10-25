@@ -7,14 +7,14 @@ work from until the next run.
 ## 1. Two lines
 
 ```powershell
-Install-Module Tenantkeep.Posture -Scope CurrentUser
+Install-Module TenantKeep.Posture -Scope CurrentUser
 Start-PostureRun
 ```
 
 A browser window asks you to sign in with an admin account. That is the only sign-in. The module gets a token for
 each service from it, runs every collector it can, builds the profile from what the tenant says about itself, writes
 the report and opens it. Twenty minutes later for a mid-sized tenant you are looking at report.html. Until the module
-is on the PowerShell Gallery, clone the repository and `Import-Module ./tenantkeep-posture/Tenantkeep.Posture/Tenantkeep.Posture.psd1`
+is on the PowerShell Gallery, clone the repository and `Import-Module ./TenantKeep-Posture/TenantKeep.Posture/TenantKeep.Posture.psd1`
 instead of the first line.
 
 What you need:

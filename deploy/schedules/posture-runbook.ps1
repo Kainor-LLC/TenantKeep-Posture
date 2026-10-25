@@ -113,10 +113,10 @@ try {
     catch { $skipped['Exchange'] = $_.Exception.Message; Write-Output "Exchange sign-in failed; skipped: $($_.Exception.Message)" }
 
     Write-Output 'step: import module'
-    Import-Module Tenantkeep.Posture
-    Write-Output "module $((Get-Module Tenantkeep.Posture).Version) build: $(& (Get-Module Tenantkeep.Posture) { $script:PostureBuildState.detail })"
+    Import-Module TenantKeep.Posture
+    Write-Output "module $((Get-Module TenantKeep.Posture).Version) build: $(& (Get-Module TenantKeep.Posture) { $script:PostureBuildState.detail })"
 
-    $work = Join-Path ([System.IO.Path]::GetTempPath()) 'tenantkeep-posture'
+    $work = Join-Path ([System.IO.Path]::GetTempPath()) 'TenantKeep-Posture'
     if (Test-Path $work) { Remove-Item -LiteralPath $work -Recurse -Force }
     $evidenceRoot = Join-Path $work 'evidence'; $client = Join-Path $work 'client'
     New-Item -ItemType Directory -Path $evidenceRoot, $client -Force | Out-Null
@@ -221,7 +221,7 @@ try {
         $card = @{ type = 'message'; attachments = @(@{ contentType = 'application/vnd.microsoft.card.adaptive'; content = @{ type = 'AdaptiveCard'; version = '1.4'; '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'; body = @(@{ type = 'TextBlock'; text = 'TenantKeep Posture monthly run'; weight = 'Bolder'; size = 'Medium' }, @{ type = 'TextBlock'; text = $summary; wrap = $true }) } }) } | ConvertTo-Json -Depth 8
         try { Invoke-RestMethod -Uri $webhook -Method Post -ContentType 'application/json' -Body $card | Out-Null; Write-Output 'posted to Teams' } catch { Write-Output "Teams post failed: $($_.Exception.Message)" }
     }
-    $notify = Join-Path (Split-Path (Get-Module Tenantkeep.Posture).Path) 'schedules' 'ca-notifications.ps1'
+    $notify = Join-Path (Split-Path (Get-Module TenantKeep.Posture).Path) 'schedules' 'ca-notifications.ps1'
     if ($emailTo.Count -gt 0 -and $emailFrom -and (Test-Path $notify)) {
         . $notify
         try { $null = Send-CaChangeEmail -To $emailTo -From $emailFrom -Subject "TenantKeep Posture: $runName" -HtmlBody "<p>$([System.Net.WebUtility]::HtmlEncode($summary))</p>" -AttachmentPath (Join-Path $folder 'report.html'); Write-Output 'emailed the report' } catch { Write-Output "Email failed: $($_.Exception.Message)" }
