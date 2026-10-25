@@ -88,8 +88,9 @@ function Get-PostureProfileDiscovery {
     if ($null -ne $users) {
         $guests = [int](& $v $users 'Guests')
         $sharing = $(if ($null -ne $spo) { [string](& $v $spo 'SharingCapability') } else { $null })
-        $governed = ($null -ne $spo -and ((& $v $spo 'ExternalUserExpirationRequired') -eq $true -or [string](& $v $spo 'SharingDomainRestrictionMode') -in @('AllowList', 'BlockList'))) -or
-            ($null -ne $fed -and (& $v $fed 'AllowFederatedUsers') -eq $true -and [string](& $v $fed 'AllowedDomains') -notmatch 'AllowAllKnownDomains')
+        $spoGoverned = $null -ne $spo -and ((& $v $spo 'ExternalUserExpirationRequired') -eq $true -or [string](& $v $spo 'SharingDomainRestrictionMode') -in @('AllowList', 'BlockList'))
+        $fedGoverned = $null -ne $fed -and (& $v $fed 'AllowFederatedUsers') -eq $true -and [string](& $v $fed 'AllowedDomains') -notmatch 'AllowAllKnownDomains'
+        $governed = $spoGoverned -or $fedGoverned
         $facts.externalCollaboration = $(if ($guests -eq 0 -and $sharing -eq 'Disabled') { 'locked' } elseif ($guests -gt 0 -and $governed) { 'governed' } elseif ($guests -eq 0 -and $null -eq $spo) { 'locked' } else { 'open' })
         $sources.externalCollaboration = "06-users-summary.json guests=$guests$(if ($sharing) { ", spo-tenant-settings.json sharing=$sharing" }), governance controls $(if ($governed) { 'present' } else { 'absent' })"
     }

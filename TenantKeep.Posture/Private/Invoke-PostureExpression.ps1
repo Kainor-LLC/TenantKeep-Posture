@@ -92,8 +92,9 @@ function Invoke-PostureExpression {
             return $false
         }
         $ln = 0.0; $rn = 0.0
-        $numeric = ($l -is [double] -or $l -is [int] -or $l -is [long] -or $l -is [decimal] -or [double]::TryParse([string]$l, [ref]$ln)) -and
-            ($r -is [double] -or $r -is [int] -or $r -is [long] -or $r -is [decimal] -or [double]::TryParse([string]$r, [ref]$rn))
+        $leftNumeric = $l -is [double] -or $l -is [int] -or $l -is [long] -or $l -is [decimal] -or [double]::TryParse([string]$l, [ref]$ln)
+        $rightNumeric = $r -is [double] -or $r -is [int] -or $r -is [long] -or $r -is [decimal] -or [double]::TryParse([string]$r, [ref]$rn)
+        $numeric = $leftNumeric -and $rightNumeric
         if ($numeric -and $l -isnot [bool] -and $r -isnot [bool]) {
             $a = [double]$l; $b = [double]$r
             switch ($op) { '==' { $a -eq $b } '!=' { $a -ne $b } '>=' { $a -ge $b } '<=' { $a -le $b } '>' { $a -gt $b } '<' { $a -lt $b } }
