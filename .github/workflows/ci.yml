@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.os }}
           path: out/test-results.xml
@@ -89,7 +89,7 @@ jobs:
           try { ./build.ps1 -Task Package -SkipInstall; throw 'Package ran without a signing certificate.' }
           catch { if ($_.Exception.Message -notmatch 'No signing certificate') { throw } ; Write-Host "Refused as expected: $($_.Exception.Message)" }
       - name: Upload the catalog page
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: catalog
           path: |
