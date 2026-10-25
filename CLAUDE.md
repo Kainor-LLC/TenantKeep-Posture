@@ -75,5 +75,5 @@ Progress is tracked in `docs/checklist.md`, one line per deliverable with its co
 
 - **The name is TenantKeep, capital K, everywhere it is written.** Decided 2026-10-25. The
   app is TenantKeep On-Call; the report is TenantKeep Posture; the credentials module is
-  LAPSlock. The domain stays lowercase, tenantkeep.com. The PowerShell module identifier
-  `TenantKeep.Posture` is the one exception until that module is renamed on purpose.
+  LAPSlock. The domain stays lowercase, tenantkeep.com. The PowerShell module is
+  `TenantKeep.Posture` (renamed 2026-10-25, before any Gallery publish).
