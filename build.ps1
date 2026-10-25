@@ -4,10 +4,11 @@
 .SYNOPSIS
   Build script for Tenantkeep.Posture.
 .DESCRIPTION
-  Tasks: Analyze, Test, Build, Sign, Integrity, Package, Catalog (the public catalog page for the website). Sign refuses to run without a
-  code-signing certificate; Integrity needs the licence signing key (PEM or Key Vault) and writes the signed integrity.json the module
-  checks at import (docs/licensing.md, Hardening); Package refuses to run without it.
-  Authenticode signing is Windows-only; Analyze, Test and Build run everywhere.
+  Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website). Sign needs a local
+  code-signing certificate and is the emergency path; releases are signed by the sign-release workflow through Azure Artifact Signing,
+  after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
+  or Key Vault) and writes the signed integrity.json the module checks at import (docs/licensing.md, Hardening). Package refuses to run
+  without integrity.json and without Sign or Verify in the same run. Sign and Verify are Windows-only; the rest runs everywhere.
 .EXAMPLE
   ./build.ps1 -Task Analyze, Test
 .EXAMPLE
@@ -22,7 +23,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Integrity', 'Package', 'Clean', 'Catalog')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -237,6 +238,27 @@ function Invoke-Sign {
     Write-Host "Signed $($files.Count) file(s)"
 }
 
+function Invoke-Verify {
+    <#
+      Every staged .ps1, .psm1 and .psd1 must carry a valid Authenticode signature. This is the gate for a stage signed outside this
+      script (the sign-release workflow, Azure Artifact Signing): Package accepts Verify in place of Sign.
+    #>
+    param([string] $Stage)
+    Write-Task 'Verify'
+    if (-not $Stage) { $Stage = Join-Path $OutRoot $ModuleName (Get-ModuleVersion) }
+    if (-not (Test-Path -LiteralPath (Join-Path $Stage "$ModuleName.psd1"))) { throw "No staged module at $Stage; run Build first." }
+    if (-not $IsWindows) { throw 'Verify checks Authenticode signatures with Get-AuthenticodeSignature, which is Windows-only.' }
+    $files = @(Get-ChildItem -Path $Stage -Recurse -Include '*.ps1', '*.psm1', '*.psd1')
+    $bad = foreach ($f in $files) {
+        $sig = Get-AuthenticodeSignature -FilePath $f.FullName
+        if ($sig.Status -ne 'Valid') { "$($f.FullName): $($sig.Status) $($sig.StatusMessage)" }
+    }
+    if ($bad) { $bad | Write-Host; throw "$(@($bad).Count) file(s) without a valid Authenticode signature." }
+    $signer = (Get-AuthenticodeSignature -FilePath $files[0].FullName).SignerCertificate
+    Write-Host "Verified $($files.Count) signed file(s). Signer: $($signer.Subject) (expires $($signer.NotAfter.ToString('yyyy-MM-dd')))"
+    $script:Verified = $true
+}
+
 function Invoke-Integrity {
     param([string] $Stage)
     Write-Task 'Integrity'
@@ -271,6 +293,7 @@ function Invoke-Package {
     Write-Task 'Package'
     $version = Get-ModuleVersion
     if (-not (Test-Path -LiteralPath (Join-Path $OutRoot $ModuleName $version 'integrity.json'))) { throw 'No integrity.json in the staged module; run Integrity before Package.' }
+    if (-not $script:Verified -and $tasks -notcontains 'Sign') { throw 'Package needs Sign (local certificate) or Verify (a stage signed by the sign-release workflow) in the same run.' }
     $zip = Join-Path $OutRoot "$ModuleName-$version.zip"
     if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -Path (Join-Path $OutRoot $ModuleName) -DestinationPath $zip
@@ -280,13 +303,14 @@ function Invoke-Package {
 }
 
 # Package implies Build and Sign. Sign implies Build. The cert check runs first so a missing cert fails fast.
+$script:Verified = $false
 $tasks = [System.Collections.Generic.List[string]]::new($Task)
-if ($tasks -contains 'Package' -and $tasks -notcontains 'Sign') { $tasks.Add('Sign') }
+if ($tasks -contains 'Package' -and $tasks -notcontains 'Sign' -and $tasks -notcontains 'Verify') { $tasks.Add('Sign') }
 if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('Build') }
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Integrity', 'Package', 'Catalog')) {
+foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -294,6 +318,7 @@ foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Integrity', 'Pack
         'Test' { Invoke-Test }
         'Build' { $stage = Invoke-Build }
         'Sign' { Invoke-Sign -Stage $stage }
+        'Verify' { Invoke-Verify -Stage $stage }
         'Integrity' { Invoke-Integrity -Stage $stage }
         'Package' { Invoke-Package -Stage $stage }
         'Catalog' { Invoke-Catalog }

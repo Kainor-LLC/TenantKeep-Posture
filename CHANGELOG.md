@@ -6,7 +6,8 @@ work landed on main.
 
 ## Unreleased
 
-Nothing yet.
+- Release signing through Azure Artifact Signing: the Sign release workflow, `build.ps1 -Task Verify`, and the
+  Kainor-side setup script under deploy/release.
 
 ## 0.1.0-alpha (2026-10-25)
 
