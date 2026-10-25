@@ -158,7 +158,11 @@ function Invoke-Clean {
 function Invoke-Analyze {
     Write-Task 'Analyze'
     Install-BuildDependency -Name PSScriptAnalyzer -MinimumVersion 1.22.0
-    Import-Module PSScriptAnalyzer
+    # Runner images ship an older PSScriptAnalyzer next to the one installed above; auto-loading between the two failed
+    # twice on ubuntu-latest inside Invoke-ScriptAnalyzer with internal errors (2026-10-25). Load the newest explicitly.
+    $analyzer = Get-Module -ListAvailable -Name PSScriptAnalyzer | Sort-Object Version -Descending | Select-Object -First 1
+    Import-Module -Name $analyzer.Path -Force
+    Write-Host "PSScriptAnalyzer $($analyzer.Version) from $($analyzer.ModuleBase)"
     $settings = Join-Path $Root 'PSScriptAnalyzerSettings.psd1'
     $paths = @($SrcPath, (Join-Path $Root 'tests'), (Join-Path $Root '.githooks'), (Join-Path $Root 'deploy'), (Join-Path $Root 'build.ps1'))
 
@@ -169,7 +173,13 @@ function Invoke-Analyze {
         foreach ($e in @($errors)) { "$($file.FullName):$($e.Extent.StartLineNumber):$($e.Extent.StartColumnNumber) $($e.Message)" }
     }
     if ($parseErrors) { $parseErrors | Write-Host; throw "$(@($parseErrors).Count) parse error(s)." }
-    $results = foreach ($p in $paths) { Invoke-ScriptAnalyzer -Path $p -Recurse -Settings $settings }
+    # An exception here is the analyzer failing, not a finding; one retry after a reload, with the warning left in the log.
+    $results = try { foreach ($p in $paths) { Invoke-ScriptAnalyzer -Path $p -Recurse -Settings $settings } }
+    catch {
+        Write-Warning "Invoke-ScriptAnalyzer failed and is retried once: $($_.Exception.Message)"
+        Import-Module -Name $analyzer.Path -Force
+        foreach ($p in $paths) { Invoke-ScriptAnalyzer -Path $p -Recurse -Settings $settings }
+    }
     if ($results) {
         $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 200 | Write-Host
         throw "PSScriptAnalyzer reported $(@($results).Count) finding(s)."
