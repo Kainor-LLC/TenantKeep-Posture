@@ -19,7 +19,7 @@ function Get-PostureModuleRequirement {
     $table = @(
         @{ name = 'Microsoft.Graph.Authentication'; tested = '2.39.0'; collectors = @('ConditionalAccess', 'Entra', 'Intune', 'Defender'); note = 'Required by the module manifest, 2.0.0 or later.' }
         @{ name = 'ExchangeOnlineManagement'; tested = '3.10.1'; collectors = @('Exchange', 'Purview'); note = 'Connect-ExchangeOnline -AccessToken needs 3.1.0 or later; Exchange and Purview run in their own process.' }
-        @{ name = 'PnP.PowerShell'; tested = '3.2.0'; collectors = @('SharePoint'); note = 'Loaded after every Graph read; 2.x is untested (verify).' }
+        @{ name = 'PnP.PowerShell'; tested = '3.2.0'; collectors = @('SharePoint'); note = 'Loaded after every Graph read. 2.12.0 signs in with the broker token and reads the tenant and sites (Kainor, 2026-10-25), but its Get-PnPTenantRestrictedSearchMode fails with a licence error where 3.2.0 answers, so the Copilot gate C9 is not evaluated on 2.x.' }
         @{ name = 'MicrosoftTeams'; tested = '7.9.0'; collectors = @('Teams'); note = 'Signed in with access tokens; the browser sign-in fails on macOS.' }
         @{ name = 'Az.Accounts'; tested = '5.5.3'; collectors = @('Azure'); note = 'Signed in with an access token for the Resource Manager audience.' }
         @{ name = 'Az.ResourceGraph'; tested = '1.3.0'; collectors = @('Azure'); note = 'From the Az rollup in Automation; the standalone module did not load there.' }
