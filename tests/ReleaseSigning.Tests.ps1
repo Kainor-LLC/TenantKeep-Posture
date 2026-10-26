@@ -25,6 +25,7 @@ Describe 'The release workflow' {
         $script:Workflow | Should -Match '-Task Verify, Integrity, Package'
         $script:Workflow | Should -Match '-Task Integrity, Package -Unsigned'
         $script:Workflow | Should -Match '-Task Publish -Unsigned'
+        $script:Workflow | Should -Match 'Copy-Item -LiteralPath \./tooling/build\.ps1' -Because 'a tag cut before a build.ps1 change is built with the current tooling (2026-10-26)'
     }
 
     It 'reads exactly the variables and secrets the setup script writes' {

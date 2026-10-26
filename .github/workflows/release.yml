@@ -111,6 +111,18 @@ jobs:
         with:
           ref: ${{ needs.draft.outputs.tag }}
 
+      # The tag decides what ships; this workflow's commit decides how it is built. A tag cut before a build.ps1 change
+      # (v0.1.0-alpha predates -Unsigned) is still packaged by the current tooling.
+      - uses: actions/checkout@v7
+        with:
+          path: tooling
+      - name: Use the release tooling from this workflow's commit
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath ./tooling/build.ps1 -Destination ./build.ps1 -Force
+          Remove-Item -LiteralPath ./tooling -Recurse -Force
+          Write-Host "Building ${{ needs.draft.outputs.tag }} with build.ps1 from ${{ github.sha }}"
+
       - name: Install build dependencies
         shell: pwsh
         run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
