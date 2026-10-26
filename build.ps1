@@ -339,7 +339,8 @@ function Invoke-Package {
     if (-not (Test-Path -LiteralPath (Join-Path $OutRoot $ModuleName $version 'integrity.json'))) { throw 'No integrity.json in the staged module; run Integrity before Package.' }
     if (-not $script:Verified -and $tasks -notcontains 'Sign' -and -not $Unsigned) { throw 'Package needs Sign (local certificate) or Verify (a stage signed by the release workflow) in the same run, or -Unsigned to package without Authenticode signatures on purpose.' }
     $suffix = $(if ($script:Verified -or $tasks -contains 'Sign') { '' } else { Write-Warning 'Packaging without Authenticode signatures (-Unsigned). The integrity manifest still makes this a release build.'; '-unsigned' })
-    $zip = Join-Path $OutRoot "$ModuleName-$version$suffix.zip"
+    $pre = [string](Import-PowerShellDataFile -Path $Manifest).PrivateData.PSData.Prerelease
+    $zip = Join-Path $OutRoot "$ModuleName-$version$(if ($pre) { "-$pre" })$suffix.zip"
     if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -Path (Join-Path $OutRoot $ModuleName) -DestinationPath $zip
     $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
