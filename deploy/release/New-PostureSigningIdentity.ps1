@@ -84,6 +84,13 @@ if ($signing) {
     $account = Invoke-Az @('resource', 'show', '--resource-group', $SigningResourceGroup, '--name', $SigningAccount, '--resource-type', 'Microsoft.CodeSigning/codeSigningAccounts')   # (verify) the provider type name
     $signingId = [string]$account['id']
     Write-Host "Signing account: $signingId"
+    # The signing service answers a profile that does not exist with a bare 403 at signing time (seen 2026-10-26), so check here.
+    $profiles = Invoke-Az @('rest', '--method', 'get', '--url', "https://management.azure.com$signingId/certificateProfiles?api-version=2024-09-30-preview")   # (verify) api-version
+    $match = @($profiles['value'] | Where-Object { $_['name'] -eq $CertificateProfile })
+    if ($match.Count -eq 0) { throw "The signing account has no certificate profile named '$CertificateProfile' (it has: $(@($profiles['value'] | ForEach-Object { $_['name'] }) -join ', ')). Create it in the portal: the account, Certificate profiles, Create, Public Trust, the validated identity." }
+    $profileStatus = [string]$match[0]['properties']['status']
+    if ($profileStatus -and $profileStatus -ne 'Active') { throw "Certificate profile '$CertificateProfile' is $profileStatus, not Active." }
+    Write-Host "Certificate profile: $CertificateProfile ($(if ($profileStatus) { $profileStatus } else { 'status not reported' }))"
 }
 $vault = Invoke-Az @('keyvault', 'show', '--name', $VaultName)
 $keyScope = "$($vault['id'])/keys/$KeyName"

@@ -43,6 +43,7 @@ Describe 'New-PostureSigningIdentity.ps1' {
         @($errors).Count | Should -Be 0
         $script:Setup | Should -Match 'SupportsShouldProcess'
         $script:Setup | Should -Match 'federated-credential'
+        $script:Setup | Should -Match 'certificateProfiles\?api-version' -Because 'a missing profile is a bare 403 at signing time (2026-10-26)'
         $script:Setup | Should -Match 'actions/oidc/customization/sub' -Because 'the subject prefix comes from GitHub, immutable owner@id/repo@id or the name form (2026-10-26)'
         $script:Setup | Should -Not -Match "ad app credential reset|ad sp credential|--password|client-secret"
         $script:Setup | Should -Not -Match '@\(, @\([^)]*\), @\(' -Because 'a leading comma before several pairs nests the first one a level too deep (2026-10-26)'
