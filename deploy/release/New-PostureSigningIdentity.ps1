@@ -100,9 +100,23 @@ $sps = @(Invoke-Az @('ad', 'sp', 'list', '--filter', "appId eq '$appId'"))
 $sp = $(if ($sps.Count -gt 0) { $sps[0] } else { Invoke-Az @('ad', 'sp', 'create', '--id', $appId) })
 $spObjectId = [string]$sp['id']
 
-$subject = "repo:$($Repository):environment:$Environment"
+# GitHub's token names the repository by the prefix the repository's OIDC settings choose. Repositories created or
+# renamed since 2026 use the immutable form, owner@id/repo@id, which survives a rename; older ones use owner/repo.
+# Ask GitHub which one this repository sends instead of guessing (seen live 2026-10-26: AADSTS700213 on the name form).
+$oidc = gh api "repos/$Repository/actions/oidc/customization/sub" 2>&1
+if ($LASTEXITCODE -ne 0) { throw "Reading the OIDC subject settings of $Repository failed: $oidc" }
+$oidc = $oidc | ConvertFrom-Json -AsHashtable
+$prefix = $(if ($oidc.Contains('sub_claim_prefix') -and $oidc['sub_claim_prefix']) { [string]$oidc['sub_claim_prefix'] } else { "repo:$Repository" })
+if ($oidc.Contains('use_default') -and -not $oidc['use_default']) { throw "$Repository customises its OIDC subject claim; register the credential by hand for the claim it sends." }
+$subject = "$($prefix):environment:$Environment"
 $creds = @(Invoke-Az @('ad', 'app', 'federated-credential', 'list', '--id', $appObjectId))
-if (-not ($creds | Where-Object { $_['subject'] -eq $subject })) {
+$existing = @($creds | Where-Object { $_['name'] -eq 'github-release-environment' })
+if ($existing.Count -gt 0 -and $existing[0]['subject'] -ne $subject) {
+    $null = Invoke-Az @('ad', 'app', 'federated-credential', 'delete', '--id', $appObjectId, '--federated-credential-id', [string]$existing[0]['id'])
+    Write-Host "Federated credential for $($existing[0]['subject']) replaced"
+    $existing = @()
+}
+if ($existing.Count -eq 0) {
     $body = @{ name = 'github-release-environment'; issuer = 'https://token.actions.githubusercontent.com'; subject = $subject; audiences = @('api://AzureADTokenExchange'); description = "GitHub Actions, $Repository, environment $Environment" } | ConvertTo-Json -Compress
     $tmp = New-TemporaryFile
     try { Set-Content -LiteralPath $tmp -Value $body -NoNewline; $null = Invoke-Az @('ad', 'app', 'federated-credential', 'create', '--id', $appObjectId, '--parameters', "@$tmp") }
