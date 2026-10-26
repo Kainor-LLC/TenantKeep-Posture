@@ -17,6 +17,10 @@ the report and opens it. Twenty minutes later for a mid-sized tenant you are loo
 is on the PowerShell Gallery, clone the repository and `Import-Module ./TenantKeep-Posture/TenantKeep.Posture/TenantKeep.Posture.psd1`
 instead of the first line.
 
+With a licence file, or a client folder somewhere other than the default, run `Initialize-PostureClient -LicensePath
+<file>` (or `-Path <folder> -ClientName '<customer>'`) once before the first run: it verifies the licence, copies it
+into the folder, seeds the profile with the tenant and prints the Start-PostureRun line to use.
+
 What you need:
 
 - PowerShell 7.4 or later on macOS, Windows or Linux, and Microsoft.Graph.Authentication. For the other domains,

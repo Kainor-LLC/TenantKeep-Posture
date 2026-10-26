@@ -24,6 +24,7 @@
         'Get-PostureLicense',
         'Get-PostureCheckCatalog',
         'Get-PostureRequirement',
+        'Initialize-PostureClient',
         'Invoke-PostureChecks',
         'Invoke-PostureCollection',
         'New-PostureCaDocument',

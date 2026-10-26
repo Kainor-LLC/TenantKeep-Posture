@@ -4,7 +4,8 @@
 .SYNOPSIS
   Build script for TenantKeep.Posture.
 .DESCRIPTION
-  Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website). Sign needs a local
+  Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
+  PowerShell Gallery, from a signed stage, or an unsigned pre-release with -AllowUnsignedPrerelease). Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the sign-release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
   or Key Vault) and writes the signed integrity.json the module checks at import (docs/licensing.md, Hardening). Package refuses to run
@@ -23,7 +24,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -34,6 +35,11 @@ param(
 
     # Catalog task only: where catalog.md and catalog.html land. Default: out/.
     [string] $CatalogPath,
+
+    # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY) and, for a pre-release only, permission to publish a stage
+    # that carries no integrity manifest. A release build must be signed and carry integrity.json.
+    [string] $GalleryApiKey = $env:TENANTKEEP_GALLERY_KEY,
+    [switch] $AllowUnsignedPrerelease,
 
     # Integrity task: the licence signing key that signs integrity.json. A PEM path (TENANTKEEP_LICENCE_KEY) or a Key Vault key.
     [string] $LicenseKeyPath = $env:TENANTKEEP_LICENCE_KEY,
@@ -104,6 +110,29 @@ function Get-SigningCertificate {
 
     Write-Host "Signing with: $($cert.Subject) (expires $($cert.NotAfter.ToString('yyyy-MM-dd')))"
     return $cert
+}
+
+function Invoke-Publish {
+    <#
+      Publishes the staged module to the PowerShell Gallery. The stage must be a release build (Verify or Sign, then Integrity,
+      so integrity.json is present), except that a pre-release may go up unsigned with -AllowUnsignedPrerelease. The API key
+      comes from -GalleryApiKey or TENANTKEEP_GALLERY_KEY and is never written anywhere.
+    #>
+    param([string] $Stage)
+    Write-Task 'Publish'
+    if (-not $Stage) { $Stage = Join-Path $OutRoot $ModuleName (Get-ModuleVersion) }
+    $manifestPath = Join-Path $Stage "$ModuleName.psd1"
+    if (-not (Test-Path -LiteralPath $manifestPath)) { throw "No staged module at $Stage; run Build first." }
+    if (-not $GalleryApiKey) { throw 'Publish needs the PowerShell Gallery API key: -GalleryApiKey or TENANTKEEP_GALLERY_KEY.' }
+    $data = Import-PowerShellDataFile -Path $manifestPath
+    $pre = [string]$data.PrivateData.PSData.Prerelease
+    if (-not (Test-Path -LiteralPath (Join-Path $Stage 'integrity.json'))) {
+        if (-not ($pre -and $AllowUnsignedPrerelease)) { throw 'The stage has no integrity.json: a release must be signed (Sign or Verify, then Integrity) before Publish. A pre-release may be published unsigned with -AllowUnsignedPrerelease.' }
+        Write-Warning "Publishing pre-release $($data.ModuleVersion)-$pre unsigned and without an integrity manifest; reports from it read as a development build."
+    }
+    if (-not (Get-Command Publish-PSResource -ErrorAction SilentlyContinue)) { throw 'Publish-PSResource is not available; install Microsoft.PowerShell.PSResourceGet.' }
+    Publish-PSResource -Path $Stage -Repository PSGallery -ApiKey $GalleryApiKey
+    Write-Host "Published $ModuleName $($data.ModuleVersion)$(if ($pre) { "-$pre" }) to the PowerShell Gallery"
 }
 
 function Invoke-Catalog {
@@ -320,7 +349,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog')) {
+foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -332,6 +361,7 @@ foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integri
         'Integrity' { Invoke-Integrity -Stage $stage }
         'Package' { Invoke-Package -Stage $stage }
         'Catalog' { Invoke-Catalog }
+        'Publish' { Invoke-Publish -Stage $stage }
     }
 }
 Write-Host "`nDone: $($tasks -join ', ')" -ForegroundColor Green

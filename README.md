@@ -22,6 +22,12 @@ Import-Module ./TenantKeep.Posture          # Install-Module TenantKeep.Posture 
 Start-PostureRun                            # sign in, collect everything the account can read, open report.html
 ```
 
+With a licence, or a folder of your own choosing, one more line first:
+
+```powershell
+Initialize-PostureClient -LicensePath ~/Downloads/tenantkeep.lic          # or -Path <folder> -ClientName 'Contoso Ltd'
+```
+
 Useful switches: `-TenantId` refuses any other tenant, `-Collector Entra, Intune, Exchange` runs a subset,
 `-DeviceCode` signs in without a browser, `-Client` names the client folder. The step-by-step guide, including the
 manual path with your own sessions, is [docs/guide.md](docs/guide.md). The pieces on their own:
