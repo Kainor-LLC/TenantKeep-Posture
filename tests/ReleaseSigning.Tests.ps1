@@ -43,6 +43,7 @@ Describe 'New-PostureSigningIdentity.ps1' {
         $script:Setup | Should -Match 'SupportsShouldProcess'
         $script:Setup | Should -Match 'federated-credential'
         $script:Setup | Should -Not -Match "ad app credential reset|ad sp credential|--password|client-secret"
+        $script:Setup | Should -Not -Match '@\(, @\([^)]*\), @\(' -Because 'a leading comma before several pairs nests the first one a level too deep (2026-10-26)'
     }
 
     It 'assigns the two least-privilege roles and nothing broader, the signing one only once the account exists' {

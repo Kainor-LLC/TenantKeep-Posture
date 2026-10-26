@@ -133,7 +133,7 @@ $variables = [ordered]@{ AZURE_CLIENT_ID = $appId; AZURE_TENANT_ID = $tenantId; 
 if ($signing) { $variables['SIGNING_ENDPOINT'] = $Endpoint; $variables['SIGNING_ACCOUNT'] = $SigningAccount; $variables['SIGNING_PROFILE'] = $CertificateProfile }
 foreach ($name in $variables.Keys) { gh variable set $name --repo $Repository --body $variables[$name]; if ($LASTEXITCODE -ne 0) { throw "gh variable set $name failed." } }
 # The vault and key names are not secrets, but a public repository's logs are public; secrets are masked there.
-$secrets = @(, @('LICENCE_VAULT', $VaultName), @('LICENCE_KEY', $KeyName))
+$secrets = @(@('LICENCE_VAULT', $VaultName), @('LICENCE_KEY', $KeyName))
 if ($GalleryApiKey) { $secrets += , @('GALLERY_API_KEY', $GalleryApiKey) }
 foreach ($pair in $secrets) { gh secret set $pair[0] --repo $Repository --body $pair[1]; if ($LASTEXITCODE -ne 0) { throw "gh secret set $($pair[0]) failed." } }
 Write-Host "GitHub variables and secrets set on $Repository (RELEASE_SIGNING=$($variables['RELEASE_SIGNING']), GALLERY_PUBLISH=$($variables['GALLERY_PUBLISH']))"
