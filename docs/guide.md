@@ -7,15 +7,15 @@ work from until the next run.
 ## 1. Two lines
 
 ```powershell
-Install-Module TenantKeep.Posture -Scope CurrentUser
+Install-PSResource TenantKeep.Posture -Prerelease -Scope CurrentUser   # or Install-Module TenantKeep.Posture -AllowPrerelease
 Start-PostureRun
 ```
 
 A browser window asks you to sign in with an admin account. That is the only sign-in. The module gets a token for
 each service from it, runs every collector it can, builds the profile from what the tenant says about itself, writes
-the report and opens it. Twenty minutes later for a mid-sized tenant you are looking at report.html. Until the module
-is on the PowerShell Gallery, clone the repository and `Import-Module ./TenantKeep-Posture/TenantKeep.Posture/TenantKeep.Posture.psd1`
-instead of the first line.
+the report and opens it. Twenty minutes later for a mid-sized tenant you are looking at report.html. The module is a
+pre-release on the PowerShell Gallery, which is why the first line asks for pre-releases; from a clone of the
+repository, `Import-Module ./TenantKeep-Posture/TenantKeep.Posture/TenantKeep.Posture.psd1` replaces it.
 
 With a licence file, or a client folder somewhere other than the default, run `Initialize-PostureClient -LicensePath
 <file>` (or `-Path <folder> -ClientName '<customer>'`) once before the first run: it verifies the licence, copies it

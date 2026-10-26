@@ -12,7 +12,7 @@ work landed on main.
 - Release signing through Azure Artifact Signing: the Sign release workflow, `build.ps1 -Task Verify`, and the
   Kainor-side setup script under deploy/release.
 
-## 0.1.0-alpha (2026-10-25)
+## 0.1.0-alpha (2026-10-25, on the PowerShell Gallery 2026-10-26, unsigned)
 
 First tagged pre-release, from a public repository under PolyForm Shield 1.0.0. Everything built 2026-10-13 to
 2026-10-25. Not yet on the PowerShell Gallery; install from the release zip or a clone.
