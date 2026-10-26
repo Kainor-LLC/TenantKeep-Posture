@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release, not yet on the PowerShell Gallery. Everything in [CHANGELOG.md](CHANGELOG.md) runs today from a clone:
+Pre-release 0.1.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), unsigned by design until the signing account is validated. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
 one sign-in, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
 Windows-only Active Directory script), thirteen check domains, the interactive report, the findings register, the
 Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
@@ -18,8 +18,8 @@ first tagged release, the Marketplace listing, the trial licence on first run.
 Two lines. The sign-in is delegated, read-only, and the only one (Purview opens a second window of its own).
 
 ```powershell
-Import-Module ./TenantKeep.Posture          # Install-Module TenantKeep.Posture once it is on the Gallery
-Start-PostureRun                            # sign in, collect everything the account can read, open report.html
+Install-PSResource TenantKeep.Posture -Prerelease   # or Install-Module TenantKeep.Posture -AllowPrerelease; from a clone: Import-Module ./TenantKeep.Posture
+Start-PostureRun                                    # sign in, collect everything the account can read, open report.html
 ```
 
 With a licence, or a folder of your own choosing, one more line first:
