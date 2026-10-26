@@ -32,19 +32,22 @@ CI runs the same analyzer and test suite on Ubuntu, macOS and Windows.
 
 1. Move the Unreleased entries in CHANGELOG.md under a `## <version>` heading with the date, and set `ModuleVersion`
    and `Prerelease` in the manifest to match.
-2. Tag the commit `v<version>` (for a pre-release, `v<version>-<prerelease>`) and push the tag. The Release workflow
-   checks the tag against the manifest and the changelog, runs the suite, and opens a draft release with the
-   changelog section as notes and the unsigned build and catalog page attached.
-3. Run the Sign release workflow with that tag and approve it when it waits on the release environment. It signs the
-   staged module on a Windows runner through Azure Artifact Signing (Microsoft issues and holds the certificate;
-   the workflow gets a short-lived token through OpenID Connect, so no certificate or key exists as a file), verifies
-   every file, writes the integrity manifest with the licence key in Key Vault, packages, and attaches the signed
-   zip and its SHA-256 to the draft.
-4. Publish the draft. The Gallery publish is a separate step with the same signed build.
+2. Tag the commit `v<version>` (for a pre-release, `v<version>-<prerelease>`) once CI is green on it, and push the
+   tag. The Release workflow checks the tag against the manifest and the changelog, runs the suite, and opens a
+   draft release with the changelog section as notes and the catalog page attached.
+3. Approve the package job when it waits on the release environment. It signs in to Azure through OpenID Connect,
+   writes the integrity manifest with the licence key in Key Vault, packages, attaches the zip and its SHA-256 to
+   the draft, and publishes to the PowerShell Gallery when GALLERY_PUBLISH is on. With the repository variable
+   RELEASE_SIGNING on, the job runs on Windows and Authenticode-signs every file through Azure Artifact Signing
+   first (Microsoft holds the certificate; no certificate or key exists as a file); otherwise it runs on Linux and
+   packages unsigned, with the zip named so. The integrity manifest is written either way: it is what makes the
+   build read as a release in every report.
+4. Publish the draft.
 
-One-time setup for signing, Kainor side: create the Artifact Signing account and a Public Trust certificate
-profile in the Azure portal, complete identity validation for Kainor LLC (portal only, 1 to 20 business days), then
-run `deploy/release/New-PostureSigningIdentity.ps1`, which creates the app registration with a federated credential
-for this repository's release environment, assigns the two roles, and writes the GitHub variables, secrets and the
-environment with its required reviewer. The emergency path with a local certificate (`build.ps1 -Task Sign`) still
-exists and is Windows-only too.
+One-time setup, Kainor side: `deploy/release/New-PostureSigningIdentity.ps1 -VaultName <vault> -KeyName <key>`
+creates the app registration with a federated credential for this repository's release environment, the Key Vault
+role, the GitHub variables and the environment with its required reviewer, and leaves RELEASE_SIGNING off. Once the
+Artifact Signing account, its Public Trust certificate profile and identity validation exist (portal only, 1 to 20
+business days), run it again with the four signing parameters: it adds the role, the signing variables, and turns
+RELEASE_SIGNING on. The emergency path with a local certificate (`build.ps1 -Task Sign`) still exists and is
+Windows-only too; a local unsigned package is `build.ps1 -Task Build, Integrity, Package -Unsigned`.

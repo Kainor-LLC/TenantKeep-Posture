@@ -1,23 +1,42 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
-# A tag v<version> opens a draft GitHub release: the changelog section for that version as the notes, the unsigned
-# staged module and the catalog page attached. Signing, the integrity manifest and the package happen on a
-# maintainer's machine with the certificate and the licence key (build.ps1 -Task Sign, Integrity, Package); the
-# signed zip and its SHA-256 are added to the draft by hand before it is published. Neither key ever enters CI.
+# A tag v<version> (or a manual run naming one) opens a draft GitHub release, then, after a maintainer approves the
+# "release" environment, builds the release package and publishes it to the PowerShell Gallery.
+#
+# Two kinds of trust, kept apart. The integrity manifest (signed with the licence key in Key Vault through OpenID
+# Connect) is always written: it is what makes a build read as a release inside every report. The Authenticode
+# signature is governed by the repository variable RELEASE_SIGNING: "on" runs the package job on Windows and signs
+# every file through Azure Artifact Signing (Microsoft holds the certificate; the job gets a short-lived token);
+# anything else runs it on Linux and packages with build.ps1 -Unsigned, which names the zip accordingly. Flipping
+# the variable is the whole switch. No certificate, secret or key ever exists as a file, here or anywhere.
+# One-time setup: deploy/release/New-PostureSigningIdentity.ps1.
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing release tag to package again, for example v0.1.0-alpha.
+        required: true
+        type: string
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   draft:
     name: Draft release
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      module: ${{ steps.version.outputs.module }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Install build dependencies
         shell: pwsh
@@ -30,18 +49,19 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $tag = '${{ github.ref_name }}'
+          $tag = '${{ inputs.tag || github.ref_name }}'
           $data = Import-PowerShellDataFile -Path ./TenantKeep.Posture/TenantKeep.Posture.psd1
           $version = [string]$data.ModuleVersion
           $pre = [string]$data.PrivateData.PSData.Prerelease
           $expected = "v$version$(if ($pre) { "-$pre" })"
           if ($tag -ne $expected) { throw "Tag $tag does not match the manifest, which says $expected. Bump ModuleVersion and Prerelease first." }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version$(if ($pre) { "-$pre" })" >> $env:GITHUB_OUTPUT
+          "module=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$([bool]$pre)" >> $env:GITHUB_OUTPUT
           Write-Host "Releasing $expected"
 
       - name: Changelog has a section for this version
-        id: notes
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
@@ -52,7 +72,8 @@ jobs:
           $end = $lines.Count
           for ($i = $start + 1; $i -lt $lines.Count; $i++) { if ($lines[$i] -match '^## ') { $end = $i; break } }
           $body = @($lines[($start + 1)..($end - 1)]) -join "`n"
-          $body += "`n`nThe unsigned zip below is the build CI produced for reference. Install the Authenticode-signed package, which the maintainer attaches before this release is published, and check its SHA-256 against the .sha256 file.`n"
+          $signed = '${{ vars.RELEASE_SIGNING }}' -eq 'on'
+          $body += "`n`n" + $(if ($signed) { 'The attached package is Authenticode-signed through Azure Artifact Signing and carries a signed integrity manifest. Check its SHA-256 against the .sha256 file.' } else { 'The attached package carries a signed integrity manifest (every report says whether the build is a release) but no Authenticode signature yet; the zip name says unsigned. Check its SHA-256 against the .sha256 file.' }) + "`n"
           Set-Content -Path ./out-notes.md -Value $body
           Write-Host $body
 
@@ -60,29 +81,95 @@ jobs:
         shell: pwsh
         run: ./build.ps1 -Task Analyze, Test -SkipInstall
 
-      - name: Build and render the catalog page
+      - name: Render the catalog page
         shell: pwsh
-        run: ./build.ps1 -Task Build, Catalog -SkipInstall
+        run: ./build.ps1 -Task Catalog -SkipInstall
 
-      - name: Zip the unsigned staged module
-        shell: pwsh
-        run: |
-          $version = '${{ steps.version.outputs.version }}'
-          $zip = "./out/TenantKeep.Posture-$version-unsigned.zip"
-          Compress-Archive -Path ./out/TenantKeep.Posture -DestinationPath $zip
-          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
-          Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path $zip -Leaf)"
-          Write-Host "SHA256 $hash"
-
-      - name: Open the draft release
+      - name: Open the draft release, or refresh its notes and catalog
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          tag='${{ steps.version.outputs.tag }}'
           version='${{ steps.version.outputs.version }}'
-          flags=(--draft --title "TenantKeep Posture $version" --notes-file ./out-notes.md)
-          if [ '${{ steps.version.outputs.prerelease }}' = 'True' ]; then flags+=(--prerelease); fi
-          gh release create '${{ github.ref_name }}' "${flags[@]}" \
-            "./out/TenantKeep.Posture-$version-unsigned.zip" \
-            "./out/TenantKeep.Posture-$version-unsigned.zip.sha256" \
-            ./out/catalog.md ./out/catalog.html
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "TenantKeep Posture $version" --notes-file ./out-notes.md
+            gh release upload "$tag" ./out/catalog.md ./out/catalog.html --clobber
+          else
+            flags=(--draft --title "TenantKeep Posture $version" --notes-file ./out-notes.md)
+            if [ '${{ steps.version.outputs.prerelease }}' = 'True' ]; then flags+=(--prerelease); fi
+            gh release create "$tag" "${flags[@]}" ./out/catalog.md ./out/catalog.html
+          fi
+
+  package:
+    name: Package${{ vars.RELEASE_SIGNING == 'on' && ', signed through Azure Artifact Signing' || ' unsigned, with the integrity manifest' }}
+    needs: draft
+    runs-on: ${{ vars.RELEASE_SIGNING == 'on' && 'windows-latest' || 'ubuntu-latest' }}
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.draft.outputs.tag }}
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+
+      - name: Azure sign-in through OpenID Connect
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stage the module
+        shell: pwsh
+        run: ./build.ps1 -Task Build -SkipInstall
+
+      - name: Sign every staged script, module and manifest
+        if: vars.RELEASE_SIGNING == 'on'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\out\TenantKeep.Posture
+          files-folder-filter: ps1,psm1,psd1
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+          exclude-shared-token-cache-credential: true
+          exclude-visual-studio-credential: true
+          exclude-visual-studio-code-credential: true
+          exclude-azure-cli-credential: false
+          exclude-azure-powershell-credential: true
+          exclude-azure-developer-cli-credential: true
+          exclude-interactive-browser-credential: true
+
+      - name: Verify, write the integrity manifest, package
+        shell: pwsh
+        run: |
+          if ('${{ vars.RELEASE_SIGNING }}' -eq 'on') { ./build.ps1 -Task Verify, Integrity, Package -SkipInstall -VaultName '${{ secrets.LICENCE_VAULT }}' -KeyName '${{ secrets.LICENCE_KEY }}' }
+          else { ./build.ps1 -Task Integrity, Package -Unsigned -SkipInstall -VaultName '${{ secrets.LICENCE_VAULT }}' -KeyName '${{ secrets.LICENCE_KEY }}' }
+
+      - name: Attach the package to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $zip = @(Get-ChildItem ./out -Filter 'TenantKeep.Posture-${{ needs.draft.outputs.module }}*.zip' | Where-Object Name -notlike '*.sha256')[0]
+          gh release upload '${{ needs.draft.outputs.tag }}' $zip.FullName "$($zip.FullName).sha256" --clobber
+          Write-Host "Attached $($zip.Name) and its SHA-256 to ${{ needs.draft.outputs.tag }}."
+
+      - name: Publish to the PowerShell Gallery
+        if: ${{ vars.GALLERY_PUBLISH == 'on' }}
+        env:
+          TENANTKEEP_GALLERY_KEY: ${{ secrets.GALLERY_API_KEY }}
+        shell: pwsh
+        run: |
+          if ('${{ vars.RELEASE_SIGNING }}' -eq 'on') { ./build.ps1 -Task Verify, Publish -SkipInstall }
+          else { ./build.ps1 -Task Publish -Unsigned -SkipInstall }

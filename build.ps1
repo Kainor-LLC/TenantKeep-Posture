@@ -5,8 +5,9 @@
   Build script for TenantKeep.Posture.
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
-  PowerShell Gallery, from a signed stage, or an unsigned pre-release with -AllowUnsignedPrerelease). Sign needs a local
-  code-signing certificate and is the emergency path; releases are signed by the sign-release workflow through Azure Artifact Signing,
+  PowerShell Gallery). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
+  manifest is required either way. Sign needs a local
+  code-signing certificate and is the emergency path; releases are signed by the release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
   or Key Vault) and writes the signed integrity.json the module checks at import (docs/licensing.md, Hardening). Package refuses to run
   without integrity.json and without Sign or Verify in the same run. Sign and Verify are Windows-only; the rest runs everywhere.
@@ -36,10 +37,12 @@ param(
     # Catalog task only: where catalog.md and catalog.html land. Default: out/.
     [string] $CatalogPath,
 
-    # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY) and, for a pre-release only, permission to publish a stage
-    # that carries no integrity manifest. A release build must be signed and carry integrity.json.
+    # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY).
     [string] $GalleryApiKey = $env:TENANTKEEP_GALLERY_KEY,
-    [switch] $AllowUnsignedPrerelease,
+
+    # Package and Publish without Authenticode signatures, said out loud. The integrity manifest is still required, so the build
+    # reads as a release in every report; only the OS-level signature is missing. Used until the signing account is validated.
+    [switch] $Unsigned,
 
     # Integrity task: the licence signing key that signs integrity.json. A PEM path (TENANTKEEP_LICENCE_KEY) or a Key Vault key.
     [string] $LicenseKeyPath = $env:TENANTKEEP_LICENCE_KEY,
@@ -114,9 +117,9 @@ function Get-SigningCertificate {
 
 function Invoke-Publish {
     <#
-      Publishes the staged module to the PowerShell Gallery. The stage must be a release build (Verify or Sign, then Integrity,
-      so integrity.json is present), except that a pre-release may go up unsigned with -AllowUnsignedPrerelease. The API key
-      comes from -GalleryApiKey or TENANTKEEP_GALLERY_KEY and is never written anywhere.
+      Publishes the staged module to the PowerShell Gallery. The stage must carry integrity.json (a release build), and the run
+      must have signed it (Sign), verified it (Verify) or said -Unsigned. A version already on the Gallery is left alone, so a
+      rerun is safe. The API key comes from -GalleryApiKey or TENANTKEEP_GALLERY_KEY and is never written anywhere.
     #>
     param([string] $Stage)
     Write-Task 'Publish'
@@ -126,13 +129,15 @@ function Invoke-Publish {
     if (-not $GalleryApiKey) { throw 'Publish needs the PowerShell Gallery API key: -GalleryApiKey or TENANTKEEP_GALLERY_KEY.' }
     $data = Import-PowerShellDataFile -Path $manifestPath
     $pre = [string]$data.PrivateData.PSData.Prerelease
-    if (-not (Test-Path -LiteralPath (Join-Path $Stage 'integrity.json'))) {
-        if (-not ($pre -and $AllowUnsignedPrerelease)) { throw 'The stage has no integrity.json: a release must be signed (Sign or Verify, then Integrity) before Publish. A pre-release may be published unsigned with -AllowUnsignedPrerelease.' }
-        Write-Warning "Publishing pre-release $($data.ModuleVersion)-$pre unsigned and without an integrity manifest; reports from it read as a development build."
-    }
+    $full = "$($data.ModuleVersion)$(if ($pre) { "-$pre" })"
+    if (-not (Test-Path -LiteralPath (Join-Path $Stage 'integrity.json'))) { throw 'The stage has no integrity.json; run Integrity before Publish so the build reads as a release.' }
+    if (-not $script:Verified -and $tasks -notcontains 'Sign' -and -not $Unsigned) { throw 'Publish needs Sign or Verify in the same run, or -Unsigned to publish without Authenticode signatures on purpose.' }
     if (-not (Get-Command Publish-PSResource -ErrorAction SilentlyContinue)) { throw 'Publish-PSResource is not available; install Microsoft.PowerShell.PSResourceGet.' }
+    $existing = Find-PSResource -Name $ModuleName -Version $full -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue
+    if ($existing) { Write-Host "$ModuleName $full is already on the PowerShell Gallery; nothing to publish."; return }
+    if ($Unsigned -and -not $script:Verified -and $tasks -notcontains 'Sign') { Write-Warning "Publishing $full without Authenticode signatures (-Unsigned)." }
     Publish-PSResource -Path $Stage -Repository PSGallery -ApiKey $GalleryApiKey
-    Write-Host "Published $ModuleName $($data.ModuleVersion)$(if ($pre) { "-$pre" }) to the PowerShell Gallery"
+    Write-Host "Published $ModuleName $full to the PowerShell Gallery"
 }
 
 function Invoke-Catalog {
@@ -280,7 +285,7 @@ function Invoke-Sign {
 function Invoke-Verify {
     <#
       Every staged .ps1, .psm1 and .psd1 must carry a valid Authenticode signature. This is the gate for a stage signed outside this
-      script (the sign-release workflow, Azure Artifact Signing): Package accepts Verify in place of Sign.
+      script (the release workflow, Azure Artifact Signing): Package accepts Verify in place of Sign.
     #>
     param([string] $Stage)
     Write-Task 'Verify'
@@ -332,8 +337,9 @@ function Invoke-Package {
     Write-Task 'Package'
     $version = Get-ModuleVersion
     if (-not (Test-Path -LiteralPath (Join-Path $OutRoot $ModuleName $version 'integrity.json'))) { throw 'No integrity.json in the staged module; run Integrity before Package.' }
-    if (-not $script:Verified -and $tasks -notcontains 'Sign') { throw 'Package needs Sign (local certificate) or Verify (a stage signed by the sign-release workflow) in the same run.' }
-    $zip = Join-Path $OutRoot "$ModuleName-$version.zip"
+    if (-not $script:Verified -and $tasks -notcontains 'Sign' -and -not $Unsigned) { throw 'Package needs Sign (local certificate) or Verify (a stage signed by the release workflow) in the same run, or -Unsigned to package without Authenticode signatures on purpose.' }
+    $suffix = $(if ($script:Verified -or $tasks -contains 'Sign') { '' } else { Write-Warning 'Packaging without Authenticode signatures (-Unsigned). The integrity manifest still makes this a release build.'; '-unsigned' })
+    $zip = Join-Path $OutRoot "$ModuleName-$version$suffix.zip"
     if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -Path (Join-Path $OutRoot $ModuleName) -DestinationPath $zip
     $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
@@ -344,7 +350,7 @@ function Invoke-Package {
 # Package implies Build and Sign. Sign implies Build. The cert check runs first so a missing cert fails fast.
 $script:Verified = $false
 $tasks = [System.Collections.Generic.List[string]]::new($Task)
-if ($tasks -contains 'Package' -and $tasks -notcontains 'Sign' -and $tasks -notcontains 'Verify') { $tasks.Add('Sign') }
+if ($tasks -contains 'Package' -and $tasks -notcontains 'Sign' -and $tasks -notcontains 'Verify' -and -not $Unsigned) { $tasks.Add('Sign') }
 if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('Build') }
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 

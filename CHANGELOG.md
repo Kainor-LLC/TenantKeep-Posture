@@ -7,8 +7,9 @@ work landed on main.
 ## Unreleased
 
 - `Initialize-PostureClient`: creates the client folder where you want it, verifies and copies the licence in, seeds
-  the profile, and prints the Start-PostureRun line. `build.ps1 -Task Publish` publishes a signed stage to the
-  PowerShell Gallery (an unsigned pre-release with -AllowUnsignedPrerelease).
+  the profile, and prints the Start-PostureRun line. `build.ps1 -Task Publish` publishes a stage to the PowerShell
+  Gallery; `-Unsigned` packages or publishes without Authenticode signatures on purpose, the integrity manifest
+  still required.
 - Release signing through Azure Artifact Signing: the Sign release workflow, `build.ps1 -Task Verify`, and the
   Kainor-side setup script under deploy/release.
 
