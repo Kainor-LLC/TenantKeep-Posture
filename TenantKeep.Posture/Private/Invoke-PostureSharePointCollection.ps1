@@ -35,7 +35,8 @@ function Invoke-PostureSharePointCollection {
     } | Out-Null
 
     Invoke-PostureStep -Label 'Restricted SharePoint Search' -Folder $Folder -Script {
-        # Copilot readiness C9. Get-PnPTenantRestrictedSearchMode answers Disabled or Enabled; the allow list is a separate read. (verify) cmdlet output shapes
+        # Copilot readiness C9. Get-PnPTenantRestrictedSearchMode answers Disabled, Enabled, or (PnP 3.2.0, a tenant that never set it) the sentence
+        # "Restricted search mode is currently not set."; the mode is kept as written and read in Get-PostureCopilotFact. The allow list is a separate read.
         $mode = @(& $pnp 'Get-PnPTenantRestrictedSearchMode')
         $allowed = $(try { @(& $pnp 'Get-PnPTenantRestrictedSearchAllowedList') } catch { @() })
         & $saveOne ([ordered]@{ Mode = [string]$(if ($mode.Count -gt 0) { $mode[0] } else { '' }); AllowedSites = @($allowed | Where-Object { $_ }).Count }) 'spo-restricted-search'

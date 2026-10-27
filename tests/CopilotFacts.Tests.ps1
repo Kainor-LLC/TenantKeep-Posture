@@ -61,6 +61,22 @@ Describe 'Copilot readiness gates' {
     }
 }
 
+Describe 'Restricted SharePoint Search (CP-009)' {
+    It 'gives <Status> for mode "<Mode>" with <Allowed> allowed sites' -ForEach @(
+        @{ Mode = 'Restricted search mode is currently not set.'; Allowed = 0; Status = 'pass' }
+        @{ Mode = 'Disabled'; Allowed = 0; Status = 'pass' }
+        @{ Mode = 'Enabled'; Allowed = 0; Status = 'fail' }
+        @{ Mode = 'Enabled'; Allowed = 3; Status = 'pass' }
+        @{ Mode = ''; Allowed = 0; Status = 'notEvaluated' }
+    ) {
+        $ev = Join-Path $script:Root "ev-search-$([guid]::NewGuid().ToString('n'))"
+        Copy-Item -LiteralPath $script:Ev -Destination $ev -Recurse
+        ConvertTo-Json -InputObject @{ Mode = $Mode; AllowedSites = $Allowed } | Set-Content -LiteralPath (Join-Path $ev 'spo-restricted-search.json')
+        $run = Invoke-PostureChecks -Evidence $ev -ProfilePath $script:ProfilePath -Domain copilot -PassThru
+        @($run.results | Where-Object { $_.id -eq 'CP-009' })[0].status | Should -Be $Status
+    }
+}
+
 Describe 'Copilot readiness page' {
     It 'leads with Blocked while a hard gate is not evaluated, lists the gates and the stopgap narrative' {
         $r = New-PostureReport -Evidence $script:Ev -ProfilePath $script:ProfilePath -Format Html, Markdown -OutputPath (Join-Path $script:Root 'out') -PassThru

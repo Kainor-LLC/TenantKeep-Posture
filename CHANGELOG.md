@@ -8,6 +8,11 @@ work landed on main.
 
 - Free 30-day trial: Start-PostureRun prints the trial link with the tenant id when the tenant has no Full
   licence, and the report says "Trial licence, ends <date>" under a trial. The module still sends nothing anywhere.
+- CP-009 (Restricted SharePoint Search) no longer fails on a tenant that never set the mode: PnP.PowerShell 3.2
+  reports it as "Restricted search mode is currently not set.", which is off. Evidence with no mode now reads as not
+  evaluated.
+- Azure Automation: the runtime environment is PowerShell 7.6 (`tenantkeep-ps76`), and deploy.ps1 imports the
+  collector modules at the versions the module is tested with.
 
 ## 0.2.0-alpha (2026-10-27)
 

@@ -96,8 +96,13 @@ function Get-PostureCopilotFact {
             $mode = [string](& $v $search 'Mode')
             $facts.restrictedSearchMode = $mode
             $facts.restrictedSearchAllowListSites = [int](& $v $search 'AllowedSites')
-            # Off is the end state; on with an allow list is the stopgap and passes; on with an empty list blocks search for everyone and is a finding.
-            $facts.restrictedSearchOk = ($mode -match '(?i)disabled|off') -or $facts.restrictedSearchAllowListSites -gt 0
+            if ([string]::IsNullOrWhiteSpace($mode)) { $notEvaluated['CP-009'] = 'spo-restricted-search.json holds no mode: run the SharePoint collector again.' }
+            else {
+                # PnP answers Disabled, Enabled, or on a tenant that never set it "Restricted search mode is currently not set.", which is off.
+                # Off is the end state; on with an allow list is the stopgap and passes; on with an empty list blocks search for everyone and is a finding.
+                $on = $mode -match '(?i)\b(enabled|on)\b'
+                $facts.restrictedSearchOk = (-not $on) -or $facts.restrictedSearchAllowListSites -gt 0
+            }
         }
     }
 
