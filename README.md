@@ -7,7 +7,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release 0.1.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), unsigned by design until the signing account is validated. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
+Pre-release 0.2.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), Authenticode-signed by Kainor LLC. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
 one sign-in, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
 Windows-only Active Directory script), thirteen check domains, the interactive report, the findings register, the
 Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
