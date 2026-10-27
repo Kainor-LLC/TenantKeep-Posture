@@ -142,7 +142,17 @@ function Invoke-Publish {
     $existing = Find-PSResource -Name $ModuleName -Version $full -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue
     if ($existing) { Write-Host "$ModuleName $full is already on the PowerShell Gallery; nothing to publish."; return }
     if ($Unsigned -and -not $script:Verified -and $tasks -notcontains 'Sign') { Write-Warning "Publishing $full without Authenticode signatures (-Unsigned)." }
-    Publish-PSResource -Path $Stage -Repository PSGallery -ApiKey $GalleryApiKey
+    # The Gallery answers intermittent 404s from CI runners (2026-10-27, on a search and on a push, minutes apart). Retry a few
+    # times, checking first whether an earlier attempt landed, so a retry never tries to push the same version twice.
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        try { Publish-PSResource -Path $Stage -Repository PSGallery -ApiKey $GalleryApiKey -ErrorAction Stop; break }
+        catch {
+            Start-Sleep -Seconds (20 * $attempt)
+            if (Find-PSResource -Name $ModuleName -Version $full -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue) { Write-Host "Attempt $attempt reported an error but $full is on the Gallery."; break }
+            if ($attempt -eq 4) { throw }
+            Write-Warning "Gallery push failed (attempt $attempt, retrying): $($_.Exception.Message)"
+        }
+    }
     Write-Host "Published $ModuleName $full to the PowerShell Gallery"
 }
 

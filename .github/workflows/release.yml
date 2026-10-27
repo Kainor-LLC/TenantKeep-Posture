@@ -41,9 +41,15 @@ jobs:
       - name: Install build dependencies
         shell: pwsh
         run: |
-          Install-PSResource -Name PSScriptAnalyzer -Version '[1.22.0,)' -Scope CurrentUser -TrustRepository -Quiet
-          Install-PSResource -Name Pester -Version '[5.5.0,)' -Scope CurrentUser -TrustRepository -Quiet
-          Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          function Install-WithRetry([string] $Name, [string] $Version) {
+            for ($i = 1; $i -le 4; $i++) {
+              try { Install-PSResource -Name $Name -Version $Version -Scope CurrentUser -TrustRepository -Quiet -ErrorAction Stop; return }
+              catch { if ($i -eq 4) { throw }; Write-Warning "Install of $Name failed (attempt $i, retrying in $(15 * $i)s): $($_.Exception.Message)"; Start-Sleep -Seconds (15 * $i) }
+            }
+          }
+          Install-WithRetry PSScriptAnalyzer '[1.22.0,)'
+          Install-WithRetry Pester '[5.5.0,)'
+          Install-WithRetry Microsoft.Graph.Authentication '[2.0.0,)'
 
       - name: Tag matches the manifest
         id: version
@@ -125,7 +131,15 @@ jobs:
 
       - name: Install build dependencies
         shell: pwsh
-        run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+        run: |
+          function Install-WithRetry([string] $Name, [string] $Version) {
+            for ($i = 1; $i -le 4; $i++) {
+              try { Install-PSResource -Name $Name -Version $Version -Scope CurrentUser -TrustRepository -Quiet -ErrorAction Stop; return }
+              catch { if ($i -eq 4) { throw }; Write-Warning "Install of $Name failed (attempt $i, retrying in $(15 * $i)s): $($_.Exception.Message)"; Start-Sleep -Seconds (15 * $i) }
+            }
+          }
+          Install-WithRetry Microsoft.Graph.Authentication '[2.0.0,)'
+          Install-WithRetry Microsoft.PowerShell.PSResourceGet '[1.2.0,)'
 
       - name: Azure sign-in through OpenID Connect
         uses: azure/login@v3
@@ -183,6 +197,5 @@ jobs:
           TENANTKEEP_GALLERY_KEY: ${{ secrets.GALLERY_API_KEY }}
         shell: pwsh
         run: |
-          Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Version '[1.2.0,)' -Scope CurrentUser -TrustRepository -Quiet
           if ('${{ vars.RELEASE_SIGNING }}' -eq 'on') { ./build.ps1 -Task Verify, Publish -SkipInstall }
           else { ./build.ps1 -Task Publish -Unsigned -SkipInstall }
