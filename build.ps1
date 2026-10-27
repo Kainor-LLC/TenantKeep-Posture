@@ -344,7 +344,8 @@ function Invoke-Package {
     if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }
     Compress-Archive -Path (Join-Path $OutRoot $ModuleName) -DestinationPath $zip
     $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
-    Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path $zip -Leaf)"
+    # Lower case and a bare newline, so shasum -c and sha256sum -c read it on every platform (a Windows runner wrote CRLF, 2026-10-27).
+    [System.IO.File]::WriteAllText("$zip.sha256", "$($hash.ToLowerInvariant())  $(Split-Path $zip -Leaf)`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "Packaged $zip`nSHA256 $hash"
 }
 
