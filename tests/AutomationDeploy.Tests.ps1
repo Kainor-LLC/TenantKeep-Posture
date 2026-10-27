@@ -48,6 +48,54 @@ Describe 'deploy/automation/main.bicep' -Skip:(-not $script:HasAz) {
     }
 }
 
+Describe 'deploy.ps1 package imports' {
+    BeforeAll {
+        # Runs the script's own wait-and-retry block (step 6) against a fake az: no Azure, no sleep.
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'deploy.ps1'), [ref]$null, [ref]$null)
+        $script:WaitBlock = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq '$imports.Count -gt 0' }, $true).Extent.Text
+        $script:SendBlock = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$sendImport' }, $true).Extent.Text
+    }
+    It 'waits for every import, sends a failed one again, and reports one still running' {
+        $result = & {
+            # The variables the block reads from deploy.ps1's scope.
+            foreach ($pair in @(@('aaPath', '/subscriptions/s/resourceGroups/rg/providers/Microsoft.Automation/automationAccounts/aa'), @('runtimeEnv', 'tenantkeep-ps76'), @('apiVersion', 'v'), @('ImportWaitMinutes', 1))) { Set-Variable -Name $pair[0] -Value $pair[1] }
+            $script:puts = [System.Collections.Generic.List[string]]::new(); $script:gets = @{}
+            Mock Start-Sleep { }
+            Mock Write-Host { }
+            function Invoke-Az {
+                $url = $args[$args.IndexOf('--url') + 1]; $name = ($url -split '/packages/')[1] -replace '\?.*$'
+                if ($args[2] -eq 'put') { $script:puts.Add($name); return }
+                $script:gets[$name] = 1 + [int]$script:gets[$name]
+                $state = switch ($name) {
+                    'MicrosoftTeams' { if ($script:puts.Where({ $_ -eq 'MicrosoftTeams' }).Count -lt 1) { 'Failed' } else { 'Succeeded' } }
+                    'Microsoft.Graph.Authentication' { 'Creating' }
+                    default { 'Succeeded' }
+                }
+                @{ properties = @{ provisioningState = $state; error = @{ message = "An internal error occurred.`r`n   at Somewhere" } } } | ConvertTo-Json -Depth 4
+            }
+            . ([scriptblock]::Create($script:SendBlock))
+            $imports = [System.Collections.Generic.List[object]]::new()
+            foreach ($n in 'TenantKeep.Posture', 'Microsoft.Graph.Authentication', 'MicrosoftTeams') { $imports.Add([pscustomobject]@{ Name = $n; Version = '1'; Uri = "https://example/$n"; State = 'Importing'; Attempts = 1; Error = $null }) }
+            $script:start = Get-Date
+            # The clock passes the deadline once Graph has been asked about five times.
+            Mock Get-Date { if ($script:gets['Microsoft.Graph.Authentication'] -ge 5) { $script:start.AddMinutes(5) } else { $script:start } }
+            . ([scriptblock]::Create($script:WaitBlock))
+            [pscustomobject]@{ Imports = $imports; Puts = @($script:puts) }
+        }
+        ($result.Imports | Where-Object Name -EQ 'TenantKeep.Posture').State | Should -Be 'Succeeded'
+        ($result.Imports | Where-Object Name -EQ 'MicrosoftTeams').State | Should -Be 'Succeeded'
+        ($result.Imports | Where-Object Name -EQ 'MicrosoftTeams').Attempts | Should -Be 2
+        ($result.Imports | Where-Object Name -EQ 'Microsoft.Graph.Authentication').State | Should -Be 'Still importing'
+        @($result.Puts | Where-Object { $_ -eq 'MicrosoftTeams' }).Count | Should -Be 1
+    }
+    It 'gives up on an import after two retries and stops the script with an error' {
+        $text = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'deploy.ps1')
+        $text | Should -Match '\$p\.Attempts -lt 3'
+        $text | Should -Match 'throw "Package import not finished'
+        $text | Should -Not -Match 'Write-Host .*\$sas'
+    }
+}
+
 Describe 'deploy scripts' {
     It 'the runbook looks for the cycle script inside the staged module' {
         Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'automation-runbook.ps1') | Should -Match "'schedules' 'ca-snapshot-cycle.ps1'"

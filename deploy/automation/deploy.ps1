@@ -9,8 +9,12 @@
       1. Resource group and Bicep deployment (main.bicep).
       2. Stage the module (./build.ps1 -Task Build), zip it, upload to the modules container, import it into the
          account's PowerShell 7.6 runtime through a user-delegation SAS. Dev builds are unsigned; releases are signed.
-      3. Import Microsoft.Graph.Authentication from the PowerShell Gallery into the same runtime.
+      3. Import Microsoft.Graph.Authentication from the PowerShell Gallery into the same runtime (and, with
+         -IncludePosture, the collectors' modules).
       4. Upload automation-runbook.ps1 as the runbook content and publish it.
+      5. Link the schedules.
+      6. Wait for every package import to finish, retrying one that fails on Automation's side, and say when a job
+         can start. Stops with an error if an import still fails or is still running after -ImportWaitMinutes.
     Then, once, a Global Administrator runs Grant-ManagedIdentityGraphRole.ps1 with the printed principal id.
 .EXAMPLE
     ./deploy.ps1 -ResourceGroup rg-tenantkeep-dev -Location centralus -WhatIf
@@ -46,6 +50,8 @@ param(
     [string] $ExchangeOnlineManagementVersion = '3.10.1',
     [string] $PnPPowerShellVersion = '3.2.0',
     [string] $MicrosoftTeamsVersion = '7.9.0',
+    # How long to wait for Automation to finish the package imports before giving up.
+    [ValidateRange(1, 120)] [int] $ImportWaitMinutes = 20,
 
     # Sign the staged module's integrity manifest through Key Vault so the report reads "Signed release" instead of "Development build".
     [string] $IntegrityVaultName,
@@ -92,6 +98,21 @@ $subId = $account.id
 $aaPath = "/subscriptions/$subId/resourceGroups/$ResourceGroup/providers/Microsoft.Automation/automationAccounts/$automationAccount"
 $apiVersion = '2023-05-15-preview'
 
+# Package imports run in the background: the PUT returns at once and the import finishes, or fails, minutes later.
+# Every import sent is recorded so step 6 can wait for it and send it again if Automation fails it.
+$imports = [System.Collections.Generic.List[object]]::new()
+$sendImport = {
+    param([string] $Name, [string] $Version, [string] $Uri)
+    $body = @{ properties = @{ contentLink = @{ uri = $Uri } } } | ConvertTo-Json -Compress
+    $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($Name)?api-version=$apiVersion" --body $body -o none
+}
+$queueImport = {
+    param([string] $Name, [string] $Version, [string] $Uri)
+    & $sendImport $Name $Version $Uri
+    $imports.Add([pscustomobject]@{ Name = $Name; Version = $Version; Uri = $Uri; State = 'Importing'; Attempts = 1; Error = $null })
+    Write-Host "Import sent: $Name $Version"
+}
+
 # 2. Module
 if (-not $SkipModuleImport) {
     if ($IntegrityVaultName) { & (Join-Path $repo 'build.ps1') -Task Build, Integrity -VaultName $IntegrityVaultName -KeyName $IntegrityKeyName | Out-Null }
@@ -113,22 +134,15 @@ if (-not $SkipModuleImport) {
     $sas = (Invoke-Az storage blob generate-sas --account-name $storageAccount --container-name modules --name $blobName --permissions r --expiry $expiry --auth-mode login --as-user --full-uri -o tsv) | Select-Object -Last 1
     $sas = [string]$sas
     $sas = $sas.Trim('"')
-    $body = @{ properties = @{ contentLink = @{ uri = $sas } } } | ConvertTo-Json -Compress
-    $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/TenantKeep.Posture?api-version=$apiVersion" --body $body -o none
-    Write-Host "Imported TenantKeep.Posture $version into runtime environment $runtimeEnv"
+    & $queueImport 'TenantKeep.Posture' $version $sas
 
     # 3. Dependency from the Gallery
-    $galleryUri = "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/$GraphAuthenticationVersion"
-    $body = @{ properties = @{ contentLink = @{ uri = $galleryUri } } } | ConvertTo-Json -Compress
-    $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/Microsoft.Graph.Authentication?api-version=$apiVersion" --body $body -o none
-    Write-Host "Imported Microsoft.Graph.Authentication $GraphAuthenticationVersion"
+    & $queueImport 'Microsoft.Graph.Authentication' $GraphAuthenticationVersion "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication/$GraphAuthenticationVersion"
     if ($IncludePosture) {
-        # The collectors' session modules. Package imports run in the background; a job started before they finish fails to import them.
+        # The collectors' session modules. A job started before they finish runs without them and skips those domains.
         # Az.ResourceGraph comes with the runtime's Az rollup; a separately imported newer version needs a newer Az.Accounts and breaks the import.
         foreach ($pkg in @(@('ExchangeOnlineManagement', $ExchangeOnlineManagementVersion), @('PnP.PowerShell', $PnPPowerShellVersion), @('MicrosoftTeams', $MicrosoftTeamsVersion))) {
-            $body = @{ properties = @{ contentLink = @{ uri = "https://www.powershellgallery.com/api/v2/package/$($pkg[0])/$($pkg[1])" } } } | ConvertTo-Json -Compress
-            $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($pkg[0])?api-version=$apiVersion" --body $body -o none
-            Write-Host "Imported $($pkg[0]) $($pkg[1])"
+            & $queueImport $pkg[0] $pkg[1] "https://www.powershellgallery.com/api/v2/package/$($pkg[0])/$($pkg[1])"
         }
     }
 }
@@ -177,14 +191,53 @@ if ($IncludePosture) {
     else { Write-Host "Schedule $postureSchedule already linked" }
 }
 
+# 6. Wait for the imports. Automation has failed a good import on its side (a 500 or a timeout while storing the content)
+# and passed the same import on the next try, so a failed import is sent again, twice at most.
+if ($imports.Count -gt 0) {
+    Write-Host "Waiting for $($imports.Count) package import(s) in $runtimeEnv (up to $ImportWaitMinutes minutes)"
+    $deadline = (Get-Date).AddMinutes($ImportWaitMinutes)
+    while (@($imports | Where-Object State -EQ 'Importing').Count -gt 0 -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 20
+        foreach ($p in @($imports | Where-Object State -EQ 'Importing')) {
+            $pkg = Invoke-Az rest --method get --url "https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($p.Name)?api-version=$apiVersion" -o json | ConvertFrom-Json
+            $state = [string]$pkg.properties.provisioningState
+            if ($state -eq 'Succeeded') { $p.State = 'Succeeded'; Write-Host "  $($p.Name) $($p.Version): imported" }
+            elseif ($state -eq 'Failed') {
+                $reason = (([string]$pkg.properties.error.message) -split '\r?\n|   at ')[0]
+                if ($p.Attempts -lt 3) {
+                    Write-Host "  $($p.Name) $($p.Version): failed on Automation's side, sending it again ($($p.Attempts) of 2): $reason"
+                    $p.Attempts++
+                    & $sendImport $p.Name $p.Version $p.Uri
+                }
+                else { $p.State = 'Failed'; $p.Error = $reason }
+            }
+        }
+    }
+    foreach ($p in @($imports | Where-Object State -EQ 'Importing')) { $p.State = 'Still importing' }
+    Write-Host ''
+    foreach ($p in $imports) { Write-Host ('  {0,-32} {1,-10} {2}{3}' -f $p.Name, $p.Version, $p.State, $(if ($p.Error) { ": $($p.Error)" })) }
+}
+$notReady = @($imports | Where-Object State -NE 'Succeeded')
+
 Write-Host ''
 Write-Host 'Next, once, as a Global Administrator of the tenant:'
 Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All"
 Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })"
-Write-Host "Then start a job: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName"
+$after = $(if ($notReady) { ' (once the imports above show Succeeded)' } else { '' })
+Write-Host "Then start a job$($after): az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName"
 if ($IncludePosture) {
     Write-Host "Purview (once): ./deploy/setup/New-PosturePurviewApp.ps1 -ResourceGroup $ResourceGroup -AutomationAccount $automationAccount -VaultName $($o.purviewVaultName.value)"
-    Write-Host "Posture run: az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles and once the package imports show Available)"
+    Write-Host "Posture run$($after): az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles)"
+}
+if ($notReady) {
+    Write-Host ''
+    Write-Host 'To send an import again:'
+    foreach ($p in $notReady) {
+        # The module's own link is a user-delegation SAS; it is not printed. Rerunning the script uploads and imports it again.
+        if ($p.Name -eq 'TenantKeep.Posture') { Write-Host '  TenantKeep.Posture: run this script again with the same parameters'; continue }
+        $body = (@{ properties = @{ contentLink = @{ uri = $p.Uri } } } | ConvertTo-Json -Compress) -replace "'", "''"
+        Write-Host "  az rest --method put --url `"https://management.azure.com$aaPath/runtimeEnvironments/$runtimeEnv/packages/$($p.Name)?api-version=$apiVersion`" --body '$body' -o none"
+    }
 }
 
 [pscustomobject]@{
@@ -196,3 +249,4 @@ if ($IncludePosture) {
     Runbook           = $runbookName
     FirstRunUtc       = $o.firstRunUtc.value
 }
+if ($notReady) { throw "Package import not finished in ${runtimeEnv}: $(($notReady | ForEach-Object { "$($_.Name) ($($_.State))" }) -join ', '). Everything else is deployed." }
