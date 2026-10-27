@@ -45,6 +45,7 @@ Describe 'Start-PostureRun' {
             }
             Mock Export-PostureFindings { $script:Calls.Add('findings') }
             Mock Start-Process { $script:Calls.Add("open:$(Split-Path $FilePath -Leaf)") }
+            Mock Get-PostureLicense { [pscustomobject]@{ Valid = $false; Tier = 'none'; Reason = 'No licence file found.' } }
             $script:PostureSession = @{ tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = [datetime]::UtcNow.AddHours(1) }; exchange = @{ accessToken = 'e'; expiresUtc = [datetime]::UtcNow.AddHours(1) }; purview = @{ accessToken = 'p'; expiresUtc = [datetime]::UtcNow.AddHours(1) } } }
         }
     }
@@ -130,6 +131,29 @@ Describe 'Start-PostureRun' {
             @($warn | Where-Object { "$_" -match '^PnP\.PowerShell 1\.0\.0 is older' }).Count | Should -Be 1
             @($warn | Where-Object { "$_" -match '^Az\.Accounts 1\.0\.0 is older' }).Count | Should -Be 1
             @($warn | Where-Object { "$_" -match '^ExchangeOnlineManagement 1\.0\.0 is older' }).Count | Should -Be 1
+        }
+    }
+}
+
+Describe 'Start-PostureRun and the trial' {
+    It 'prints the trial link with the tenant id when there is no Full licence, and stays quiet with one, without any web request' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = (Join-Path $script:Client 'trial') ; outRoot = $script:OutRoot; tid = $script:Tid } {
+            Mock Connect-PostureSession { @{ tenantId = $tid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'x' } }
+            Mock Assert-PostureGraphScope { @{ TenantId = $tid; Scopes = @('Policy.Read.All') } }
+            Mock Get-Module { $false } -ParameterFilter { $ListAvailable }
+            Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }
+            Mock Invoke-PostureCollection { $f = Join-Path $outRoot '20261027-0900'; New-Item -ItemType Directory -Path $f -Force | Out-Null; [pscustomobject]@{ Folder = $f; Errors = @(); Files = @() } }
+            Mock New-PostureProfile { }
+            Mock Invoke-WebRequest { throw 'no web requests' }
+            Mock Invoke-RestMethod { throw 'no web requests' }
+            Mock Get-PostureLicense { [pscustomobject]@{ Valid = $false; Tier = 'none'; Reason = 'No licence file found.' } }
+            $out = Start-PostureRun -Client $client -OutRoot $outRoot -Collector Entra -SkipReport -NoBrowser 6>&1 | Out-String
+            $out | Should -Match ([regex]::Escape("https://tenantkeep.app/trial/?tenant=$tid"))
+            Mock Get-PostureLicense { [pscustomobject]@{ Valid = $true; Tier = 'full'; Reason = 'Valid.' } }
+            $out = Start-PostureRun -Client $client -OutRoot $outRoot -Collector Entra -SkipReport -NoBrowser 6>&1 | Out-String
+            $out | Should -Not -Match 'tenantkeep\.app/trial'
+            Should -Invoke Invoke-WebRequest -Times 0 -Exactly -Scope It
+            Should -Invoke Invoke-RestMethod -Times 0 -Exactly -Scope It
         }
     }
 }

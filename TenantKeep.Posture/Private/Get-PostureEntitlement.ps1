@@ -56,9 +56,16 @@ function ConvertTo-PostureEntitlementRecord {
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param([Parameter(Mandatory)] [System.Collections.IDictionary] $Entitlement)
     $lic = $Entitlement['licence']
+    # A trial is a Full licence that lasts 45 days or less (trials are 30; the shortest paid term is two months). The licence
+    # format carries no plan field, and adding one would change the signed canonical form, so the length is the signal.
+    $trial = $false
+    if ($lic -and [bool]$Entitlement['licensed'] -and $lic['issuedUtc'] -and $lic['expiresUtc']) {
+        try { $trial = ((ConvertTo-PostureUtcDateTime $lic['expiresUtc']) - (ConvertTo-PostureUtcDateTime $lic['issuedUtc'])).TotalDays -le 45 } catch { $trial = $false }
+    }
     return [ordered]@{
         licensed   = [bool]$Entitlement['licensed']
         tier       = [string]$Entitlement['tier']
+        trial      = $trial
         customer   = $(if ($lic) { [string]$lic['customer'] } else { $null })
         expiresUtc = $(if ($lic) { [string]$lic['expiresUtc'] } else { $null })
         licenceId  = $(if ($lic) { [string]$lic['licenceId'] } else { $null })

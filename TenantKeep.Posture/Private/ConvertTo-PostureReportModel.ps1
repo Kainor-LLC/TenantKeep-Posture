@@ -312,7 +312,7 @@ function ConvertTo-PostureReportModel {
             notEvaluated = @($results | Where-Object { $_.status -in @('notEvaluated', 'notApplicable') } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; status = $_.status; reason = $_.reason } })
             moduleVersion = $script:ModuleVersion
             build = [string]$buildState.detail
-            licence = $(if ($Run.entitlement.licensed) { "$($Run.entitlement.tier) tier, licence $($Run.entitlement.licenceId), $($Run.entitlement.customer), expires $($Run.entitlement.expiresUtc)" } else { "none: $($Run.entitlement.reason)" })
+            licence = $(if ($Run.entitlement.licensed) { "$(if ($Run.entitlement.Contains('trial') -and $Run.entitlement.trial) { 'trial, ' })$($Run.entitlement.tier) tier, licence $($Run.entitlement.licenceId), $($Run.entitlement.customer), expires $($Run.entitlement.expiresUtc)" } else { "none: $($Run.entitlement.reason)" })
         }
     }
 }

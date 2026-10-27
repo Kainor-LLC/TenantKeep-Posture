@@ -64,7 +64,14 @@ function ConvertTo-PostureReportHtml {
     if ($logo) { & $w "<img class=`"logo`" alt=`"logo`" src=`"$logo`">" }
     & $w "<h1>$(& $h $r.title)</h1>"
     $prepared = [string]$b.preparedBy.name; if ($b.client.name) { $prepared += " for $($b.client.name)" }
-    if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) { & $w "<div class=`"banner warn`">Licence: $(& $h $(if ($r.licence.reason) { $r.licence.reason } else { 'not licensed' }))</div>" }
+    if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) {
+        $trialLink = "https://tenantkeep.app/trial/?tenant=$([uri]::EscapeDataString([string]$r.tenantId))"
+        & $w "<div class=`"banner warn`">Licence: $(& $h $(if ($r.licence.reason) { $r.licence.reason } else { 'not licensed' })) Every domain for 30 days, free: <a href=`"$(& $h $trialLink)`" target=`"_blank`" rel=`"noopener`">request a trial</a>.</div>"
+    }
+    elseif ($r.licence -and $r.licence.Contains('trial') -and $r.licence.trial) {
+        $ends = $(try { (ConvertTo-PostureUtcDateTime $r.licence.expiresUtc).ToString('yyyy-MM-dd') } catch { [string]$r.licence.expiresUtc })
+        & $w "<div class=`"banner warn`">Trial licence for $(& $h $r.licence.customer), ends $(& $h $ends). <a href=`"https://tenantkeep.app/#pricing`" target=`"_blank`" rel=`"noopener`">Licences and pricing</a>.</div>"
+    }
     if ($r.build -and $r.build.state -eq 'modified') { & $w "<div class=`"banner err`">$(& $h $r.build.detail) This report was not produced by an intact TenantKeep release.</div>" }
     & $w "<div class=`"meta`">Prepared by $(& $h $prepared). Tenant $(if ($r.tenantName) { & $h "$($r.tenantName) " })<code>$(& $h $r.tenantId)</code>. Evidence collected $(& $fmtDate $r.collectedUtc). Generated $(& $fmtDate $r.generatedUtc) with TenantKeep.Posture $(& $h $r.appendix.moduleVersion), catalog $(& $h $r.appendix.catalogVersion), baseline $(& $h $r.appendix.baseline).$(if ($r.licence -and $r.licence.licensed) { " Licensed to $(& $h $r.licence.customer), $(& $h $r.licence.tier) tier, until $(& $fmtDate $r.licence.expiresUtc)." })$(if ($r.build) { " $(& $h $r.build.detail)" })</div>"
     if ($b.confidentiality) { & $w "<div class=`"confidential`">$(& $h $b.confidentiality)</div>" }

@@ -17,7 +17,8 @@ function Start-PostureRun {
           5. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
              answer the wizard would ask left to the report's Settings view.
           6. The report, with the trend against the newest earlier run, and findings.csv merged with the register.
-          7. The report opens in the browser.
+          7. The report opens in the browser. Without a Full licence for the tenant, the closing lines give the trial link
+             with the tenant id filled in; the module sends nothing anywhere, the admin opens it or not.
 
         A collector whose module is not installed, or whose session fails, is skipped with a note and the report
         says what was not collected. A module older than the version the collectors were tested with gets a warning
@@ -197,6 +198,14 @@ function Start-PostureRun {
     if ($reportFile) { Write-Host "Report: $reportFile" }
     if ($errorCount -gt 0) { Write-Host "$errorCount step(s) logged in errors.txt" -ForegroundColor Yellow }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
+    # No network call here or anywhere: the trial is requested in the browser, by the admin, if they choose to.
+    $licPath = Join-Path $Client 'tenantkeep.lic'
+    $licArgs = @{ TenantId = [string]$session.tenantId }
+    if (Test-Path -LiteralPath $licPath) { $licArgs.Path = $licPath }
+    $lic = $(try { Get-PostureLicense @licArgs } catch { $null })
+    if (-not ($lic -and $lic.Valid -and $lic.Tier -eq 'full')) {
+        Write-Host "Conditional Access only: no Full licence for this tenant. Every domain free for 30 days: https://tenantkeep.app/trial/?tenant=$($session.tenantId)" -ForegroundColor Cyan
+    }
 
     if ($PassThru) { return [pscustomobject]@{ Folder = $folder; Client = $Client; Report = $reportFile; Skipped = $skipped; Errors = $errorCount } }
     return $folder

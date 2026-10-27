@@ -58,6 +58,20 @@ Describe 'Licence verification (offline, ECDSA P-256)' {
     }
 }
 
+Describe 'Trial licences' {
+    It 'marks a licence of 45 days or less as a trial and a longer one as not' {
+        InModuleScope TenantKeep.Posture {
+            $now = [datetime]::UtcNow
+            $short = ConvertTo-PostureEntitlementRecord -Entitlement @{ licensed = $true; tier = 'full'; licence = @{ customer = 'C'; licenceId = '1'; issuedUtc = $now.ToString('o'); expiresUtc = $now.AddDays(30).ToString('o') } }
+            $long = ConvertTo-PostureEntitlementRecord -Entitlement @{ licensed = $true; tier = 'full'; licence = @{ customer = 'C'; licenceId = '2'; issuedUtc = $now.ToString('o'); expiresUtc = $now.AddMonths(2).ToString('o') } }
+            $none = ConvertTo-PostureEntitlementRecord -Entitlement @{ licensed = $false; tier = 'free'; reason = 'No licence file found.' }
+            $short.trial | Should -BeTrue
+            $long.trial | Should -BeFalse
+            $none.trial | Should -BeFalse
+        }
+    }
+}
+
 Describe 'Entitlement gate' {
     It 'without a licence only the Conditional Access domain is evaluated and the run records why' {
         $env:TENANTKEEP_LICENSE = $null

@@ -15,6 +15,15 @@ the module does with it.
 Without a valid Full licence the report still generates: the Conditional Access domain is evaluated, every other
 check reads as not evaluated with the licence reason, and the report's header says so.
 
+
+### Trial
+
+Thirty days of the Full tier for one tenant, once, from https://tenantkeep.app/trial/. `Start-PostureRun` prints that
+link with the tenant id filled in when the tenant has no Full licence; the module itself never contacts Kainor, so
+nothing is sent unless the admin opens the page and submits it. The page asks for the tenant id, a work email and
+the organisation name. The licence goes to that email only if its domain is one the tenant has verified (Microsoft's
+public sign-in discovery maps the domain to its tenant), which is how a trial for someone else's tenant is refused.
+The trial licence is an ordinary signed licence; a report run under one says "Trial licence, ends <date>".
 ## The file
 
 `tenantkeep.lic` is JSON: the licence fields, the id of the key that signed them, and an ECDSA P-256 signature over

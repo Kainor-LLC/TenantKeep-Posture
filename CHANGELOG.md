@@ -6,7 +6,8 @@ work landed on main.
 
 ## Unreleased
 
-Nothing yet.
+- Free 30-day trial: Start-PostureRun prints the trial link with the tenant id when the tenant has no Full
+  licence, and the report says "Trial licence, ends <date>" under a trial. The module still sends nothing anywhere.
 
 ## 0.2.0-alpha (2026-10-27)
 
