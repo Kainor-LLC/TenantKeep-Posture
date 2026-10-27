@@ -41,9 +41,16 @@ jobs:
       - name: Install build dependencies
         shell: pwsh
         run: |
-          Install-PSResource -Name PSScriptAnalyzer -Version '[1.22.0,)' -Scope CurrentUser -TrustRepository -Quiet
-          Install-PSResource -Name Pester -Version '[5.5.0,)' -Scope CurrentUser -TrustRepository -Quiet
-          Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+          # The Gallery answers runners with an intermittent 404; retry before failing the run.
+          function Install-WithRetry([string] $Name, [string] $Version) {
+            for ($i = 1; $i -le 4; $i++) {
+              try { Install-PSResource -Name $Name -Version $Version -Scope CurrentUser -TrustRepository -Quiet -ErrorAction Stop; return }
+              catch { if ($i -eq 4) { throw }; Write-Warning "Install of $Name failed (attempt $i, retrying in $(15 * $i)s): $($_.Exception.Message)"; Start-Sleep -Seconds (15 * $i) }
+            }
+          }
+          Install-WithRetry PSScriptAnalyzer '[1.22.0,)'
+          Install-WithRetry Pester '[5.5.0,)'
+          Install-WithRetry Microsoft.Graph.Authentication '[2.0.0,)'
           Get-Module -ListAvailable PSScriptAnalyzer, Pester, Microsoft.Graph.Authentication | Format-Table Name, Version
 
       - name: Secret scan of the whole tree
@@ -79,7 +86,15 @@ jobs:
           key: psmodules-${{ runner.os }}-1
       - name: Install build dependencies
         shell: pwsh
-        run: Install-PSResource -Name Microsoft.Graph.Authentication -Version '[2.0.0,)' -Scope CurrentUser -TrustRepository -Quiet
+        run: |
+          # The Gallery answers runners with an intermittent 404; retry before failing the run.
+          function Install-WithRetry([string] $Name, [string] $Version) {
+            for ($i = 1; $i -le 4; $i++) {
+              try { Install-PSResource -Name $Name -Version $Version -Scope CurrentUser -TrustRepository -Quiet -ErrorAction Stop; return }
+              catch { if ($i -eq 4) { throw }; Write-Warning "Install of $Name failed (attempt $i, retrying in $(15 * $i)s): $($_.Exception.Message)"; Start-Sleep -Seconds (15 * $i) }
+            }
+          }
+          Install-WithRetry Microsoft.Graph.Authentication '[2.0.0,)'
       - name: Stage module and render the catalog page
         shell: pwsh
         run: ./build.ps1 -Task Build, Catalog -SkipInstall
