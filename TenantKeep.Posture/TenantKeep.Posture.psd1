@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 @{
     RootModule        = 'TenantKeep.Posture.psm1'
-    ModuleVersion     = '0.1.0'
+    ModuleVersion     = '0.2.0'
     GUID              = '3f1c2a7e-9b64-4e0d-a5c1-7d2e8f6b0c41'
     Author            = 'Connor Johnson'
     CompanyName       = 'Kainor LLC'
@@ -41,7 +41,7 @@
             Tags         = @('Microsoft365', 'EntraID', 'ConditionalAccess', 'Security', 'Posture', 'Audit', 'PSEdition_Core', 'MacOS', 'Linux', 'Windows')
             LicenseUri   = 'https://github.com/Kainor-LLC/TenantKeep-Posture/blob/main/LICENSE.md'
             ProjectUri   = 'https://github.com/Kainor-LLC/TenantKeep-Posture'
-            ReleaseNotes = 'Pre-release. One sign-in, every collector, thirteen check domains, the interactive report. See CHANGELOG.md.'
+            ReleaseNotes = 'Pre-release, Authenticode-signed by Kainor LLC. Initialize-PostureClient sets up a client folder with its licence; Get-PostureRequirement shows the service modules against the tested versions. See CHANGELOG.md.'
             Prerelease   = 'alpha'
         }
     }

@@ -6,12 +6,18 @@ work landed on main.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.2.0-alpha (2026-10-27)
+
+The first build Authenticode-signed by Kainor LLC on the PowerShell Gallery, through Azure Artifact Signing.
+
 - `Initialize-PostureClient`: creates the client folder where you want it, verifies and copies the licence in, seeds
-  the profile, and prints the Start-PostureRun line. `build.ps1 -Task Publish` publishes a stage to the PowerShell
-  Gallery; `-Unsigned` packages or publishes without Authenticode signatures on purpose, the integrity manifest
-  still required.
-- Release signing through Azure Artifact Signing: the Sign release workflow, `build.ps1 -Task Verify`, and the
-  Kainor-side setup script under deploy/release.
+  the profile, and prints the Start-PostureRun line.
+- Every release is signed and carries the integrity manifest. The release workflow drafts on the tag, then after a
+  maintainer's approval signs every file on a Windows runner, verifies the signatures, writes the manifest, attaches
+  the package to the GitHub release and publishes to the Gallery. No certificate or key exists as a file anywhere.
+- The SHA-256 file next to each package reads correctly with `shasum -c` and `sha256sum -c` on every platform.
 
 ## 0.1.0-alpha (2026-10-25; on the PowerShell Gallery 2026-10-26, that copy unsigned; the GitHub release package Authenticode-signed by Kainor LLC through Azure Artifact Signing 2026-10-27)
 
