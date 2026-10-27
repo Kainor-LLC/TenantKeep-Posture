@@ -4,7 +4,7 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
-## Unreleased
+## 0.3.0-alpha (2026-10-27)
 
 - Free 30-day trial: Start-PostureRun prints the trial link with the tenant id when the tenant has no Full
   licence, and the report says "Trial licence, ends <date>" under a trial. The module still sends nothing anywhere.
@@ -12,7 +12,9 @@ work landed on main.
   reports it as "Restricted search mode is currently not set.", which is off. Evidence with no mode now reads as not
   evaluated.
 - Azure Automation: the runtime environment is PowerShell 7.6 (`tenantkeep-ps76`), and deploy.ps1 imports the
-  collector modules at the versions the module is tested with.
+  collector modules at the versions the module is tested with. It now waits for every module import to finish,
+  sends one that Automation fails on its side again (twice at most), and says when a job can start; it stops with an
+  error if an import still has not finished after `-ImportWaitMinutes` (20 by default).
 
 ## 0.2.0-alpha (2026-10-27)
 
