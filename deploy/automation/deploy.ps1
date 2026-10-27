@@ -8,7 +8,7 @@
     group, and the az automation extension. Steps:
       1. Resource group and Bicep deployment (main.bicep).
       2. Stage the module (./build.ps1 -Task Build), zip it, upload to the modules container, import it into the
-         account's PowerShell 7.4 runtime through a user-delegation SAS. Dev builds are unsigned; releases are signed.
+         account's PowerShell 7.6 runtime through a user-delegation SAS. Dev builds are unsigned; releases are signed.
       3. Import Microsoft.Graph.Authentication from the PowerShell Gallery into the same runtime.
       4. Upload automation-runbook.ps1 as the runbook content and publish it.
     Then, once, a Global Administrator runs Grant-ManagedIdentityGraphRole.ps1 with the printed principal id.
@@ -42,10 +42,10 @@ param(
     [string] $PostureTimeUtc = '03:00',
     [int] $PostureKeepRuns = 24,
     [string] $ClientFolder,
-    # (verify) current Gallery versions at deployment time
-    [string] $ExchangeOnlineManagementVersion = '3.9.0',
-    [string] $PnPPowerShellVersion = '3.1.0',
-    [string] $MicrosoftTeamsVersion = '7.3.1',
+    # The versions the module is tested with (Get-PostureRequirement)
+    [string] $ExchangeOnlineManagementVersion = '3.10.1',
+    [string] $PnPPowerShellVersion = '3.2.0',
+    [string] $MicrosoftTeamsVersion = '7.9.0',
 
     # Sign the staged module's integrity manifest through Key Vault so the report reads "Signed release" instead of "Development build".
     [string] $IntegrityVaultName,

@@ -72,7 +72,7 @@ var automationName = 'aa-${baseName}-${envName}'
 var containerName = 'ca-snapshots'
 var blobEndpoint = 'https://${storageName}.blob.${environment().suffixes.storage}/'
 var runbookName = 'Invoke-CaSnapshotCycle'
-var runtimeEnvironmentName = 'tenantkeep-ps74'
+var runtimeEnvironmentName = 'tenantkeep-ps76'
 var scheduleName = 'ca-snapshot-nightly'
 var postureRunbookName = 'Invoke-PostureCycle'
 var postureScheduleName = 'posture-monthly'
@@ -187,15 +187,16 @@ resource automationVariables 'Microsoft.Automation/automationAccounts/variables@
   }
 }]
 
-// System runtime environments stop at PowerShell 7.2; the module needs 7.4, so the account gets its own.
+// System runtime environments stop at PowerShell 7.2; the module needs 7.4 or later, so the account gets its own. 7.6, because
+// 7.4 support ends 2026-11-10 (verify what Automation does to 7.4 environments after that). Moved from tenantkeep-ps74 on 2026-10-26.
 resource runtimeEnvironment 'Microsoft.Automation/automationAccounts/runtimeEnvironments@2023-05-15-preview' = {
   parent: automation
   name: runtimeEnvironmentName
   location: location
   properties: {
-    runtime: { language: 'PowerShell', version: '7.4' }
-    defaultPackages: { az: '12.3.0' } // (verify) Az version offered for 7.4 runtimes
-    description: 'PowerShell 7.4 with Az, for TenantKeep Posture'
+    runtime: { language: 'PowerShell', version: '7.6' }
+    defaultPackages: { az: '15.1.0' } // the Az version the portal offered for 7.6 on 2026-10-26
+    description: 'PowerShell 7.6 with Az, for TenantKeep Posture'
   }
 }
 

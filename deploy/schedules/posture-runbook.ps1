@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 <#
 .SYNOPSIS
-    Azure Automation runbook (PowerShell 7.4 runtime): the monthly full posture cycle with the account's managed identity.
+    Azure Automation runbook (PowerShell 7.6 runtime): the monthly full posture cycle with the account's managed identity.
 .DESCRIPTION
     Deployed by deploy/automation/deploy.ps1 -IncludePosture. One job does what an admin does by hand over an afternoon:
       1. sign in as the managed identity: Graph and Azure first and every Graph call before PnP loads (its old

@@ -141,6 +141,6 @@ jobs by hand. (verify) exact sandbox token cache lifetime.
 
 ## Things to verify on first deployment
 
-- Automation: deployed and import verified through `deploy/automation/deploy.ps1` (custom 7.4 runtime environment; system environments stop at 7.2). Still to verify on the first job: `Connect-MgGraph -Identity`, the Az version in the runtime, the blob round trip.
+- Automation: deployed and import verified through `deploy/automation/deploy.ps1` (custom PowerShell 7.6 runtime environment since 2026-10-26, 7.4 before; system environments stop at 7.2). Still to verify on the first job: `Connect-MgGraph -Identity`, the Az version in the runtime, the blob round trip.
 - GitHub: the federated credential token exchange in the sample; `azure/login` plus `Get-AzAccessToken -ResourceTypeName MSGraph` is the alternative.
 - launchd: how long the cached refresh token survives under the tenant's own sign-in frequency policy.

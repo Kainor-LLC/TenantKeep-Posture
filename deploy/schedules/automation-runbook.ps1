@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 <#
 .SYNOPSIS
-    Azure Automation runbook (PowerShell 7.4 runtime): nightly Conditional Access snapshot and diff with a managed identity.
+    Azure Automation runbook (PowerShell 7.6 runtime): nightly Conditional Access snapshot and diff with a managed identity.
 .DESCRIPTION
     Deployed by deploy/automation/deploy.ps1 (Bicep in deploy/automation/main.bicep). The sandbox disk is wiped
     between jobs, so runs live in a blob container: the previous run is downloaded, the cycle runs on local disk,
