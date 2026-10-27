@@ -30,6 +30,9 @@ try {
     $emailTo = @(((& $getVar 'EMAIL_TO').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $emailFrom = (& $getVar 'EMAIL_FROM').Trim('"')
     $breakGlass = @(((& $getVar 'BREAK_GLASS').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    # Relayed alerts to TenantKeep On-Call, opt-in: the phones' pairing codes and the sender key (an encrypted variable).
+    $relayCodes = @(((& $getVar 'RELAY_PAIRING_CODES').Trim('"')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $relayKey = (& $getVar 'RELAY_SENDER_KEY').Trim('"')
 
     $uri = [uri]$containerUrl
     $accountName = $uri.Host.Split('.')[0]
@@ -68,6 +71,7 @@ try {
     if ($webhook) { $params.TeamsWebhookUrl = $webhook }
     if ($breakGlass.Count -gt 0) { $params.BreakGlass = $breakGlass }
     if ($emailTo.Count -gt 0 -and $emailFrom) { $params.EmailTo = $emailTo; $params.EmailFrom = $emailFrom }
+    if ($relayCodes.Count -gt 0 -and $relayKey) { $params.RelayPairingCode = $relayCodes; $params.RelaySenderKey = $relayKey }
 
     Write-Output "step: run cycle $cycle"
     $result = $null

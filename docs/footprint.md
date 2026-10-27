@@ -1,7 +1,8 @@
 # What gets installed, and where
 
 The complete inventory of what TenantKeep Posture puts in a customer's environment, per way of running it, and how to
-remove every piece. Nothing on this page phones home; the only thing that ever leaves a tenant is nothing.
+remove every piece. Nothing on this page phones home. The one thing that can leave a tenant is the opt-in relayed
+alert to TenantKeep On-Call, encrypted so Kainor cannot read it (`docs/scheduling.md`); without that set up, nothing does.
 
 ## Running it locally (no Azure needed)
 
@@ -34,10 +35,12 @@ exists because the schedule needs somewhere to run as a managed identity instead
 | Entra ID, app registrations | **TenantKeep Posture (Purview)**: single-tenant, trusts the vault certificate, Exchange.ManageAsApp on Office 365 Exchange Online and on Microsoft Exchange Online Protection, Global Reader, and a Purview role group **TenantKeep Posture (view only)** with View-Only Audit Logs, Insider Risk Management Audit and the view-only retention, DLP and information barrier roles | App-only Purview reads | Delete the app registration and the role group |
 | Entra ID, enterprise applications | **TenantKeep Posture**, as in the local table, if the same customer also runs it locally | The one sign-in for local runs | Delete it |
 | Optional, email alerts | Mail.Send on the identity, restricted by an Exchange application access policy to one sender mailbox the customer names | Change alerts and the monthly report by email | Remove the role and the policy |
+| Optional, relayed alerts | The encrypted Automation variable `RELAY_SENDER_KEY` and the variable `RELAY_PAIRING_CODES` | Change alerts on an administrator's phone through TenantKeep On-Call, encrypted end to end | Delete the two variables |
 | Optional, hybrid tenants | The AD collector's files uploaded to `client/hybrid/` in the storage account; a Hybrid Runbook Worker on the AD box is the planned automation | The hybrid domain in the scheduled report | Delete the files |
 
 Not in the customer's environment, ever: the licence signing key (Kainor's Key Vault), the Stripe webhook function
-(Kainor's tenant), the websites. The customer's deployment never contacts any of them.
+(Kainor's tenant), the websites. The customer's deployment never contacts any of them. With relayed alerts set up, it
+contacts the TenantKeep relay and the On-Call entitlement endpoint, exactly as `docs/scheduling.md` lists.
 
 ## Removing everything
 

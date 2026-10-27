@@ -51,6 +51,8 @@ param(
     [pscredential] $SmtpCredential,
     [bool] $SmtpUseTls = $true,
     [switch] $EmailAlways,
+    [string[]] $RelayPairingCode,
+    [string] $RelaySenderKey,
     [ValidateRange(0, 10000)] [int] $KeepRuns = 0,
     [switch] $FailOnRiskRelevantChange
 )
@@ -60,6 +62,8 @@ Set-StrictMode -Version Latest
 
 if (-not (Get-Module -Name TenantKeep.Posture)) { Import-Module TenantKeep.Posture -ErrorAction Stop }
 . (Join-Path $PSScriptRoot 'ca-notifications.ps1')
+if ($RelayPairingCode -and -not $RelaySenderKey) { throw '-RelaySenderKey is required with -RelayPairingCode.' }
+if ($RelayPairingCode) { . (Join-Path $PSScriptRoot 'ca-relay.ps1') }
 if ($EmailTo -and -not $EmailFrom) { throw '-EmailFrom is required with -EmailTo.' }
 
 $optional = @{}
@@ -118,6 +122,28 @@ if ($comparison) {
         Send-CaChangeEmail @mailParams
         $notified += "email:$($EmailMethod.ToLowerInvariant())"
         Write-Information "Emailed $($EmailTo -join ', ') through $EmailMethod." -InformationAction Continue
+    }
+    if ($risky -and $RelayPairingCode) {
+        # Opt-in, encrypted for each phone; the relay sees the tenant ID and the phone's push token, not the alert.
+        $tenantId = [string]$comparison.Diff.after.tenantId
+        $label = $tenantId
+        if ($Brand) { $clientName = (Get-Content -Raw -LiteralPath $Brand | ConvertFrom-Json).client.name; if ($clientName) { $label = $clientName } }
+        $entitlement = Get-CaRelayEntitlement -TenantId $tenantId
+        $count = [int]$comparison.RiskRelevantCount
+        $title = "${label}: Conditional Access changed"
+        if ($title.Length -gt 80) { $title = $title.Substring(0, 79) + [char]0x2026 }
+        $body = "$count risk-relevant change(s) between $beforeName and $afterName."
+        $sent = 0
+        foreach ($code in $RelayPairingCode) {
+            try {
+                $null = Send-CaRelayAlert -PairingCode $code -SenderPrivateKey $RelaySenderKey -TenantId $tenantId -Entitlement $entitlement `
+                    -Kind 'conditionalAccessChange' -Title $title -Body $body -Link 'tenantkeep://conditionalAccess'
+                $sent++
+            }
+            catch { Write-Warning "A relayed alert was not sent: $($_.Exception.Message)" }
+        }
+        if ($sent -gt 0) { $notified += "relay:$sent" }
+        Write-Information "Relayed the change to $sent of $($RelayPairingCode.Count) phone(s)." -InformationAction Continue
     }
 }
 
