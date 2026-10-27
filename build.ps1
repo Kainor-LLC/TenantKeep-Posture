@@ -132,7 +132,13 @@ function Invoke-Publish {
     $full = "$($data.ModuleVersion)$(if ($pre) { "-$pre" })"
     if (-not (Test-Path -LiteralPath (Join-Path $Stage 'integrity.json'))) { throw 'The stage has no integrity.json; run Integrity before Publish so the build reads as a release.' }
     if (-not $script:Verified -and $tasks -notcontains 'Sign' -and -not $Unsigned) { throw 'Publish needs Sign or Verify in the same run, or -Unsigned to publish without Authenticode signatures on purpose.' }
-    if (-not (Get-Command Publish-PSResource -ErrorAction SilentlyContinue)) { throw 'Publish-PSResource is not available; install Microsoft.PowerShell.PSResourceGet.' }
+    # The newest PSResourceGet installed, loaded explicitly: the one built into the Windows runner image answered the Gallery
+    # push with 404 on 2026-10-27 where 1.2.0 on the Mac had published fine the day before.
+    $prg = Get-Module -ListAvailable -Name Microsoft.PowerShell.PSResourceGet | Sort-Object Version -Descending | Select-Object -First 1
+    if (-not $prg) { throw 'Publish needs Microsoft.PowerShell.PSResourceGet; install it first.' }
+    if ($prg.Version -lt [version]'1.1.0') { throw "Microsoft.PowerShell.PSResourceGet $($prg.Version) is too old to publish reliably; install 1.1.0 or later." }
+    Import-Module -Name $prg.Path -Force
+    Write-Host "Publishing with Microsoft.PowerShell.PSResourceGet $($prg.Version)"
     $existing = Find-PSResource -Name $ModuleName -Version $full -Prerelease -Repository PSGallery -ErrorAction SilentlyContinue
     if ($existing) { Write-Host "$ModuleName $full is already on the PowerShell Gallery; nothing to publish."; return }
     if ($Unsigned -and -not $script:Verified -and $tasks -notcontains 'Sign') { Write-Warning "Publishing $full without Authenticode signatures (-Unsigned)." }

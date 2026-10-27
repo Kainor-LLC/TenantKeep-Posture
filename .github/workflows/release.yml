@@ -183,5 +183,6 @@ jobs:
           TENANTKEEP_GALLERY_KEY: ${{ secrets.GALLERY_API_KEY }}
         shell: pwsh
         run: |
+          Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Version '[1.2.0,)' -Scope CurrentUser -TrustRepository -Quiet
           if ('${{ vars.RELEASE_SIGNING }}' -eq 'on') { ./build.ps1 -Task Verify, Publish -SkipInstall }
           else { ./build.ps1 -Task Publish -Unsigned -SkipInstall }
