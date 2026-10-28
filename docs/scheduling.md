@@ -28,7 +28,7 @@ risk-relevant changes there were, with a link that opens Conditional Access in t
 
 | What crosses | To | When |
 |---|---|---|
-| The encrypted alert, the phone's push token, the urgency, the tenant's On-Call entitlement token (it names the tenant ID) | `kainor-relay-prod-func.azurewebsites.net` | Each risk-relevant change, once per phone |
+| The encrypted alert, the phone's push token, the urgency, the tenant's On-Call entitlement token (it names the tenant ID) | `kainor-relay-prod-func.azurewebsites.net` | Each risk-relevant change, once per phone; the same request again, at most twice, if the relay is busy or does not answer within 15 seconds |
 | The tenant ID | `kainor-lapslock-prod-func.azurewebsites.net` | Once per run, to get the entitlement token |
 
 Setup, once: run `deploy/setup/New-PostureRelaySender.ps1 -TenantId <id> -ResourceGroupName <rg> -AutomationAccountName <aa>`,

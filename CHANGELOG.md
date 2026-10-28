@@ -4,6 +4,13 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
+## Unreleased
+
+- Relayed alerts: a busy relay or Apple (503), the relay's rate limit (429) or no answer within 15 seconds is tried
+  again, at most twice, honouring Retry-After up to 30 seconds; every other answer is final. The run's relay and
+  entitlement calls share one connection and time out after 15 seconds, so a relay that never answers cannot stall
+  the cycle. A failure still names the relay's error code only. The same rule as the On-Call repository's sender.
+
 ## 0.3.0-alpha (2026-10-27)
 
 - Free 30-day trial: Start-PostureRun prints the trial link with the tenant id when the tenant has no Full

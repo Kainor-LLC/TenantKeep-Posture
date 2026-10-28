@@ -60,3 +60,81 @@ Describe 'ConvertTo-CaRelayRequest' {
             Should -Throw '*tkrelay1:*'
     }
 }
+
+Describe 'Get-CaRelayRetryDelay' {
+    It 'tries a busy relay, a rate limit or no answer again, twice at most' {
+        Get-CaRelayRetryDelay -Status 503 -Attempt 0 | Should -Be 2
+        Get-CaRelayRetryDelay -Status 429 -Attempt 1 | Should -Be 5
+        Get-CaRelayRetryDelay -Status 0 -Attempt 0 | Should -Be 2
+        Get-CaRelayRetryDelay -Status 503 -Attempt 2 | Should -BeNullOrEmpty
+    }
+
+    It 'never repeats an answer a retry cannot change' {
+        foreach ($status in 400, 401, 402, 410, 413, 502) {
+            Get-CaRelayRetryDelay -Status $status -Attempt 0 | Should -BeNullOrEmpty -Because "a $status is final"
+        }
+    }
+
+    It 'honours Retry-After up to 30 seconds' {
+        Get-CaRelayRetryDelay -Status 503 -RetryAfter 4 -Attempt 0 | Should -Be 4
+        Get-CaRelayRetryDelay -Status 429 -RetryAfter 120 -Attempt 0 | Should -Be 30
+    }
+}
+
+Describe 'Send-CaRelayAlert' {
+    BeforeAll {
+        # As the Automation run: the cycle sets StrictMode before it dot-sources the relay script.
+        Set-StrictMode -Version Latest
+        $senderKey = New-CaRelaySenderKey -TenantId $script:Tenant
+        $phone = [System.Security.Cryptography.ECDiffieHellman]::Create([System.Security.Cryptography.ECCurve+NamedCurves]::nistP256)
+        $pair = [ordered]@{ v = 1; deviceToken = (-join (0..31 | ForEach-Object { '{0:x2}' -f $_ })); environment = 'production'; publicKey = (ConvertTo-CaRelayBase64Url ([TenantKeep.Relay.Hpke]::PublicBytes($phone))) } | ConvertTo-Json -Compress
+        $script:Send = @{
+            PairingCode = 'tkrelay1:' + (ConvertTo-CaRelayBase64Url ([Text.Encoding]::UTF8.GetBytes($pair)))
+            SenderPrivateKey = $senderKey.PrivateKey; TenantId = $script:Tenant; Entitlement = 'a.b.c'
+            Kind = 'conditionalAccessChange'; Title = 'Conditional Access changed'; Body = '1 risk-relevant change.'
+        }
+        function script:Refusal([int] $Status) {
+            [Microsoft.PowerShell.Commands.HttpResponseException]::new('refused', [System.Net.Http.HttpResponseMessage]::new($Status))
+        }
+    }
+
+    BeforeEach {
+        Mock Start-Sleep {}
+        $script:Calls = 0
+    }
+
+    It 'sends again after a busy relay, with a timeout and one connection' {
+        Mock Invoke-RestMethod {
+            $script:Calls++
+            if ($script:Calls -lt 3) { throw (Refusal 503) }
+            [pscustomobject]@{ apnsId = 'apns-1' }
+        }
+        Send-CaRelayAlert @script:Send | Should -Be 'apns-1'
+        $script:Calls | Should -Be 3
+        Should -Invoke Start-Sleep -Times 2 -Exactly
+        Should -Invoke Invoke-RestMethod -Times 3 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $null -ne $WebSession }
+    }
+
+    It 'sends again after no answer at all' {
+        Mock Invoke-RestMethod {
+            $script:Calls++
+            if ($script:Calls -lt 2) { throw [System.Threading.Tasks.TaskCanceledException]::new('timed out') }
+            [pscustomobject]@{ apnsId = 'apns-2' }
+        }
+        Send-CaRelayAlert @script:Send | Should -Be 'apns-2'
+        $script:Calls | Should -Be 2
+    }
+
+    It 'stops after the third refusal, naming the code only' {
+        Mock Invoke-RestMethod { $script:Calls++; throw (Refusal 503) }
+        { Send-CaRelayAlert @script:Send } | Should -Throw 'The relay refused the alert (no answer).'
+        $script:Calls | Should -Be 3
+    }
+
+    It 'does not repeat a final answer' {
+        Mock Invoke-RestMethod { $script:Calls++; throw (Refusal 410) }
+        { Send-CaRelayAlert @script:Send } | Should -Throw 'The relay refused the alert*'
+        $script:Calls | Should -Be 1
+        Should -Invoke Start-Sleep -Times 0 -Exactly
+    }
+}

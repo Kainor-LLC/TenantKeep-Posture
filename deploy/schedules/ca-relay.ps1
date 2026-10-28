@@ -16,6 +16,8 @@
     repository; tests/CaRelay.Tests.ps1 checks it against the CFRG test vector so a copy that drifts fails.
 #>
 
+# Compiled once per session, and loudly: a compile failure must stop the run here, not surface later as a missing type
+# when the first alert is sealed.
 if (-not ('TenantKeep.Relay.Hpke' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
@@ -163,11 +165,15 @@ namespace TenantKeep.Relay
         }
     }
 }
-'@
+'@ -ErrorAction Stop
 }
 
 $script:RelayUri = 'https://kainor-relay-prod-func.azurewebsites.net/relay'
 $script:EntitlementUri = 'https://kainor-lapslock-prod-func.azurewebsites.net/entitlement'
+# One connection for the run's alerts, and no call waits more than 15 seconds: with no timeout, a relay or entitlement
+# endpoint that never answered would stall the whole cycle.
+$script:RelaySession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+$script:TimeoutSec = 15
 
 function ConvertTo-CaRelayBase64Url {
     [CmdletBinding()]
@@ -216,7 +222,7 @@ function Get-CaRelayEntitlement {
     param([Parameter(Mandatory)] [Guid] $TenantId, [string] $Uri = $script:EntitlementUri)
     $ErrorActionPreference = 'Stop'
     $body = @{ version = 1; tenantId = $TenantId.ToString().ToLowerInvariant() } | ConvertTo-Json -Compress
-    (Invoke-RestMethod -Method Post -Uri $Uri -Body $body -ContentType 'application/json; charset=utf-8').token
+    (Invoke-RestMethod -Method Post -Uri $Uri -Body $body -ContentType 'application/json; charset=utf-8' -TimeoutSec $script:TimeoutSec).token
 }
 
 function ConvertTo-CaRelayRequest {
@@ -259,6 +265,24 @@ function ConvertTo-CaRelayRequest {
     } | ConvertTo-Json -Compress
 }
 
+function Get-CaRelayRetryDelay {
+    <#
+    .SYNOPSIS
+        Seconds to wait before sending the same alert again, or nothing to stop.
+    .DESCRIPTION
+        Only a 503 (Apple or the relay busy, "try again later" in the relay contract) or a 429 (the relay's rate limit)
+        is tried again, at most twice; so is no answer at all, a timeout, which is safe to repeat because the phone
+        drops an alert id it has already shown. Every other answer means something a retry cannot change. Retry-After
+        is honoured up to 30 seconds; otherwise the waits are 2 and then 5 seconds.
+    #>
+    [CmdletBinding()]
+    [OutputType([double])]
+    param([int] $Status, [Nullable[double]] $RetryAfter, [int] $Attempt)
+    if ($Attempt -ge 2 -or $Status -notin 0, 429, 503) { return $null }
+    if ($null -ne $RetryAfter -and $RetryAfter -gt 0) { return [Math]::Min([double] $RetryAfter, 30) }
+    [double] @(2, 5)[$Attempt]
+}
+
 function Send-CaRelayAlert {
     <#
     .SYNOPSIS
@@ -266,6 +290,7 @@ function Send-CaRelayAlert {
     .DESCRIPTION
         A failure names the relay's error code only; nothing from the request is written to the output.
         A 410 (device_unregistered) means the phone was reset or the app removed: pair it again.
+        A busy relay or Apple, a rate limit, or no answer is tried twice more first (Get-CaRelayRetryDelay).
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string])]
@@ -285,11 +310,26 @@ function Send-CaRelayAlert {
     $request = ConvertTo-CaRelayRequest -PairingCode $PairingCode -SenderPrivateKey $SenderPrivateKey -TenantId $TenantId -Entitlement $Entitlement `
         -Kind $Kind -Title $Title -Body $Body -Link $Link -Urgency $Urgency
     if (-not $PSCmdlet.ShouldProcess('the paired phone', 'Send an encrypted relayed alert')) { return }
-    try {
-        (Invoke-RestMethod -Method Post -Uri $Uri -Body $request -ContentType 'application/json; charset=utf-8').apnsId
-    }
-    catch {
-        $code = try { ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch { $null }
-        throw ('The relay refused the alert (' + ($code ?? 'no answer') + ').')
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            return (Invoke-RestMethod -Method Post -Uri $Uri -Body $request -ContentType 'application/json; charset=utf-8' `
+                    -TimeoutSec $script:TimeoutSec -WebSession $script:RelaySession).apnsId
+        }
+        catch {
+            # A timeout's exception has no Response, and StrictMode makes reading a missing property an error.
+            $response = if ($_.Exception.PSObject.Properties['Response']) { $_.Exception.Response } else { $null }
+            $status = if ($response) { [int] $response.StatusCode } else { 0 }
+            $retryAfter = $null
+            if ($response -and $response.Headers.RetryAfter -and $response.Headers.RetryAfter.Delta) {
+                $retryAfter = $response.Headers.RetryAfter.Delta.TotalSeconds
+            }
+            $wait = Get-CaRelayRetryDelay -Status $status -RetryAfter $retryAfter -Attempt $attempt
+            if ($null -eq $wait) {
+                $code = try { ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch { $null }
+                throw ('The relay refused the alert (' + ($code ?? 'no answer') + ').')
+            }
+            # Up to a second of jitter, so many runs refused at once do not all return at once.
+            Start-Sleep -Milliseconds ([int] ($wait * 1000) + (Get-Random -Minimum 0 -Maximum 1000))
+        }
     }
 }
