@@ -19,26 +19,13 @@ Two methods, both customer-side. The module itself stays read-only; sending live
 The message carries the summary counts and the risk table in the body and `ca-changes.html` as an attachment.
 By default it is sent only when a risk-relevant change exists; `-EmailAlways` turns it into a daily digest.
 
-## Relayed alerts to TenantKeep On-Call (opt-in)
+## Alerts on an administrator's phone
 
-The one thing that leaves the customer's environment, and only when set up. When a risk-relevant change is found,
-the cycle sends each paired phone an alert encrypted for that phone (HPKE, with a sender key that stays in the
-Automation account), through Kainor's relay to Apple's push service. The alert says the tenant's name and how many
-risk-relevant changes there were, with a link that opens Conditional Access in the app. Kainor cannot read it.
-
-| What crosses | To | When |
-|---|---|---|
-| The encrypted alert, the phone's push token, the urgency, the tenant's On-Call entitlement token (it names the tenant ID) | `kainor-relay-prod-func.azurewebsites.net` | Each risk-relevant change, once per phone; the same request again, at most twice, if the relay is busy or does not answer within 15 seconds |
-| The tenant ID | `kainor-lapslock-prod-func.azurewebsites.net` | Once per run, to get the entitlement token |
-
-Setup, once: run `deploy/setup/New-PostureRelaySender.ps1 -TenantId <id> -ResourceGroupName <rg> -AutomationAccountName <aa>`,
-which stores the sender key as the encrypted variable `RELAY_SENDER_KEY` and prints a sender code. On each phone, in
-TenantKeep On-Call, turn on Settings, Relayed Alerts, paste the sender code, and copy the phone's pairing code into the
-variable `RELAY_PAIRING_CODES` (comma separated for several phones). Needs a TenantKeep On-Call Pro, MSP or enterprise
-licence for the tenant. Remove the two variables to turn it off; turning it off on a phone deletes its key.
-
-The relay's contract, including what it sees and that it keeps nothing, is `docs/RELAY-API.md` in the TenantKeep
-On-Call repository, with its source under `relay/`.
+Retired from Posture on 2026-11-15. Conditional Access changes, break-glass sign-ins and security incidents reach
+an administrator's phone through TenantKeep On-Call's Instant alerts, which the organization turns on in the app
+(`docs/INSTANT-ALERTS.md` in the TenantKeep On-Call repository). Posture's own alerts stay in the customer's
+services: Teams and email, above. A deployment that had the Automation variables `RELAY_SENDER_KEY` and
+`RELAY_PAIRING_CODES` can delete them; nothing reads them now.
 
 | Scheduler | Identity | Snapshots live in | Alert path | Sample |
 |---|---|---|---|---|

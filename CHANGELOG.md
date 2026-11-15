@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Relayed alerts to TenantKeep On-Call retired (2026-11-15): `ca-relay.ps1`, `New-PostureRelaySender.ps1` and the
+  `-RelayPairingCode` and `-RelaySenderKey` parameters are gone, and the runbook no longer reads `RELAY_SENDER_KEY` or
+  `RELAY_PAIRING_CODES`. Phone alerts are TenantKeep On-Call's Instant alerts. Nothing leaves a customer's tenant now.
+
 - Relayed alerts: a busy relay or Apple (503), the relay's rate limit (429) or no answer within 15 seconds is tried
   again, at most twice, honouring Retry-After up to 30 seconds; every other answer is final. The run's relay and
   entitlement calls share one connection and time out after 15 seconds, so a relay that never answers cannot stall
