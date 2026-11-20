@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Clear errors and Resume-PostureRun (2026-11-20): requirements.json names the least-privilege role, delegated
+  permission and licence for every collector and the steps that differ; a failed step is classified from its error
+  text and written to errors.jsonl with what it needs. Start-PostureRun checks the account's roles before collecting
+  and ends with the failures grouped by cause; the report has a banner and a Run Health view with what to grant.
+  `Resume-PostureRun -Path <run>` collects again, into the same folder, only the domains that did not finish or failed
+  for a reason a retry fixes, and rebuilds the report. Each run writes run.json (tenant, client, planned and skipped
+  collectors). Start-PostureRun takes `-Folder` to collect into an existing run.
 - `Import-PostureSharingReport` and check CL-015 (2026-11-20): the SharePoint Advanced Management site permissions
   report (downloaded from the admin center; no API reads it) gives Anyone links, organization-wide links and
   Everyone grants per site. The cmdlet validates and files it, summarises it into the newest run

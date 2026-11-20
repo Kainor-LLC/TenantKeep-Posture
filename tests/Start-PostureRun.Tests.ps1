@@ -93,6 +93,21 @@ Describe 'Start-PostureRun' {
         }
     }
 
+    It 'collects into an existing run folder without a new Conditional Access snapshot, and records the resume in run.json' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            $existing = Join-Path $script:TestOutRoot '20261022-1200'
+            Set-Content -LiteralPath (Join-Path $existing 'policies.json') -Value '[]'
+            $result = Start-PostureRun -Client $client -Folder $existing -Collector Entra -NoBrowser -AllowSleep -PassThru 6>$null
+            $result.Folder | Should -Be $existing
+            Should -Invoke New-PostureEvidenceFolder -Times 0 -Exactly -Scope It
+            Should -Invoke Invoke-PostureCollection -Times 1 -Exactly -Scope It -ParameterFilter { $SkipCaSnapshot -and $OutputFolder -eq $existing }
+            $plan = Get-Content -Raw (Join-Path $existing 'run.json') | ConvertFrom-Json -AsHashtable
+            @($plan.resumes).Count | Should -BeGreaterOrEqual 1
+            @($plan.resumes)[-1].collectors | Should -Be @('Entra')
+        }
+    }
+
     It 'refuses a client folder that belongs to another tenant before anything is read' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $other = Join-Path $root 'clients' 'other'

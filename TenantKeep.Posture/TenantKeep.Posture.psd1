@@ -34,6 +34,7 @@
         'New-PostureProfile',
         'New-PostureReport',
         'Remove-PostureException',
+        'Resume-PostureRun',
         'Set-PostureAttestation',
         'Start-PostureRun'
     )

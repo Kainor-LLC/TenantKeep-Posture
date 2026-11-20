@@ -321,7 +321,7 @@ function ConvertTo-PostureReportModel {
             evidence = $Evidence
             scopes = @($(if ($collection) { & $v $collection 'scopes' } else { @() }))
             graphApiVersions = @($(if ($collection) { & $v $collection 'graphApiVersions' } else { @() }))
-            evidenceFiles = @(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in '.json', '.csv' } | ForEach-Object { $_.Name } | Sort-Object)
+            evidenceFiles = @(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in '.json', '.csv' -and $_.Name -ne 'run.json' } | ForEach-Object { $_.Name } | Sort-Object)
             errors = @($(if ($collection) { & $v $collection 'errors' } else { @() }))
             notEvaluated = @($results | Where-Object { $_.status -in @('notEvaluated', 'notApplicable') } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; status = $_.status; reason = $_.reason } })
             moduleVersion = $script:ModuleVersion

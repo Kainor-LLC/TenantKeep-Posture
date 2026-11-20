@@ -43,6 +43,9 @@ function Start-PostureRun {
         asks for it), else ~/tenantkeep/evidence. Each run is a dated folder inside it, with report.html.
     .PARAMETER Collector
         Which collectors to run. Default: all of them.
+    .PARAMETER Folder
+        Collect into this existing run folder instead of a new one, keeping what is already there. Resume-PostureRun
+        uses it to collect only what failed; the Conditional Access snapshot is not taken again when the folder has one.
     .PARAMETER DeviceCode
         Sign in with a device code instead of a browser window.
     .PARAMETER NoBrowser
@@ -68,6 +71,7 @@ function Start-PostureRun {
         [string] $Client,
         [string] $OutRoot,
         [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [string] $Folder,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
         [switch] $AllowSleep,
@@ -77,6 +81,8 @@ function Start-PostureRun {
 
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
+    # PowerShell names are case-insensitive: -Folder and the run's $folder below would be one variable.
+    $into = $Folder
 
     if (-not $PSCmdlet.ShouldProcess($(if ($TenantId) { $TenantId } else { 'the tenant you sign in to' }), 'Sign in, collect read-only evidence, write the report')) { return }
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
@@ -119,7 +125,12 @@ function Start-PostureRun {
             $skipped['Azure'] = 'Profile says azure: none; the Azure domain is not applicable to this tenant.'
         }
     }
-    $OutRoot = Get-PostureOutputRoot -Client $Client -OutRoot $OutRoot
+    if ($into) {
+        $into = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($into)
+        if (-not (Test-Path -LiteralPath $into -PathType Container)) { throw "Run folder not found: $into" }
+        $OutRoot = Split-Path $into -Parent
+    }
+    else { $OutRoot = Get-PostureOutputRoot -Client $Client -OutRoot $OutRoot }
     New-Item -ItemType Directory -Path $OutRoot -Force | Out-Null
     Write-Host "Client folder: $Client"
 
@@ -137,7 +148,9 @@ function Start-PostureRun {
         }
         else { $skipped['Azure'] = 'Az.Accounts and Az.ResourceGraph are not installed; the Azure domain was not collected. Set azure: none in the profile if there is nothing in Azure.' }
     }
-    if ($main.Count -eq 0) { $main = @('Entra') }
+    if ($main.Count -eq 0 -and -not $into) { $main = @('Entra') }
+    # Into an existing run, the Conditional Access snapshot is kept when it is there.
+    $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath $into -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
     $need = @{ SharePoint = 'PnP.PowerShell'; Teams = 'MicrosoftTeams' }
     $localPlan = [System.Collections.Generic.List[string]]::new()
     foreach ($name in 'SharePoint', 'Teams') {
@@ -169,10 +182,15 @@ function Start-PostureRun {
     $reportFile = $null
     $adFiles = @()
     try {
-        $folder = New-PostureEvidenceFolder -OutRoot $OutRoot
+        if ($into) {
+            $folder = $into
+            try { Start-Transcript -Path (Join-Path $folder 'transcript.txt') -Append | Out-Null } catch { Write-Verbose "Transcript not started: $($_.Exception.Message)" }
+        }
+        else { $folder = New-PostureEvidenceFolder -OutRoot $OutRoot }
         Write-Host "Run folder:    $folder"
+        Write-PostureRunPlan -Folder $folder -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -Resume:([bool]$into) -Confirm:$false
         $estimates = Get-PostureRunEstimate -OutRoot $OutRoot -TenantId ([string]$session.tenantId)
-        $phases = @(@('ConditionalAccess') + $main + @($localPlan) + @($(if ($child.Count -gt 0) { 'Second' })) + @($(if (-not $SkipReport) { 'Report' })) | Where-Object { $_ })
+        $phases = @(@($(if (-not $caDone -and ($main.Count -gt 0 -or -not $into)) { 'ConditionalAccess' })) + $main + @($localPlan) + @($(if ($child.Count -gt 0) { 'Second' })) + @($(if (-not $SkipReport) { 'Report' })) | Where-Object { $_ })
         $childFile = $(if ($child.Count -gt 0) { Join-Path $folder '.progress-child.json' } else { $null })
         Start-PostureProgress -Phase $phases -Estimate $estimates -ChildFile $childFile -Activity "TenantKeep Posture: $(if ($session.tenantDisplayName) { $session.tenantDisplayName } else { $session.tenantId })" -Confirm:$false
 
@@ -197,7 +215,7 @@ function Start-PostureRun {
 
         # 4. Graph-based collectors and Azure in this process, then SharePoint and Teams (PnP.PowerShell loads an
         # older Microsoft.Graph.Core, so it comes after every Graph read).
-        $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -PassThru @profileParam
+        if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -PassThru @profileParam }
         $local = [System.Collections.Generic.List[string]]::new()
         foreach ($name in $localPlan) {
             try { Connect-PostureService -Name $name.ToLowerInvariant(); $local.Add($name) }

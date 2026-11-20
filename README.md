@@ -42,6 +42,7 @@ New-PostureReport -Evidence <stamp> -ProfilePath <client>/profile.json -Previous
 Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the findings list
 Add-PostureException -TenantId <tenant id> -Check EM-016                   # accept a risk; rebuilds the newest report
 Import-PostureSharingReport -TenantId <tenant id> -Path ./SitePermissions.csv   # Anyone and Everyone sharing per site
+Resume-PostureRun -Path <stamp>                                            # collect again only what failed, same folder
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title
 Get-PostureRequirement | Format-Table Name, Installed, Tested, Status      # service modules here against the tested versions
 ```

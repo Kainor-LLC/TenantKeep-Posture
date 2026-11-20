@@ -166,6 +166,30 @@ reviews (DSPM for AI, Copilot settings, site access reviews) are dates: the chec
 `Set-PostureAttestation -TenantId <id> -Key <key>` command that records today and rebuilds the report. Both count on
 the next run.
 
+## 8c. When part of a run fails
+
+Right after the sign-in, the run checks your account's directory roles against what each domain needs and prints
+one line per domain: covered, missing (with the role to grant), or checked when it connects (Exchange and Purview
+role groups and Azure roles, which Graph cannot see). PIM roles count once activated. The run goes on either way.
+
+A step that fails is recorded with its cause: needs a role, needs a licence, sign-in ran out, throttled, network,
+or not set up in this tenant. The console ends with the failures grouped by cause and what to do, the report opens
+with a banner, and its Run Health view lists each step with the role, delegated permission or licence it needs
+(from the module's requirements.json) and Microsoft's own message. Checks that depend on a failed step say not
+evaluated, never pass or fail.
+
+After granting what was missing, collect only what failed, into the same run:
+
+```powershell
+Resume-PostureRun -Path ~/tenantkeep/evidence/20261120-0930
+```
+
+It reads the run's plan (run.json), collects again each domain that did not finish or had a failure a second attempt
+can fix, leaves the facts about the tenant (not licensed, not set up) alone, and rebuilds the report in the same
+folder. A domain is collected again whole, since later steps use what earlier ones read; every other file stays.
+`-Collector SharePoint` names one yourself, for example after installing its module. The Run Health view copies the
+exact command.
+
 ## 9. Next run, and the trend
 
 ```powershell
