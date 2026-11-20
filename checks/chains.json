@@ -1,0 +1,62 @@
+{
+  "description": "Control chains: checks that protect only when every link holds. Each link names a check in the catalog and what it does in the chain. A chain passes when every link passes (or is accepted or covered), breaks at its first failing link, and is not evaluated while a link could not be judged.",
+  "chains": [
+    {
+      "id": "CH-001",
+      "name": "A device under attack loses access",
+      "why": "Requiring a compliant device only helps if compliance knows when a device is compromised. Defender has to report risk to Intune, compliance has to act on it, and Conditional Access has to require compliance. With any link missing, an infected laptop keeps its access to Microsoft 365.",
+      "links": [
+        {
+          "check": "DEV-012",
+          "role": "Defender tells Intune how risky each device is"
+        },
+        {
+          "check": "DEV-015",
+          "role": "Compliance turns that risk into a noncompliant verdict"
+        },
+        {
+          "check": "CA-005",
+          "role": "Sign-in to Office 365 needs the compliant verdict"
+        }
+      ]
+    },
+    {
+      "id": "CH-002",
+      "name": "A risky sign-in is challenged and a compromised account is contained",
+      "why": "Entra ID Protection detects leaked credentials and unusual sign-ins, but only Conditional Access acts on them, and the response is an MFA challenge or a password change the user must be able to complete. Users without MFA registered get blocked or, worse, the policy is relaxed. Detections nobody works stay open.",
+      "links": [
+        {
+          "check": "AU-006",
+          "role": "Users can answer the challenge when it comes"
+        },
+        {
+          "check": "CA-004",
+          "role": "Risky sign-ins and risky users are challenged or blocked"
+        },
+        {
+          "check": "ID-015",
+          "role": "Someone works the detections that remain"
+        }
+      ]
+    },
+    {
+      "id": "CH-003",
+      "name": "Copilot cannot surface what was overshared",
+      "why": "Copilot answers from everything the user can open. Exposure has to be reduced first, sensitive content has to be labelled, and DLP has to stop Copilot from processing what is labelled. Labels without DLP, or DLP over content shared with everyone, leave the gap open.",
+      "links": [
+        {
+          "check": "CL-015",
+          "role": "Exposure is cut back first, so less is reachable"
+        },
+        {
+          "check": "PV-002",
+          "role": "Sensitive content can be marked as such"
+        },
+        {
+          "check": "CP-013",
+          "role": "Copilot is kept away from what is marked"
+        }
+      ]
+    }
+  ]
+}

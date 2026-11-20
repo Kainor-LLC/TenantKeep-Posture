@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Control chains (2026-11-20): checks/chains.json names controls that only protect together; the Recommendations
+  view opens with one card per chain, the first failing link marked as the one to fix. Three chains: a device under
+  attack loses access, a risky sign-in is challenged, Copilot cannot surface what was overshared. New check DEV-015:
+  compliance policies require a Defender device risk level; the Intune collector now reads that setting.
 - Recommendations as finding cards (2026-11-20): one card per failed check with what was found in this tenant (the
   values the check judged, beside its thresholds), why it matters, the affected objects, numbered steps, portal and
   Learn links and frameworks; quick fixes first within a priority; improvements marked as such; what already

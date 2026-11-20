@@ -160,6 +160,28 @@ function Get-PostureDevicesFact {
     if ($null -eq $mde) { & $missing @('DEV-012') '09-intune-mde-connector' }
     else { $facts.mdeConnectorEnabled = [bool](@($mde | Where-Object { $_ -and $_.PartnerState -in @('available', 'enabled') -and ($_.WindowsEnabled -eq $true -or $_.MacEnabled -eq $true -or $_.MicrosoftDefenderForEndpointAttachEnabled -eq $true) }).Count -gt 0) }
 
+    # Compliance on device risk (DEV-015): on every platform with an assigned compliance policy, one of them asks
+    # Defender for a risk level, so a device under attack stops counting as compliant. Files collected before the
+    # setting was read (2026-11-20) do not carry it.
+    $cp = & $load '09-intune-compliance-policies'
+    $hasKey = { param($o, [string] $k) if ($o -is [System.Collections.IDictionary]) { $o.Contains($k) } else { $null -ne $o.PSObject.Properties[$k] } }
+    if ($null -eq $cp) { & $missing @('DEV-015') '09-intune-compliance-policies' }
+    elseif (@($cp | Where-Object { $_ -and (& $hasKey $_ 'DeviceThreatProtectionEnabled') }).Count -eq 0 -and @($cp | Where-Object { $_ }).Count -gt 0) {
+        $notEvaluated['DEV-015'] = '09-intune-compliance-policies.json was collected before TenantKeep read the device risk setting. Collect Intune again (Resume-PostureRun -Collector Intune).'
+    }
+    else {
+        $platformOf = { param([string] $type) switch -Regex ($type) { '^windows' { 'Windows' } '^macOS' { 'macOS' } '^ios' { 'iOS' } '^(android|aosp)' { 'Android' } default { $null } } }
+        $byPlatform = [ordered]@{}
+        foreach ($p in @($cp | Where-Object { $_ -and [int](& $v $_ 'Assignments') -gt 0 })) {
+            $pl = & $platformOf ([string](& $v $p 'Type')); if (-not $pl) { continue }
+            if (-not $byPlatform.Contains($pl)) { $byPlatform[$pl] = $false }
+            if ((& $v $p 'DeviceThreatProtectionEnabled') -eq $true -and [string](& $v $p 'DeviceThreatProtectionRequiredSecurityLevel') -notin @('', 'unavailable', 'notSet')) { $byPlatform[$pl] = $true }
+        }
+        $facts.compliancePlatforms = $byPlatform.Count
+        $affected.compliancePlatformsWithoutDeviceRisk = @($byPlatform.Keys | Where-Object { -not $byPlatform[$_] } | ForEach-Object { [ordered]@{ name = $_; detail = 'no assigned compliance policy requires a Defender device risk level' } })
+        $facts.compliancePlatformsWithoutDeviceRisk = @($affected.compliancePlatformsWithoutDeviceRisk).Count
+    }
+
     $cleanup = & $load '09-intune-device-cleanup'
     if ($null -eq $cleanup) { & $missing @('DEV-013') '09-intune-device-cleanup'; if (-not $facts.Contains('deviceCleanupRuleEnabled')) { $facts.deviceCleanupRuleEnabled = $false } }
     else { $facts.deviceCleanupRuleEnabled = [bool](& $v $cleanup 'Enabled'); $facts.deviceCleanupDays = & $v $cleanup 'DeviceInactivityBeforeRetirementInDays' }

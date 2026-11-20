@@ -138,7 +138,7 @@ BeforeAll {
                 ); break
             }
             '^deviceManagement/windowsAutopilotDeviceIdentities' { & $u @(@{ serialNumber = 'SN1'; manufacturer = 'Dell'; model = 'Latitude'; enrollmentState = 'enrolled'; managedDeviceId = 'm1' }); break }
-            '^deviceManagement/deviceCompliancePolicies' { & $u @(@{ id = 'cp1'; displayName = 'Windows compliance'; '@odata.type' = '#microsoft.graph.windows10CompliancePolicy'; bitLockerEnabled = $true; assignments = @(@{ id = 'a1' }) }, @{ id = 'cp2'; displayName = 'iOS compliance'; '@odata.type' = '#microsoft.graph.iosCompliancePolicy'; securityBlockJailbrokenDevices = $true; passcodeRequired = $true; scheduledActionsForRule = @(@{ ruleName = 'x' }); assignments = @(@{ id = 'a1' }) }); break }
+            '^deviceManagement/deviceCompliancePolicies' { & $u @(@{ id = 'cp1'; displayName = 'Windows compliance'; '@odata.type' = '#microsoft.graph.windows10CompliancePolicy'; bitLockerEnabled = $true; deviceThreatProtectionEnabled = $true; deviceThreatProtectionRequiredSecurityLevel = 'low'; assignments = @(@{ id = 'a1' }) }, @{ id = 'cp2'; displayName = 'iOS compliance'; '@odata.type' = '#microsoft.graph.iosCompliancePolicy'; securityBlockJailbrokenDevices = $true; passcodeRequired = $true; scheduledActionsForRule = @(@{ ruleName = 'x' }); assignments = @(@{ id = 'a1' }) }); break }
             '^deviceManagement/deviceConfigurations' { & $u @(@{ id = 'dc1'; displayName = 'Wi-Fi'; '@odata.type' = '#microsoft.graph.windowsWifiConfiguration'; assignments = @() }, @{ id = 'dc2'; displayName = 'Update ring'; '@odata.type' = '#microsoft.graph.windowsUpdateForBusinessConfiguration'; deadlineForQualityUpdatesInDays = 3; deadlineForFeatureUpdatesInDays = 7; deadlineGracePeriodInDays = 2; qualityUpdatesDeferralPeriodInDays = 0; assignments = @(@{ id = 'a1' }) }); break }
             '^deviceManagement/configurationPolicies/sc1/settings' {
                 $ch = { param([string] $Def, [string] $Val, $Children = @()) @{ settingInstance = @{ settingDefinitionId = $Def; choiceSettingValue = @{ value = $Val; children = $Children } } } }
@@ -443,7 +443,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 29
+            $r.results.Count | Should -Be 30
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
@@ -453,6 +453,8 @@ Describe 'Invoke-PostureCollection' {
             $d['DEV-011'].status | Should -Be 'pass'
             $d['DEV-012'].status | Should -Be 'pass'
             $d['DEV-013'].status | Should -Be 'pass'
+            $d['DEV-015'].status | Should -Be 'fail' -Because 'the iOS policy does not ask Defender for a risk level'
+            $d['DEV-015'].affected.name | Should -Be @('iOS')
             $d['DEV-002'].status | Should -Be 'pass' -Because 'stale devices exist but the cleanup rule is on'
             $d['DEV-008'].status | Should -Be 'fail' -Because 'the push certificate expires within 60 days of the run'
             $rep = New-PostureReport -Evidence $script:R.Folder -OutputPath (Join-Path $script:Root 'rep') -Format Markdown -PassThru

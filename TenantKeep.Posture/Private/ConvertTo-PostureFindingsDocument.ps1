@@ -58,7 +58,7 @@ function ConvertTo-PostureFindingsDocument {
     }
     $rh = $Report.runHealth
     return [ordered]@{
-        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
+        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "chains" are controls that protect only together: status pass, broken (brokenAt names the first failing link, the one to fix first) or notEvaluated. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
         schemaVersion  = 1
         tenant         = [ordered]@{ id = $Report.tenantId; name = $Report.tenantName }
         generatedUtc   = [string]$Report.generatedUtc
@@ -75,6 +75,7 @@ function ConvertTo-PostureFindingsDocument {
             runHealth           = @($(if ($rh) { $rh.failures | ForEach-Object { [ordered]@{ domain = $_.collector; step = $_.step; why = $_.causeLabel; whatToDo = $_.advice } } }))
         }
         findings       = @($findings)
+        chains         = @($(if ($Report.Contains('chains')) { $Report.chains | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; status = $_.status; brokenAt = $_.brokenAt; whyItMatters = $_.why; links = @($_.links | ForEach-Object { [ordered]@{ id = $_.check; title = $_.title; status = $_.status; role = $_.role } }) } } }))
         acceptedRisks  = @($Report.results | Where-Object { $_.status -eq 'acceptedRisk' } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; reason = $_.reason } })
         notEvaluated   = @($Report.results | Where-Object { $_.status -eq 'notEvaluated' } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; reason = $_.reason } })
     }

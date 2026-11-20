@@ -430,6 +430,44 @@
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-015",
+      "domain": "devices",
+      "title": "Compliance policies require a Defender device risk level",
+      "severityDefault": "Medium",
+      "license": [
+        "MDE1",
+        "MDE2",
+        "MDEBusiness"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-compliance-policies.json"
+      ],
+      "pass": "facts.compliancePlatforms > 0 && facts.compliancePlatformsWithoutDeviceRisk == 0",
+      "affected": "facts.compliancePlatformsWithoutDeviceRisk",
+      "remediation": [
+        "Turn on the Defender for Endpoint connector in Intune with compliance policy evaluation for each platform (DEV-012).",
+        "In each platform's assigned compliance policy, open Microsoft Defender for Endpoint and set Require the device to be at or under the machine risk score to Low or Clear.",
+        "Set the policy's actions for noncompliance to mark the device noncompliant immediately, then watch the compliance report for a day before relying on it."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "impact": "Conditional Access that requires a compliant device trusts Intune's verdict. Unless compliance asks Defender for the device's risk, a laptop with an active intrusion still reports compliant and keeps its access.",
+      "learn": "https://learn.microsoft.com/mem/intune/protect/advanced-threat-protection-configure",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies",
+      "narrative": "Defender for Endpoint scores each device's risk from what it sees on the machine. A compliance policy can require that score to be Low or Clear, which is how an attack in progress cuts the device off from Microsoft 365 until it is cleaned up. The setting is per platform and off by default.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

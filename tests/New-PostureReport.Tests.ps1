@@ -143,6 +143,8 @@ Describe 'New-PostureReport' {
             foreach ($part in 'What We Found', 'Why It Matters', 'How To Fix', 'Details and Accept Risk') { $script:Html | Should -Match $part }
             $script:Html | Should -Match '<ul class="observed"><li>' -Because 'the values the check judged are on the card'
             $script:Html | Should -Match "What's Already Good"
+            foreach ($ch in @($script:Rep.chains)) { $script:Html | Should -Match "id=`"chain-$($ch.id)`"" }
+            @($script:Rep.chains).Count | Should -BeGreaterThan 0 -Because 'the CA checks in the fixture belong to a chain'
             @($script:Rep.alreadyGood.Keys).Count | Should -BeGreaterThan 0
         }
 

@@ -239,6 +239,18 @@ function ConvertTo-PostureReportHtml {
     $fixes = @($allRecs | Where-Object { $_.category -ne 'improve' }).Count
     & $w '<section class="view" id="recommendations"><h2>Recommendations</h2>'
     & $w "<p class=`"lede`">$fixes finding(s) to fix and $($allRecs.Count - $fixes) improvement(s), most urgent first. Within each priority the quick fixes come first, then what affects the most. Each card has the steps, the portal page and the Microsoft Learn article.</p>"
+    # Control chains: checks that only protect together, one card each with the broken link marked.
+    if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {
+        $chainLabel = @{ pass = 'Holds'; broken = 'Broken'; notEvaluated = 'Incomplete' }
+        $chainClass = @{ pass = 'pass'; broken = 'fail'; notEvaluated = 'notEvaluated' }
+        & $w '<h3>Control Chains</h3><p class="hint">Some controls protect only when the others in their chain hold. A chain breaks at its first failing link; fix that link first.</p><div class="chains">'
+        foreach ($ch in $r.chains) {
+            $li = @($ch.links | ForEach-Object { '<li class="link st-' + (& $h $_.status) + $(if ($_.check -eq $ch.brokenAt) { ' broken-at' }) + '"><span class="status ' + (& $h $_.status) + '">' + (& $h $statusLabel[[string]$_.status]) + '</span><a href="#checks" data-check="' + (& $h $_.check) + '"><code>' + (& $h $_.check) + '</code> ' + (& $h $_.title) + '</a><span class="role">' + (& $h $_.role) + '</span></li>' }) -join ''
+            $state = (& $h $chainLabel[[string]$ch.status]) + $(if ($ch.brokenAt) { ' at ' + (& $h $ch.brokenAt) } else { '' })
+            & $w ('<article class="chain st-' + (& $h $ch.status) + '" id="chain-' + (& $h $ch.id) + '"><header><span class="status ' + $chainClass[[string]$ch.status] + '">' + $state + '</span> <span class="muted">' + $ch.held + ' of ' + @($ch.links).Count + ' links hold</span><h4 class="finding-title">' + (& $h $ch.name) + '</h4></header><ol class="chain-links">' + $li + '</ol><p class="muted">' + (& $h $ch.why) + '</p></article>')
+        }
+        & $w '</div>'
+    }
     foreach ($bucket in $r.recommendations.Keys) {
         $items = @($r.recommendations[$bucket])
         & $w "<div class=`"bucket`"><h3>$(& $h $bucket) <span class=`"count`">$($items.Count)</span> <span class=`"hint`">$(& $h $when[$bucket])</span></h3>"

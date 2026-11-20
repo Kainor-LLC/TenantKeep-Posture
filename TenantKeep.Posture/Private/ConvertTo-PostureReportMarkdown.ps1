@@ -121,6 +121,17 @@ function ConvertTo-PostureReportMarkdown {
 
     & $line '## Recommendations'
     & $line
+    if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {
+        & $line '### Control chains'
+        & $line
+        & $line 'Controls that protect only together. A chain breaks at its first failing link.'
+        & $line
+        foreach ($ch in $r.chains) {
+            $state = $(switch ($ch.status) { 'pass' { 'holds' } 'broken' { "broken at $($ch.brokenAt)" } default { 'incomplete' } })
+            & $line "- **$(& $esc $ch.name)** ($state): $(@($ch.links | ForEach-Object { "$($_.check) $($_.status)" }) -join ' > ')"
+        }
+        & $line
+    }
     foreach ($bucket in $r.recommendations.Keys) {
         $items = @($r.recommendations[$bucket])
         & $line "### $bucket"

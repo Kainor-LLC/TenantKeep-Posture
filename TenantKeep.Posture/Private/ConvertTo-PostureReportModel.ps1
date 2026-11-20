@@ -214,6 +214,7 @@ function ConvertTo-PostureReportModel {
             frameworks = $(if ($c['frameworks']) { $c['frameworks'] } else { [ordered]@{} })
         }
     }
+    $chains = @(Get-PostureControlChainResult -Chain @(Import-PostureControlChain -Catalog $Catalog) -Result @($results))
     $alreadyGood = [ordered]@{}
     foreach ($r in @($results | Where-Object { $_.status -eq 'pass' } | Sort-Object { $_.domain }, { $_.id })) {
         if (-not $alreadyGood.Contains([string]$r.domain)) { $alreadyGood[[string]$r.domain] = @() }
@@ -338,6 +339,7 @@ function ConvertTo-PostureReportModel {
         domainsNotCollected = $domainsNotCollected
         recommendations = $recommendations
         alreadyGood     = $alreadyGood
+        chains          = $chains
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot

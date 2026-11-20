@@ -30,3 +30,12 @@ Every check carries, and the catalog test enforces:
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
 (below); neither is a domain file.
+
+## Control chains
+
+`chains.json` lists controls that protect only together, for example Defender reporting device risk, compliance
+acting on it and Conditional Access requiring compliance. Each chain has an `id` (`CH-NNN`), a `name`, `why` (two or
+three sentences) and two or more `links`, each a `check` id from the catalog and its `role` in the chain. The report
+shows one card per chain: it holds when every link passes (or is accepted or covered), breaks at its first failing
+link, and is incomplete while a link could not be judged. A link to a check that is not in the catalog fails the
+load, so a chain ships with its checks.

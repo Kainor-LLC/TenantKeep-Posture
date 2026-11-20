@@ -72,7 +72,7 @@ function Invoke-PostureIntuneCollection {
 
     $compliance = @(Invoke-PostureStep -Label 'Intune compliance policies' -Folder $Folder -Script {
             $rows = & $get 'deviceManagement/deviceCompliancePolicies?$expand=assignments'
-            & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime'); Version = (& $v $_ 'version'); Assignments = @(& $v $_ 'assignments').Count } }) '09-intune-compliance-policies' $true
+            & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime'); Version = (& $v $_ 'version'); Assignments = @(& $v $_ 'assignments').Count; DeviceThreatProtectionEnabled = (& $v $_ 'deviceThreatProtectionEnabled'); DeviceThreatProtectionRequiredSecurityLevel = (& $v $_ 'deviceThreatProtectionRequiredSecurityLevel') } }) '09-intune-compliance-policies' $true
             $rows
         })
 

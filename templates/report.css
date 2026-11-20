@@ -139,6 +139,19 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 .chip.effort-L { background: var(--err-bg); color: var(--err); }
 details.affected-list summary { cursor: pointer; color: var(--info); font-size: 14px; margin-top: 6px; }
 details.affected-list ul { margin: 6px 0; padding-left: 18px; max-height: 260px; overflow: auto; font-size: 14px; }
+/* Control chains: links left to right with an arrow between, wrapping on a narrow screen; the broken link stands out. */
+.chains { display: grid; gap: 14px; margin-bottom: 22px; }
+.chain { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow); }
+.chain.st-broken { border-color: var(--err); }
+.chain-links { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.chain-links .link { position: relative; flex: 1 1 200px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); font-size: 14px; }
+.chain-links .link:not(:last-child)::after { content: "\2192"; position: absolute; right: -21px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; }
+.chain-links .link.broken-at { border: 2px solid var(--err); background: var(--err-bg); }
+.chain-links .link .status { align-self: flex-start; }
+.chain-links .link a { color: var(--fg); text-decoration: none; font-weight: 600; }
+.chain-links .link code { font-size: 12px; color: var(--muted); }
+.chain-links .role { color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) { .chain-links .link:not(:last-child)::after { content: "\2193"; right: auto; left: 50%; top: auto; bottom: -21px; transform: translateX(-50%); } }
 .good-list details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 8px; }
 .good-list summary { cursor: pointer; font-weight: 600; }
 .good-list ul { margin: 6px 0; padding-left: 18px; font-size: 14px; }
