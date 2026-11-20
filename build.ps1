@@ -207,8 +207,9 @@ function Invoke-Catalog {
     Write-Task 'Catalog'
     $target = $(if ($CatalogPath) { $CatalogPath } else { $OutRoot })
     New-Item -ItemType Directory -Path $target -Force | Out-Null
-    $labels = @{ identity = 'Identity and privileged access'; auth = 'Authentication methods'; ca = 'Conditional Access'; devices = 'Devices'; endpoint = 'Endpoint security'; email = 'Email security'; purview = 'Data protection'; collaboration = 'Collaboration and oversharing'; copilot = 'Copilot readiness'; governance = 'Governance and lifecycle'; operations = 'Operations and monitoring'; azure = 'Azure'; hybrid = 'Hybrid identity and on-premises AD' }
-    $order = @('identity', 'auth', 'ca', 'devices', 'endpoint', 'email', 'purview', 'collaboration', 'copilot', 'governance', 'operations', 'azure', 'hybrid')
+    $catalogDoc = Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json
+    $labels = @{}; foreach ($d in @($catalogDoc.domains)) { $labels[[string]$d.key] = [string]$d.label }
+    $order = @($catalogDoc.domains | ForEach-Object { [string]$_.key })
     $version = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).version
     $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }
     $byDomain = @{}

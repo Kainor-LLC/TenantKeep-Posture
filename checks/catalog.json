@@ -1,4 +1,62 @@
 {
   "version": "2026.10.0",
-  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md)."
+  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only.",
+  "domains": [
+    {
+      "key": "identity",
+      "label": "Identity and privileged access"
+    },
+    {
+      "key": "auth",
+      "label": "Authentication methods"
+    },
+    {
+      "key": "ca",
+      "label": "Conditional Access"
+    },
+    {
+      "key": "devices",
+      "label": "Devices"
+    },
+    {
+      "key": "endpoint",
+      "label": "Endpoint security"
+    },
+    {
+      "key": "email",
+      "label": "Email security"
+    },
+    {
+      "key": "purview",
+      "label": "Data protection"
+    },
+    {
+      "key": "collaboration",
+      "label": "Collaboration and oversharing"
+    },
+    {
+      "key": "copilot",
+      "label": "Copilot readiness"
+    },
+    {
+      "key": "governance",
+      "label": "Governance and lifecycle"
+    },
+    {
+      "key": "operations",
+      "label": "Operations and monitoring"
+    },
+    {
+      "key": "experience",
+      "label": "User experience"
+    },
+    {
+      "key": "azure",
+      "label": "Azure"
+    },
+    {
+      "key": "hybrid",
+      "label": "Hybrid identity and on-premises AD"
+    }
+  ]
 }

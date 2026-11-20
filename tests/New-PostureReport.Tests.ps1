@@ -54,7 +54,7 @@ Describe 'New-PostureReport' {
         }
 
         It 'has one scorecard per collected domain and names the rest' {
-            @($script:Rep.domains | ForEach-Object { $_.key }) | Should -Be @('identity', 'auth', 'ca', 'governance', 'operations') -Because 'governance and operations evaluate partly from the identity evidence'
+            @($script:Rep.domains | ForEach-Object { $_.key }) | Should -Be @('identity', 'auth', 'ca', 'governance', 'operations', 'experience') -Because 'governance, operations and experience evaluate partly from the identity evidence'
             ($script:Rep.domains | Where-Object key -eq 'ca').checks[0].status | Should -Be 'fail' -Because 'failures sort first'
             $script:Rep.domainsNotCollected.label | Should -Contain 'Devices'
             $script:Md | Should -Match '### Identity and privileged access'

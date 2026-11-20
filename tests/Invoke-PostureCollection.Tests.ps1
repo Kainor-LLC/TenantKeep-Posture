@@ -23,6 +23,8 @@ BeforeAll {
             '^admin/sharepoint/settings$' { @{ sharingCapability = 'externalUserSharingOnly'; isResharingByExternalUsersEnabled = $false }; break }
             '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
+            '^organization/[^/?]+/branding' { @{ backgroundImageRelativeUrl = 'bg.png'; bannerLogoRelativeUrl = 'logo.png'; signInPageText = 'Contoso staff only' }; break }
+            '^deviceManagement/windowsAutopilotDeploymentProfiles' { & $u @(@{ id = 'ap1'; displayName = 'Standard'; '@odata.type' = '#microsoft.graph.azureADWindowsAutopilotDeploymentProfile'; deviceNameTemplate = 'CTS-%SERIAL%'; assignments = @(@{ id = 'a1' }) }); break }
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
             '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; servicePlanId = 'p-aad'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; servicePlanId = 'p-intune'; provisioningStatus = 'Success' }) }); break }
             '^directory/onPremisesSynchronization$' { & $u @(); break }

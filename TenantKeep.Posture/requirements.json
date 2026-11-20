@@ -475,6 +475,29 @@
         "SharePointTenantSettings.Read.All"
       ],
       "note": "Graph's read of the SharePoint tenant settings, beside the PnP one, to see whether Global Reader is enough (verify on the Phase 3 run). Needs the tenant to consent to the TenantKeep Posture app again after the scope was added on 2026-11-20."
+    },
+    {
+      "collector": "Entra",
+      "match": "^Company branding$",
+      "roles": [
+        "Global Reader"
+      ],
+      "scopes": [
+        "Organization.Read.All"
+      ],
+      "note": "A tenant without branding answers 404, which reads as none, not as a failure."
+    },
+    {
+      "collector": "Intune",
+      "match": "^Autopilot profiles$",
+      "roles": [
+        "Global Reader",
+        "Intune Administrator"
+      ],
+      "scopes": [
+        "DeviceManagementServiceConfig.Read.All"
+      ],
+      "licence": "Microsoft Intune Plan 1"
     }
   ]
 }

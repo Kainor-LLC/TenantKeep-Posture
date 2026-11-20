@@ -1,0 +1,334 @@
+{
+  "domain": "experience",
+  "checks": [
+    {
+      "id": "UX-001",
+      "domain": "experience",
+      "title": "OneDrive signs people in and moves their folders without asking",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.onedriveSilentSignIn && facts.onedriveSilentFolderMove",
+      "remediation": [
+        "In an Intune settings catalog profile for Windows, enable Silently sign in users to the OneDrive sync app with their Windows credentials.",
+        "In the same profile, enable Silently move Windows known folders to OneDrive with the tenant ID, and Prevent users from moving their Windows known folders back.",
+        "Assign it to a pilot group, then to all Windows devices, staying under 1,000 devices a day while folders upload."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People find OneDrive already signed in and their Desktop, Documents and Pictures backed up, with a notification the first time."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/ideal-state-configuration",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "Without these settings people must sign in to OneDrive themselves and choose to back up their folders, and many never do. With them, a new or replaced PC has the person's files in a few minutes and a lost laptop costs nothing but the hardware.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-002",
+      "domain": "experience",
+      "title": "Edge browser sign-in not turned off",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.edgeSignInDisabledPolicies == 0",
+      "affected": "facts.edgeSignInDisabledPolicies",
+      "remediation": [
+        "Open each policy listed and remove the Browser sign-in settings value Disable browser sign-in, or set it to Allow users to sign-in.",
+        "If profiles must stay separate, keep sign-in allowed and control sync with the sync policies instead."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Edge opens signed in with the work account, so favourites and passwords follow people between devices and work sites sign in on their own."
+      },
+      "learn": "https://learn.microsoft.com/deployedge/microsoft-edge-browser-policies/browsersignin",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "Turning browser sign-in off, often copied from a hardening guide, means Edge never picks up the work account. People then sign in to every site by hand and lose single sign-on to Microsoft 365 in the browser, with no security gain on a managed device.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-003",
+      "domain": "experience",
+      "title": "New Windows devices show setup progress",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-enrollment-restrictions.json"
+      ],
+      "pass": "facts.espShowsProgress",
+      "remediation": [
+        "In Intune, Devices, Enrollment, Windows, Enrollment Status Page, edit the default profile or create one for your Autopilot devices.",
+        "Set Show app and profile configuration progress to Yes, choose the apps that must install before the desktop, and allow the user to reset the device if installation fails.",
+        "Assign it to all devices or the Autopilot group."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People see their apps and settings arriving during setup instead of reaching a half-ready desktop."
+      },
+      "learn": "https://learn.microsoft.com/intune/intune-service/enrollment/windows-enrollment-status",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentStatusPage.ReactView",
+      "narrative": "Without the Enrollment Status Page a new device reaches the desktop before its apps and policies arrive, and the first hour is spent wondering where Outlook is. With it, setup waits until the essentials are installed and tells the person what is happening.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-004",
+      "domain": "experience",
+      "title": "Windows settings backup and restore turned on",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-enrollment-restrictions.json"
+      ],
+      "pass": "facts.windowsRestoreOn",
+      "remediation": [
+        "In Intune, Devices, Enrollment, Windows, turn on Show restore page for Windows settings backup and restore (verify the label).",
+        "Allow Windows backup on devices through the settings catalog so there is something to restore.",
+        "Use user-driven Autopilot; restore does not run in self-deploying mode or on hybrid joined devices."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "On a new device people are offered their wallpaper, settings and pinned apps from the old one."
+      },
+      "learn": "https://learn.microsoft.com/intune/intune-service/enrollment/windows-backup-restore",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu",
+      "narrative": "Windows settings backup and restore brings a person's settings and pinned apps to a replacement device during setup. It is off until an administrator turns it on, and it makes a device swap feel like the same machine.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-005",
+      "domain": "experience",
+      "title": "Autopilot names new devices consistently",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-autopilot-profiles.json"
+      ],
+      "pass": "facts.autopilotProfilesWithoutNameTemplate == 0",
+      "affected": "facts.autopilotProfilesWithoutNameTemplate",
+      "remediation": [
+        "Edit each Autopilot profile listed and set Apply device name template, for example a prefix and %SERIAL%.",
+        "Check the template fits in 15 characters, the limit Windows allows."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Devices get names the help desk can read; people notice nothing."
+      },
+      "learn": "https://learn.microsoft.com/autopilot/profiles",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/AutopilotDeploymentProfiles.ReactView",
+      "narrative": "Without a template, Autopilot devices are named DESKTOP- and a random string, and nobody can tell from the name whose device it is or where it belongs. A template makes support calls, reports and Conditional Access logs readable.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-006",
+      "domain": "experience",
+      "title": "The sign-in page carries the organisation's logo and words",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-company-branding.json"
+      ],
+      "pass": "facts.signInPageBranded",
+      "remediation": [
+        "In Entra, Company branding, edit the default sign-in experience.",
+        "Add the banner logo and square logo, and a short sign-in page text people will recognise.",
+        "Keep the default background unless brand guidelines say otherwise."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "People see a familiar page when they sign in, which also helps them notice a fake one."
+      },
+      "learn": "https://learn.microsoft.com/entra/fundamentals/how-to-customize-branding",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyBrandingMenuBlade",
+      "narrative": "A branded sign-in page tells people they are in the right place, and its absence on a phishing page is one more thing that looks wrong. It costs a few minutes and an image.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-007",
+      "domain": "experience",
+      "title": "Sign-in frequency for everyone no shorter than a working day",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minSignInFrequencyHours": 24
+      },
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.shortSignInFrequencyPolicies == 0",
+      "affected": "facts.shortSignInFrequencyPolicies",
+      "remediation": [
+        "For each policy listed, raise the sign-in frequency to at least the threshold, or remove it and rely on the default rolling window with a persistent browser session policy.",
+        "Keep short frequencies for administrator roles and risky sign-ins, in their own policies."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People are asked to sign in again less often, without losing the protection of MFA or device checks."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/concepts-azure-multi-factor-authentication-prompts-session-lifetime",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Microsoft's guidance is that frequent reauthentication trains people to approve prompts without reading them and costs time all day. Short sign-in frequencies belong on administrator roles and risky sessions; for everyone else the default rolling window with Conditional Access does the work.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-008",
+      "domain": "experience",
+      "title": "Members can reset their own password",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minSsprEnabledPct": 95
+      },
+      "evidence": [
+        "05-auth-registration.json"
+      ],
+      "pass": "facts.ssprEnabledPct >= thresholds.minSsprEnabledPct",
+      "remediation": [
+        "In Entra, Password reset, set Self service password reset enabled to All (or a group that covers every member).",
+        "Require the methods people already registered for MFA so nobody registers twice.",
+        "For hybrid identity, turn on password writeback in Entra Connect or Cloud Sync."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People can reset a forgotten password from the sign-in page instead of calling the help desk."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/tutorial-enable-sspr",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/PasswordResetMenuBlade/~/Properties",
+      "narrative": "A forgotten password without self-service reset is a help desk call and an idle person. With it, the reset takes a minute, uses the MFA methods people already have, and the help desk stops verifying callers by voice, which is itself a social engineering risk.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-009",
+      "domain": "experience",
+      "title": "Sign-in name matches the email address",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "06-users.json"
+      ],
+      "pass": "facts.upnEmailMismatches == 0",
+      "affected": "facts.upnEmailMismatches",
+      "remediation": [
+        "Decide the target: the sign-in name (UPN) should be the primary email address for every member with a mailbox.",
+        "Pilot with a few people first: their OneDrive address changes, apps and devices ask them to sign in again, and Authenticator keeps the old name until the account is re-added.",
+        "Check SaaS applications that match users by UPN in SAML before changing them, then change the UPN in Entra or, for synced users, in Active Directory."
+      ],
+      "effort": "L",
+      "category": "improve",
+      "userImpact": {
+        "level": "high",
+        "text": "People's OneDrive address changes and every app and device asks them to sign in again; apps keyed on the old name can lose the account."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/plan-connect-userprincipalname",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
+      "narrative": "Microsoft recommends the sign-in name match the email address. There is no security weakness in a mismatch; the cost is support: people try their email to sign in, Teams external chat and guest invitations address them by one name and find them by the other, and apps that match by UPN drift from those that match by email. A member signing in with an onmicrosoft.com name while mailing from the company domain is the clearest case.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-010",
+      "domain": "experience",
+      "title": "Display names read First Last",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "06-users.json"
+      ],
+      "pass": "facts.lastFirstDisplayNames == 0",
+      "affected": "facts.lastFirstDisplayNames",
+      "remediation": [
+        "Change the display name of each person listed to First Last, in Entra or, for synced users, in Active Directory or the HR feed.",
+        "Keep the surname in the Surname attribute so the address book can still sort by it."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "People see their own and colleagues' names the other way round once, and the address book reads naturally afterwards."
+      },
+      "learn": "https://learn.microsoft.com/entra/fundamentals/how-to-manage-user-profile-info",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
+      "narrative": "Last, First display names carry no security risk, but Microsoft 365 reads the display name as written: greetings and Copilot use the first word, so people are addressed by their surname, initials avatars come out reversed, @mentions and the people picker read surname first, and the comma breaks CSV exports and some SaaS provisioning.",
+      "frameworks": {}
+    }
+  ]
+}

@@ -65,6 +65,11 @@ function Invoke-PostureIntuneCollection {
         & $save (& $rows $byWindowsBuild) '09-intune-summary-windows-builds' $true
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Autopilot profiles' -Folder $Folder -Script {
+        # How new devices are set up: the naming template and the join type, for the experience checks.
+        $rows = & $get 'deviceManagement/windowsAutopilotDeploymentProfiles?$expand=assignments' 'beta'
+        & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); DeviceNameTemplate = (& $v $_ 'deviceNameTemplate'); Language = (& $v $_ 'language'); Assignments = @(& $v $_ 'assignments').Count } }) '09-autopilot-profiles' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Autopilot devices' -Folder $Folder -Script {
         $rows = & $get 'deviceManagement/windowsAutopilotDeviceIdentities?$top=999'
         & $save @($rows | ForEach-Object { [ordered]@{ SerialNumber = (& $v $_ 'serialNumber'); Manufacturer = (& $v $_ 'manufacturer'); Model = (& $v $_ 'model'); GroupTag = (& $v $_ 'groupTag'); EnrollmentState = (& $v $_ 'enrollmentState'); LastContactedDateTime = (& $v $_ 'lastContactedDateTime'); DeploymentProfileAssignmentStatus = (& $v $_ 'deploymentProfileAssignmentStatus'); ManagedDeviceId = (& $v $_ 'managedDeviceId'); AzureActiveDirectoryDeviceId = (& $v $_ 'azureActiveDirectoryDeviceId') } }) '09-autopilot-devices' $true
@@ -120,6 +125,9 @@ function Invoke-PostureIntuneCollection {
                         if ($null -ne $r) { $entry["$plat`PlatformBlocked"] = [bool](& $v $r 'platformBlocked'); $entry["$plat`PersonalBlocked"] = [bool](& $v $r 'personalDeviceEnrollmentBlocked') }
                     }
                     if ($type -eq 'deviceEnrollmentPlatformRestrictionConfiguration') { $entry.PlatformType = (& $v $_ 'platformType') }
+                    # The Enrollment Status Page and Windows settings restore, for the experience checks (restore state verify).
+                    if ($type -eq 'windows10EnrollmentCompletionPageConfiguration') { $entry.ShowInstallationProgress = [bool](& $v $_ 'showInstallationProgress'); $entry.AllowDeviceUseOnInstallFailure = [bool](& $v $_ 'allowDeviceUseOnInstallFailure') }
+                    if ($type -in 'windowsRestoreDeviceEnrollmentConfiguration', 'deviceEnrollmentWindowsHelloForBusinessConfiguration') { $entry.State = (& $v $_ 'state') }
                     $entry
                 })
             & $save $flat '09-intune-enrollment-restrictions' $true

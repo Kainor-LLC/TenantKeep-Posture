@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- User experience domain (2026-11-20): ten improvement checks on how smoothly people work, each with what users
+  notice: OneDrive signs people in and moves their folders silently, Edge sign-in not turned off, the Enrollment
+  Status Page shows progress, Windows settings backup and restore, Autopilot device naming, a branded sign-in page,
+  sign-in frequency no shorter than a day for everyone (admin roles and risk policies excepted), self-service
+  password reset for members, sign-in name matching email, and display names written First Last. A User Experience
+  outcome joins the overview. The Entra collector reads company branding, each user's mail and name parts and each
+  domain's password expiry; the Intune collector reads Autopilot profiles, the Enrollment Status Page and restore
+  state. The domain list now lives in checks/catalog.json.
 - What To Add recomputes in the page (2026-11-20): tick goals or say another product covers a category (EDR, email,
   web gateway, private access, device management) and the options redraw; nothing is saved. The page runs the same
   search as the module (templates/licensing.js, kept equal by a test that runs it under node). Add-ons sold only on

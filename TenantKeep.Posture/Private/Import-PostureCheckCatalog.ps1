@@ -27,8 +27,13 @@ function Import-PostureCheckCatalog {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { throw "Check catalog folder not found: $Path" }
 
     $version = 'unversioned'
+    $domainList = [ordered]@{}
     $versionFile = Join-Path $Path 'catalog.json'
-    if (Test-Path -LiteralPath $versionFile) { $version = [string](Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json -AsHashtable).version }
+    if (Test-Path -LiteralPath $versionFile) {
+        $cj = Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json -AsHashtable
+        $version = [string]$cj.version
+        foreach ($d in @($(if ($cj.Contains('domains')) { $cj['domains'] }))) { $domainList[[string]$d['key']] = [string]$d['label'] }
+    }
 
     $required = 'id', 'domain', 'title', 'severityDefault', 'license', 'applicableWhen', 'coveredBy', 'thresholds', 'evidence', 'pass', 'remediation', 'learn', 'deepLink', 'narrative', 'frameworks'
     $severities = 'Critical', 'High', 'Medium', 'Low'
@@ -89,6 +94,7 @@ function Import-PostureCheckCatalog {
 
     return [ordered]@{
         version = $version
+        domains = $domainList
         labels  = $labels
         path    = $Path
         checks  = @($checks | Sort-Object { $_['id'] })

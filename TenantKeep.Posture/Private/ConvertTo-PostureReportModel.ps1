@@ -55,11 +55,11 @@ function ConvertTo-PostureReportModel {
     $grade = if ($null -eq $score) { 'n/a' } elseif ($score -ge 90) { 'A' } elseif ($score -ge 80) { 'B' } elseif ($score -ge 70) { 'C' } elseif ($score -ge 60) { 'D' } else { 'F' }
 
     # Domain labels in report order (spec 3), those present in the catalog first.
-    $domainLabels = [ordered]@{
-        identity = 'Identity and privileged access'; auth = 'Authentication methods'; ca = 'Conditional Access'; devices = 'Devices'
-        endpoint = 'Endpoint security'; email = 'Email security'; purview = 'Data protection'; collaboration = 'Collaboration and oversharing'
-        copilot = 'Copilot readiness'; governance = 'Governance and lifecycle'; operations = 'Operations and monitoring'; azure = 'Azure'; hybrid = 'Hybrid identity and on-premises AD'
-    }
+    # Domains in report order with their labels, from checks/catalog.json; a custom catalog without the list falls
+    # back to the domains its checks name.
+    $domainLabels = [ordered]@{}
+    if ($Catalog.Contains('domains') -and $Catalog['domains'] -and @($Catalog['domains'].Keys).Count) { foreach ($k in $Catalog['domains'].Keys) { $domainLabels[$k] = $Catalog['domains'][$k] } }
+    foreach ($c in $Catalog.checks) { $dk = [string]$c['domain']; if ($dk -and -not $domainLabels.Contains($dk)) { $domainLabels[$dk] = $dk } }
     $notCollected = [System.Collections.Generic.List[object]]::new()
     $domains = foreach ($d in $domainLabels.Keys) {
         $dr = @($results | Where-Object { $_.domain -eq $d })

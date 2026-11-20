@@ -50,7 +50,7 @@ function Export-PostureFindings {
     $run.results = Limit-PostureResultsToEntitlement -Results @($run.results) -Entitlement $entitlement
     $licenceLabel = $(if ($entitlement.licensed -and $entitlement.licence) { [string]$entitlement.licence.licenceId } elseif ($entitlement.licensed) { [string]$entitlement.source } else { 'unlicensed' })
 
-    $labels = @{ identity = 'Identity and privileged access'; auth = 'Authentication methods'; ca = 'Conditional Access'; devices = 'Devices'; endpoint = 'Endpoint security'; email = 'Email security'; purview = 'Data protection'; collaboration = 'Collaboration and oversharing'; copilot = 'Copilot readiness'; governance = 'Governance and lifecycle'; operations = 'Operations and monitoring'; azure = 'Azure'; hybrid = 'Hybrid identity and on-premises AD' }
+    $labels = @{}; foreach ($k in @($catalog.domains.Keys)) { $labels[$k] = $catalog.domains[$k] }
     $weight = @{ Critical = 4; High = 3; Medium = 2; Low = 1 }
     $bucket = @{ Critical = 'Stop the bleeding'; High = 'Foundations'; Medium = 'Program workstreams'; Low = 'Later' }
     $statusText = @{ fail = 'Fail'; acceptedRisk = 'Accepted risk'; pass = 'Pass'; coveredBy = 'Covered by' }

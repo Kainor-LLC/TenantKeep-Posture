@@ -42,8 +42,17 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
     Invoke-PostureStep -Label 'Domains' -Folder $Folder -Script {
         # Federated domains say ADFS or another federation is in play; the profile discovery reads this for the identity model.
-        $domains = & $get 'domains?$select=id,isDefault,isInitial,isVerified,authenticationType'
-        & $save @($domains | ForEach-Object { [ordered]@{ Id = $_.id; IsDefault = (& $v $_ 'isDefault'); IsInitial = (& $v $_ 'isInitial'); IsVerified = (& $v $_ 'isVerified'); AuthenticationType = (& $v $_ 'authenticationType') } }) '01-domains' $true
+        $domains = & $get 'domains?$select=id,isDefault,isInitial,isVerified,authenticationType,passwordValidityPeriodInDays,passwordNotificationWindowInDays'
+        & $save @($domains | ForEach-Object { [ordered]@{ Id = $_.id; IsDefault = (& $v $_ 'isDefault'); IsInitial = (& $v $_ 'isInitial'); IsVerified = (& $v $_ 'isVerified'); AuthenticationType = (& $v $_ 'authenticationType'); PasswordValidityPeriodInDays = (& $v $_ 'passwordValidityPeriodInDays'); PasswordNotificationWindowInDays = (& $v $_ 'passwordNotificationWindowInDays') } }) '01-domains' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Company branding' -Folder $Folder -Script {
+        # What the sign-in page shows, as presence only: a page with the organisation's logo and words is one users
+        # learn to recognise. A tenant without branding answers 404, which means none.
+        $orgId = [string](@(& $load '01-organization')[0].id)
+        $b = $null
+        try { $b = & $one "organization/$orgId/branding" }
+        catch { if ([string]$_.Exception.Message -notmatch '404|NotFound|ResourceNotFound') { throw } }
+        & $saveOne ([ordered]@{ Present = ($null -ne $b); HasBackground = [bool](& $v $b 'backgroundImageRelativeUrl'); HasBannerLogo = [bool](& $v $b 'bannerLogoRelativeUrl'); HasSquareLogo = [bool](& $v $b 'squareLogoRelativeUrl'); HasSignInText = [bool](& $v $b 'signInPageText'); HasUsernameHint = [bool](& $v $b 'usernameHintText') }) '01-company-branding'
     } | Out-Null
     Invoke-PostureStep -Label 'Subscribed SKUs' -Folder $Folder -Script {
         $skus = & $get 'subscribedSkus'
@@ -216,7 +225,7 @@ function Invoke-PostureEntraCollection {
     # account named like one. Small, so the check never needs the full user list.
     $breakGlass = [System.Collections.Generic.List[object]]::new()
     Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
-        $base = 'id,userPrincipalName,displayName,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
+        $base = 'id,userPrincipalName,displayName,givenName,surname,mail,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
         $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
         # Which service plans each enabled user actually has: a licence's plans minus the ones switched off for that
         # user, so a feature bought but disabled for most people shows as partial. Counts only, from the SKU file.
@@ -239,7 +248,7 @@ function Invoke-PostureEntraCollection {
                         $last = $(if ($sia) { $sia['lastSignInDateTime'] } else { $null })
                         $licences = $(if ($u.ContainsKey('assignedLicenses')) { @($u['assignedLicenses']).Count } else { 0 })
                         $row = [ordered]@{
-                            Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
+                            Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; GivenName = $u['givenName']; Surname = $u['surname']; Mail = $u['mail']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
                             OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
                             CompanyName = $u['companyName']; UsageLocation = $u['usageLocation']; CreationType = $u['creationType']; ExternalUserState = $u['externalUserState']
                             LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })

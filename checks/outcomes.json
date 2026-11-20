@@ -1,10 +1,107 @@
 {
   "description": "Outcomes: what a board asks about, each scored like the posture score (weighted pass rate) over the catalog checks named here, with a sparkline across earlier runs. A check can count towards more than one outcome.",
   "outcomes": [
-    { "id": "OC-001", "name": "Ransomware Readiness", "what": "Malware stopped on devices, credentials hard to steal, a way back if it lands.", "checks": ["EP-005", "EP-006", "EP-008", "EP-019", "EP-021", "EP-024", "DEV-005", "DEV-011", "CA-001", "CA-002", "OP-002"] },
-    { "id": "OC-002", "name": "Identity Hygiene", "what": "Few, separate, phishing-resistant administrators; every account able to answer MFA; stale access removed.", "checks": ["ID-001", "ID-002", "ID-003", "ID-004", "ID-005", "ID-006", "ID-012", "AU-006", "AU-008", "CA-003", "GV-001", "GV-002"] },
-    { "id": "OC-003", "name": "Data Exposure", "what": "Sharing tightened, sensitive content labelled, loss prevented.", "checks": ["CL-001", "CL-002", "CL-003", "CL-005", "CL-015", "PV-002", "PV-004", "PV-005"] },
-    { "id": "OC-004", "name": "Email Defence", "what": "Spoofing refused, phishing filtered and detonated, nothing forwarded out.", "checks": ["EM-001", "EM-002", "EM-003", "EM-004", "EM-005", "EM-006", "EM-008", "EM-012", "EM-013", "EM-014", "EM-016"] },
-    { "id": "OC-005", "name": "Copilot Readiness", "what": "Oversharing found and closed before Copilot can surface it.", "checks": ["CP-001", "CP-003", "CP-004", "CP-006", "CP-007", "CP-013", "CL-015"] }
+    {
+      "id": "OC-001",
+      "name": "Ransomware Readiness",
+      "what": "Malware stopped on devices, credentials hard to steal, a way back if it lands.",
+      "checks": [
+        "EP-005",
+        "EP-006",
+        "EP-008",
+        "EP-019",
+        "EP-021",
+        "EP-024",
+        "DEV-005",
+        "DEV-011",
+        "CA-001",
+        "CA-002",
+        "OP-002"
+      ]
+    },
+    {
+      "id": "OC-002",
+      "name": "Identity Hygiene",
+      "what": "Few, separate, phishing-resistant administrators; every account able to answer MFA; stale access removed.",
+      "checks": [
+        "ID-001",
+        "ID-002",
+        "ID-003",
+        "ID-004",
+        "ID-005",
+        "ID-006",
+        "ID-012",
+        "AU-006",
+        "AU-008",
+        "CA-003",
+        "GV-001",
+        "GV-002"
+      ]
+    },
+    {
+      "id": "OC-003",
+      "name": "Data Exposure",
+      "what": "Sharing tightened, sensitive content labelled, loss prevented.",
+      "checks": [
+        "CL-001",
+        "CL-002",
+        "CL-003",
+        "CL-005",
+        "CL-015",
+        "PV-002",
+        "PV-004",
+        "PV-005"
+      ]
+    },
+    {
+      "id": "OC-004",
+      "name": "Email Defence",
+      "what": "Spoofing refused, phishing filtered and detonated, nothing forwarded out.",
+      "checks": [
+        "EM-001",
+        "EM-002",
+        "EM-003",
+        "EM-004",
+        "EM-005",
+        "EM-006",
+        "EM-008",
+        "EM-012",
+        "EM-013",
+        "EM-014",
+        "EM-016"
+      ]
+    },
+    {
+      "id": "OC-005",
+      "name": "Copilot Readiness",
+      "what": "Oversharing found and closed before Copilot can surface it.",
+      "checks": [
+        "CP-001",
+        "CP-003",
+        "CP-004",
+        "CP-006",
+        "CP-007",
+        "CP-013",
+        "CL-015"
+      ]
+    },
+    {
+      "id": "OC-006",
+      "name": "User Experience",
+      "what": "People sign in without friction, get a ready device and find their files where they left them.",
+      "checks": [
+        "EP-012",
+        "EP-017",
+        "UX-001",
+        "UX-002",
+        "UX-003",
+        "UX-004",
+        "UX-006",
+        "UX-007",
+        "UX-008",
+        "UX-009",
+        "UX-010"
+      ]
+    }
   ]
 }
