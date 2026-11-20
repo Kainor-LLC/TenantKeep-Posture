@@ -46,6 +46,8 @@ function ConvertTo-PostureRedactedReport {
             if ($n -and -not $map.Contains($n)) { & $add $n 'object' }
         }
     }
+    # Site names on the overexposure chart (from the SharePoint Advanced Management import) are the tenant's own.
+    if ($Report.Contains('charts') -and $Report.charts -and $Report.charts.Contains('topExposed')) { foreach ($s in @($Report.charts.topExposed.sites)) { & $add ([string]$s.name) 'site' } }
     # Longest first, so a name inside an email or an address inside a longer one is replaced as a whole.
     foreach ($value in @($map.Keys | Sort-Object { - $_.Length })) {
         $escaped = (ConvertTo-Json -InputObject ([string]$value) -Compress).Trim('"')

@@ -150,5 +150,35 @@ Describe 'Report charts' {
         }
         finally { if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
     }
+
+    It 'draws a heatmap with every count printed and the darkest cell for the largest, and a sparkline only with two points' {
+        InModuleScope TenantKeep.Posture {
+            $hm = ConvertTo-PostureHeatmap -Row 'Confidential', 'No label' -Column 'Org', 'Anyone' -Cell @{ 'Confidential|Anyone' = 2; 'No label|Org' = 10 }
+            ([regex]::Matches($hm, '<td class="hm')).Count | Should -Be 4 -Because 'a cell with nothing still shows 0'
+            $hm | Should -Match 'class="hm dark" style="--hm:90%"[^>]*>10<'
+            $hm | Should -Match 'title="Confidential, Anyone: 2">2<'
+            ConvertTo-PostureSparkline -Value 50, 62, 70 | Should -Match '<path d="M'
+            ConvertTo-PostureSparkline -Value 50 | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'builds the sensitivity heatmap from the site list and the most exposed sites from an imported report' {
+        $ev = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-exposure-$([guid]::NewGuid().ToString('n'))"
+        New-Item -ItemType Directory -Path $ev | Out-Null
+        try {
+            '[ { "Title": "Board", "SensitivityLabel": "g1", "SharingCapability": "ExternalUserAndGuestSharing" }, { "Title": "Team", "SensitivityLabel": "", "SharingCapability": "Disabled" }, { "Title": "OD", "IsOneDrive": true, "SensitivityLabel": "", "SharingCapability": "ExternalUserAndGuestSharing" } ]' | Set-Content (Join-Path $ev 'spo-sites.json')
+            '[ { "Guid": "g1", "DisplayName": "Highly Confidential" } ]' | Set-Content (Join-Path $ev 'pv-01-sensitivity-labels.json')
+            '{ "exposedSites": 2, "top": [ { "url": "https://contoso.sharepoint.com/sites/board", "name": "Board Papers", "anyone": 3, "org": 1, "eeeu": 0, "everyone": 0 }, { "url": "https://contoso.sharepoint.com/sites/x", "name": "", "anyone": 0, "org": 0, "eeeu": 2, "everyone": 0 } ] }' | Set-Content (Join-Path $ev 'spo-dag-site-permissions.json')
+            $d = InModuleScope TenantKeep.Posture -Parameters @{ Ev = $ev } { param($Ev) Clear-PostureEvidenceCache; Get-PostureChartData -Evidence $Ev }
+            @($d.sensitivityExposure.rows) | Should -Be @('Highly Confidential', 'No label')
+            $d.sensitivityExposure.cells['Highly Confidential|Anyone'] | Should -Be 1
+            $d.sensitivityExposure.takeaway | Should -Be '1 labelled site(s) allow Anyone links; 1 site(s) carry no label.' -Because 'OneDrive is left out'
+            $d.topExposed.sites[0].name | Should -Be 'Board Papers'
+            $d.topExposed.sites[1].name | Should -Be 'https://contoso.sharepoint.com/sites/x' -Because 'a site without a name shows its address'
+            $red = InModuleScope TenantKeep.Posture -Parameters @{ D = $d } { param($D) (ConvertTo-PostureRedactedReport -Report @{ charts = $D; results = @(); catalogText = @{}; admins = @(); tenantId = $null; tenantName = $null; clientName = $null }).report }
+            ($red | ConvertTo-Json -Depth 20) | Should -Not -Match 'Board Papers' -Because 'site names are the tenant''s own'
+        }
+        finally { Remove-Item -LiteralPath $ev -Recurse -Force }
+    }
 }
 

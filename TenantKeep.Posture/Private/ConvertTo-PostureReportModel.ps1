@@ -288,7 +288,9 @@ function ConvertTo-PostureReportModel {
     $effortRank = @{ S = 1; M = 2; L = 3 }
     $topFive = @($recommendations.Values | ForEach-Object { $_ } | Select-Object -First 5)
     $projected = $(if ($possible -gt 0) { [Math]::Round(100.0 * ($earned + [double](@($topFive | ForEach-Object { $w = $weight[[string]$_.severity]; if ($w) { $w } else { 1 } }) + 0 | Measure-Object -Sum).Sum) / $possible) } else { $null })
-    $history = @(@($(try { Get-PostureScoreHistory -Run $Evidence } catch { @() })) + @($(if ($null -ne $score) { [ordered]@{ label = 'now'; value = $score } })))
+    $earlierRuns = @($(try { Get-PostureScoreHistory -Run $Evidence } catch { @() }))
+    $history = @(@($earlierRuns | ForEach-Object { [ordered]@{ label = $_.label; value = $_.value } }) + @($(if ($null -ne $score) { [ordered]@{ label = 'now'; value = $score } })))
+    $outcomes = @(Get-PostureOutcomeResult -Catalog $Catalog -Result @($results) -History $earlierRuns)
     $impactOf = { param($x) if ($x.userImpact) { [string]$x.userImpact['level'] } else { 'unknown' } }
     $failingRecs = @($recommendations.Values | ForEach-Object { $_ })
     $quickWins = [ordered]@{}
@@ -320,7 +322,7 @@ function ConvertTo-PostureReportModel {
         foreach ($e in @($Exception)) { $k = $(if (-not $e.expires) { 'No expiry' } elseif ($e.expired -or $e.expires -lt $now) { 'Expired' } elseif ($e.expires -lt $now.AddDays(30)) { 'Within 30 days' } elseif ($e.expires -lt $now.AddDays(90)) { 'Within 90 days' } else { 'Later' }); $bucket[$k]++ }
         $ledger = [ordered]@{ buckets = $bucket; total = @($Exception).Count }
     }
-    $story = [ordered]@{ projected = $projected; history = $history; quickWins = $quickWins; roadmap = $roadmap; funnel = $funnel; ledger = $ledger }
+    $story = [ordered]@{ projected = $projected; history = $history; outcomes = $outcomes; quickWins = $quickWins; roadmap = $roadmap; funnel = $funnel; ledger = $ledger }
 
     $catalogText = [ordered]@{}
     foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }

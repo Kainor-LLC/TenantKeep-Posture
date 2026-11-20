@@ -85,6 +85,23 @@ function Invoke-PostureDefenderCollection {
         & $saveOne ([ordered]@{ Active = $rows.Count; OpenOver7Days = @($rows | Where-Object { $d = ConvertTo-PostureUtcDateTime $_.CreatedDateTime; $d -and $d -lt $week }).Count; OpenOver7DaysUnassigned = @($rows | Where-Object { -not $_.AssignedTo } | Where-Object { $d = ConvertTo-PostureUtcDateTime $_.CreatedDateTime; $d -and $d -lt $week }).Count; BySeverity = (& $group $rows @('Severity')) }) 'def-05-incidents-summary'
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Defender incident trend' -Folder $Folder -Script {
+        # Every incident created in the last 90 days, counted by week (starting Monday) and severity; only the two
+        # fields the count needs are read, and nothing per incident is written.
+        $since = $AsOf.ToUniversalTime().Date.AddDays(-90)
+        $all = & $get "security/incidents?`$filter=createdDateTime ge $($since.ToString('yyyy-MM-ddTHH:mm:ssZ'))&`$select=createdDateTime,severity&`$top=50"
+        $weeks = [ordered]@{}
+        for ($d = $since.AddDays(-(([int]$since.DayOfWeek + 6) % 7)); $d -le $AsOf.ToUniversalTime(); $d = $d.AddDays(7)) { $weeks[$d.ToString('yyyy-MM-dd')] = [ordered]@{ WeekStart = $d.ToString('yyyy-MM-dd'); High = 0; Medium = 0; Low = 0; Informational = 0; Total = 0 } }
+        foreach ($i in $all) {
+            $c = ConvertTo-PostureUtcDateTime (& $v $i 'createdDateTime'); if (-not $c) { continue }
+            $ws = $c.Date.AddDays(-(([int]$c.DayOfWeek + 6) % 7)).ToString('yyyy-MM-dd')
+            if (-not $weeks.Contains($ws)) { continue }
+            $sev = switch ([string](& $v $i 'severity')) { 'high' { 'High' } 'medium' { 'Medium' } 'low' { 'Low' } default { 'Informational' } }
+            $weeks[$ws][$sev]++; $weeks[$ws].Total++
+        }
+        & $saveOne ([ordered]@{ Days = 90; Incidents = @($all).Count; Weeks = @($weeks.Values) }) 'def-05-incidents-weekly'
+    } | Out-Null
+
     Invoke-PostureStep -Label 'Secure Score' -Folder $Folder -Script {
         # SecurityEvents.Read.All. The latest score plus the control profiles (spec 4.12); Microsoft's numbers are reported, never the grade.
         $scores = @(& $get 'security/secureScores?$top=1')   # @( ) outside the call: a one-element array unrolls on return

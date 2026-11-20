@@ -115,7 +115,7 @@ BeforeAll {
                 }
                 break
             }
-            '^security/incidents' { & $u @(@{ id = 'i1'; displayName = 'Suspicious sign-in'; severity = 'medium'; status = 'active'; assignedTo = $null; createdDateTime = '2026-09-20T00:00:00Z' }, @{ id = 'i2'; displayName = 'Malware'; severity = 'high'; status = 'active'; assignedTo = 'soc@contoso.example'; createdDateTime = '2026-09-01T00:00:00Z' }); break }
+            '^security/incidents' { & $u @(@{ id = 'i1'; displayName = 'Suspicious sign-in'; severity = 'medium'; status = 'active'; assignedTo = $null; createdDateTime = [datetime]::UtcNow.AddDays(-20).ToString('yyyy-MM-ddTHH:mm:ssZ') }, @{ id = 'i2'; displayName = 'Malware'; severity = 'high'; status = 'active'; assignedTo = 'soc@contoso.example'; createdDateTime = [datetime]::UtcNow.AddDays(-40).ToString('yyyy-MM-ddTHH:mm:ssZ') }); break }
             '^security/secureScores' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-13T00:00:00Z'; currentScore = 412.5; maxScore = 900; licensedUserCount = 12; activeUserCount = 10; averageComparativeScores = @(@{ basis = 'AllTenants'; averageScore = 390 }); controlScores = @(@{ controlCategory = 'Identity'; score = 200 }, @{ controlCategory = 'Device'; score = 100 }, @{ controlCategory = 'Identity'; score = 12.5 }) }); break }
             '^security/secureScoreControlProfiles' { & $u @(@{ id = 'MFARegistrationV2'; title = 'Ensure all users can complete MFA'; controlCategory = 'Identity'; maxScore = 9; implementationCost = 'Low'; userImpact = 'Low'; actionType = 'Config'; tier = 'Core'; rank = 1; deprecated = $false; controlStateUpdates = @(@{ state = 'Default' }, @{ state = 'ThirdParty' }); remediation = 'Register everyone.' }, @{ id = 'Old'; title = 'Retired'; deprecated = $true; controlStateUpdates = @() }); break }
             '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
@@ -314,6 +314,11 @@ Describe 'Invoke-PostureCollection' {
             @(& $script:Read 'def-03-secure-config' | Where-Object { $_.ConfigurationId -eq 'scid-1' })[0].CompliantPct | Should -Be 50
             (& $script:Read 'def-04-vulnerabilities-summary').CriticalCvesOver30d | Should -Be 1
             (& $script:Read 'def-05-incidents-summary').OpenOver7DaysUnassigned | Should -Be 1
+            $wk = & $script:Read 'def-05-incidents-weekly'
+            $wk.Incidents | Should -Be 2
+            [int](@($wk.Weeks | ForEach-Object { $_.Medium }) | Measure-Object -Sum).Sum | Should -Be 1
+            [int](@($wk.Weeks | ForEach-Object { $_.High }) | Measure-Object -Sum).Sum | Should -Be 1
+            @($wk.Weeks | Where-Object { ([datetime]$_.WeekStart).DayOfWeek -ne 'Monday' }).Count | Should -Be 0 -Because 'weeks start on Monday'
             $ss = & $script:Read 'def-06-secure-score'
             $ss.CurrentScore | Should -Be 412.5
             $ss.ByCategory.Identity | Should -Be 212.5

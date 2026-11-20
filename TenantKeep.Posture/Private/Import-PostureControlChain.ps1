@@ -143,3 +143,46 @@ function Get-PostureLayerSetResult {
     }
     return @($out)
 }
+
+function Get-PostureOutcomeResult {
+    <#
+    .SYNOPSIS
+        checks/outcomes.json judged against a run: each outcome's weighted pass rate over its evaluated checks, the
+        failing ones, and the same score for each earlier run in -History (Get-PostureScoreHistory) for a sparkline.
+        Every check named must be in the catalog. An outcome with nothing evaluated is left out.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Catalog,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Result,
+        [object[]] $History = @()
+    )
+
+    $ErrorActionPreference = 'Stop'
+    if (-not $Catalog.Contains('path') -or -not $Catalog['path']) { return @() }
+    $path = Join-Path ([string]$Catalog['path']) 'outcomes.json'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return @() }
+    $doc = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 10
+    $known = @{}; foreach ($c in $Catalog.checks) { $known[[string]$c['id']] = $true }
+    $weight = @{ Critical = 4; High = 3; Medium = 2; Low = 1 }
+    $scoreOf = {
+        param([string[]] $Ids, $Lookup)
+        $e = 0; $p = 0
+        foreach ($id in $Ids) { $x = $Lookup[$id]; if (-not $x -or [string]$x.status -notin 'pass', 'fail', 'acceptedRisk') { continue }; $w = $weight[[string]$x.severity]; if (-not $w) { $w = 1 }; $p += $w; if ([string]$x.status -ne 'fail') { $e += $w } }
+        if ($p -gt 0) { [Math]::Round(100.0 * $e / $p) } else { $null }
+    }
+    $now = @{}; foreach ($r in $Result) { $now[[string]$r.id] = @{ status = [string]$r.status; severity = [string]$r.severity; title = [string]$r.title } }
+    $out = foreach ($o in @($doc['outcomes'])) {
+        foreach ($c in @($o['checks'])) { if (-not $known.ContainsKey([string]$c)) { throw "outcomes.json: $($o['id']) names '$c', which is not in the catalog" } }
+        $ids = @($o['checks'] | ForEach-Object { [string]$_ })
+        $score = & $scoreOf $ids $now
+        if ($null -eq $score) { continue }
+        $trend = @(@($History | ForEach-Object { if ($_.Contains('results')) { & $scoreOf $ids $_.results } }) | Where-Object { $null -ne $_ }) + @($score)
+        [ordered]@{
+            id = [string]$o['id']; name = [string]$o['name']; what = [string]$o['what']; score = $score; trend = @($trend)
+            failing = @($ids | Where-Object { $now.ContainsKey($_) -and $now[$_].status -eq 'fail' } | ForEach-Object { [ordered]@{ id = $_; title = $now[$_].title } })
+        }
+    }
+    return @($out)
+}

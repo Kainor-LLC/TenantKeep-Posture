@@ -334,3 +334,49 @@ function ConvertTo-PostureScoreRing {
     $side = '<ul class="ring-facts"><li><strong>' + (& $h $deltaText) + '</strong></li><li>Target ' + $Target + '</li>' + $(if ($null -ne $Projected -and [double]$Projected -gt $v) { '<li>' + [int]$Projected + ' with the top five fixes</li>' }) + '</ul>'
     return '<div class="scorering-wrap"><svg class="scorering" viewBox="0 0 140 140" role="img" aria-label="' + $aria + '">' + $parts.ToString() + '</svg>' + $side + '</div>'
 }
+
+function ConvertTo-PostureHeatmap {
+    <#
+    .SYNOPSIS
+        A grid of counts: one hue, darker for more, the count printed in every cell (so the shade is never the only
+        way to read it), and a table twin. Cell keys are "row|column".
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string[]] $Row,
+        [Parameter(Mandatory)] [string[]] $Column,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Cell,
+        [string] $Name = 'heatmap'
+    )
+    $h = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
+    $val = { param($r, $c) if ($Cell.Contains("$r|$c")) { [double]$Cell["$r|$c"] } else { 0 } }
+    $max = [double](@($Cell.Values | ForEach-Object { [double]$_ }) + 0 | Measure-Object -Maximum).Maximum
+    $head = '<tr><th></th>' + (@($Column | ForEach-Object { '<th>' + (& $h $_) + '</th>' }) -join '') + '</tr>'
+    $body = @($Row | ForEach-Object {
+            $r = $_
+            '<tr><th>' + (& $h $r) + '</th>' + (@($Column | ForEach-Object {
+                        $n = & $val $r $_
+                        $pct = $(if ($max -gt 0 -and $n -gt 0) { [int](15 + 75 * $n / $max) } else { 0 })
+                        '<td class="hm' + $(if ($pct -ge 55) { ' dark' }) + '" style="--hm:' + $pct + '%" title="' + (& $h "$r, $($_): $n") + '">' + (Format-PostureChartNumber $n) + '</td>'
+                    }) -join '') + '</tr>'
+        }) -join ''
+    $table = ConvertTo-PostureChartTable -Header (@('Row') + $Column) -Row @($Row | ForEach-Object { $r = $_; , (@($r) + @($Column | ForEach-Object { & $val $r $_ })) })
+    return '<div class="scroll"><table class="heatmap" aria-label="' + (& $h $Name) + '"><thead>' + $head + '</thead><tbody>' + $body + '</tbody></table></div>' + $table
+}
+
+function ConvertTo-PostureSparkline {
+    <#
+    .SYNOPSIS
+        A word-sized line of a series, no axes, the last point marked: for outcome cards. Fewer than two points draw
+        nothing.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [AllowEmptyCollection()] [double[]] $Value, [string] $Name = 'trend')
+    if ($Value.Count -lt 2) { return '' }
+    $w = 110; $ht = 30; $max = [Math]::Max(1, ($Value | Measure-Object -Maximum).Maximum); $min = [Math]::Min(0, ($Value | Measure-Object -Minimum).Minimum)
+    $pt = for ($i = 0; $i -lt $Value.Count; $i++) { @((2 + ($w - 4) * $i / ($Value.Count - 1)), (($ht - 3) - (($ht - 6) * ($Value[$i] - $min) / [Math]::Max(1, $max - $min)))) }
+    $d = @(for ($i = 0; $i -lt $Value.Count; $i++) { '{0}{1:0.#},{2:0.#}' -f $(if ($i) { 'L' } else { 'M' }), $pt[2 * $i], $pt[2 * $i + 1] }) -join ' '
+    return '<svg class="sparkline" viewBox="0 0 ' + $w + ' ' + $ht + '" role="img" aria-label="' + [System.Net.WebUtility]::HtmlEncode("$Name, last $($Value.Count) runs: $($Value -join ', ')") + '"><path d="' + $d + '"/><circle cx="' + ('{0:0.#}' -f $pt[-2]) + '" cy="' + ('{0:0.#}' -f $pt[-1]) + '" r="3"/></svg>'
+}

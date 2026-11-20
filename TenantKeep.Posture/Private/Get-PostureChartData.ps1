@@ -224,6 +224,35 @@ function Get-PostureChartData {
         $order = @('Anyone', 'New and existing guests', 'Existing guests', 'Only people in the organisation')
         $out.siteSharing = [ordered]@{ item = @(@($order | Where-Object { $sc.ContainsKey($_) }) + @($sc.Keys | Where-Object { $_ -notin $order }) | ForEach-Object { [ordered]@{ label = $_; value = $sc[$_]; tone = $(if ($_ -eq 'Anyone') { 'err' } elseif ($_ -eq 'New and existing guests') { 'warn' } else { 'c1' }) } }); takeaway = "$(if ($sc.ContainsKey('Anyone')) { $sc['Anyone'] } else { 0 }) site(s) allow Anyone links." }
     }
+    $iw = & $load 'def-05-incidents-weekly'
+    if ($iw -and @(& $v $iw 'Weeks').Count -ge 2) {
+        $wk = @(& $v $iw 'Weeks' | Where-Object { $_ })
+        $high = [int](@($wk | ForEach-Object { [int](& $v $_ 'High') }) | Measure-Object -Sum).Sum
+        $out.incidentsWeekly = [ordered]@{ point = @($wk | ForEach-Object { [ordered]@{ label = ([string](& $v $_ 'WeekStart')).Substring(5); value = [double](& $v $_ 'Total') } }); takeaway = "$(& $num (& $v $iw 'Incidents')) incident(s) in the last 90 days, $high of them high severity." }
+    }
+    # Sensitivity against exposure: sites by label (rows) and sharing level (columns). Labelled content open to
+    # Anyone is the corner to look at first.
+    if ($null -ne $sites -and @($sites | Where-Object { $_ }).Count) {
+        $labelName = @{}; foreach ($l in @(& $load 'pv-01-sensitivity-labels' | Where-Object { $_ })) { $labelName[[string](& $v $l 'Guid')] = [string]$(if (& $v $l 'DisplayName') { & $v $l 'DisplayName' } else { & $v $l 'Name' }) }
+        $levels = @('Only people in the organisation', 'Existing guests', 'New and existing guests', 'Anyone')
+        $levelOf = @{ Disabled = 'Only people in the organisation'; ExistingExternalUserSharingOnly = 'Existing guests'; ExternalUserSharingOnly = 'New and existing guests'; ExternalUserAndGuestSharing = 'Anyone' }
+        $cells = @{}; $rowsSeen = [ordered]@{}
+        foreach ($st in @($sites | Where-Object { $_ -and (& $v $_ 'IsOneDrive') -ne $true })) {
+            $lab = [string](& $v $st 'SensitivityLabel'); $lab = $(if (-not $lab) { 'No label' } elseif ($labelName.ContainsKey($lab)) { $labelName[$lab] } else { 'Label ' + $lab.Substring(0, [Math]::Min(8, $lab.Length)) })
+            $lev = $levelOf[[string](& $v $st 'SharingCapability')]; if (-not $lev) { continue }
+            $rowsSeen[$lab] = $true; $cells["$lab|$lev"] = 1 + $(if ($cells.ContainsKey("$lab|$lev")) { $cells["$lab|$lev"] } else { 0 })
+        }
+        if ($rowsSeen.Count) {
+            $labelledAnyone = [int](@($rowsSeen.Keys | Where-Object { $_ -ne 'No label' } | ForEach-Object { if ($cells.ContainsKey("$_|Anyone")) { $cells["$_|Anyone"] } else { 0 } }) + 0 | Measure-Object -Sum).Sum
+            $unlabelled = [int](@($levels | ForEach-Object { if ($cells.ContainsKey("No label|$_")) { $cells["No label|$_"] } else { 0 } }) | Measure-Object -Sum).Sum
+            $out.sensitivityExposure = [ordered]@{ rows = @(@($rowsSeen.Keys | Where-Object { $_ -ne 'No label' } | Sort-Object) + @($(if ($rowsSeen.Contains('No label')) { 'No label' }))); columns = $levels; cells = $cells; takeaway = "$labelledAnyone labelled site(s) allow Anyone links; $unlabelled site(s) carry no label." }
+        }
+    }
+    # The most exposed sites, from the SharePoint Advanced Management report when one has been imported.
+    $dag = & $load 'spo-dag-site-permissions'
+    if ($dag -and @(& $v $dag 'top').Count) {
+        $out.topExposed = [ordered]@{ sites = @(& $v $dag 'top' | Where-Object { $_ } | Select-Object -First 15 | ForEach-Object { [ordered]@{ name = [string]$(if (& $v $_ 'name') { & $v $_ 'name' } else { & $v $_ 'url' }); anyone = [int](& $v $_ 'anyone'); org = [int](& $v $_ 'org'); eeeu = [int](& $v $_ 'eeeu'); everyone = [int](& $v $_ 'everyone') } }); takeaway = "$(& $num (& $v $dag 'exposedSites')) site(s) shared with Anyone links, organisation-wide links or Everyone; the most exposed first." }
+    }
     $dlp = & $load 'pv-02-dlp-policies'
     if ($null -ne $dlp -and @($dlp | Where-Object { $_ }).Count) {
         $modeLabel = @{ Enable = 'Enforced'; TestWithNotifications = 'Simulation with tips'; TestWithoutNotifications = 'Simulation'; Disable = 'Off' }

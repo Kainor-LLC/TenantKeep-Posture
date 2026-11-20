@@ -93,3 +93,20 @@ Describe 'Defence in depth layers' {
     }
 }
 
+Describe 'Outcomes' {
+    It 'scores each shipped outcome over its checks, with a trend from earlier runs, and leaves out what was not evaluated' {
+        InModuleScope TenantKeep.Posture {
+            $cat = Import-PostureCheckCatalog
+            $res = @(@{ id = 'EP-005'; status = 'pass'; severity = 'High'; title = 'AV' }, @{ id = 'CA-002'; status = 'fail'; severity = 'Critical'; title = 'MFA' }, @{ id = 'ID-001'; status = 'notEvaluated'; severity = 'High'; title = 'GA' })
+            $hist = @(@{ label = '2026-10-01'; value = 40; results = @{ 'EP-005' = @{ status = 'fail'; severity = 'High' }; 'CA-002' = @{ status = 'fail'; severity = 'Critical' } } })
+            $o = @(Get-PostureOutcomeResult -Catalog $cat -Result $res -History $hist)
+            $rw = $o | Where-Object id -EQ 'OC-001'
+            $rw.score | Should -Be 43 -Because 'High 3 passes of High 3 plus Critical 4'
+            @($rw.trend) | Should -Be @(0, 43)
+            $rw.failing.id | Should -Be @('CA-002')
+            @($o.id) | Should -Not -Contain 'OC-002' -Because 'identity hygiene had nothing evaluated'
+        }
+        Get-Content -Raw (Join-Path $PSScriptRoot '..' 'checks' 'outcomes.json') | Should -Not -Match ([char]0x2014)
+    }
+}
+

@@ -215,7 +215,9 @@ function Get-PostureScoreHistory {
         if (-not $doc -or -not $doc.Contains('results')) { continue }
         $e = 0; $p = 0
         foreach ($x in @($doc['results'] | Where-Object { $_ -and [string]$_['status'] -in 'pass', 'fail', 'acceptedRisk' })) { $w = $weight[[string]$x['severity']]; if (-not $w) { $w = 1 }; $p += $w; if ([string]$x['status'] -ne 'fail') { $e += $w } }
-        if ($p -gt 0) { [ordered]@{ label = $(if ($r.started) { ([datetime]$r.started).ToString('yyyy-MM-dd') } else { Split-Path $r.path -Leaf }); value = [Math]::Round(100.0 * $e / $p) } }
+        # The results ride along (id, status, severity) so outcome scores can be worked out per run too.
+        $slim = @{}; foreach ($x in @($doc['results'] | Where-Object { $_ })) { $slim[[string]$x['id']] = @{ status = [string]$x['status']; severity = [string]$x['severity'] } }
+        if ($p -gt 0) { [ordered]@{ label = $(if ($r.started) { ([datetime]$r.started).ToString('yyyy-MM-dd') } else { Split-Path $r.path -Leaf }); value = [Math]::Round(100.0 * $e / $p); results = $slim } }
     }
     return @(@($points) | Sort-Object { $_.label })
 }

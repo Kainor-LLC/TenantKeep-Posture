@@ -110,6 +110,16 @@ function ConvertTo-PostureReportHtml {
     if ($st.Contains('funnel') -and $st.funnel) { $storyCards += ConvertTo-PostureChartCard -Title 'Attack Path: Phishing to Admin' -Takeaway $st.funnel.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureRankedBarChart -Name 'Attack path' -KeepOrder -Item @($st.funnel.steps | ForEach-Object { [ordered]@{ label = $_.label; value = $_.value; tone = 'err' } })) }
     if ($st.Contains('ledger') -and $st.ledger) { $storyCards += ConvertTo-PostureChartCard -Title 'Accepted Risks by Expiry' -Takeaway "$($st.ledger.total) accepted risk(s); $($st.ledger.buckets['Expired']) expired and $($st.ledger.buckets['Within 30 days']) expire within 30 days." -Body (ConvertTo-PostureRankedBarChart -Name 'Accepted risks by expiry' -KeepOrder -Item @($st.ledger.buckets.Keys | ForEach-Object { [ordered]@{ label = $_; value = $st.ledger.buckets[$_]; tone = $(if ($_ -eq 'Expired') { 'err' } elseif ($_ -eq 'Within 30 days') { 'warn' } else { 'c1' }) } })) }
     & $w ('<div class="charts">' + ($storyCards -join '') + '</div>')
+    # Outcomes a board asks about, each a score with its trend across runs.
+    if ($st.Contains('outcomes') -and @($st.outcomes).Count) {
+        $oc = @($st.outcomes | ForEach-Object {
+                $tone = $(if ($_.score -ge 80) { 'ok' } elseif ($_.score -ge 60) { 'warn' } else { 'err' })
+                $prev = $(if (@($_.trend).Count -ge 2) { @($_.trend)[-2] } else { $null })
+                $chg = $(if ($null -eq $prev) { '' } elseif ($_.score -gt $prev) { "+$($_.score - $prev) since the last run" } elseif ($_.score -lt $prev) { "$($_.score - $prev) since the last run" } else { 'no change since the last run' })
+                '<div class="outcome"><div class="outcome-head"><span class="outcome-name">' + (& $h $_.name) + '</span><span class="status-dot t-' + $tone + '" aria-hidden="true">' + $(if ($tone -eq 'ok') { [string][char]0x2713 } elseif ($tone -eq 'warn') { '!' } else { [string][char]0x2715 }) + '</span></div><div class="outcome-score"><span class="n">' + $_.score + '</span><span class="muted">of 100, target 80</span>' + (ConvertTo-PostureSparkline -Name $_.name -Value @($_.trend)) + '</div><p class="hint">' + (& $h $_.what) + '</p><p class="hint">' + $(if (@($_.failing).Count) { @($_.failing).Count.ToString() + ' failing: ' + (@($_.failing | Select-Object -First 4 | ForEach-Object { '<a href="#rec-' + (& $h $_.id) + '">' + (& $h $_.id) + '</a>' }) -join ', ') } else { 'Every check passes.' }) + $(if ($chg) { ' <span class="muted">' + (& $h $chg) + '</span>' }) + '</p></div>'
+            }) -join ''
+        & $w ('<h3>Outcomes</h3><div class="outcomes">' + $oc + '</div>')
+    }
     # Header tiles and a passed-of-evaluated row per domain, each a link into its checks.
     $ch = $(if ($r.Contains('charts') -and $r.charts) { $r.charts } else { [ordered]@{} })
     if ($ch.Contains('tiles') -and @($ch.tiles).Count) {
@@ -194,6 +204,7 @@ function ConvertTo-PostureReportHtml {
     $areas.Devices += & $rank 'Last Check-in' 'checkIn' 'devices' -Keep
     if ($ch.Contains('asr')) { $areas.Endpoint += ConvertTo-PostureChartCard -Title 'Attack Surface Reduction Rules' -Takeaway $ch.asr.takeaway -ViewAllDomain 'endpoint' -Body (ConvertTo-PostureBarChart -Name 'ASR rules by mode' -Segment $ch.asr.segment) }
     $areas.Endpoint += & $rank 'Critical Vulnerabilities' 'vulnerabilities' 'endpoint' -Keep
+    if ($ch.Contains('incidentsWeekly')) { $areas.Endpoint += ConvertTo-PostureChartCard -Title 'Defender Incidents per Week' -Takeaway $ch.incidentsWeekly.takeaway -ViewAllDomain 'endpoint' -Body (ConvertTo-PostureLineChart -Name 'Defender incidents per week' -Point @($ch.incidentsWeekly.point)) }
     $mailSec = @($(if ($r.Contains('inventory')) { $r.inventory | Where-Object { $_.key -eq 'mail-domains' -and $_.total -gt 0 } }))
     if ($mailSec.Count) {
         $toneOf = { param([string] $col, [string] $val) switch -Regex ($val) { '^(on|hard fail.*|reject|published|Microsoft.*)$' { 'ok' } '^(soft fail.*|quarantine)$' { 'warn' } '^(not read)$' { 'na' } default { 'err' } } }
@@ -203,6 +214,12 @@ function ConvertTo-PostureReportHtml {
         $areas.Email += ConvertTo-PostureChartCard -Class 'wide' -Title 'Email Authentication by Domain' -Takeaway "$gaps custom domain(s) short of DKIM on, SPF hard fail and DMARC at quarantine or reject." -ViewAllDomain 'email' -Body $grid
     }
     $areas.'Collaboration and Data' += & $rank 'Sites by Sharing Level' 'siteSharing' 'collaboration' -Keep
+    if ($ch.Contains('sensitivityExposure')) { $se = $ch.sensitivityExposure; $areas.'Collaboration and Data' += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sensitivity Against Exposure' -Takeaway $se.takeaway -ViewAllDomain 'collaboration' -Body (ConvertTo-PostureHeatmap -Name 'Sites by sensitivity label and sharing level' -Row @($se.rows) -Column @($se.columns) -Cell $se.cells) }
+    if ($ch.Contains('topExposed')) {
+        $te = @($ch.topExposed.sites)
+        $body = '<div class="seats">' + (@($te | ForEach-Object { $tot = $_.anyone + $_.org + $_.eeeu + $_.everyone; '<div class="seat-row"><span class="seat-name">' + (& $h $_.name) + '</span><span class="seat-frac">' + $tot + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.name -Segment @(@{ label = 'Anyone links'; value = $_.anyone; tone = 'err' }, @{ label = 'Organisation-wide links'; value = $_.org; tone = 'warn' }, @{ label = 'Everyone except external users'; value = $_.eeeu; tone = 'c1' }, @{ label = 'Everyone'; value = $_.everyone; tone = 'c5' })) + '</div>' }) -join '') + '</div>' + (ConvertTo-PostureChartLegend -Item @(@{ label = 'Anyone links'; tone = 'err' }, @{ label = 'Organisation-wide links'; tone = 'warn' }, @{ label = 'Everyone except external users'; tone = 'c1' }, @{ label = 'Everyone'; tone = 'c5' })) + (ConvertTo-PostureChartTable -Header @('Site', 'Anyone links', 'Organisation-wide links', 'Everyone except external', 'Everyone') -Row @($te | ForEach-Object { , @($_.name, $_.anyone, $_.org, $_.eeeu, $_.everyone) }))
+        $areas.'Collaboration and Data' += ConvertTo-PostureChartCard -Class 'wide' -Title 'Most Exposed Sites' -Takeaway $ch.topExposed.takeaway -ViewAllDomain 'collaboration' -Body $body
+    }
     $areas.'Collaboration and Data' += & $rank 'DLP Policies by Mode' 'dlpModes' 'purview' -Keep
     $areas.Operations += & $rank 'Secure Score Against Averages' 'secureScore' 'operations' -Keep
     foreach ($a in @($areas.Keys)) { $areas[$a] = @($areas[$a] | Where-Object { $_ }) }

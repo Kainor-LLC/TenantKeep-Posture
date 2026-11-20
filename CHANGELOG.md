@@ -10,6 +10,12 @@ work landed on main.
   passed almost always; it now compares the tenant's percentage (verify the units against Graph). The sign-in read
   compared timestamps as culture text, which keyed days month first and could misorder a restart across a year end;
   it now uses ISO 8601.
+- Outcomes and exposure (2026-11-20): the overview shows five outcomes (ransomware readiness, identity hygiene, data
+  exposure, email defence, Copilot readiness), each a score over the checks checks/outcomes.json names, with a
+  sparkline across earlier runs and the failing checks. The Domains view adds Defender incidents per week (a new
+  90-day weekly tally, counts only, def-05-incidents-weekly.json), sensitivity against exposure (sites by label and
+  sharing level) and the most exposed sites from an imported SharePoint Advanced Management report; -Redact replaces
+  those site names.
 - More charts (2026-11-20): the Domains view adds privileged roles (permanent, activated, eligible), guests by last
   sign-in, risky users, sign-ins by day, country and error (in words), Windows builds, disk encryption, last
   check-in, attack surface reduction rules by mode, critical vulnerabilities, an email authentication grid per domain
