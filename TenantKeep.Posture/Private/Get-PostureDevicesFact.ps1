@@ -137,10 +137,28 @@ function Get-PostureDevicesFact {
 
     # Enrollment restrictions
     $restrict = & $load '09-intune-enrollment-restrictions'
-    if ($null -eq $restrict) { & $missing @('DEV-009') '09-intune-enrollment-restrictions' }
+    if ($null -eq $restrict) { & $missing @('DEV-009', 'DEV-016') '09-intune-enrollment-restrictions' }
     else {
         $facts.windowsPersonalEnrollmentBlocked = [bool](@($restrict | Where-Object { $_ -and ($_.Contains('windowsPersonalBlocked') -and $_.windowsPersonalBlocked -eq $true) }).Count -gt 0)
+        # DEV-016: personal phones and Macs enrol only when the profile's BYOD stance is full management.
+        $byod = $(if ($OrgProfile.Contains('byod')) { [string]$OrgProfile['byod'] } else { 'mam' })
+        $inScope = @($(if ($OrgProfile.Contains('platforms')) { $OrgProfile['platforms'] } else { @('iOS', 'android', 'macOS') }))
+        $open = @()
+        if ($byod -ne 'mdm') {
+            $default = @($restrict | Where-Object { $_ -and [string]$_.Type -eq 'deviceEnrollmentPlatformRestrictionsConfiguration' })
+            foreach ($pair in @(@('iOS', 'ios'), @('android', 'android'), @('macOS', 'macOS'))) {
+                if ($pair[0] -notin $inScope) { continue }
+                $key = "$($pair[1])PersonalBlocked"
+                if (@($default | Where-Object { $_.Contains($key) -and $_[$key] -eq $true }).Count -eq 0) { $open += [ordered]@{ name = $pair[0]; detail = "personal devices can enrol; the profile's BYOD stance is $byod" } }
+            }
+        }
+        $facts.personalPlatformsOpen = $open.Count
+        $affected.personalPlatformsOpen = $open
     }
+    # DEV-017: a device with no compliance policy counts as noncompliant, so CA-005 cannot be passed by omission.
+    $ims = & $load '09-intune-settings'
+    if ($null -eq $ims) { & $missing @('DEV-017') '09-intune-settings' }
+    else { $facts.noPolicyMeansNoncompliant = (& $v $ims 'SecureByDefault') -eq $true }
 
     # Endpoint security policies by template family, and LAPS
     $catalog = & $load '09-intune-config-profiles-settings-catalog'

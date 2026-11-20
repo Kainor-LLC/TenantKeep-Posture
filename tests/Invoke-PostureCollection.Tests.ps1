@@ -23,6 +23,7 @@ BeforeAll {
             '^admin/sharepoint/settings$' { @{ sharingCapability = 'externalUserSharingOnly'; isResharingByExternalUsersEnabled = $false }; break }
             '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
+            '^deviceManagement\?' { @{ settings = @{ secureByDefault = $false; deviceComplianceCheckinThresholdDays = 30; isScheduledActionEnabled = $true } }; break }
             '^groupSettings' { & $u @(@{ displayName = 'Password Rule Settings'; templateId = '5cf42378-d67d-4f36-ba46-e8b86229381d'; values = @(@{ name = 'EnableBannedPasswordCheck'; value = 'True' }, @{ name = 'BannedPasswordList'; value = "contoso`tcontosoltd`tseattle" }, @{ name = 'BannedPasswordCheckOnPremisesMode'; value = 'Audit' }) }); break }
             '^organization/[^/?]+/branding' { @{ backgroundImageRelativeUrl = 'bg.png'; bannerLogoRelativeUrl = 'logo.png'; signInPageText = 'Contoso staff only' }; break }
             '^deviceManagement/windowsAutopilotDeploymentProfiles' { & $u @(@{ id = 'ap1'; displayName = 'Standard'; '@odata.type' = '#microsoft.graph.azureADWindowsAutopilotDeploymentProfile'; deviceNameTemplate = 'CTS-%SERIAL%'; assignments = @(@{ id = 'a1' }) }); break }
@@ -458,7 +459,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 30
+            $r.results.Count | Should -Be 32
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
@@ -470,6 +471,7 @@ Describe 'Invoke-PostureCollection' {
             $d['DEV-013'].status | Should -Be 'pass'
             $d['DEV-015'].status | Should -Be 'fail' -Because 'the iOS policy does not ask Defender for a risk level'
             $d['DEV-015'].affected.name | Should -Be @('iOS')
+            $d['DEV-017'].status | Should -Be 'fail' -Because 'secureByDefault is off: a device with no policy reports compliant'
             $d['DEV-002'].status | Should -Be 'pass' -Because 'stale devices exist but the cleanup rule is on'
             $d['DEV-008'].status | Should -Be 'fail' -Because 'the push certificate expires within 60 days of the run'
             $rep = New-PostureReport -Evidence $script:R.Folder -OutputPath (Join-Path $script:Root 'rep') -Format Markdown -PassThru

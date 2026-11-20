@@ -592,6 +592,82 @@
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-016",
+      "domain": "devices",
+      "title": "Personal phones and Macs enrol only when the BYOD stance allows it",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-enrollment-restrictions.json"
+      ],
+      "pass": "facts.personalPlatformsOpen == 0",
+      "affected": "facts.personalPlatformsOpen",
+      "remediation": [
+        "In Intune, Devices, Enrollment, Device platform restriction, block personally owned devices for each platform listed in the default restriction.",
+        "Protect company data on personal phones with app protection policies instead (EP-018), which needs no enrollment.",
+        "If personal devices should enrol, set the profile's BYOD stance to mdm so this check agrees."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "People can no longer enrol a personal phone or Mac; they use app protection in Outlook and Teams on their own phone instead."
+      },
+      "learn": "https://learn.microsoft.com/intune/intune-service/enrollment/enrollment-restrictions-set",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesEnrollmentMenu/~/enrollmentRestrictions",
+      "narrative": "Enrolling a personal device gives the organisation management of hardware it does not own and the person a reason to object, while the device still counts as managed for Conditional Access. Where the stance is app protection, personal enrollment should be closed so the two do not mix.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-017",
+      "domain": "devices",
+      "title": "Devices with no compliance policy count as noncompliant",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-settings.json"
+      ],
+      "pass": "facts.noPolicyMeansNoncompliant",
+      "remediation": [
+        "In Intune, Devices, Compliance, Compliance settings, set Mark devices with no compliance policy assigned as to Not compliant.",
+        "First check every platform in use has an assigned compliance policy, or those devices lose access (CA-005)."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Devices that no compliance policy covers lose access to company data until one does; covered devices notice nothing."
+      },
+      "learn": "https://learn.microsoft.com/intune/intune-service/protect/device-compliance-get-started",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/complianceSettings",
+      "narrative": "With the default setting, a device that no compliance policy targets reports compliant, so Conditional Access that requires a compliant device lets it in without any check. Marking it noncompliant makes compliance mean something.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

@@ -703,6 +703,111 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "EM-022",
+      "domain": "email",
+      "title": "A mailbox sending spam is stopped, not only reported",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-outbound-spam.json"
+      ],
+      "pass": "facts.outboundPoliciesAlertOnly == 0",
+      "affected": "facts.outboundPoliciesAlertOnly",
+      "remediation": [
+        "Set When a user exceeds the limits to Restrict the user from sending mail in each outbound spam policy listed, or turn on the Standard or Strict preset (EM-001).",
+        "Keep the alert policy User restricted from sending email so an administrator hears about it."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "People notice nothing unless their mailbox is compromised and starts sending spam, when it stops sending until an admin releases it."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/outbound-spam-policies-configure",
+      "deepLink": "https://security.microsoft.com/antispam",
+      "narrative": "A compromised mailbox is used to send phishing to customers and partners from a trusted address. Restricting the sender at the limit stops the damage within minutes; only alerting lets it carry on until someone reads the alert.",
+      "frameworks": {
+        "nist-csf-2": "RS.MI-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "EM-023",
+      "domain": "email",
+      "title": "Common attachment filter on in every anti-malware policy",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-malware.json"
+      ],
+      "pass": "facts.malwarePoliciesWithoutFileFilter == 0",
+      "affected": "facts.malwarePoliciesWithoutFileFilter",
+      "remediation": [
+        "In each anti-malware policy listed, turn on Enable the common attachments filter and keep Microsoft's default list of file types, adding any your business never receives."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Attachments of risky file types (scripts, executables, disk images) are quarantined instead of delivered."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/anti-malware-policies-configure",
+      "deepLink": "https://security.microsoft.com/antimalwarev2",
+      "narrative": "Most malware arrives as a file type nobody needs by email: scripts, executables, disk images and shortcut files. The common attachment filter blocks those by type before any scanning has to recognise them.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L2-3.14.2",
+        "cisa-scuba": "MS.EXO.9.1v2"
+      }
+    },
+    {
+      "id": "EM-024",
+      "domain": "email",
+      "title": "Partner connectors accept mail only from the partner",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-03-inbound-connectors.json"
+      ],
+      "pass": "facts.partnerConnectorsUnrestricted == 0",
+      "affected": "facts.partnerConnectorsUnrestricted",
+      "remediation": [
+        "Edit each inbound partner connector listed and require the partner's IP addresses or a TLS certificate subject name matching the partner.",
+        "Remove connectors for partners you no longer exchange mail with."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Mail from the partner flows as before; nobody else can send through the connector."
+      },
+      "learn": "https://learn.microsoft.com/exchange/mail-flow-best-practices/use-connectors-to-configure-mail-flow/set-up-connectors-for-secure-mail-flow-with-a-partner",
+      "deepLink": "https://admin.exchange.microsoft.com/#/connectors",
+      "narrative": "A partner connector that accepts any sender address or certificate gives anyone who can send from the partner's domain name the trust meant for the partner, including skipping some filtering. Restricting it to the partner's addresses or certificate keeps the trust where it belongs.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.21",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

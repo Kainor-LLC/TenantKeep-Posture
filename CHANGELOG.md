@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Gap checks (2026-11-20): EM-022 a mailbox sending spam is stopped, EM-023 the common attachment filter on in every
+  anti-malware policy, EM-024 partner connectors restricted to the partner, CL-016 OneDrive without Anyone links,
+  DEV-016 personal phones and Macs enrol only when the BYOD stance allows it, DEV-017 devices with no compliance
+  policy count as noncompliant (the Intune collector reads the tenant compliance settings). The email facts no
+  longer fail as a whole on a connector row without the Enhanced Filtering properties.
 - Passwords to NIST and guest settings (2026-11-20): ID-017 cloud passwords do not expire on a schedule, ID-018 a
   custom banned password list in use, ID-019 Password Protection enforced on-premises (hybrid), ID-020 guests cannot
   invite guests, ID-021 guest access limited, ID-022 outbound guest access to other tenants reviewed, HY-031 domain

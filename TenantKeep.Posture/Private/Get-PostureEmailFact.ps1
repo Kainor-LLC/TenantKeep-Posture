@@ -107,6 +107,18 @@ function Get-PostureEmailFact {
         $open = @(& $rows $os | Where-Object { [string]$_.AutoForwardingMode -ne 'Off' })
         $facts.outboundPoliciesAllowingAutoForward = $open.Count
         $affected.outboundPoliciesAllowingAutoForward = @($open | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "AutoForwardingMode $($_.AutoForwardingMode)" } })
+        # EM-022: a mailbox over its sending limits is stopped, not only reported.
+        $alertOnly = @(& $rows $os | Where-Object { $act = [string](Get-PostureValue $_ 'ActionWhenThresholdReached'); $act -and $act -notin 'BlockUser', 'BlockUserForToday' })
+        $facts.outboundPoliciesAlertOnly = $alertOnly.Count
+        $affected.outboundPoliciesAlertOnly = @($alertOnly | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "when limits are reached: $(Get-PostureValue $_ 'ActionWhenThresholdReached')" } })
+    }
+    if ($null -eq $os) { & $missing @('EM-022') 'exo-04-outbound-spam' }
+    # EM-023: the common attachment filter blocks the file types malware arrives in.
+    if ($null -eq $mw) { & $missing @('EM-023') 'exo-04-eop-malware' }
+    else {
+        $noFilter = @(& $rows $mw | Where-Object { (Get-PostureValue $_ 'EnableFileFilter') -ne $true })
+        $facts.malwarePoliciesWithoutFileFilter = $noFilter.Count
+        $affected.malwarePoliciesWithoutFileFilter = @($noFilter | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'common attachment filter off' } })
     }
 
     # Connection filter allow list (EM-009)
@@ -131,13 +143,17 @@ function Get-PostureEmailFact {
 
     # Inbound connectors: Enhanced Filtering (EM-011) and ARC (EM-021)
     $ic = & $load 'exo-03-inbound-connectors'
-    if ($null -eq $ic) { & $missing @('EM-011', 'EM-021') 'exo-03-inbound-connectors' }
+    if ($null -eq $ic) { & $missing @('EM-011', 'EM-021', 'EM-024') 'exo-03-inbound-connectors' }
     else {
         $partner = @(& $rows $ic | Where-Object { $_.Enabled -ne $false -and [string]$_.ConnectorType -eq 'Partner' })
-        $noEf = @($partner | Where-Object { $_.EFSkipLastIP -ne $true -and @($_.EFSkipIPs | Where-Object { $_ }).Count -eq 0 })
+        $noEf = @($partner | Where-Object { (Get-PostureValue $_ 'EFSkipLastIP') -ne $true -and @(Get-PostureValue $_ 'EFSkipIPs' | Where-Object { $_ }).Count -eq 0 })
         $facts.partnerInboundConnectors = $partner.Count
         $facts.partnerConnectorsWithoutEnhancedFiltering = $noEf.Count
-        $affected.partnerConnectorsWithoutEnhancedFiltering = @($noEf | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "partner connector, Enhanced Filtering off, senders $(@($_.SenderIPAddresses) -join ' ')" } })
+        # EM-024: a partner connector should accept mail only from that partner's addresses or certificate.
+        $open = @($partner | Where-Object { (Get-PostureValue $_ 'RestrictDomainsToIPAddresses') -ne $true -and (Get-PostureValue $_ 'RestrictDomainsToCertificate') -ne $true })
+        $facts.partnerConnectorsUnrestricted = $open.Count
+        $affected.partnerConnectorsUnrestricted = @($open | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'accepts any sender address and certificate' } })
+        $affected.partnerConnectorsWithoutEnhancedFiltering = @($noEf | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "partner connector, Enhanced Filtering off, senders $(@(Get-PostureValue $_ 'SenderIPAddresses') -join ' ')" } })
     }
     $org = & $load 'exo-01-orgconfig'
     if ($null -eq $org) { & $missing @('EM-019', 'EM-021') 'exo-01-orgconfig' }

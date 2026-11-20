@@ -508,6 +508,18 @@
       "scopes": [
         "Directory.Read.All"
       ]
+    },
+    {
+      "collector": "Intune",
+      "match": "^Intune tenant settings$",
+      "roles": [
+        "Global Reader",
+        "Intune Administrator"
+      ],
+      "scopes": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "licence": "Microsoft Intune Plan 1"
     }
   ]
 }

@@ -65,6 +65,11 @@ function Invoke-PostureIntuneCollection {
         & $save (& $rows $byWindowsBuild) '09-intune-summary-windows-builds' $true
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Intune tenant settings' -Folder $Folder -Script {
+        # Compliance defaults: whether a device with no compliance policy counts as compliant (secureByDefault).
+        $dm = Invoke-PostureGraphRequest -Uri 'deviceManagement?$select=settings' -ApiVersion 'v1.0' -Single
+        & $saveOne ([ordered]@{ SecureByDefault = (& $v $dm 'settings.secureByDefault'); ComplianceCheckinThresholdDays = (& $v $dm 'settings.deviceComplianceCheckinThresholdDays'); IsScheduledActionEnabled = (& $v $dm 'settings.isScheduledActionEnabled') }) '09-intune-settings'
+    } | Out-Null
     Invoke-PostureStep -Label 'Autopilot profiles' -Folder $Folder -Script {
         # How new devices are set up: the naming template and the join type, for the experience checks.
         $rows = & $get 'deviceManagement/windowsAutopilotDeploymentProfiles?$expand=assignments' 'beta'

@@ -41,12 +41,14 @@ function Get-PostureCollaborationFact {
     if ($null -eq $spo -and $null -eq $teamsFed) { return @{ available = $false; reason = 'No SharePoint or Teams evidence in the folder (Invoke-PostureCollection -Collector SharePoint, Teams needs Connect-PnPOnline and Connect-MicrosoftTeams sessions).' } }
 
     # SharePoint tenant settings (CL-001 to CL-006, CL-008)
-    if ($null -eq $spo) { & $missing @('CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008') 'spo-tenant-settings' 'SharePoint' }
+    if ($null -eq $spo) { & $missing @('CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008', 'CL-016') 'spo-tenant-settings' 'SharePoint' }
     else {
         $cap = [string](& $v $spo 'SharingCapability')
         $facts.sharingCapability = $cap
         $facts.anyoneLinksAllowed = $cap -eq 'ExternalUserAndGuestSharing'
         $facts.tenantSharingLevelOk = $cap -in @('Disabled', 'ExternalUserSharingOnly', 'ExistingExternalUserSharingOnly')
+        # CL-016: OneDrive holds personal working files; Anyone links there are rarely deliberate.
+        $facts.oneDriveAnyoneLinks = [string](& $v $spo 'OneDriveSharingCapability') -eq 'ExternalUserAndGuestSharing'
         $days = & $v $spo 'RequireAnonymousLinksExpireInDays'
         $facts.anonymousLinkExpireDays = $(if ($null -ne $days) { [int]$days } else { -1 })
         $facts.anonymousLinksControlled = (-not $facts.anyoneLinksAllowed) -or ($facts.anonymousLinkExpireDays -ge 1 -and $facts.anonymousLinkExpireDays -le [int]$t.maxAnonymousLinkDays)

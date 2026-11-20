@@ -498,6 +498,39 @@
         "command": "Import-PostureSharingReport",
         "steps": "In the SharePoint admin center open Reports, Data access governance, Site permissions across your organization. Run it for SharePoint and again for OneDrive (the first run can take up to five days), then Download CSV. Copy the command below, add the downloaded file's path (drag the file into the PowerShell window), and run it."
       }
+    },
+    {
+      "id": "CL-016",
+      "domain": "collaboration",
+      "title": "OneDrive does not allow Anyone links",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings.json"
+      ],
+      "pass": "!facts.oneDriveAnyoneLinks",
+      "remediation": [
+        "In the SharePoint admin center, Policies, Sharing, set the OneDrive slider to New and existing guests or lower, even where some SharePoint sites keep Anyone links.",
+        "Ask people to share from a team site when a file truly has to go to anyone."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "People can no longer make Anyone links to files in their OneDrive; they share with named people or guests instead."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
+      "narrative": "OneDrive holds people's working files, drafts and exports, the things least likely to be meant for anyone. An Anyone link needs no sign-in and keeps working wherever it is forwarded, so OneDrive is the first place to take Anyone links away.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.22",
+        "cisa-scuba": "MS.SHAREPOINT.1.2v1"
+      }
     }
   ]
 }
