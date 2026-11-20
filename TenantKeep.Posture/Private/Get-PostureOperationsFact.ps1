@@ -63,7 +63,9 @@ function Get-PostureOperationsFact {
         $facts.secureScorePct = $(if ($facts.secureScoreMax -gt 0) { [Math]::Round(100.0 * $facts.secureScore / $facts.secureScoreMax, 1) } else { $null })
         $avg = @(& $rows (& $v $ss 'AverageComparativeScores') | Where-Object { [string]$_.Basis -eq 'AllTenants' } | Select-Object -First 1)
         $facts.secureScoreAllTenantsAverage = $(if ($avg.Count -gt 0) { [double]$avg[0].AverageScore } else { $null })
-        $facts.secureScoreAtOrAboveAverage = [bool]($null -ne $facts.secureScoreAllTenantsAverage -and $facts.secureScore -ge $facts.secureScoreAllTenantsAverage)
+        # Microsoft's comparative averages read as a percentage of the maximum (54.04 against a score of 1,033 of
+        # 1,226 points on a live tenant), so the tenant's percentage is what compares (verify against Graph docs).
+        $facts.secureScoreAtOrAboveAverage = [bool]($null -ne $facts.secureScoreAllTenantsAverage -and $null -ne $facts.secureScorePct -and $facts.secureScorePct -ge $facts.secureScoreAllTenantsAverage)
         if ($null -eq $facts.secureScoreAllTenantsAverage) { $notEvaluated['OP-005'] = 'Secure Score carries no all-tenant comparative average.' }
     }
 

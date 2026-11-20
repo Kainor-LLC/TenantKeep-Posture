@@ -11,7 +11,7 @@ BeforeAll {
     & $w '09-apple-push-cert' @{ Present = $true; AppleIdentifier = 'apple@contoso.example'; ExpirationDateTime = '2026-10-20T00:00:00Z' }
     & $w '09-apple-vpp-tokens' @(@{ OrganizationName = 'Contoso'; ExpirationDateTime = '2027-06-01T00:00:00Z' })
     & $w '10-service-principals' @(@{ DisplayName = 'Payroll SAML'; PreferredSingleSignOnMode = 'saml'; SamlCertExpiry = '2026-10-24T00:00:00Z'; IsEnterpriseAppListed = $true; AccountEnabled = $true }, @{ DisplayName = 'Gallery app'; PreferredSingleSignOnMode = 'oidc'; SamlCertExpiry = '2026-10-20T00:00:00Z'; IsEnterpriseAppListed = $true; AccountEnabled = $true })
-    & $w 'def-06-secure-score' @{ Present = $true; CurrentScore = 412.5; MaxScore = 900; AverageComparativeScores = @(@{ Basis = 'AllTenants'; AverageScore = 390 }, @{ Basis = 'TotalSeats'; AverageScore = 420 }) }
+    & $w 'def-06-secure-score' @{ Present = $true; CurrentScore = 412.5; MaxScore = 900; AverageComparativeScores = @(@{ Basis = 'AllTenants'; AverageScore = 40 }, @{ Basis = 'TotalSeats'; AverageScore = 44 }) }
     $script:AsOf = [datetime]::new(2026, 10, 14, 0, 0, 0, [System.DateTimeKind]::Utc)
     $script:ProfilePath = Join-Path $script:Root 'profile.json'
     $null = New-PostureProfile -Path $script:ProfilePath -NonInteractive -ClientName 'Contoso' -ThirdParty @{ siem = 'Sentinel'; backup = 'none' } -BreakGlassTestedUtc ([datetime]::new(2026, 9, 1, 0, 0, 0, [System.DateTimeKind]::Utc)) -MessageCenterOwner 'IT ops'
@@ -29,7 +29,8 @@ Describe 'Get-PostureOperationsFact' {
             $r.facts.breakGlassTestedRecently | Should -BeTrue
             $r.facts.messageCenterOwnerNamed | Should -BeTrue
             $r.facts.secureScoreAtOrAboveAverage | Should -BeTrue
-            $r.facts.secureScoreAllTenantsAverage | Should -Be 390
+            $r.facts.secureScoreAllTenantsAverage | Should -Be 40
+            $r.facts.secureScorePct | Should -Be 45.8 -Because 'the tenant compares as a percentage of its maximum'
             $r.facts.expiryCalendarSources | Should -Be 4
             @($r.facts.expiryCalendar)[0].kind | Should -Be 'Application credential' -Because 'Old App expired in 2024 and sorts first'
             @($r.facts.expiryCalendar | Where-Object { $_.kind -eq 'Apple push certificate' })[0].days | Should -Be 6

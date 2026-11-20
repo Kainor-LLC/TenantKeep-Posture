@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Fixes (2026-11-20): OP-005 compared Secure Score points with Microsoft's averages, which are percentages, so it
+  passed almost always; it now compares the tenant's percentage (verify the units against Graph). The sign-in read
+  compared timestamps as culture text, which keyed days month first and could misorder a restart across a year end;
+  it now uses ISO 8601.
 - The story of a run (2026-11-20): the overview opens with the score as a ring (change since the last run, the
   target, and where the top five fixes would take it), the score over time across earlier runs of the tenant, open
   findings by severity, the attack path from phishable members to phishable administrators, and accepted risks by

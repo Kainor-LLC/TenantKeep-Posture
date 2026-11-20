@@ -80,7 +80,10 @@ function Invoke-PostureSignInCollection {
         foreach ($r in $page) {
             if ($boundary.Contains([string]$r['id'])) { continue }   # already counted before a restart at this second
             $state.count++
-            $created = [string]$r['createdDateTime']
+            # The JSON reader turns the timestamp into a DateTime; as culture text ("11/15/2026 ...") it would sort
+            # wrongly across a year end and key the days by month first. ISO 8601 UTC sorts as text.
+            $cd = $r['createdDateTime']
+            $created = $(if ($cd -is [datetime]) { $cd.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') } else { [string]$cd })
             if (-not $oldest -or $created -lt $oldest) { $oldest = $created; $edge.Clear() }
             if ($created -eq $oldest) { $edge.Add([string]$r['id']) }
             $app = [string]$r['clientAppUsed']
