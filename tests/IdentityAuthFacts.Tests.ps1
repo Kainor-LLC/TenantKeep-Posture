@@ -122,7 +122,7 @@ Describe 'Invoke-PostureChecks for identity and auth on the fixture' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates 24 checks' { $script:Run.results.Count | Should -Be 24 }
+    It 'evaluates every identity and auth check' { $script:Run.results.Count | Should -Be @(Get-PostureCheckCatalog -Domain identity, auth).Count }
 
     It 'gives <Id> status <Status>' -ForEach @(
         @{ Id = 'ID-001'; Status = 'pass' }

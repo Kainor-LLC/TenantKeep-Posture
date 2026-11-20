@@ -196,5 +196,15 @@ function Get-PostureIdentityFact {
         $affected.highRiskUsersUnaddressed = @($stale | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "high risk since $((ConvertTo-PostureUtcDateTime $_.RiskLastUpdatedDateTime).ToString('yyyy-MM-dd'))" } })
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('04-role-assignments-active.json', '06-users.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
+    # ID-016 from the sign-in log (SignIns collector): who still signs in over a legacy protocol.
+    $signIns = & $load '06-signins-summary'
+    if ($null -eq $signIns) { $notEvaluated['ID-016'] = 'The sign-in log was not read (the SignIns collector needs AuditLog.Read.All with Reports Reader or Global Reader, and Entra ID P1).' }
+    else {
+        $facts.legacySignIns = [long](Get-PostureValue $signIns 'LegacySignIns')
+        $facts.legacySignInUsers = [int](Get-PostureValue $signIns 'LegacyUsers')
+        $facts.signInDays = [int](Get-PostureValue $signIns 'Days')
+        $affected.legacySignInUsers = @(@(& $load '06-signins-legacy-users') | Where-Object { $_ } | ForEach-Object { [ordered]@{ name = [string]$_.UserPrincipalName; detail = "$($_.SignIns) sign-in(s) over $(([string]$_.ClientApps) -replace ';', ', '), last $($_.LastSignIn)" } })
+    }
+
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
 }

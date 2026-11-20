@@ -64,7 +64,7 @@ Describe 'Start-PostureRun' {
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
-            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
+            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
             $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder '.progress-child.json')
             $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph')
@@ -133,7 +133,7 @@ Describe 'Start-PostureRun' {
             $result.Skipped['SharePoint'] | Should -Match 'Install-Module PnP.PowerShell'
             $result.Skipped['Azure'] | Should -Match 'Az.Accounts'
             $result.Report | Should -BeNullOrEmpty
-            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+Intune+Defender', 'profile', 'sleep-ok')
+            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+SignIns+Intune+Defender', 'profile', 'sleep-ok')
         }
     }
 

@@ -38,7 +38,7 @@ function Resume-PostureRun {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Tells the admin what will be collected again and why.')]
     param(
         [Parameter(Mandatory, Position = 0)] [string] $Path,
-        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector,
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
         [switch] $AllowSleep,
@@ -72,7 +72,7 @@ function Resume-PostureRun {
         }
         $again = @($why.Keys)
     }
-    $valid = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')
+    $valid = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')
     $again = @($again | Where-Object { $_ -in $valid })
     if ($plan -and $plan['skipped'] -and @($plan['skipped'].Keys).Count -gt 0 -and -not $Collector) {
         foreach ($k in @($plan['skipped'].Keys)) { Write-Host "Skipped when the run started: $k ($($plan['skipped'][$k])). Add -Collector to try it now." -ForegroundColor DarkGray }

@@ -9,6 +9,7 @@
 $script:PostureProgressDefaults = [ordered]@{
     ConditionalAccess = @{ seconds = 30; steps = 1; label = 'Conditional Access' }
     Entra             = @{ seconds = 240; steps = 26; label = 'Entra ID' }
+    SignIns           = @{ seconds = 300; steps = 1; label = 'Sign-in log' }
     Intune            = @{ seconds = 180; steps = 18; label = 'Intune' }
     Defender          = @{ seconds = 120; steps = 6; label = 'Defender' }
     Azure             = @{ seconds = 120; steps = 13; label = 'Azure' }

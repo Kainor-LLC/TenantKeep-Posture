@@ -50,6 +50,9 @@ function Start-PostureRun {
         Sign in with a device code instead of a browser window.
     .PARAMETER NoBrowser
         Print the sign-in address instead of opening the browser, and do not open the report.
+    .PARAMETER SignInDays
+        Days of Entra sign-in log to read, 1 to 30. Default 7. On a large tenant this is the longest part of a run;
+        it streams, saves a checkpoint, carries on by itself after a failure and resumes with Resume-PostureRun.
     .PARAMETER AllowSleep
         Let the machine sleep during the run. Default: it is kept awake until the run ends.
     .PARAMETER SkipReport
@@ -70,11 +73,12 @@ function Start-PostureRun {
         [ValidatePattern('^([0-9a-fA-F-]{36}|[A-Za-z0-9.-]+\.[A-Za-z]{2,})$')] [string] $TenantId,
         [string] $Client,
         [string] $OutRoot,
-        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
         [string] $Folder,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
         [switch] $AllowSleep,
+        [ValidateRange(1, 30)] [int] $SignInDays = 7,
         [switch] $SkipReport,
         [switch] $PassThru
     )
@@ -135,7 +139,7 @@ function Start-PostureRun {
     Write-Host "Client folder: $Client"
 
     # What runs where: decided before anything is collected, so the progress bar knows the whole run.
-    $main = @($Collector | Where-Object { $_ -in 'Entra', 'Intune' })
+    $main = @($Collector | Where-Object { $_ -in 'Entra', 'SignIns', 'Intune' })
     if ('Defender' -in $Collector) {
         if ('ThreatHunting.Read.All' -in @($context.Scopes)) { $main += 'Defender' }
         else { $skipped['Defender'] = 'ThreatHunting.Read.All is not on the token; the tenant consented without it.' }
@@ -215,7 +219,7 @@ function Start-PostureRun {
 
         # 4. Graph-based collectors and Azure in this process, then SharePoint and Teams (PnP.PowerShell loads an
         # older Microsoft.Graph.Core, so it comes after every Graph read).
-        if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -PassThru @profileParam }
+        if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -SignInDays $SignInDays -PassThru @profileParam }
         $local = [System.Collections.Generic.List[string]]::new()
         foreach ($name in $localPlan) {
             try { Connect-PostureService -Name $name.ToLowerInvariant(); $local.Add($name) }

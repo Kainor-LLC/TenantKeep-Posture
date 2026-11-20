@@ -169,40 +169,58 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
 
     # ---------- 6. Users ----------
+    # One streaming pass, at any size: each page is flattened, written and counted, and only the members' ids are
+    # kept, for the per-user MFA step. Nothing holds the whole user list.
+    $memberIds = [System.Collections.Generic.List[object]]::new()
     Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
         $base = 'id,userPrincipalName,displayName,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
-        $users = $null
-        try { $users = & $get "users?`$select=$base,signInActivity&`$top=999" }
-        catch {
-            Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); retrying without it (needs AuditLog.Read.All)."
-            $users = & $get "users?`$select=$base&`$top=999"
-        }
-        $flat = @($users | ForEach-Object {
-                [ordered]@{
-                    Id = $_.id; UserPrincipalName = $_.userPrincipalName; DisplayName = (& $v $_ 'displayName'); AccountEnabled = (& $v $_ 'accountEnabled'); UserType = (& $v $_ 'userType')
-                    OnPremisesSyncEnabled = [bool](& $v $_ 'onPremisesSyncEnabled'); CreatedDateTime = (& $v $_ 'createdDateTime'); Department = (& $v $_ 'department'); JobTitle = (& $v $_ 'jobTitle')
-                    CompanyName = (& $v $_ 'companyName'); UsageLocation = (& $v $_ 'usageLocation'); CreationType = (& $v $_ 'creationType'); ExternalUserState = (& $v $_ 'externalUserState')
-                    LicenseCount = @(& $v $_ 'assignedLicenses').Count
-                    LastInteractiveSignIn = (& $v $_ 'signInActivity.lastSignInDateTime'); LastNonInteractiveSignIn = (& $v $_ 'signInActivity.lastNonInteractiveSignInDateTime')
+        $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
+        $read = {
+            param([string] $Select)
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users' -Csv -Confirm:$false
+            try {
+                $null = Invoke-PostureGraphRequest -Uri "users?`$select=$Select&`$top=999" -ApiVersion 'v1.0' -Label 'Users' -OnPage {
+                    param($page)
+                    foreach ($u in $page) {
+                        $sia = $(if ($u.ContainsKey('signInActivity')) { $u['signInActivity'] } else { $null })
+                        $last = $(if ($sia) { $sia['lastSignInDateTime'] } else { $null })
+                        $licences = $(if ($u.ContainsKey('assignedLicenses')) { @($u['assignedLicenses']).Count } else { 0 })
+                        $row = [ordered]@{
+                            Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
+                            OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
+                            CompanyName = $u['companyName']; UsageLocation = $u['usageLocation']; CreationType = $u['creationType']; ExternalUserState = $u['externalUserState']
+                            LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
+                        }
+                        Add-PostureEvidenceRow -Stream $stream -Row $row
+                        $member = $row.UserType -eq 'Member'; $guest = $row.UserType -eq 'Guest'; $enabled = [bool]$row.AccountEnabled
+                        $old = $(if ($last) { (& $date $last) -lt $cutoff } else { $false })
+                        $c.Total++
+                        if ($member) { $c.Members++; $memberIds.Add(@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName }) }
+                        if ($guest) { $c.Guests++ }
+                        if ($row.OnPremisesSyncEnabled) { $c.Synced++ } elseif ($member) { $c.CloudOnlyMembers++ }
+                        if (-not $enabled) { $c.Disabled++; if ($licences -gt 0) { $c.DisabledWithLicenses++ } }
+                        if ($enabled -and $member) { if (-not $last) { $c.EnabledNeverSignedIn++ } elseif ($old) { $c.EnabledInactiveMembers++ } }
+                        if ($guest -and (-not $last -or $old)) { $c.InactiveGuests++ }
+                        if ($row.ExternalUserState -eq 'PendingAcceptance') { $c.PendingGuestInvites++ }
+                        if ($last) { $c.WithSignIn++ }
+                    }
                 }
-            })
-        & $save $flat '06-users' $true
-        $last = { param($r) & $date $r.LastInteractiveSignIn }
-        & $saveOne ([ordered]@{
-                Total = $flat.Count
-                Members = @($flat | Where-Object { $_.UserType -eq 'Member' }).Count
-                Guests = @($flat | Where-Object { $_.UserType -eq 'Guest' }).Count
-                Synced = @($flat | Where-Object { $_.OnPremisesSyncEnabled }).Count
-                CloudOnlyMembers = @($flat | Where-Object { $_.UserType -eq 'Member' -and -not $_.OnPremisesSyncEnabled }).Count
-                Disabled = @($flat | Where-Object { -not $_.AccountEnabled }).Count
-                DisabledWithLicenses = @($flat | Where-Object { -not $_.AccountEnabled -and $_.LicenseCount -gt 0 }).Count
-                EnabledInactiveMembers = @($flat | Where-Object { $_.AccountEnabled -and $_.UserType -eq 'Member' -and $_.LastInteractiveSignIn -and (& $last $_) -lt $cutoff }).Count
-                EnabledNeverSignedIn = @($flat | Where-Object { $_.AccountEnabled -and $_.UserType -eq 'Member' -and -not $_.LastInteractiveSignIn }).Count
-                InactiveGuests = @($flat | Where-Object { $_.UserType -eq 'Guest' -and (-not $_.LastInteractiveSignIn -or (& $last $_) -lt $cutoff) }).Count
-                PendingGuestInvites = @($flat | Where-Object { $_.ExternalUserState -eq 'PendingAcceptance' }).Count
-                SignInActivityAvailable = [bool](@($flat | Where-Object { $_.LastInteractiveSignIn }).Count -gt 0)
-                StaleDays = $StaleDays
-            }) '06-users-summary'
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
+            }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        }
+        try { & $read "$base,signInActivity" }
+        catch {
+            Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
+            foreach ($k in @($c.Keys)) { $c[$k] = 0 }
+            $memberIds.Clear()
+            & $read $base
+        }
+        $summary = [ordered]@{}
+        foreach ($k in 'Total', 'Members', 'Guests', 'Synced', 'CloudOnlyMembers', 'Disabled', 'DisabledWithLicenses', 'EnabledInactiveMembers', 'EnabledNeverSignedIn', 'InactiveGuests', 'PendingGuestInvites') { $summary[$k] = $c[$k] }
+        $summary.SignInActivityAvailable = $c.WithSignIn -gt 0
+        $summary.StaleDays = $StaleDays
+        & $saveOne $summary '06-users-summary'
     } | Out-Null
 
     # ---------- 6b. Legacy per-user MFA state (AU-009) ----------
@@ -210,17 +228,32 @@ function Invoke-PostureEntraCollection {
         Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -Script {
             # One read per user, batched 20 at a time through $batch. authentication/requirements is beta-only (confirmed 2026-10-14).
             # (verify) scope: UserAuthenticationMethod.Read.All; cost at 20k users
-            $members = @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' })
+            $members = $(if ($memberIds.Count -gt 0) { $memberIds } else { @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' }) })
             $states = [System.Collections.Generic.List[object]]::new()
+            # Graph throttles inside a batch per sub-request: a 429 or 503 there is sent again, after its Retry-After.
             for ($i = 0; $i -lt $members.Count; $i += 20) {
                 $chunk = @($members[$i..([Math]::Min($i + 20, $members.Count) - 1)])
-                $requests = @(); $n = 0
-                foreach ($m in $chunk) { $requests += @{ id = [string]$n; method = 'GET'; url = "/users/$($m.Id)/authentication/requirements" }; $n++ }
-                $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'beta' -Single   # posture:read-only-post
-                foreach ($resp in @(& $v $batch 'responses')) {
-                    $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]
-                    $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = (& $v $resp 'status'); PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
+                $pending = @(0..($chunk.Count - 1))
+                for ($try = 1; $pending.Count -gt 0; $try++) {
+                    $requests = @(foreach ($n in $pending) { @{ id = [string]$n; method = 'GET'; url = "/users/$($chunk[$n].Id)/authentication/requirements" } })
+                    $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'beta' -Single   # posture:read-only-post
+                    $again = [System.Collections.Generic.List[int]]::new(); $wait = 0
+                    foreach ($resp in @(& $v $batch 'responses')) {
+                        $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]; $status = [int](& $v $resp 'status')
+                        if ($status -in 429, 503 -and $try -lt $script:PostureGraphRetry.maxAttempts) {
+                            $again.Add($idx)
+                            $ra = 0; if ([int]::TryParse([string](& $v $resp 'headers.Retry-After'), [ref]$ra)) { $wait = [Math]::Max($wait, $ra) }
+                            continue
+                        }
+                        $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = $status; PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
+                    }
+                    $pending = @($again)
+                    if ($pending.Count -gt 0) {
+                        $delay = [Math]::Min($script:PostureGraphRetry.maxWaitSeconds, [Math]::Max($wait, $script:PostureGraphRetry.baseSeconds * [Math]::Pow(2, $try - 1)))
+                        if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+                    }
                 }
+                if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $states.Count) of $('{0:N0}' -f $members.Count) members"; Write-PostureProgress }
             }
             $rows = @($states.ToArray())
             & $save $rows '05-per-user-mfa' $true

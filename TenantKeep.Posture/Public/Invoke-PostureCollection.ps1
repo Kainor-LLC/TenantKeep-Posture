@@ -21,14 +21,18 @@ function Invoke-PostureCollection {
     .PARAMETER OutputFolder
         Write into this exact folder instead.
     .PARAMETER Collector
-        Which collectors to run: Entra (A.1 identity sections), Intune (A.1 section 9 and the spec 4.4 additions),
+        Which collectors to run: Entra (A.1 identity sections), SignIns (the Entra sign-in log for -SignInDays,
+        streamed and tallied, checkpointed and self-resuming; Entra ID P1), Intune (A.1 section 9 and the spec 4.4 additions),
         Exchange (A.2 Exchange Online and the mail DNS records), SharePoint (A.3 tenant settings and sites through
         PnP.PowerShell), Teams (A.3 Teams policies), Defender (effective state through Graph advanced hunting,
         incidents and Secure Score), Purview (A.2 labels, DLP, retention and the rest through Connect-IPPSSession,
         in a process of its own because its cmdlet names overlap Exchange's), Azure (spec 4.13 through Resource Graph
-        and Resource Manager reads on a Connect-AzAccount session). Default all eight; a collector whose session is missing is skipped with a warning,
+        and Resource Manager reads on a Connect-AzAccount session). Default all nine; a collector whose session is missing is skipped with a warning,
         and refused when it was asked for by name; Defender runs on the Graph session and is skipped with a warning
         when ThreatHunting.Read.All was not granted. See docs/collection.md for the sign-ins.
+    .PARAMETER SignInDays
+        Days of sign-in log the SignIns collector reads, 1 to 30. Default 7. A large tenant has millions of records a
+        week; the read streams and can take hours, and resumes from its checkpoint when it stops.
     .PARAMETER StaleDays
         Threshold for inactive users and devices in the summaries. Default 90.
     .PARAMETER IncludeMembers
@@ -85,7 +89,8 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [ValidateRange(1, 30)] [int] $SignInDays = 7,
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [Alias('Profile')] [string] $ProfilePath,
         [switch] $IncludeMembers,
@@ -195,6 +200,8 @@ function Invoke-PostureCollection {
             $ran.Add('ConditionalAccess')
         }
         if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa } }
+        # A step like any other, so a refusal or a missing licence is recorded with its cause and the run goes on.
+        if ($Collector -contains 'SignIns') { & $timed 'SignIns' { Invoke-PostureStep -Label 'Sign-in log' -Folder $folder -Script { Invoke-PostureSignInCollection -Folder $folder -Days $SignInDays -AsOf $startedUtc } } }
         if ($Collector -contains 'Intune') { & $timed 'Intune' { Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc } }
         if ($run.Exchange) { & $timed 'Exchange' { Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration } }
         if ($run.SharePoint) { & $timed 'SharePoint' { Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration } }

@@ -20,6 +20,7 @@ BeforeAll {
         $path = [uri]::UnescapeDataString(([uri]$Uri).PathAndQuery) -replace '^/(v1\.0|beta)/', ''
         $u = { param($items) @{ value = $items } }
         switch -Regex ($path) {
+            '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
             '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; provisioningStatus = 'Success' }) }); break }
@@ -210,7 +211,7 @@ Describe 'Invoke-PostureCollection' {
             foreach ($f in '01-subscribed-skus', '04-role-assignments-active', '05-auth-registration', '06-users', '07-groups', '10-app-registrations', '10-service-principals') {
                 Join-Path $script:R.Folder "$f.csv" | Should -Exist
             }
-            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune', 'Defender')
+            $script:R.Collectors | Should -Be @('ConditionalAccess', 'Entra', 'SignIns', 'Intune', 'Defender')
             foreach ($f in '09-intune-managed-devices', '09-intune-summary-compliance', '09-intune-summary-windows-builds', '09-autopilot-devices', '09-intune-compliance-policies', '09-intune-config-profiles-templates', '09-intune-config-profiles-settings-catalog', '09-intune-apps', '09-apple-push-cert', '09-apple-vpp-tokens', '09-intune-enrollment-restrictions', '09-intune-mde-connector', '09-intune-device-cleanup', '08-bitlocker-keys-by-device', '08-bitlocker-keys-summary') {
                 Join-Path $script:R.Folder "$f.json" | Should -Exist
             }
@@ -422,7 +423,7 @@ Describe 'Invoke-PostureCollection' {
         It 'writes collection.json with tenant, scopes, api versions and the file list, and keeps the CA metadata separate' {
             $m = & $script:Read 'collection'
             $m.tenantId | Should -Be 'tenant-guid'
-            $m.collectors | Should -Be @('ConditionalAccess', 'Entra', 'Intune', 'Defender')
+            $m.collectors | Should -Be @('ConditionalAccess', 'Entra', 'SignIns', 'Intune', 'Defender')
             $m.graphApiVersions | Should -Be @('beta', 'v1.0') -Because 'the per-user MFA batch is the one beta call'
             $m.files | Should -Contain '06-users.csv'
             $m.errorCount | Should -Be 1

@@ -395,6 +395,34 @@
         "cmmc": "IR.L2-3.6.1",
         "cisa-scuba": "MS.AAD.2.1v1"
       }
+    },
+    {
+      "id": "ID-016",
+      "domain": "identity",
+      "title": "No sign-ins over legacy protocols in the sign-in log",
+      "severityDefault": "High",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "06-signins-summary.json",
+        "06-signins-legacy-users.json"
+      ],
+      "pass": "facts.legacySignIns == 0",
+      "affected": "facts.legacySignInUsers",
+      "remediation": "Move each account listed to modern authentication: Outlook or a current mail client instead of IMAP and POP, OAuth for SMTP AUTH senders such as scanners and line-of-business apps, then block legacy authentication with Conditional Access. The list is who would stop working when the block goes on.",
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-block-legacy-authentication",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/SignInLogsList.ReactView",
+      "narrative": "Legacy protocols send a password with every request and cannot ask for MFA, so a guessed or leaked password is enough. Password spraying aims at them for that reason. The sign-in log shows who still depends on them, which is the list to fix before blocking.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.AAD.1.1v1"
+      }
     }
   ]
 }

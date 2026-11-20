@@ -57,7 +57,7 @@ function Get-PostureFailureCause {
     param([AllowEmptyString()] [string] $Message)
 
     $m = [string]$Message
-    if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant)') { return 'licence' }
+    if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant|premium licen[cs]e)') { return 'licence' }
     if ($m -match '(?i)(token.*(expired|lifetime)|InvalidAuthenticationToken|AADSTS700082|AADSTS50173|refresh token.*(expired|revoked)|CompactToken)') { return 'token' }
     if ($m -match '(?i)(module (is )?not (available|installed)|Install-Module |Add-WindowsCapability)') { return 'module' }
     if ($m -match '(?i)(\b403\b|Forbidden|Authorization_RequestDenied|Insufficient privileges|AccessDenied|Access (is )?denied|does not have (the )?(required )?permission|is not authorized|isn''t authorized|not within your (current )?(write |management )?scope|UnauthorizedAccess|\b401\b|Unauthorized|missing scope|RoleNotAssigned|-[A-Za-z]+ is not available; import|The term ''[A-Za-z]+-[A-Za-z]+'' is not recognized)') { return 'permission' }
