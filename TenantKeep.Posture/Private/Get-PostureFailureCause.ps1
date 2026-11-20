@@ -124,3 +124,32 @@ function Read-PostureRunFailure {
     }
     return $out.ToArray()
 }
+
+function Get-PostureFailureAdvice {
+    <#
+    .SYNOPSIS
+        One plain sentence on what to do about a failure, the same in the report and at the console.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [System.Collections.IDictionary] $Failure)
+
+    $roles = @($Failure['roles'] | Where-Object { $_ })
+    $scopes = @($Failure['scopes'] | Where-Object { $_ })
+    $licence = [string]$Failure['licence']
+    switch ([string]$Failure['cause']) {
+        'permission' {
+            $t = $(if ($roles.Count) { "Give the account that runs the assessment one of: $($roles -join ', ')." } else { 'The account was refused; the message says by what.' })
+            if ($scopes.Count) { $t += " The TenantKeep Posture app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
+            if ($licence) { $t += " It also needs $licence." }
+            return $t
+        }
+        'licence' { return $(if ($licence) { "Needs $licence. Without it the checks that read this stay not applicable; nothing to grant." } else { 'The tenant is not licensed for this; nothing to grant.' }) }
+        'notProvisioned' { return 'Not set up in this tenant, so there was nothing to read. Nothing to grant.' }
+        'throttled' { return 'Microsoft asked the run to slow down. Resume-PostureRun tries again.' }
+        'network' { return 'A network or service error. Resume-PostureRun tries again.' }
+        'token' { return 'The sign-in ran out before this step. Resume-PostureRun signs in again and collects it.' }
+        'module' { return 'A PowerShell module is missing; the message says which and how to install it.' }
+        default { return "Not a failure the module recognises; Microsoft's message is below.$(if ($roles.Count) { " The step normally needs: $($roles -join ', ')." })" }
+    }
+}

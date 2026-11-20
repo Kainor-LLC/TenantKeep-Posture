@@ -78,13 +78,18 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive Mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export Checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and Value', $false), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and Value', $false), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
 
     # Overview
     & $w '<section class="view active" id="overview"><h2>Overview</h2>'
+    $rh = $r.runHealth
+    if ($rh -and @($rh.failures).Count -gt 0) {
+        $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
+        & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
+    }
     & $w "<div class=`"score`"><div class=`"grade`" id=`"score-grade`">$(& $h $r.score.grade)</div><div><div class=`"value`" id=`"score-value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div></div></div>"
     $hl = $r.headline
     & $w '<div class="stats">'
@@ -245,6 +250,19 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</section>'
     }
+    # Run health: what failed, why, and what to grant.
+    & $w '<section class="view" id="health"><h2>Run Health</h2>'
+    if (-not $rh -or @($rh.failures).Count -eq 0) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' }
+    else {
+        & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why and what to do. After granting a role, collect only what failed, into the same run, then refresh this page:</p>"
+        & $w "<div class=`"cmd`"><code id=`"cmd-resume`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume`">Copy</button></div>"
+        & $w '<table><thead><tr><th>Domain</th><th>Step</th><th>Why</th><th>What To Do</th></tr></thead><tbody>'
+        foreach ($f in $rh.failures) {
+            & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)<details class=`"tech`"><summary>Microsoft's message</summary><code>$(& $h $f.message)</code></details></td></tr>"
+        }
+        & $w '</tbody></table>'
+    }
+    & $w '</section>'
     & $w '<section class="view" id="appendix"><h2>Appendix</h2><table><tbody>'
     foreach ($pair in @(@('Catalog Version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence Folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API Versions', ($a.graphApiVersions -join ', ')), @('Module Version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }
     & $w '</tbody></table>'

@@ -161,6 +161,8 @@
   var exportAll = $('export-checks');
   if (exportAll) { exportAll.addEventListener('click', function () { downloadText('checks.csv', toCsv(['ID', 'Domain', 'Title', 'Status', 'Severity', 'Affected', 'Reason'], data.results.map(function (r) { return [r.id, domainLabel(r.domain), r.title, statusLabel(r.status), r.severity, (r.affected || []).length, r.reason]; })), 'text/csv'); }); }
 
+  bindCopy(document);
+
   // Humanise the server-rendered detail cells once.
   Array.prototype.slice.call(document.querySelectorAll('[data-human]')).forEach(function (el) { el.textContent = humanDetail(el.textContent); });
 })();

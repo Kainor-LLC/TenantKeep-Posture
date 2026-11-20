@@ -270,6 +270,21 @@ function ConvertTo-PostureReportModel {
     $tenantName = $(if ($org) { [string](& $v @($org)[0] 'displayName') } else { $null })
     $clientName = $(if ($Brand.client.name) { [string]$Brand.client.name } elseif ($OrgProfile.clientName) { [string]$OrgProfile.clientName } elseif ($tenantName) { $tenantName } else { [string]$tenantId })
 
+    # Run health: every failed step with its cause and what to grant, worst cause first (errors.jsonl, or errors.txt
+    # for runs made before it existed).
+    $causeOrder = @{ permission = 0; licence = 1; token = 2; module = 3; throttled = 4; network = 5; notProvisioned = 6; unknown = 7 }
+    $causeLabel = @{ permission = 'Needs a role'; licence = 'Needs a licence'; token = 'Sign-in ran out'; module = 'Module missing'; throttled = 'Throttled'; network = 'Network or service error'; notProvisioned = 'Not set up in this tenant'; unknown = 'Not recognised' }
+    $failures = @($(try { Read-PostureRunFailure -Folder $Evidence } catch { @() }))
+    $runHealth = [ordered]@{
+        failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {
+                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message'] }
+            })
+        byCause  = [ordered]@{}
+        resume   = "Resume-PostureRun -Path '$($Evidence -replace "'", "''")'"
+    }
+    foreach ($f in $runHealth.failures) { $runHealth.byCause[$f.causeLabel] = 1 + $(if ($runHealth.byCause.Contains($f.causeLabel)) { $runHealth.byCause[$f.causeLabel] } else { 0 }) }
+    $runHealth.retryable = @($runHealth.failures | Where-Object { $_.cause -in 'permission', 'token', 'throttled', 'network', 'unknown', 'module' }).Count
+
     return [ordered]@{
         title        = "Microsoft Security Posture Report: $clientName"
         clientName   = $clientName
@@ -298,6 +313,7 @@ function ConvertTo-PostureReportModel {
         crosswalk    = $crosswalk
         results      = $results
         catalogText  = $catalogText
+        runHealth    = $runHealth
         appendix     = [ordered]@{
             catalogVersion = $Run.catalogVersion; baseline = $Run.baseline; profile = $Run.profile; profilePresent = [bool]$OrgProfile.present
             profileAnswers = $(if ($OrgProfile.present) { [ordered]@{ licenses = @($OrgProfile.licenses); platforms = @($OrgProfile.platforms); identityModel = $OrgProfile.identityModel; byod = $OrgProfile.byod; externalCollaboration = $OrgProfile.externalCollaboration; copilot = $OrgProfile.copilot; azure = $OrgProfile.azure; thirdParty = $OrgProfile.thirdParty; frameworks = @($OrgProfile.frameworks); thresholds = $OrgProfile.thresholds; breakGlass = @($OrgProfile.breakGlass) } } else { $null })

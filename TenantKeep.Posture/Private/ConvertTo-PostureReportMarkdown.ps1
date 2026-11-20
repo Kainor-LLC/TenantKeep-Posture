@@ -169,6 +169,14 @@ function ConvertTo-PostureReportMarkdown {
     & $line
     & $line (($a.evidenceFiles | ForEach-Object { "``$_``" }) -join ', ')
     & $line
+    $rh = $r.runHealth
+    if ($rh -and @($rh.failures).Count -gt 0) {
+        & $line '### Run health'
+        & $line
+        & $line "$(@($rh.failures).Count) step(s) could not be read. After granting a role, collect only what failed: ``$($rh.resume)``"
+        & $line
+        & $table @('Domain', 'Step', 'Why', 'What to do') @($rh.failures | ForEach-Object { , @($_.collector, $_.step, $_.causeLabel, $_.advice) })
+    }
     if (@($a.errors).Count -gt 0) { & $line '### Collection errors'; & $line; foreach ($e in $a.errors) { & $line "- $(& $esc $e)" }; & $line }
     if ($b.footer) { & $line '---'; & $line; & $line $b.footer }
     return $sb.ToString()

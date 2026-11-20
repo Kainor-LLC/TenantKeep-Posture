@@ -83,4 +83,24 @@ Describe 'Why a step failed' {
             $all[1].cause | Should -Be 'permission'
         }
     }
+
+    It 'shows the failures in the report: a banner on the overview, and Run Health with the role to grant and the resume command' {
+        InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+        . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
+        $ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'report-run')
+        InModuleScope TenantKeep.Posture -Parameters @{ ev = $ev } {
+            param($ev)
+            $script:PostureCurrentCollector = 'Entra'
+            $null = Invoke-PostureStep -Label 'Risky users' -Folder $ev -Script { throw 'Response status code does not indicate success: Forbidden (Forbidden).' } -WarningAction SilentlyContinue
+            $script:PostureCurrentCollector = $null
+        }
+        $r = New-PostureReport -Evidence $ev -PassThru
+        $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+        $html | Should -Match '1 step\(s\) could not be read'
+        $html | Should -Match '<section class="view" id="health">'
+        $html | Should -Match 'Give the account that runs the assessment one of: Security Reader, Global Reader'
+        $html | Should -Match ([regex]::Escape([System.Net.WebUtility]::HtmlEncode("Resume-PostureRun -Path '$ev'")))
+        Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match '### Run health'
+        InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
+    }
 }

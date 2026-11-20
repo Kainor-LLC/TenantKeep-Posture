@@ -254,7 +254,16 @@ function Start-PostureRun {
     $versions = Get-PostureModuleVersionUsed
     Write-Host "PowerShell $($PSVersionTable.PSVersion); modules: $(@($versions.Keys | ForEach-Object { "$_ $(if ($versions[$_]) { $versions[$_] } else { 'not installed' })" }) -join ', ')"
     if ($reportFile) { Write-Host "Report: $reportFile" }
-    if ($errorCount -gt 0) { Write-Host "$errorCount step(s) logged in errors.txt" -ForegroundColor Yellow }
+    if ($errorCount -gt 0) {
+        $failures = @($(try { Read-PostureRunFailure -Folder $folder } catch { @() }))
+        Write-Host "$errorCount step(s) could not be read:" -ForegroundColor Yellow
+        foreach ($group in @($failures | Group-Object { [string]$_['cause'] } | Sort-Object Count -Descending)) {
+            $steps = @($group.Group | ForEach-Object { "$($_['collector']) $($_['step'])".Trim() } | Select-Object -Unique)
+            Write-Host "  $($steps -join '; ')" -ForegroundColor Yellow
+            foreach ($advice in @($group.Group | ForEach-Object { Get-PostureFailureAdvice -Failure $_ } | Select-Object -Unique)) { Write-Host "    $advice" }
+        }
+        Write-Host "  Then collect only what failed, into this run: Resume-PostureRun -Path '$($folder -replace "'", "''")'" -ForegroundColor Cyan
+    }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
     # No network call here or anywhere: the trial is requested in the browser, by the admin, if they choose to.
     $licPath = Join-Path $Client 'tenantkeep.lic'
