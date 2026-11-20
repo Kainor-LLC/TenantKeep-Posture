@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- Defence in depth (2026-11-20): checks/layers.json stacks catalog checks into layers; the overview draws email
+  protection, Conditional Access coverage and Copilot data readiness as layered rings, each layer holds, partly or
+  missing with n of m checks beside it.
 - Charts (2026-11-20): the overview opens with header tiles (members, groups, apps, devices, managed, sign-ins), a
   passed-of-evaluated bar per domain that opens its checks, and charts: how members sign in (a flow from members to
   phishing-resistant, phishable or no MFA, to method), sign-ins through Conditional Access to MFA, device

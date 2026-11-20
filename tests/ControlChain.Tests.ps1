@@ -65,3 +65,31 @@ Describe 'Control chains' {
         }
     }
 }
+
+Describe 'Defence in depth layers' {
+    It 'ships layer sets whose every check is in the catalog' {
+        InModuleScope TenantKeep.Posture {
+            $sets = @(Import-PostureLayerSet -Catalog (Import-PostureCheckCatalog))
+            $sets.Count | Should -BeGreaterOrEqual 3
+            @($sets.id) | Should -Contain 'LY-001'
+        }
+        Get-Content -Raw (Join-Path $PSScriptRoot '..' 'checks' 'layers.json') | Should -Not -Match ([char]0x2014)
+    }
+
+    It 'judges each layer on the checks it could evaluate, and names the first missing layer' {
+        InModuleScope TenantKeep.Posture {
+            $set = @([ordered]@{ id = 'LY-001'; name = 'Mail'; domain = 'email'; layers = @(
+                        [ordered]@{ name = 'Sender authentication: SPF'; checks = @('A-001', 'A-002') }
+                        [ordered]@{ name = 'Filtering: presets'; checks = @('A-003', 'A-004') }
+                        [ordered]@{ name = 'Detonation: links'; checks = @('A-005') }
+                        [ordered]@{ name = 'After delivery: purge'; checks = @('A-006') }) })
+            $res = @(@{ id = 'A-001'; status = 'pass' }, @{ id = 'A-002'; status = 'acceptedRisk' }, @{ id = 'A-003'; status = 'pass' }, @{ id = 'A-004'; status = 'fail' }, @{ id = 'A-005'; status = 'fail' }, @{ id = 'A-006'; status = 'notEvaluated' })
+            $r = @(Get-PostureLayerSetResult -LayerSet $set -Result $res)[0]
+            @($r.layers.status) | Should -Be @('pass', 'partial', 'fail', 'na')
+            $r.layers[1].passed | Should -Be 1; $r.layers[1].total | Should -Be 2
+            $r.takeaway | Should -Be '1 of 3 layers hold; the detonation layer is missing.'
+            Get-PostureLayerSetResult -LayerSet $set -Result @() | Should -BeNullOrEmpty -Because 'a set with nothing judged is left out'
+        }
+    }
+}
+

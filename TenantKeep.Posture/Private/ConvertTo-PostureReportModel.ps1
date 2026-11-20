@@ -345,6 +345,7 @@ function ConvertTo-PostureReportModel {
         recommendations = $recommendations
         alreadyGood     = $alreadyGood
         chains          = $chains
+        layers          = @(Get-PostureLayerSetResult -LayerSet @(Import-PostureLayerSet -Catalog $Catalog) -Result @($results))
         doToday         = $doToday
         inventory       = @(Get-PostureInventory -Evidence $Evidence)
         charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable))

@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeDiscovery {
-    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json', 'facts.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
+    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json', 'facts.json', 'layers.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
     $script:BaselineFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'baselines') -Filter '*.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
 }
 

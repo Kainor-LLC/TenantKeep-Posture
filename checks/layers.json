@@ -1,0 +1,40 @@
+{
+  "description": "Defence in depth: each set is a stack of layers, outermost first, and each layer the catalog checks that make it. The report draws a set as layered rings: a layer holds when every evaluated check in it passes (or is accepted or covered), is partial when some do, missing when none do, and not applicable when none of its checks could be judged.",
+  "sets": [
+    {
+      "id": "LY-001",
+      "name": "Email Protection in Depth",
+      "domain": "email",
+      "layers": [
+        { "name": "Sender authentication: SPF, DKIM, DMARC", "checks": ["EM-012", "EM-013", "EM-014"] },
+        { "name": "Filtering: presets, anti-phishing, impersonation", "checks": ["EM-001", "EM-003", "EM-004"] },
+        { "name": "Detonation: Safe Links, Safe Attachments", "checks": ["EM-002", "EM-005"] },
+        { "name": "After delivery: auto purge, quarantine", "checks": ["EM-006", "EM-007"] },
+        { "name": "Leaks out: forwarding blocked", "checks": ["EM-008", "EM-016"] }
+      ]
+    },
+    {
+      "id": "LY-002",
+      "name": "Conditional Access Coverage",
+      "domain": "ca",
+      "layers": [
+        { "name": "Baseline: MFA for everyone, legacy blocked", "checks": ["CA-001", "CA-002"] },
+        { "name": "Administrators: phishing-resistant, short sessions", "checks": ["CA-003", "CA-009"] },
+        { "name": "Risk: sign-in and user risk", "checks": ["CA-004"] },
+        { "name": "Devices: compliant device required", "checks": ["CA-005"] },
+        { "name": "No gaps: exclusions, locations, break-glass", "checks": ["CA-007", "CA-008", "CA-012"] }
+      ]
+    },
+    {
+      "id": "LY-003",
+      "name": "Copilot Data Readiness",
+      "domain": "copilot",
+      "layers": [
+        { "name": "Exposure: sharing tightened", "checks": ["CL-001", "CL-002", "CL-015", "CP-004"] },
+        { "name": "Classification: labels published", "checks": ["PV-002", "CP-006", "PV-004"] },
+        { "name": "Enforcement: DLP, including for Copilot", "checks": ["PV-005", "CP-013"] },
+        { "name": "Oversight: audit, baseline, reviews", "checks": ["CP-001", "CP-003", "CP-011"] }
+      ]
+    }
+  ]
+}

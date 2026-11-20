@@ -73,3 +73,73 @@ function Get-PostureControlChainResult {
     }
     return @($out)
 }
+
+function Import-PostureLayerSet {
+    <#
+    .SYNOPSIS
+        Loads checks/layers.json: defence-in-depth sets, each an ordered stack of layers made of catalog checks.
+        Every check named must be in the catalog.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Catalog,
+        [string] $Path
+    )
+
+    $ErrorActionPreference = 'Stop'
+    if (-not $Path) {
+        if (-not $Catalog.Contains('path') -or -not $Catalog['path']) { return @() }
+        $Path = Join-Path ([string]$Catalog['path']) 'layers.json'
+    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return @() }
+    $doc = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -AsHashtable -Depth 10
+    $known = @{}; foreach ($c in $Catalog.checks) { $known[[string]$c['id']] = $true }
+    $sets = foreach ($set in @($doc['sets'])) {
+        $id = [string]$set['id']
+        if ($id -notmatch '^LY-\d{3}$') { throw "layers.json: set id '$id' must look like LY-001" }
+        if (@($set['layers']).Count -lt 2) { throw "layers.json: set '$id' needs at least two layers" }
+        foreach ($l in @($set['layers'])) {
+            if (@($l['checks']).Count -eq 0) { throw "layers.json: set '$id' layer '$($l['name'])' names no checks" }
+            foreach ($c in @($l['checks'])) { if (-not $known.ContainsKey([string]$c)) { throw "layers.json: set '$id' names '$c', which is not in the catalog" } }
+        }
+        [ordered]@{ id = $id; name = [string]$set['name']; domain = [string]$set['domain']; layers = @($set['layers'] | ForEach-Object { [ordered]@{ name = [string]$_['name']; checks = @($_['checks'] | ForEach-Object { [string]$_ }) } }) }
+    }
+    return @($sets)
+}
+
+function Get-PostureLayerSetResult {
+    <#
+    .SYNOPSIS
+        Judges each layer from a run's results: passed and total count the evaluated checks (pass, accepted or
+        covered hold; fail does not); holds, partial, missing, or not applicable when none could be judged. A set
+        with no layer that applies is left out.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $LayerSet,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Result
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $byId = @{}; foreach ($r in $Result) { $byId[[string]$r.id] = $r }
+    $holds = 'pass', 'acceptedRisk', 'coveredBy'
+    $out = foreach ($set in $LayerSet) {
+        $layers = @($set.layers | ForEach-Object {
+                $judged = @($_.checks | Where-Object { $byId.ContainsKey($_) -and [string]$byId[$_].status -in @($holds + 'fail') })
+                $passed = @($judged | Where-Object { [string]$byId[$_].status -in $holds }).Count
+                $status = $(if ($judged.Count -eq 0) { 'na' } elseif ($passed -eq $judged.Count) { 'pass' } elseif ($passed -eq 0) { 'fail' } else { 'partial' })
+                [ordered]@{ label = $_.name; passed = $passed; total = $judged.Count; status = $status; checks = @($_.checks) }
+            })
+        $live = @($layers | Where-Object { $_.status -ne 'na' })
+        if ($live.Count -eq 0) { continue }
+        $hold = @($live | Where-Object { $_.status -eq 'pass' }).Count
+        $worst = @($live | Where-Object { $_.status -eq 'fail' } | Select-Object -First 1)
+        [ordered]@{
+            id = $set.id; name = $set.name; domain = $set.domain; layers = $layers
+            takeaway = "$hold of $($live.Count) layers hold$(if ($worst.Count) { "; the $($worst[0].label.Split(':')[0].ToLowerInvariant()) layer is missing" })."
+        }
+    }
+    return @($out)
+}
