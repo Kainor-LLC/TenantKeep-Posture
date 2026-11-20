@@ -216,3 +216,36 @@ Describe 'Fresh tokens for the second process' {
     }
 }
 
+Describe 'Per-user MFA on a large tenant' {
+    It 'reads a sample of 1,000 when nobody in it has per-user MFA, and everyone when somebody does' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            Mock Write-Host { }
+            Mock Assert-PostureGraphScope { @{ Scopes = @('Directory.Read.All') } }
+            $script:FakeUsers = @(for ($i = 0; $i -lt 6000; $i++) { @{ id = "u$i"; userPrincipalName = "user$i@contoso.example"; userType = 'Member'; accountEnabled = $true } })
+            $script:State = 'disabled'
+            $script:Batches = 0
+            Mock Invoke-PostureGraphRequest {
+                if ($Uri -like 'users?*') { $null = & $OnPage $script:FakeUsers @{ number = 1; count = 6000; nextLink = $null }; return 6000 }
+                if ($Uri -eq '$batch') { $script:Batches++; return @{ responses = @($Body.requests | ForEach-Object { @{ id = $_.id; status = 200; body = @{ perUserMfaState = $script:State } } }) } }
+                if ($OnPage) { return 0 }
+                return @()
+            }
+            $f = Join-Path $root 'mfa-sample'; New-Item -ItemType Directory -Path $f | Out-Null
+            $null = Invoke-PostureEntraCollection -Folder $f -WarningAction SilentlyContinue
+            $sum = Get-Content -Raw (Join-Path $f '05-per-user-mfa-summary.json') | ConvertFrom-Json
+            $sum.Mode | Should -Be 'sample'
+            $sum.SampleSize | Should -Be 1000
+            $sum.Members | Should -Be 6000
+            $script:Batches | Should -Be 50
+
+            $script:State = 'enforced'; $script:Batches = 0
+            $g = Join-Path $root 'mfa-full'; New-Item -ItemType Directory -Path $g | Out-Null
+            $null = Invoke-PostureEntraCollection -Folder $g -WarningAction SilentlyContinue
+            $full = Get-Content -Raw (Join-Path $g '05-per-user-mfa-summary.json') | ConvertFrom-Json
+            $full.Mode | Should -Be 'full'
+            $full.Users | Should -Be 6000 -Because 'someone in the sample had it, so everyone was read'
+        }
+    }
+}
+

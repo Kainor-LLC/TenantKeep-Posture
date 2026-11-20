@@ -53,6 +53,9 @@ function Start-PostureRun {
     .PARAMETER SignInDays
         Days of Entra sign-in log to read, 1 to 30. Default 7. On a large tenant this is the longest part of a run;
         it streams, saves a checkpoint, carries on by itself after a failure and resumes with Resume-PostureRun.
+    .PARAMETER FullPerUserMfa
+        Read every member's per-user MFA state. Default: all of them up to 5,000 members; above that every admin and
+        1,000 at random, and everyone only when one of those has it.
     .PARAMETER AllowSleep
         Let the machine sleep during the run. Default: it is kept awake until the run ends.
     .PARAMETER SkipReport
@@ -79,6 +82,7 @@ function Start-PostureRun {
         [switch] $NoBrowser,
         [switch] $AllowSleep,
         [ValidateRange(1, 30)] [int] $SignInDays = 7,
+        [switch] $FullPerUserMfa,
         [switch] $SkipReport,
         [switch] $PassThru
     )
@@ -223,7 +227,7 @@ function Start-PostureRun {
 
         # 4. Graph-based collectors and Azure in this process, then SharePoint and Teams (PnP.PowerShell loads an
         # older Microsoft.Graph.Core, so it comes after every Graph read).
-        if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -SignInDays $SignInDays -PassThru @profileParam }
+        if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -SignInDays $SignInDays -FullPerUserMfa:$FullPerUserMfa -PassThru @profileParam }
         $local = [System.Collections.Generic.List[string]]::new()
         foreach ($name in $localPlan) {
             try { Connect-PostureService -Name $name.ToLowerInvariant(); $local.Add($name) }

@@ -42,6 +42,9 @@ function Invoke-PostureCollection {
     .PARAMETER ProfilePath
         profile.json of the tenant. When it carries tenantId, a Graph session in any other tenant is refused before
         anything is read: the guard for a machine that holds sessions to several tenants.
+    .PARAMETER FullPerUserMfa
+        Read the per-user MFA state of every member. Default: every member up to 5,000; above that every admin and
+        1,000 members at random, and everyone only when one of them has per-user MFA.
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
     .PARAMETER SkipSiteEnumeration
@@ -96,6 +99,7 @@ function Invoke-PostureCollection {
         [switch] $IncludeMembers,
         [switch] $SkipCaSnapshot,
         [switch] $SkipPerUserMfa,
+        [switch] $FullPerUserMfa,
         [switch] $SkipMailboxEnumeration,
         [switch] $SkipSiteEnumeration,
         [switch] $PassThru
@@ -199,7 +203,7 @@ function Invoke-PostureCollection {
             $timings['ConditionalAccess'] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = 1 }
             $ran.Add('ConditionalAccess')
         }
-        if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa } }
+        if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa -FullPerUserMfa:$FullPerUserMfa } }
         # A step like any other, so a refusal or a missing licence is recorded with its cause and the run goes on.
         if ($Collector -contains 'SignIns') { & $timed 'SignIns' { Invoke-PostureStep -Label 'Sign-in log' -Folder $folder -Script { Invoke-PostureSignInCollection -Folder $folder -Days $SignInDays -AsOf $startedUtc } } }
         if ($Collector -contains 'Intune') { & $timed 'Intune' { Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc } }

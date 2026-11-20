@@ -7,7 +7,7 @@ function Invoke-PostureEntraCollection {
     .DESCRIPTION
         One step per file through Invoke-PostureStep: a permission failure lands in errors.txt and the run goes on.
         Added beyond the audit plan's A.1: 04-pim-role-policies (activation rules per role), 05-per-user-mfa (legacy
-        per-user MFA state, one batched read per member; -SkipPerUserMfa on very large tenants), 08-entra-devices.
+        per-user MFA state, batched reads: every member up to 5,000 or with -FullPerUserMfa, else every admin and a random 1,000, and everyone only when one has it; -SkipPerUserMfa leaves it out), 08-entra-devices.
         JSON holds what Graph returned (selected properties, untouched casing); CSV holds the flat projection the
         audit plan defines. Two fallbacks: users without signInActivity when AuditLog.Read.All is missing, and plain
         role assignments when PIM schedule instances are unavailable (no P2).
@@ -20,6 +20,7 @@ function Invoke-PostureEntraCollection {
         [int] $StaleDays = 90,
         [int] $RiskDetectionDays = 30,
         [switch] $SkipPerUserMfa,
+        [switch] $FullPerUserMfa,
         [datetime] $AsOf = [datetime]::UtcNow
     )
 
@@ -268,38 +269,58 @@ function Invoke-PostureEntraCollection {
     if (-not $SkipPerUserMfa) {
         Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -Script {
             # One read per user, batched 20 at a time through $batch. authentication/requirements is beta-only (confirmed 2026-10-14).
-            # (verify) scope: UserAuthenticationMethod.Read.All; cost at 20k users
+            # (verify) scope: UserAuthenticationMethod.Read.All
             $members = $(if ($memberIds.Count -gt 0) { $memberIds } else { @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' }) })
             $states = [System.Collections.Generic.List[object]]::new()
             # Graph throttles inside a batch per sub-request: a 429 or 503 there is sent again, after its Retry-After.
-            for ($i = 0; $i -lt $members.Count; $i += 20) {
-                $chunk = @($members[$i..([Math]::Min($i + 20, $members.Count) - 1)])
-                $pending = @(0..($chunk.Count - 1))
-                for ($try = 1; $pending.Count -gt 0; $try++) {
-                    $requests = @(foreach ($n in $pending) { @{ id = [string]$n; method = 'GET'; url = "/users/$($chunk[$n].Id)/authentication/requirements" } })
-                    $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'beta' -Single   # posture:read-only-post
-                    $again = [System.Collections.Generic.List[int]]::new(); $wait = 0
-                    foreach ($resp in @(& $v $batch 'responses')) {
-                        $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]; $status = [int](& $v $resp 'status')
-                        if ($status -in 429, 503 -and $try -lt $script:PostureGraphRetry.maxAttempts) {
-                            $again.Add($idx)
-                            $ra = 0; if ([int]::TryParse([string](& $v $resp 'headers.Retry-After'), [ref]$ra)) { $wait = [Math]::Max($wait, $ra) }
-                            continue
+            $scan = {
+                param($members)
+                for ($i = 0; $i -lt $members.Count; $i += 20) {
+                    $chunk = @($members[$i..([Math]::Min($i + 20, $members.Count) - 1)])
+                    $pending = @(0..($chunk.Count - 1))
+                    for ($try = 1; $pending.Count -gt 0; $try++) {
+                        $requests = @(foreach ($n in $pending) { @{ id = [string]$n; method = 'GET'; url = "/users/$($chunk[$n].Id)/authentication/requirements" } })
+                        $batch = Invoke-PostureGraphRequest -Uri '$batch' -Method 'POST' -Body @{ requests = $requests } -ApiVersion 'beta' -Single   # posture:read-only-post
+                        $again = [System.Collections.Generic.List[int]]::new(); $wait = 0
+                        foreach ($resp in @(& $v $batch 'responses')) {
+                            $idx = [int](& $v $resp 'id'); $m = $chunk[$idx]; $status = [int](& $v $resp 'status')
+                            if ($status -in 429, 503 -and $try -lt $script:PostureGraphRetry.maxAttempts) {
+                                $again.Add($idx)
+                                $ra = 0; if ([int]::TryParse([string](& $v $resp 'headers.Retry-After'), [ref]$ra)) { $wait = [Math]::Max($wait, $ra) }
+                                continue
+                            }
+                            $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = $status; PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
                         }
-                        $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = $status; PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
+                        $pending = @($again)
+                        if ($pending.Count -gt 0) {
+                            $delay = [Math]::Min($script:PostureGraphRetry.maxWaitSeconds, [Math]::Max($wait, $script:PostureGraphRetry.baseSeconds * [Math]::Pow(2, $try - 1)))
+                            if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+                        }
                     }
-                    $pending = @($again)
-                    if ($pending.Count -gt 0) {
-                        $delay = [Math]::Min($script:PostureGraphRetry.maxWaitSeconds, [Math]::Max($wait, $script:PostureGraphRetry.baseSeconds * [Math]::Pow(2, $try - 1)))
-                        if ($delay -gt 0) { Start-Sleep -Seconds $delay }
-                    }
+                    if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $states.Count) of $('{0:N0}' -f $members.Count) members"; Write-PostureProgress }
                 }
-                if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $states.Count) of $('{0:N0}' -f $members.Count) members"; Write-PostureProgress }
+            }
+            # Per-user MFA is legacy and Microsoft is retiring it, so most tenants have none. Up to 5,000 members, or with
+            # -FullPerUserMfa, every member is read. Above that, every admin and 1,000 members at random are read first;
+            # only when one of them has it is everyone else read too. None in 1,000 puts the rate under 0.3% (95%).
+            $mode = 'full'; $sampleSize = $members.Count
+            if ($FullPerUserMfa -or $members.Count -le 5000) { & $scan $members }
+            else {
+                $admins = @($members | Where-Object { $adminUpns.Contains([string]$_.UserPrincipalName) })
+                $rest = @($members | Where-Object { -not $adminUpns.Contains([string]$_.UserPrincipalName) })
+                $sample = @($admins) + @($rest | Get-Random -Count ([Math]::Min(1000, $rest.Count)))
+                & $scan $sample
+                $found = @($states | Where-Object { $_.PerUserMfaState -in 'enforced', 'enabled' }).Count
+                if ($found -gt 0) {
+                    $seen = [System.Collections.Generic.HashSet[string]]::new([string[]]@($sample | ForEach-Object { [string]$_.UserPrincipalName }), [System.StringComparer]::OrdinalIgnoreCase)
+                    & $scan @($members | Where-Object { -not $seen.Contains([string]$_.UserPrincipalName) })
+                }
+                else { $mode = 'sample'; $sampleSize = $sample.Count }
             }
             $rows = @($states.ToArray())
             & $save $rows '05-per-user-mfa' $true
             $failed = @($rows | Where-Object { [int]$_.Status -ge 400 })
-            & $saveOne ([ordered]@{ Users = $rows.Count; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = $failed.Count; FirstError = $(if ($failed.Count -gt 0) { "$($failed[0].Status) $($failed[0].Error)" } else { $null }) }) '05-per-user-mfa-summary'
+            & $saveOne ([ordered]@{ Users = $rows.Count; Members = $members.Count; Mode = $mode; SampleSize = $sampleSize; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = $failed.Count; FirstError = $(if ($failed.Count -gt 0) { "$($failed[0].Status) $($failed[0].Error)" } else { $null }) }) '05-per-user-mfa-summary'
         } | Out-Null
     }
 
