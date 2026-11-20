@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- The story of a run (2026-11-20): the overview opens with the score as a ring (change since the last run, the
+  target, and where the top five fixes would take it), the score over time across earlier runs of the tenant, open
+  findings by severity, the attack path from phishable members to phishable administrators, and accepted risks by
+  expiry. Recommendations adds Quick Wins (open findings by effort against what users will notice) and a Roadmap
+  in 30, 60 and 90 day lanes.
 - Goals in the profile (2026-11-20): `New-PostureProfile -Goal` (tab-completed from licensing/goals.json) and a question
   in the questionnaire; the licensing advisor works from them, else from the core goals.
 - Licensing view and advisor (2026-11-20): the Licensing view opens with What To Add: for the profile's goals, or

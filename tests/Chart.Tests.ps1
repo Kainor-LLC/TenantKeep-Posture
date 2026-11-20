@@ -92,4 +92,60 @@ Describe 'Report charts' {
         }
         finally { Remove-Item -LiteralPath $ev -Recurse -Force }
     }
+
+    It 'draws ranked bars largest first unless told to keep the order, with the value at each tip' {
+        InModuleScope TenantKeep.Posture {
+            $svg = ConvertTo-PostureRankedBarChart -Name 'Countries' -Item @(@{ label = 'US'; value = 10 }, @{ label = 'GB'; value = 40 }, @{ label = 'DE'; value = 20 })
+            ([regex]::Matches($svg, 'class="rbar-label">(\w+)<') | ForEach-Object { $_.Groups[1].Value }) | Should -Be @('GB', 'DE', 'US')
+            $svg | Should -Match 'style="width:100%"' -Because 'the largest bar spans the track'
+            $kept = ConvertTo-PostureRankedBarChart -KeepOrder -Item @(@{ label = 'Critical'; value = 1 }, @{ label = 'High'; value = 5 })
+            ([regex]::Matches($kept, 'class="rbar-label">(\w+)<') | ForEach-Object { $_.Groups[1].Value }) | Should -Be @('Critical', 'High')
+        }
+    }
+
+    It 'draws a line over time with the last value labelled, and no line for a single point' {
+        InModuleScope TenantKeep.Posture {
+            $svg = ConvertTo-PostureLineChart -Percent -Point @(@{ label = '2026-10-01'; value = 50 }, @{ label = '2026-11-01'; value = 62 }, @{ label = 'now'; value = 70 })
+            $svg | Should -Match '<path class="line" d="M'
+            ([regex]::Matches($svg, '<circle class="dot"')).Count | Should -Be 3
+            $svg | Should -Match 'class="end-label"[^>]*>70<'
+            ConvertTo-PostureLineChart -Point @(@{ label = 'now'; value = 5 }) | Should -Not -Match 'class="line"'
+        }
+    }
+
+    It 'draws the score ring with the change, the target and the projected score' {
+        InModuleScope TenantKeep.Posture {
+            $svg = ConvertTo-PostureScoreRing -Value 62 -Delta 4 -Projected 67 -Target 80 -Grade 'D'
+            $svg | Should -Match 'class="ring-value">62<'
+            $svg | Should -Match '\+4 since the last run'
+            $svg | Should -Match '67 with the top five fixes'
+            $svg | Should -Match '<line class="target"'
+            ConvertTo-PostureScoreRing -Value 62 -Delta $null | Should -Match 'first run'
+        }
+    }
+
+    It 'scores earlier runs of the same tenant for the trend, oldest first, and ignores other tenants' {
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-history-$([guid]::NewGuid().ToString('n'))"
+        try {
+            InModuleScope TenantKeep.Posture -Parameters @{ Root = $root } {
+                param($Root)
+                $mk = {
+                    param([string] $Name, [string] $Started, [string] $Tenant, [string[]] $Status)
+                    $l = New-PostureRunFolder -OutRoot $Root -Name $Name -Confirm:$false
+                    @{ tenantId = $Tenant; startedUtc = $Started } | ConvertTo-Json | Set-Content (Join-Path $l.logs 'run.json')
+                    @{ results = @($Status | ForEach-Object { @{ status = $_; severity = 'High' } }) } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $l.logs 'checks.json')
+                    $l
+                }
+                $null = & $mk 'a' '2026-09-01T00:00:00Z' 't1' @('pass', 'fail')
+                $null = & $mk 'b' '2026-10-01T00:00:00Z' 't2' @('fail', 'fail')
+                $null = & $mk 'c' '2026-11-01T00:00:00Z' 't1' @('pass', 'pass', 'pass', 'fail')
+                $now = & $mk 'd' '2026-11-20T00:00:00Z' 't1' @('pass')
+                $h = @(Get-PostureScoreHistory -Run $now.root)
+                @($h.value) | Should -Be @(50, 75)
+                @($h.label) | Should -Be @('2026-09-01', '2026-11-01')
+            }
+        }
+        finally { if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
+    }
 }
+

@@ -94,7 +94,22 @@ function ConvertTo-PostureReportHtml {
         $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
         & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
     }
-    & $w "<div class=`"score`"><div class=`"grade`" id=`"score-grade`">$(& $h $r.score.grade)</div><div><div class=`"value`" id=`"score-value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div></div></div>"
+    # The score as a ring with its change, target and projection; its history; open findings by severity; the attack
+    # path; the accepted-risk ledger.
+    $st = $(if ($r.Contains('story') -and $r.story) { $r.story } else { [ordered]@{} })
+    $delta = $(if ($r.trend) { $r.trend.scoreDelta } elseif ($st.Contains('history') -and @($st.history).Count -ge 2) { @($st.history)[-1].value - @($st.history)[-2].value } else { $null })
+    $storyCards = @()
+    $proj = $(if ($st.Contains('projected')) { $st.projected } else { $null })
+    $storyCards += ConvertTo-PostureChartCard -Title 'Posture Score' -Takeaway "$($r.score.value) of 100, grade $($r.score.grade).$(if ($null -ne $proj -and $proj -gt $r.score.value) { " Fixing the top five recommendations brings it to $proj." })" -Body ((ConvertTo-PostureScoreRing -Value $r.score.value -Delta $delta -Projected $proj -Grade $r.score.grade) + '<p class="hint">' + (& $h "$($r.score.method) $($r.score.evaluated) checks scored.") + '</p>')
+    if ($st.Contains('history') -and @($st.history).Count -ge 2) {
+        $first = @($st.history)[0].value; $lastV = @($st.history)[-1].value
+        $storyCards += ConvertTo-PostureChartCard -Title 'Score Over Time' -Takeaway "From $first to $lastV over $(@($st.history).Count) runs." -Body (ConvertTo-PostureLineChart -Name 'Posture score by run' -Percent -Point @($st.history))
+    }
+    $sevOpen = @('Critical', 'High', 'Medium', 'Low' | ForEach-Object { $sv = $_; [ordered]@{ label = $sv; value = @($r.results | Where-Object { $_.status -eq 'fail' -and $_.severity -eq $sv }).Count; tone = @{ Critical = 'err'; High = 'warn'; Medium = 'c1'; Low = 'na' }[$sv] } })
+    $storyCards += ConvertTo-PostureChartCard -Title 'Open Findings by Severity' -Takeaway "$(@($sevOpen)[0].value) critical and $(@($sevOpen)[1].value) high findings are open." -Body (ConvertTo-PostureRankedBarChart -Name 'Open findings by severity' -KeepOrder -Item $sevOpen) -ViewAllLabel 'Go to Recommendations'
+    if ($st.Contains('funnel') -and $st.funnel) { $storyCards += ConvertTo-PostureChartCard -Title 'Attack Path: Phishing to Admin' -Takeaway $st.funnel.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureRankedBarChart -Name 'Attack path' -KeepOrder -Item @($st.funnel.steps | ForEach-Object { [ordered]@{ label = $_.label; value = $_.value; tone = 'err' } })) }
+    if ($st.Contains('ledger') -and $st.ledger) { $storyCards += ConvertTo-PostureChartCard -Title 'Accepted Risks by Expiry' -Takeaway "$($st.ledger.total) accepted risk(s); $($st.ledger.buckets['Expired']) expired and $($st.ledger.buckets['Within 30 days']) expire within 30 days." -Body (ConvertTo-PostureRankedBarChart -Name 'Accepted risks by expiry' -KeepOrder -Item @($st.ledger.buckets.Keys | ForEach-Object { [ordered]@{ label = $_; value = $st.ledger.buckets[$_]; tone = $(if ($_ -eq 'Expired') { 'err' } elseif ($_ -eq 'Within 30 days') { 'warn' } else { 'c1' }) } })) }
+    & $w ('<div class="charts">' + ($storyCards -join '') + '</div>')
     # Header tiles and a passed-of-evaluated row per domain, each a link into its checks.
     $ch = $(if ($r.Contains('charts') -and $r.charts) { $r.charts } else { [ordered]@{} })
     if ($ch.Contains('tiles') -and @($ch.tiles).Count) {
@@ -280,6 +295,25 @@ function ConvertTo-PostureReportHtml {
         # Ten at most: a list for one day. The rest carry the same chips on their cards.
         $li = @($r.doToday | Select-Object -First 10 | ForEach-Object { '<li><span class="sev ' + (& $h $_.severity) + '">' + (& $h $_.severity) + '</span> <a href="#rec-' + (& $h $_.id) + '"><code>' + (& $h $_.id) + '</code> ' + (& $h $_.title) + '</a><span class="muted">' + (& $h $_.userImpact['text']) + '</span></li>' }) -join ''
         & $w ('<div class="do-today"><h3>Do Today <span class="count">' + @($r.doToday).Count + '</span></h3><p class="hint">Quick fixes that users will not notice or will barely notice: a setting each, under an hour. The most severe first.</p><ul>' + $li + '</ul>' + $(if (@($r.doToday).Count -gt 10) { '<p class="hint">' + (@($r.doToday).Count - 10) + ' more like these below, marked Quick fix and User impact: none or low.</p>' }) + '</div>')
+    }
+    # Quick wins: open findings by effort and by what users will notice; then the roadmap in 30, 60, 90 day lanes.
+    if ($r.Contains('story') -and $r.story -and $r.story.quickWins) {
+        $qw = $r.story.quickWins
+        $impLabel = [ordered]@{ none = 'Users notice nothing'; low = 'Users barely notice'; medium = 'Users notice'; high = 'Big change for users' }
+        $efLabel = [ordered]@{ S = 'Quick fix'; M = 'Planned change'; L = 'Project' }
+        $cells = '<div class="qw-grid" role="table" aria-label="Open findings by effort and user impact"><div class="qw-corner" role="columnheader"></div>' + (@($efLabel.Keys | ForEach-Object { '<div class="qw-col" role="columnheader">' + (& $h $efLabel[$_]) + '</div>' }) -join '')
+        foreach ($imp in $impLabel.Keys) {
+            $cells += '<div class="qw-row" role="rowheader">' + (& $h $impLabel[$imp]) + '</div>'
+            foreach ($ef in $efLabel.Keys) {
+                $items = @($qw["$imp|$ef"])
+                $best = ($imp -in 'none', 'low' -and $ef -eq 'S')
+                $cells += '<div class="qw-cell' + $(if ($best) { ' best' }) + $(if (-not $items.Count) { ' empty' }) + '" role="cell"><span class="qw-count">' + $items.Count + '</span>' + (@($items | Select-Object -First 6 | ForEach-Object { '<a href="#rec-' + (& $h $_.id) + '" class="qw-chip sev-' + (& $h $_.severity) + '" title="' + (& $h $_.title) + '">' + (& $h $_.id) + '</a>' }) -join '') + $(if ($items.Count -gt 6) { '<span class="muted"> +' + ($items.Count - 6) + '</span>' }) + '</div>'
+            }
+        }
+        $cells += '</div>'
+        $rm = $r.story.roadmap
+        $lanes = '<div class="lanes">' + ((@(@('now', 'Now: next 30 days', 'Critical findings, and high ones that are quick'), @('next', 'Next: 60 days', 'High findings that take planning, quick medium ones'), @('later', 'Later: 90 days', 'The rest, in priority order')) | ForEach-Object { $k = $_[0]; '<div class="lane"><h4>' + (& $h $_[1]) + ' <span class="count">' + @($rm[$k]).Count + '</span></h4><p class="hint">' + (& $h $_[2]) + '</p><ul>' + (@($rm[$k] | Select-Object -First 12 | ForEach-Object { '<li><span class="sev ' + (& $h $_.severity) + '">' + (& $h $_.severity) + '</span> <a href="#rec-' + (& $h $_.id) + '">' + (& $h $_.title) + '</a></li>' }) -join '') + '</ul>' + $(if (@($rm[$k]).Count -gt 12) { '<p class="hint">and ' + (@($rm[$k]).Count - 12) + ' more</p>' }) + '</div>' }) -join '') + '</div>'
+        & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Quick Wins' -Takeaway "$(@($qw['none|S']).Count + @($qw['low|S']).Count) open findings are quick fixes users will barely notice: the top left corner." -Body $cells) + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Roadmap' -Takeaway "$(@($rm.now).Count) for the next 30 days, $(@($rm.next).Count) for 60, $(@($rm.later).Count) for 90." -Body $lanes) + '</div>')
     }
     # Control chains: checks that only protect together, one card each with the broken link marked.
     if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {

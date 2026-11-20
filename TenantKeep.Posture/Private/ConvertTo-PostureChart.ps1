@@ -231,3 +231,106 @@ function ConvertTo-PostureBarChart {
     $table = $(if ($NoTable) { '' } else { ConvertTo-PostureChartTable -Header @('Part', 'Count') -Row @($Segment | ForEach-Object { , @($_.label, [double]$_.value) }) })
     return $bar + $legend + $table
 }
+
+function ConvertTo-PostureRankedBarChart {
+    <#
+    .SYNOPSIS
+        Horizontal bars, one per item, on one baseline, largest first unless -KeepOrder: the form for comparing parts
+        or ranking (top countries, error codes, findings by severity). Each bar carries its value at the tip; one
+        series needs no legend.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Item,
+        [string] $Name = 'bars',
+        [switch] $KeepOrder,
+        [int] $Top = 10,
+        [string] $ValueSuffix = ''
+    )
+    $h = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
+    $rows = @($(if ($KeepOrder) { $Item } else { $Item | Sort-Object { - [double]$_.value } }) | Select-Object -First $Top)
+    $max = [double](@($rows | ForEach-Object { [double]$_.value }) + 0 | Measure-Object -Maximum).Maximum
+    $body = @($rows | ForEach-Object {
+            $w = $(if ($max -gt 0) { 100 * [double]$_.value / $max } else { 0 })
+            $tone = $(if ($_ -is [System.Collections.IDictionary] -and $_.Contains('tone') -and $_['tone']) { [string]$_['tone'] } else { 'c1' })
+            '<div class="rbar"><span class="rbar-label">' + (& $h $_.label) + '</span><span class="rbar-track"><i class="t-' + (& $h $tone) + '" style="width:' + ('{0:0.##}' -f $w) + '%" title="' + (& $h "$($_.label): $([double]$_.value)$ValueSuffix") + '"></i></span><span class="rbar-value">' + (& $h ((Format-PostureChartNumber ([double]$_.value)) + $ValueSuffix)) + '</span></div>'
+        }) -join ''
+    $aria = (& $h ("$Name. " + (@($rows | ForEach-Object { "$($_.label) $([double]$_.value)" }) -join ', ') + '.'))
+    $table = ConvertTo-PostureChartTable -Header @('Item', 'Value') -Row @($rows | ForEach-Object { , @($_.label, "$([double]$_.value)$ValueSuffix") })
+    return '<div class="rbars" role="img" aria-label="' + $aria + '">' + $body + '</div>' + $table
+}
+
+function ConvertTo-PostureLineChart {
+    <#
+    .SYNOPSIS
+        A single series over time: a 2px line, the points as dots, the last value labelled, the axis from zero (or
+        0 to 100 with -Percent). Point: label (a date) and value. Fewer than two points draw no line.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Point,
+        [string] $Name = 'trend',
+        [switch] $Percent,
+        [int] $Width = 560,
+        [int] $Height = 180
+    )
+    $h = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
+    $pts = @($Point)
+    $max = $(if ($Percent) { 100 } else { [Math]::Max(1, [double](@($pts | ForEach-Object { [double]$_.value }) | Measure-Object -Maximum).Maximum) })
+    $left = 34; $right = 60; $top = 12; $bottom = 26
+    $pw = $Width - $left - $right; $ph = $Height - $top - $bottom
+    $xOf = { param([int] $i) $left + $(if ($pts.Count -gt 1) { $pw * $i / ($pts.Count - 1) } else { $pw / 2 }) }
+    $yOf = { param([double] $v) $top + $ph - ($ph * $v / $max) }
+    $sb = [System.Text.StringBuilder]::new()
+    foreach ($tick in @(0, ($max / 2), $max)) {
+        $y = & $yOf $tick
+        $null = $sb.Append(('<line class="grid" x1="{0}" y1="{1:0.#}" x2="{2}" y2="{1:0.#}"/><text class="tick" x="{3}" y="{4:0.#}" text-anchor="end">{5}</text>' -f $left, $y, ($left + $pw), ($left - 6), ($y + 4), (Format-PostureChartNumber $tick)))
+    }
+    if ($pts.Count -gt 1) {
+        $d = @(for ($i = 0; $i -lt $pts.Count; $i++) { '{0}{1:0.#},{2:0.#}' -f $(if ($i) { 'L' } else { 'M' }), (& $xOf $i), (& $yOf ([double]$pts[$i].value)) }) -join ' '
+        $null = $sb.Append('<path class="line" d="' + $d + '"/>')
+    }
+    for ($i = 0; $i -lt $pts.Count; $i++) {
+        $p = $pts[$i]; $x = & $xOf $i; $y = & $yOf ([double]$p.value)
+        $null = $sb.Append(('<circle class="dot" cx="{0:0.#}" cy="{1:0.#}" r="4"><title>{2}: {3}</title></circle>' -f $x, $y, (& $h $p.label), (Format-PostureChartNumber ([double]$p.value))))
+        if ($i -eq 0 -or $i -eq $pts.Count - 1) { $null = $sb.Append(('<text class="tick" x="{0:0.#}" y="{1}" text-anchor="middle">{2}</text>' -f $x, ($Height - 6), (& $h $p.label))) }
+    }
+    if ($pts.Count) { $last = $pts[-1]; $null = $sb.Append(('<text class="end-label" x="{0:0.#}" y="{1:0.#}">{2}</text>' -f ((& $xOf ($pts.Count - 1)) + 8), ((& $yOf ([double]$last.value)) + 4), (Format-PostureChartNumber ([double]$last.value)))) }
+    $aria = (& $h ("$Name. " + (@($pts | ForEach-Object { "$($_.label) $([double]$_.value)" }) -join ', ') + '.'))
+    $table = ConvertTo-PostureChartTable -Header @('When', 'Value') -Row @($pts | ForEach-Object { , @($_.label, [double]$_.value) })
+    return '<svg class="linechart" viewBox="0 0 ' + $Width + ' ' + $Height + '" role="img" aria-label="' + $aria + '">' + $sb.ToString() + '</svg>' + $table
+}
+
+function ConvertTo-PostureScoreRing {
+    <#
+    .SYNOPSIS
+        The posture score as a ring: the value in the middle, the change since the last run beside it, a tick for the
+        target and a faint arc to the score the top fixes would reach.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [AllowNull()] [object] $Value,
+        [AllowNull()] [object] $Delta,
+        [AllowNull()] [object] $Projected,
+        [int] $Target = 80,
+        [string] $Grade = ''
+    )
+    $h = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
+    $r = 54; $c = 2 * [Math]::PI * $r
+    $v = $(if ($null -ne $Value) { [double]$Value } else { 0 })
+    $tone = $(if ($v -ge $Target) { 'ok' } elseif ($v -ge 60) { 'warn' } else { 'err' })
+    $parts = [System.Text.StringBuilder]::new()
+    $null = $parts.Append(('<circle class="track" cx="70" cy="70" r="{0}" fill="none" stroke-width="12"/>' -f $r))
+    if ($null -ne $Projected -and [double]$Projected -gt $v) { $null = $parts.Append(('<circle class="projected t-{0}" cx="70" cy="70" r="{1}" fill="none" stroke-width="12" stroke-dasharray="{2:0.##} {3:0.##}" transform="rotate(-90 70 70)"><title>With the top five fixes: {4}</title></circle>' -f $tone, $r, ($c * [double]$Projected / 100), $c, [double]$Projected)) }
+    if ($v -gt 0) { $null = $parts.Append(('<circle class="value t-{0}" cx="70" cy="70" r="{1}" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="{2:0.##} {3:0.##}" transform="rotate(-90 70 70)"><title>Posture score: {4}</title></circle>' -f $tone, $r, ($c * $v / 100), $c, $v)) }
+    $a = (2 * [Math]::PI * $Target / 100) - [Math]::PI / 2
+    $null = $parts.Append(('<line class="target" x1="{0:0.#}" y1="{1:0.#}" x2="{2:0.#}" y2="{3:0.#}"><title>Target: {4}</title></line>' -f (70 + 46 * [Math]::Cos($a)), (70 + 46 * [Math]::Sin($a)), (70 + 62 * [Math]::Cos($a)), (70 + 62 * [Math]::Sin($a)), $Target))
+    $null = $parts.Append('<text x="70" y="68" text-anchor="middle" class="ring-value">' + $(if ($null -ne $Value) { [int]$v } else { 'n/a' }) + '</text><text x="70" y="88" text-anchor="middle" class="ring-label">' + (& $h $(if ($Grade) { "grade $Grade" } else { 'score' })) + '</text>')
+    $deltaText = $(if ($null -eq $Delta) { 'first run' } elseif ([double]$Delta -gt 0) { "+$Delta since the last run" } elseif ([double]$Delta -lt 0) { "$Delta since the last run" } else { 'no change since the last run' })
+    $aria = (& $h "Posture score $(if ($null -ne $Value) { [int]$v } else { 'not available' }), $deltaText, target $Target$(if ($null -ne $Projected) { ", $([int]$Projected) with the top five fixes" }).")
+    $side = '<ul class="ring-facts"><li><strong>' + (& $h $deltaText) + '</strong></li><li>Target ' + $Target + '</li>' + $(if ($null -ne $Projected -and [double]$Projected -gt $v) { '<li>' + [int]$Projected + ' with the top five fixes</li>' }) + '</ul>'
+    return '<div class="scorering-wrap"><svg class="scorering" viewBox="0 0 140 140" role="img" aria-label="' + $aria + '">' + $parts.ToString() + '</svg>' + $side + '</div>'
+}

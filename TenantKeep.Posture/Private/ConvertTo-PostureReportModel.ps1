@@ -283,6 +283,45 @@ function ConvertTo-PostureReportModel {
         }
     }
 
+    # The story of the run: projected score if the top five fixes land, score history, quick wins (effort against
+    # user impact), roadmap lanes, the attack path funnel and the accepted-risk ledger.
+    $effortRank = @{ S = 1; M = 2; L = 3 }
+    $topFive = @($recommendations.Values | ForEach-Object { $_ } | Select-Object -First 5)
+    $projected = $(if ($possible -gt 0) { [Math]::Round(100.0 * ($earned + [double](@($topFive | ForEach-Object { $w = $weight[[string]$_.severity]; if ($w) { $w } else { 1 } }) + 0 | Measure-Object -Sum).Sum) / $possible) } else { $null })
+    $history = @(@($(try { Get-PostureScoreHistory -Run $Evidence } catch { @() })) + @($(if ($null -ne $score) { [ordered]@{ label = 'now'; value = $score } })))
+    $impactOf = { param($x) if ($x.userImpact) { [string]$x.userImpact['level'] } else { 'unknown' } }
+    $failingRecs = @($recommendations.Values | ForEach-Object { $_ })
+    $quickWins = [ordered]@{}
+    foreach ($imp in 'none', 'low', 'medium', 'high') { foreach ($ef in 'S', 'M', 'L') { $quickWins["$imp|$ef"] = @($failingRecs | Where-Object { [string]$_.effort -eq $ef -and (& $impactOf $_) -eq $imp } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity } }) } }
+    $laneOf = { param($x) $e = $(if ($effortRank.ContainsKey([string]$x.effort)) { $effortRank[[string]$x.effort] } else { 2 }); switch ([string]$x.severity) { 'Critical' { 'now' } 'High' { if ($e -eq 1) { 'now' } else { 'next' } } 'Medium' { if ($e -eq 1) { 'next' } else { 'later' } } default { 'later' } } }
+    $roadmap = [ordered]@{ now = @(); next = @(); later = @() }
+    foreach ($x in $failingRecs) { $roadmap[(& $laneOf $x)] += , [ordered]@{ id = $x.id; title = $x.title; severity = $x.severity; effort = $x.effort } }
+    # Nested by construction: one per-user source and the device-bound list AU-008 uses, so every phishable
+    # administrator is also counted among the phishable members.
+    $regRows = & $load '05-auth-registration'
+    $funnel = $null
+    if ($null -ne $regRows) {
+        $adminUpnSet = @{}; foreach ($a in @($adminsTable | Where-Object { $_.type -eq 'user' })) { $adminUpnSet[[string]$a.upn] = $true }
+        $memberCount = 0; $phishable = 0; $adminPhishable = 0
+        foreach ($u in @($regRows | Where-Object { $_ })) {
+            if ([string](& $v $u 'UserType') -eq 'guest') { continue }
+            $memberCount++
+            $methods = @(([string](& $v $u 'MethodsRegistered')) -split ';' | Where-Object { $_ })
+            if (@($methods | Where-Object { $_ -in $script:PostureDeviceBoundMethods }).Count) { continue }
+            $phishable++
+            if ((& $v $u 'IsAdmin') -eq $true -or $adminUpnSet.ContainsKey([string](& $v $u 'UserPrincipalName'))) { $adminPhishable++ }
+        }
+        $funnel = [ordered]@{ steps = @([ordered]@{ label = 'Members'; value = $memberCount }, [ordered]@{ label = 'Phishable members'; value = $phishable }, [ordered]@{ label = 'Phishable admins'; value = $adminPhishable }); takeaway = "$phishable of $memberCount members have no device-bound phishing-resistant method; $adminPhishable of them $(if ($adminPhishable -eq 1) { 'is an administrator' } else { 'are administrators' }), the shortest path from a stolen password to the tenant." }
+    }
+    $now = [datetime]::UtcNow
+    $ledger = $null
+    if (@($Exception).Count) {
+        $bucket = [ordered]@{ 'Expired' = 0; 'Within 30 days' = 0; 'Within 90 days' = 0; 'Later' = 0; 'No expiry' = 0 }
+        foreach ($e in @($Exception)) { $k = $(if (-not $e.expires) { 'No expiry' } elseif ($e.expired -or $e.expires -lt $now) { 'Expired' } elseif ($e.expires -lt $now.AddDays(30)) { 'Within 30 days' } elseif ($e.expires -lt $now.AddDays(90)) { 'Within 90 days' } else { 'Later' }); $bucket[$k]++ }
+        $ledger = [ordered]@{ buckets = $bucket; total = @($Exception).Count }
+    }
+    $story = [ordered]@{ projected = $projected; history = $history; quickWins = $quickWins; roadmap = $roadmap; funnel = $funnel; ledger = $ledger }
+
     $catalogText = [ordered]@{}
     foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
 
@@ -360,6 +399,7 @@ function ConvertTo-PostureReportModel {
         chains          = $chains
         layers          = @(Get-PostureLayerSetResult -LayerSet @(Import-PostureLayerSet -Catalog $Catalog) -Result @($results))
         doToday         = $doToday
+        story           = $story
         inventory       = @(Get-PostureInventory -Evidence $Evidence)
         charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable))
         admins       = $adminsTable

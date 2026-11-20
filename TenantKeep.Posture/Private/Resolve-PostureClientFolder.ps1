@@ -190,3 +190,32 @@ function Get-PosturePreviousRun {
     }
     return $null
 }
+
+function Get-PostureScoreHistory {
+    <#
+    .SYNOPSIS
+        The posture score of each earlier run of the same tenant in the same output folder, oldest first, up to
+        -Last of them, scored from their checks.json with the report's weights (Critical 4, High 3, Medium 2, Low 1;
+        accepted risk counts as a pass). For the trend line; the current run is the caller's to add.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Mandatory)] [string] $Run, [int] $Last = 11)
+
+    $ErrorActionPreference = 'Stop'
+    $root = (Get-PostureRunLayout -Folder $Run).root
+    $parent = Split-Path $root -Parent
+    if (-not $parent -or -not (Test-Path -LiteralPath $parent -PathType Container)) { return @() }
+    $all = @(Get-PostureRunInfo -Root $parent)
+    $me = @($all | Where-Object { $_.path -eq $root })[0]
+    $weight = @{ Critical = 4; High = 3; Medium = 2; Low = 1 }
+    $earlier = @($all | Where-Object { $_.path -ne $root -and $_.checks -and (-not $me -or $_.started -lt $me.started) -and (-not $me -or -not $me.tenantId -or -not $_.tenantId -or $_.tenantId -eq $me.tenantId) } | Select-Object -First $Last)
+    $points = foreach ($r in $earlier) {
+        $doc = $(try { Get-Content -Raw -LiteralPath $r.checks | ConvertFrom-Json -AsHashtable -Depth 20 } catch { $null })
+        if (-not $doc -or -not $doc.Contains('results')) { continue }
+        $e = 0; $p = 0
+        foreach ($x in @($doc['results'] | Where-Object { $_ -and [string]$_['status'] -in 'pass', 'fail', 'acceptedRisk' })) { $w = $weight[[string]$x['severity']]; if (-not $w) { $w = 1 }; $p += $w; if ([string]$x['status'] -ne 'fail') { $e += $w } }
+        if ($p -gt 0) { [ordered]@{ label = $(if ($r.started) { ([datetime]$r.started).ToString('yyyy-MM-dd') } else { Split-Path $r.path -Leaf }); value = [Math]::Round(100.0 * $e / $p) } }
+    }
+    return @(@($points) | Sort-Object { $_.label })
+}
