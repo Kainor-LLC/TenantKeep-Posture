@@ -25,8 +25,10 @@ decisions; `(verify)` marks what has not been proven live yet.
    holds in memory. `Connect-PostureService` is the only file in the module that opens a session, always with one of
    those tokens, except Purview: Security and Compliance PowerShell issues no delegated token to a third-party app, so
    the Exchange module signs the same admin in a second time with its own app. Exchange and Purview run in a second
-   process that receives access tokens over standard input and never the refresh token. In Automation, the account's
-   managed identity signs in to everything except Purview (see Identities).
+   process that receives access tokens over standard input and never the refresh token. It starts first and signs in
+   to Purview first, so that prompt comes in the first minute, then collects alongside the main process; both write
+   into one run folder, and `errors.txt` and the `collection.json` merge are serialised on a lock file in it. In
+   Automation, the account's managed identity signs in to everything except Purview (see Identities).
 2. **Collect.** `Invoke-PostureCollection` writes one evidence folder per run: JSON and CSV files named after the audit
    plan (`04-role-assignments-active.csv`, `exo-04-antiphish.json`, ...), a `collection.json` manifest with the tenant
    id, account, scopes, API versions and errors, and the Conditional Access snapshot. Every Graph call pins its API

@@ -7,18 +7,24 @@ function Start-PostureChildCollection {
         ExchangeOnlineManagement and PnP.PowerShell do not share a process well on macOS (docs/collection.md), so
         Start-PostureRun gives Exchange and Purview their own process. The child gets access tokens only (never the
         refresh token), as one JSON document on standard input: not an argument, not an environment variable, not a
-        file. Its console output is the parent's console. The exit code says whether every named collector ran.
+        file. It shares the parent's console, so a Purview device code or sign-in prompt reaches the admin, and is
+        otherwise quiet: its progress goes to a file the parent draws. The exit code says whether every named
+        collector ran.
     .PARAMETER Request
         tokens (graph, exchange), account, tenantId, tenantName, folder, profilePath, collectors, purviewSignIn
-        (browser or device).
+        (browser or device), progressFile and estimates (optional).
     .PARAMETER Command
         The command the child runs. Default: import this module and run Invoke-PostureChildCollection in it.
+    .PARAMETER NoWait
+        Return the running process instead of its exit code (Wait-PostureChildCollection waits for it), so the
+        parent collects at the same time.
     #>
     [CmdletBinding(SupportsShouldProcess)]
-    [OutputType([int])]
+    [OutputType([int], [System.Diagnostics.Process])]
     param(
         [Parameter(Mandatory)] [hashtable] $Request,
-        [string] $Command
+        [string] $Command,
+        [switch] $NoWait
     )
 
     $ErrorActionPreference = 'Stop'
@@ -34,13 +40,29 @@ function Start-PostureChildCollection {
     # Not -NonInteractive: the Purview sign-in in the child opens a browser through the Exchange module (verify live).
     foreach ($a in '-NoProfile', '-Command', $Command) { $psi.ArgumentList.Add($a) }
     $process = [System.Diagnostics.Process]::Start($psi)
+    $process.StandardInput.Write(($Request | ConvertTo-Json -Depth 10 -Compress))
+    $process.StandardInput.Close()
+    if ($NoWait) { return $process }
+    return (Wait-PostureChildCollection -Process $process)
+}
+
+function Wait-PostureChildCollection {
+    <#
+    .SYNOPSIS
+        Waits for the second process, redrawing the progress display (its bar comes from its progress file), and
+        returns its exit code.
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory)] [System.Diagnostics.Process] $Process)
+
+    $ErrorActionPreference = 'Stop'
     try {
-        $process.StandardInput.Write(($Request | ConvertTo-Json -Depth 10 -Compress))
-        $process.StandardInput.Close()
-        $process.WaitForExit()
-        return $process.ExitCode
+        while (-not $Process.WaitForExit(1000)) { Write-PostureProgress -Force }
+        $Process.WaitForExit()
+        return $Process.ExitCode
     }
-    finally { $process.Dispose() }
+    finally { $Process.Dispose() }
 }
 
 function Invoke-PostureChildCollection {
@@ -49,17 +71,21 @@ function Invoke-PostureChildCollection {
         The child side: reads the request from standard input, opens the sessions with the tokens, collects.
     .DESCRIPTION
         Sets up the module's session with the given access tokens and no refresh token, so a token that expires
-        mid-way is a clear error rather than a silent re-acquire. Each collector is its own try; the process exits
-        non-zero when any named collector failed, after running the others.
+        mid-way is a clear error rather than a silent re-acquire. Purview goes first: its sign-in is the one that may
+        need the admin, so it comes while they are still at the screen, and the run needs nothing from them after.
+        Each collector is its own try; a failure is written to errors.txt and the process exits non-zero after
+        running the others.
     .PARAMETER InputJson
         The request as JSON. Default: everything on standard input.
     #>
     [CmdletBinding()]
     [OutputType([int])]
-    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress lines for the console the parent shares.')]
     param([string] $InputJson)
 
     $ErrorActionPreference = 'Stop'
+    # Quiet on the shared console: step failures are in errors.txt and progress is in the file the parent draws.
+    $WarningPreference = 'SilentlyContinue'
+    $ProgressPreference = 'SilentlyContinue'
     if (-not $InputJson) { $InputJson = [Console]::In.ReadToEnd() }
     $request = $InputJson | ConvertFrom-Json -AsHashtable -Depth 10
     $tokens = @{}
@@ -74,21 +100,33 @@ function Invoke-PostureChildCollection {
         account = [string]$request['account']; refreshToken = ''; signedInUtc = $now; tokens = $tokens
         purviewSignIn = [string]$(if ($request.ContainsKey('purviewSignIn')) { $request['purviewSignIn'] } else { 'browser' })
     }
+    $order = @('Purview', 'Exchange' | Where-Object { $_ -in @($request['collectors']) })
+    $folder = [string]$request['folder']
+    if ($request.ContainsKey('progressFile') -and $request['progressFile']) {
+        $estimate = @{}; if ($request.ContainsKey('estimates') -and $request['estimates']) { foreach ($k in @($request['estimates'].Keys)) { $estimate[$k] = $request['estimates'][$k] } }
+        Start-PostureProgress -Phase $order -Estimate $estimate -File ([string]$request['progressFile']) -Confirm:$false
+    }
     Connect-PostureService -Name graph
     $failed = 0
     $profileParam = @{}
     if ($request['profilePath'] -and (Test-Path -LiteralPath $request['profilePath'])) { $profileParam.ProfilePath = [string]$request['profilePath'] }
-    foreach ($collector in @($request['collectors'])) {
-        $service = $collector.ToLowerInvariant()
-        try {
-            Connect-PostureService -Name $service
-            Invoke-PostureCollection -Collector $collector -SkipCaSnapshot -OutputFolder $request['folder'] @profileParam | Out-Null
-            Write-Host "$collector collected"
-        }
-        catch {
-            $failed++
-            Write-Host "$collector failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    try {
+        foreach ($collector in $order) {
+            try {
+                Set-PostureProgressPhase -Name $collector -Label $(if ($collector -eq 'Purview') { 'waiting for the Purview sign-in' } else { 'connecting' }) -Confirm:$false
+                if ($collector -eq 'Exchange' -and $tokens.ContainsKey('exchange') -and $tokens['exchange']['expiresUtc'] -le [datetime]::UtcNow.AddMinutes(5)) {
+                    throw 'The Exchange token from the sign-in expires before Exchange could start; run Start-PostureRun -Collector Exchange to collect it.'
+                }
+                Connect-PostureService -Name $collector.ToLowerInvariant()
+                Invoke-PostureCollection -Collector $collector -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null
+            }
+            catch {
+                $failed++
+                $message = (([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()
+                if ($folder -and (Test-Path -LiteralPath $folder)) { Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path (Join-Path $folder 'errors.txt') -Value "$collector collector :: $message" } }
+            }
         }
     }
+    finally { Complete-PostureProgress -Confirm:$false }
     return $failed
 }

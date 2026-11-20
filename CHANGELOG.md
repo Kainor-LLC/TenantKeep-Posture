@@ -8,6 +8,13 @@ work landed on main.
 
 - Run folders where you want them (2026-11-20): `outputRoot` in profile.json (`New-PostureProfile -OutputRoot`, or
   the wizard's new last question) is where Start-PostureRun puts a client's runs; `-OutRoot` still wins for one run.
+- A pleasanter run (2026-11-20): a progress bar with the domain and step, time so far and an estimate of the time
+  left (each run records its per-collector times in collection.json for the next estimate); the machine is kept from
+  idle sleep until the run ends (`-AllowSleep` to opt out); Exchange and Purview start first in their second
+  process, Purview signing in first, so the one extra prompt comes in the first minute and the two processes collect
+  at the same time.
+- Fixed: when Exchange and Purview wrote collection.json after the main process, the Graph API versions and scopes
+  the main process recorded were overwritten. The manifest is now merged under a lock file in the run folder.
 - Fixed: New-PostureProfile, which Start-PostureRun calls on every run, dropped every profile key it does not own,
   so review dates under `attestations` were lost on the next run. It now keeps them.
 - Risk register retired (2026-11-20): the report no longer has the Risk Register or Settings views, the exception

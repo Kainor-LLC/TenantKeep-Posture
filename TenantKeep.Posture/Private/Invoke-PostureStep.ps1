@@ -15,6 +15,7 @@ function Invoke-PostureStep {
     )
 
     $ErrorActionPreference = 'Stop'
+    Step-PostureProgress -Label $Label
 
     try {
         return & $Script
@@ -25,7 +26,7 @@ function Invoke-PostureStep {
         if ($message.Length -gt 600) { $message = $message.Substring(0, 600) + '...' }
         Write-Verbose "$Label failed at $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)"
         Write-Warning "$Label failed: $message"
-        Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message"
+        Invoke-PostureFolderLock -Folder $Folder -Script { Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message" }
         return
     }
 }

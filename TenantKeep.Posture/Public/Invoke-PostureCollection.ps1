@@ -174,89 +174,82 @@ function Invoke-PostureCollection {
         $files = [System.Collections.Generic.List[string]]::new()
         $ran = [System.Collections.Generic.List[string]]::new()
 
+        # Each collector is a progress phase, and its time and step count go into the manifest for the next run's estimate.
+        $timings = [ordered]@{}
+        $timed = {
+            param([string] $Name, [scriptblock] $Block)
+            Set-PostureProgressPhase -Name $Name
+            $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount
+            $result = & $Block
+            $timings[$Name] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = [Math]::Max(1, $script:PostureStepCount - $steps0) }
+            $ran.Add($Name)
+            foreach ($f in @($result.files)) { if ($f) { $files.Add($f) } }
+        }
         if (-not $SkipCaSnapshot) {
+            Set-PostureProgressPhase -Name 'ConditionalAccess'
+            $clock = [System.Diagnostics.Stopwatch]::StartNew()
             $snap = Export-PostureCaSnapshot -OutputFolder $folder -IncludeMembers:$IncludeMembers -PassThru
             foreach ($f in $snap.Files) { $files.Add($f) }
+            $timings['ConditionalAccess'] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = 1 }
             $ran.Add('ConditionalAccess')
         }
-        if ($Collector -contains 'Entra') {
-            $r = Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Entra')
-        }
-        if ($Collector -contains 'Intune') {
-            $r = Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Intune')
-        }
-        if ($run.Exchange) {
-            $r = Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Exchange')
-        }
-        if ($run.SharePoint) {
-            $r = Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('SharePoint')
-        }
-        if ($run.Teams) {
-            $r = Invoke-PostureTeamsCollection -Folder $folder
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Teams')
-        }
-        if ($run.Purview) {
-            $r = Invoke-PosturePurviewCollection -Folder $folder
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Purview')
-        }
-        if ($run.Azure) {
-            $r = Invoke-PostureAzureCollection -Folder $folder
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Azure')
-        }
-        if ($run.Defender) {
-            $r = Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc
-            foreach ($f in $r.files) { $files.Add($f) }
-            $ran.Add('Defender')
-        }
+        if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa } }
+        if ($Collector -contains 'Intune') { & $timed 'Intune' { Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc } }
+        if ($run.Exchange) { & $timed 'Exchange' { Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration } }
+        if ($run.SharePoint) { & $timed 'SharePoint' { Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration } }
+        if ($run.Teams) { & $timed 'Teams' { Invoke-PostureTeamsCollection -Folder $folder } }
+        if ($run.Purview) { & $timed 'Purview' { Invoke-PosturePurviewCollection -Folder $folder } }
+        if ($run.Azure) { & $timed 'Azure' { Invoke-PostureAzureCollection -Folder $folder } }
+        if ($run.Defender) { & $timed 'Defender' { Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc } }
 
         $errorsPath = Join-Path $folder 'errors.txt'
-        $errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })   # @( ) outside the if: an empty array inside it unrolls to null
-        # Collectors may run in separate processes into one folder (the Exchange, PnP and Teams modules do not share a
-        # process on macOS); a manifest already there keeps its collectors and start time.
-        $previous = $null
-        $manifestPath = Join-Path $folder 'collection.json'
-        if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
-        $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
-        # Module versions: what this process loaded, over what an earlier process into the same folder recorded.
-        $modules = [ordered]@{}
-        if ($previous -and $previous['modules']) { foreach ($k in @($previous['modules'].Keys)) { $modules[$k] = $previous['modules'][$k] } }
-        $used = Get-PostureModuleVersionUsed
-        foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
-        $manifest = [ordered]@{
-            product          = 'TenantKeep.Posture'
-            moduleVersion    = $script:ModuleVersion
-            collectors       = $allCollectors
-            tenantId         = $context.TenantId
-            account          = $context.Account
-            authType         = $context.AuthType
-            scopes           = @($granted | Sort-Object)
-            timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
-            completedUtc     = [datetime]::UtcNow.ToString('o')
-            graphApiVersions = @($script:GraphApiVersionsUsed | Sort-Object)
-            modules          = $modules
-            powerShell       = $PSVersionTable.PSVersion.ToString()
-            os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-            staleDays        = $StaleDays
-            files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'errors.txt') } | ForEach-Object { $_.Name } | Sort-Object)
-            errorCount       = $errors.Count
-            errors           = $errors
+        # Collectors may run in separate processes into one folder, at the same time (Start-PostureRun runs Exchange
+        # and Purview alongside the rest): the manifest is read, merged and written under the folder's lock, and
+        # keeps what the other process recorded (collectors, start time, API versions, scopes, timings).
+        $manifest = Invoke-PostureFolderLock -Folder $folder -Script {
+            $errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })   # @( ) outside the if: an empty array inside it unrolls to null
+            $previous = $null
+            $manifestPath = Join-Path $folder 'collection.json'
+            if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
+            $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
+            # Module versions: what this process loaded, over what an earlier process into the same folder recorded.
+            $modules = [ordered]@{}
+            if ($previous -and $previous['modules']) { foreach ($k in @($previous['modules'].Keys)) { $modules[$k] = $previous['modules'][$k] } }
+            $used = Get-PostureModuleVersionUsed
+            foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
+            $versions = @(@($(if ($previous -and $previous['graphApiVersions']) { $previous['graphApiVersions'] })) + @($script:GraphApiVersionsUsed) | Where-Object { $_ } | Sort-Object -Unique)
+            $allScopes = @(@($(if ($previous -and $previous['scopes']) { $previous['scopes'] })) + @($granted) | Where-Object { $_ } | Sort-Object -Unique)
+            $allTimings = [ordered]@{}
+            if ($previous -and $previous['timings']) { foreach ($k in @($previous['timings'].Keys)) { $allTimings[$k] = $previous['timings'][$k] } }
+            foreach ($k in @($timings.Keys)) { $allTimings[$k] = $timings[$k] }
+            $doc = [ordered]@{
+                product          = 'TenantKeep.Posture'
+                moduleVersion    = $script:ModuleVersion
+                collectors       = $allCollectors
+                tenantId         = $context.TenantId
+                account          = $context.Account
+                authType         = $context.AuthType
+                scopes           = $allScopes
+                timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
+                completedUtc     = [datetime]::UtcNow.ToString('o')
+                graphApiVersions = $versions
+                modules          = $modules
+                powerShell       = $PSVersionTable.PSVersion.ToString()
+                os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+                staleDays        = $StaleDays
+                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'errors.txt') -and -not $_.Name.StartsWith('.') } | ForEach-Object { $_.Name } | Sort-Object)
+                errorCount       = $errors.Count
+                errors           = $errors
+                timings          = $allTimings
+            }
+            $files.Add((Write-PostureEvidence -Folder $folder -Name 'collection' -InputObject $doc))
+            $doc
         }
-        $files.Add((Write-PostureEvidence -Folder $folder -Name 'collection' -InputObject $manifest))
+        $errors = @($manifest['errors'])
         if ($errors.Count -gt 0) { Write-Warning "$($errors.Count) step(s) failed; see $errorsPath" }
 
         if ($PassThru) {
-            return [pscustomobject]@{ Folder = $folder; Collectors = $allCollectors; Files = $files.ToArray(); Errors = $errors; Manifest = $manifest }
+            return [pscustomobject]@{ Folder = $folder; Collectors = @($manifest['collectors']); Files = $files.ToArray(); Errors = $errors; Manifest = $manifest }
         }
         return $folder
     }

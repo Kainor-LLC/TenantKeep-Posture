@@ -37,8 +37,14 @@ What you need:
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
 - Purview is the one service with a second sign-in. Security and Compliance PowerShell issues no token to a
-  third-party app, so when the Purview collector runs, the Exchange module opens its own window for the same admin
-  (a device code with `-DeviceCode` or `-NoBrowser`). Everything else comes from the one sign-in.
+  third-party app, so the Exchange module may open its own window for the same admin (a device code with
+  `-DeviceCode` or `-NoBrowser`); often it reuses its own earlier sign-in and asks nothing. The run starts Purview
+  first, so that prompt comes within a minute of your sign-in; after it the run needs nothing from you.
+  Everything else comes from the one sign-in.
+- While it runs: a progress bar shows the domain and step under way, the time so far and the time left (estimated
+  from this tenant's last run; rough on the first), with a second bar for Exchange and Purview. The computer is kept
+  from idle sleep until the run ends (`caffeinate` on macOS, `systemd-inhibit` on Linux, the Windows power request
+  call); `-AllowSleep` turns that off. A closed laptop lid still sleeps.
 - Conditional Access. A policy that blocks sign-ins to unapproved apps, or requires a compliant device, stops the run
   with the app id in the message. Allow the app or exclude the admin running the report; the module works around
   nothing.

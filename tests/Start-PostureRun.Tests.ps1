@@ -26,16 +26,20 @@ Describe 'Start-PostureRun' {
             Mock Connect-PostureService { $script:Calls.Add("connect:$Name") }
             Mock Get-Module { $true } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }   # nothing loaded: the run manifest records the installed version
+            $script:NextStamp = '20261022-1200'
+            Mock New-PostureEvidenceFolder { $f = Join-Path $script:TestOutRoot $script:NextStamp; New-Item -ItemType Directory -Path $f -Force | Out-Null; $f }
             Mock Invoke-PostureCollection {
                 $script:Calls.Add("collect:$($Collector -join '+')")
-                $f = $(if ($OutputFolder) { $OutputFolder } else { Join-Path $script:TestOutRoot '20261022-1200' })
-                New-Item -ItemType Directory -Path $f -Force | Out-Null
-                # One error from this process; two more lines land in errors.txt from the later ones. The count reported is the file's.
-                if (-not $OutputFolder) { Add-Content -LiteralPath (Join-Path $f 'errors.txt') -Value 'A :: one', 'B :: two', 'C :: three' }
-                [pscustomobject]@{ Folder = $f; Errors = @('one'); Files = @() }
+                # Three lines in errors.txt from the processes that wrote into the folder. The count reported is the file's.
+                if ($Collector -contains 'Entra' -and $script:NextStamp -eq '20261022-1200') { Add-Content -LiteralPath (Join-Path $OutputFolder 'errors.txt') -Value 'A :: one', 'B :: two', 'C :: three' }
+                [pscustomobject]@{ Folder = $OutputFolder; Errors = @('one'); Files = @() }
             }
             Mock Get-PostureToken { 'tok' }
-            Mock Start-PostureChildCollection { $script:Calls.Add("child:$($Request['collectors'] -join '+')"); $script:ChildRequest = $Request; 0 }
+            Mock Start-PostureChildCollection { $script:Calls.Add("child:$($Request['collectors'] -join '+')"); $script:ChildRequest = $Request; $script:ChildNoWait = [bool]$NoWait; [System.Diagnostics.Process]::new() }
+            Mock Wait-PostureChildCollection { $script:Calls.Add('wait'); 0 }
+            Mock Enable-PostureKeepAwake { $script:Calls.Add('awake'); @{ method = 'test'; process = $null } }
+            Mock Disable-PostureKeepAwake { $script:Calls.Add('sleep-ok') }
+            Mock Write-Progress { }
             Mock New-PostureProfile { $script:Calls.Add('profile'); Set-Content -LiteralPath $Path -Value (@{ tenantId = $script:TestTid; clientName = $ClientName } | ConvertTo-Json) }
             Mock New-PostureReport {
                 $script:Calls.Add("report:$(if ($Previous) { Split-Path $Previous -Leaf } else { 'none' })")
@@ -59,7 +63,9 @@ Describe 'Start-PostureRun' {
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
-            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'collect:Entra+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'child:Exchange+Purview', 'profile', 'report:none', 'findings', 'open:report.html')
+            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
+            $script:ChildNoWait | Should -BeTrue
+            $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder '.progress-child.json')
             $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph')
             $script:ChildRequest['purviewSignIn'] | Should -Be 'browser'
             $script:ChildRequest['tokens']['graph']['accessToken'] | Should -Be 'g'
@@ -76,14 +82,9 @@ Describe 'Start-PostureRun' {
             $p = Join-Path $client 'profile.json'
             Set-Content -LiteralPath $p -Value (@{ tenantId = $script:TestTid; clientName = 'Contoso Ltd'; azure = 'none' } | ConvertTo-Json)
             Set-Content -LiteralPath (Join-Path $client 'hybrid' 'ad-01-forest.json') -Value '{}'
-            Mock Invoke-PostureCollection {
-                $script:Calls.Add("collect:$($Collector -join '+')")
-                $f = $(if ($OutputFolder) { $OutputFolder } else { Join-Path $script:TestOutRoot '20261122-1200' })
-                New-Item -ItemType Directory -Path $f -Force | Out-Null
-                [pscustomobject]@{ Folder = $f; Errors = @(); Files = @() }
-            }
-            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, Azure, Exchange -NoBrowser -PassThru 6>$null
-            @($script:Calls) | Should -Be @('signin', 'collect:Entra', 'child:Exchange', 'profile', 'report:20261022-1200', 'findings')
+            $script:NextStamp = '20261122-1200'
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, Azure, Exchange -NoBrowser -AllowSleep -PassThru 6>$null
+            @($script:Calls) | Should -Be @('signin', 'child:Exchange', 'collect:Entra', 'wait', 'profile', 'report:20261022-1200', 'findings', 'sleep-ok') -Because '-AllowSleep never asks the system to stay awake'
             $result.Skipped['Azure'] | Should -Match 'azure: none'
             Test-Path (Join-Path $result.Folder 'ad-01-forest.json') | Should -BeTrue
             Should -Invoke New-PostureProfile -Times 1 -Exactly -ParameterFilter { $ProfilePath -eq $null -and -not $PSBoundParameters.ContainsKey('ClientName') }
@@ -116,7 +117,7 @@ Describe 'Start-PostureRun' {
             $result.Skipped['SharePoint'] | Should -Match 'Install-Module PnP.PowerShell'
             $result.Skipped['Azure'] | Should -Match 'Az.Accounts'
             $result.Report | Should -BeNullOrEmpty
-            @($script:Calls) | Should -Be @('signin', 'collect:Entra+Intune+Defender', 'profile')
+            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+Intune+Defender', 'profile', 'sleep-ok')
         }
     }
 
@@ -142,7 +143,10 @@ Describe 'Start-PostureRun and the trial' {
             Mock Assert-PostureGraphScope { @{ TenantId = $tid; Scopes = @('Policy.Read.All') } }
             Mock Get-Module { $false } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }
-            Mock Invoke-PostureCollection { $f = Join-Path $outRoot '20261027-0900'; New-Item -ItemType Directory -Path $f -Force | Out-Null; [pscustomobject]@{ Folder = $f; Errors = @(); Files = @() } }
+            Mock New-PostureEvidenceFolder { $f = Join-Path $outRoot '20261027-0900'; New-Item -ItemType Directory -Path $f -Force | Out-Null; $f }
+            Mock Invoke-PostureCollection { [pscustomobject]@{ Folder = $OutputFolder; Errors = @(); Files = @() } }
+            Mock Enable-PostureKeepAwake { $null }
+            Mock Write-Progress { }
             Mock New-PostureProfile { }
             Mock Invoke-WebRequest { throw 'no web requests' }
             Mock Invoke-RestMethod { throw 'no web requests' }
@@ -176,14 +180,81 @@ Describe 'The child process hand-off' {
             Mock Invoke-PostureCollection { $script:ChildCalls.Add("collect:$($Collector -join '+'):$(Split-Path $OutputFolder -Leaf)") }
             $exp = [datetime]::UtcNow.AddMinutes(50).ToString('o')
             $json = @{ clientId = 'c'; tenantId = 't'; tenantName = 'contoso'; account = 'a@b'; folder = (Join-Path $root 'run1'); profilePath = ''; collectors = @('Exchange', 'Purview'); purviewSignIn = 'device'; tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = $exp }; exchange = @{ accessToken = 'e'; expiresUtc = $exp } } } | ConvertTo-Json -Depth 10
+            New-Item -ItemType Directory -Path (Join-Path $root 'run1') -Force | Out-Null
             $failed = Invoke-PostureChildCollection -InputJson $json 6>$null
             $failed | Should -Be 1
-            @($script:ChildCalls) | Should -Be @('connect:graph', 'connect:exchange', 'collect:Exchange:run1', 'connect:purview')
+            @($script:ChildCalls) | Should -Be @('connect:graph', 'connect:purview', 'connect:exchange', 'collect:Exchange:run1') -Because 'Purview signs in first, while the admin is still at the screen'
+            Get-Content -Raw (Join-Path $root 'run1' 'errors.txt') | Should -Match 'Purview collector :: no purview for you'
             $script:PostureSession['refreshToken'] | Should -Be ''
             $script:PostureSession['purviewSignIn'] | Should -Be 'device'
             (Get-PostureToken -Resource exchange) | Should -Be 'e'
             { Invoke-PostureChildCollection -InputJson ($json -replace [regex]::Escape($exp), [datetime]::UtcNow.AddMinutes(-1).ToString('o')) 6>$null } | Should -Throw '*already expired*'
             $script:PostureSession = $null
+        }
+    }
+}
+
+Describe 'Run conveniences' {
+    It 'keeps a Mac awake with caffeinate tied to this process, and lets it go' {
+        InModuleScope TenantKeep.Posture {
+            Mock Get-Command { [pscustomobject]@{ Name = 'caffeinate' } } -ParameterFilter { $Name -eq 'caffeinate' }
+            $fake = [pscustomobject]@{ HasExited = $true }
+            Mock Start-Process { $fake }
+            $h = Enable-PostureKeepAwake -Platform macOS
+            $h.method | Should -Be 'caffeinate'
+            Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $FilePath -eq 'caffeinate' -and ($ArgumentList -join ' ') -eq "-i -s -w $PID" }
+            { Disable-PostureKeepAwake -Handle $h } | Should -Not -Throw
+            Mock Get-Command { $null } -ParameterFilter { $Name -eq 'caffeinate' }
+            Enable-PostureKeepAwake -Platform macOS | Should -BeNullOrEmpty -Because 'no keep-awake tool means none, not an error'
+        }
+    }
+
+    It 'estimates the time left from the last run of the same tenant and from the pace of the phase under way' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            $out = Join-Path $root 'estimate'
+            $old = Join-Path $out '20261101-0900'; New-Item -ItemType Directory -Path $old -Force | Out-Null
+            @{ tenantId = 't1'; timings = @{ Entra = @{ seconds = 600; steps = 20 }; Intune = @{ seconds = 300; steps = 10 } } } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $old 'collection.json')
+            $e = Get-PostureRunEstimate -OutRoot $out -TenantId 't1'
+            $e.Entra.seconds | Should -Be 600
+            (Get-PostureRunEstimate -OutRoot $out -TenantId 'other').Count | Should -Be 0
+            Mock Write-Progress { }
+            Start-PostureProgress -Phase 'Entra', 'Intune' -Estimate $e -Confirm:$false
+            Set-PostureProgressPhase -Name 'Entra' -Confirm:$false
+            $s = Get-PostureProgressState
+            $s.remaining | Should -BeGreaterThan 850 -Because 'all of Entra and Intune are still ahead'
+            $s.phase | Should -Be 'Entra ID'
+            Set-PostureProgressPhase -Name 'Intune' -Confirm:$false
+            (Get-PostureProgressState).remaining | Should -BeLessOrEqual 300
+            Complete-PostureProgress -Confirm:$false
+            $script:PostureProgress | Should -BeNullOrEmpty
+            { Step-PostureProgress -Label 'after the run' -Confirm:$false } | Should -Not -Throw -Because 'outside a run the hooks do nothing'
+        }
+    }
+
+    It 'merges the manifest of two processes writing into one folder: collectors, API versions, scopes and timings' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            $f = Join-Path $root 'merge'; New-Item -ItemType Directory -Path $f -Force | Out-Null
+            @{ collectors = @('Purview'); graphApiVersions = @('beta'); scopes = @('X.Read'); timings = @{ Purview = @{ seconds = 12; steps = 1 } }; timestampUtc = '2026-11-20T10:00:00Z' } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $f 'collection.json')
+            Mock Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Y.Read', 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All') } }
+            Mock Invoke-PostureEntraCollection { $null = $script:GraphApiVersionsUsed.Add('v1.0'); @{ files = @() } }
+            $r = Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -OutputFolder $f -PassThru -WarningAction SilentlyContinue
+            $m = Get-Content -Raw (Join-Path $f 'collection.json') | ConvertFrom-Json -AsHashtable
+            @($m.collectors) | Should -Be @('Purview', 'Entra')
+            @($m.graphApiVersions) | Should -Be @('beta', 'v1.0') -Because 'each process records the versions it used and neither overwrites the other'
+            @($m.scopes) | Should -Contain 'X.Read'
+            $m.timings.Purview.seconds | Should -Be 12
+            $m.timings.Entra.steps | Should -BeGreaterOrEqual 1
+            @($r.Collectors) | Should -Contain 'Entra'
+        }
+    }
+
+    It 'serialises writers on the folder lock' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            $f = Join-Path $root 'lock'; New-Item -ItemType Directory -Path $f -Force | Out-Null
+            $held = [System.IO.File]::Open((Join-Path $f '.tenantkeep.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
+            try { $clock = [System.Diagnostics.Stopwatch]::StartNew(); Invoke-PostureFolderLock -Folder $f -TimeoutSeconds 1 -Script { 'ran' } | Should -Be 'ran'; $clock.Elapsed.TotalSeconds | Should -BeGreaterOrEqual 0.9 -Because 'it waited for the holder, then wrote rather than lose the line' }
+            finally { $held.Dispose() }
+            Invoke-PostureFolderLock -Folder $f -Script { 'free' } | Should -Be 'free'
         }
     }
 }
