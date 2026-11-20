@@ -348,6 +348,7 @@ function ConvertTo-PostureReportModel {
         crosswalk    = $crosswalk
         results      = $results
         catalogText  = $catalogText
+        labels       = $(if ($Catalog.Contains('labels') -and $Catalog['labels']) { $Catalog['labels'] } else { @{ facts = @{}; thresholds = @{} } })
         runHealth    = $runHealth
         licensing    = $licensing
         runAs        = $runAs

@@ -29,7 +29,9 @@ Every check carries, and the catalog test enforces:
 | `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
-(below); neither is a domain file.
+(below). `facts.json` holds a plain label for every fact a pass expression reads and every threshold, shown on the
+report's finding cards beside the value ("Administrators without a phishing-resistant method: 2"); a new fact or
+threshold needs a label there or the catalog test fails. None of the three is a domain file.
 
 ## Control chains
 

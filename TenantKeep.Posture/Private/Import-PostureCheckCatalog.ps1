@@ -6,8 +6,9 @@ function Import-PostureCheckCatalog {
     .DESCRIPTION
         Each file holds { "domain": "ca", "checks": [ ... ] }. Every check must carry the fields CLAUDE.md lists;
         a bad check fails the load with the file, id and missing field named, so a broken catalog never ships.
-        catalog.json in the folder gives the catalog version, and chains.json the control chains
-        (Import-PostureControlChain); neither is a domain file. Custom checks are tagged custom = true.
+        catalog.json in the folder gives the catalog version, chains.json the control chains
+        (Import-PostureControlChain) and facts.json the plain labels for facts and thresholds (returned as labels);
+        none is a domain file. Custom checks are tagged custom = true.
 
         remediation is a string or an array of steps. Every check comes back with both: steps (one or more) and
         remediation as one string, so a reader that wants text (CSV, the CA document, the public catalog) never
@@ -38,7 +39,7 @@ function Import-PostureCheckCatalog {
 
     $load = {
         param([string] $Folder, [bool] $Custom)
-        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json' })) {
+        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json', 'facts.json' })) {
             $doc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json -AsHashtable -Depth 20
             $domain = [string](Get-PostureValue $doc 'domain')
             $list = if ($doc -is [System.Collections.IDictionary]) { @($doc['checks']) } else { @($doc) }
@@ -72,8 +73,16 @@ function Import-PostureCheckCatalog {
         & $load $cp $true
     }
 
+    $labels = @{ facts = @{}; thresholds = @{} }
+    $labelFile = Join-Path $Path 'facts.json'
+    if (Test-Path -LiteralPath $labelFile) {
+        $doc = Get-Content -Raw -LiteralPath $labelFile | ConvertFrom-Json -AsHashtable
+        foreach ($k in 'facts', 'thresholds') { if ($doc[$k]) { $labels[$k] = $doc[$k] } }
+    }
+
     return [ordered]@{
         version = $version
+        labels  = $labels
         path    = $Path
         checks  = @($checks | Sort-Object { $_['id'] })
     }

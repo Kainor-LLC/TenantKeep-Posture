@@ -28,6 +28,7 @@ function ConvertTo-PostureFindingsDocument {
     $effortRank = @{ S = 1; M = 2; L = 3 }
     $effortOf = { param($id) if ($text.Contains($id) -and $text[$id]['effort'] -and $effortRank.ContainsKey([string]$text[$id]['effort'])) { $effortRank[[string]$text[$id]['effort']] } else { 4 } }
     $failing = @($Report.results | Where-Object { $_.status -eq 'fail' } | Sort-Object { - $weight[[string]$_.severity] }, { & $effortOf $_.id }, { - [int]$_.affectedCount }, { $_.id })
+    $factText = $(if ($Report.Contains('labels') -and $Report.labels -and $Report.labels.facts) { $Report.labels.facts } else { @{} })
     $rank = 0
     $findings = foreach ($r in $failing) {
         $rank++
@@ -44,6 +45,7 @@ function ConvertTo-PostureFindingsDocument {
             finding        = [string]$r.reason
             observed       = $(if ($r.Contains('observed') -and $r.observed) { $r.observed } else { [ordered]@{} })
             thresholds     = $(if ($r.Contains('thresholds') -and $r.thresholds) { $r.thresholds } else { [ordered]@{} })
+            found          = @(@($(if ($r.Contains('observed') -and $r.observed) { $r.observed.Keys | ForEach-Object { [ordered]@{ label = $(if ($factText.Contains($_)) { [string]$factText[$_] } else { $_ }); value = $r.observed[$_] } } })))
             affectedCount  = [int]$r.affectedCount
             affectedSample = @(@($r.affected) | Select-Object -First $SampleSize | ForEach-Object { [ordered]@{ name = (& $nameOf $_); detail = (& $detailOf $_) } })
             affectedFile   = $(if ([int]$r.affectedCount -gt 0) { "affected/$($r.id).csv" } else { $null })

@@ -31,6 +31,9 @@ function ConvertTo-PostureReportHtml {
         maxDomainAdmins = 'Maximum Domain Admins'; maxKrbtgtAgeDays = 'krbtgt password, maximum age (days)'; maxAdminPasswordAgeDays = 'Admin password, maximum age (days)'; minLapsPct = 'Minimum LAPS coverage (%)'; minPasswordLength = 'Minimum password length'; maxSsoKeyAgeDays = 'Seamless SSO key, maximum age (days)'
         minEffectivePct = 'Minimum effective coverage (%)'; maxAnonymousLinkDays = 'Anonymous link, maximum life (days)'; maxGuestExpireDays = 'Guest access, maximum life (days)'; maxOwnersPerSubscription = 'Maximum Owners per subscription'; minTaggedPct = 'Minimum tagged resources (%)'; maxUserResourceScopeAssignments = 'Maximum user assignments at resource scope'
     }
+    # The catalog's plain labels (checks/facts.json) win over the names above and over words made from a fact's name.
+    $catLabels = $(if ($Report.Contains('labels') -and $Report.labels) { $Report.labels } else { @{ facts = @{}; thresholds = @{} } })
+    foreach ($k in @($catLabels.thresholds.Keys)) { $thresholdLabel[$k] = $catLabels.thresholds[$k] }
     $humanize = { param([string] $t) if (-not $t) { return '' }; $out = $t; foreach ($k in $methodLabel.Keys) { $out = [regex]::Replace($out, "(?<![A-Za-z])$([regex]::Escape($k))(?![A-Za-z])", [string]$methodLabel[$k]) }; $out -replace ';', ', ' }
     $safeColor = { param([string] $c, [string] $fallback) if ($c -match '^#[0-9A-Fa-f]{3,8}$') { $c } else { $fallback } }
     $jsonBlock = { param([string] $Id, $Data) $json = (ConvertTo-Json -InputObject $Data -Depth 20 -Compress) -replace '</', '<\/'; "<script type=`"application/json`" id=`"$Id`">$json</script>" }
@@ -233,7 +236,7 @@ function ConvertTo-PostureReportHtml {
     # Recommendations: a card per failed check, what was found in this tenant, why it matters, what it affects and
     # the steps to fix it; improvements read as suggestions. Then what already passes, per domain.
     $effortLabel = @{ S = 'Quick fix'; M = 'Planned change'; L = 'Project' }
-    $factLabel = { param([string] $k) $t = ($k -creplace '([a-z0-9])([A-Z])', '$1 $2') -creplace '([A-Z]+)([A-Z][a-z])', '$1 $2'; $t.Substring(0, 1).ToUpperInvariant() + $t.Substring(1).ToLowerInvariant() -replace '\b(mfa|ca|spo|dlp|pim|sspr|tap|dkim|dmarc|spf|mde|edr|av|os|ip|id|url|api|smtp|imap|pop|ews|tls|ssl)\b', { $_.Value.ToUpperInvariant() } -replace '\bpct\b', '(%)' }
+    $factLabel = { param([string] $k) if ($catLabels.facts.Contains($k)) { return [string]$catLabels.facts[$k] }; $t = ($k -creplace '([a-z0-9])([A-Z])', '$1 $2') -creplace '([A-Z]+)([A-Z][a-z])', '$1 $2'; $t.Substring(0, 1).ToUpperInvariant() + $t.Substring(1).ToLowerInvariant() -replace '\b(mfa|ca|spo|dlp|pim|sspr|tap|dkim|dmarc|spf|mde|edr|av|os|ip|id|url|api|smtp|imap|pop|ews|tls|ssl)\b', { $_.Value.ToUpperInvariant() } -replace '\bpct\b', '(%)' }
     $factValue = { param($v) if ($v -is [bool]) { if ($v) { 'yes' } else { 'no' } } elseif ($null -eq $v -or "$v" -eq '') { 'none' } elseif ($v -is [ValueType]) { & $num $v } else { [string]$v } }
     $allRecs = @($r.recommendations.Values | ForEach-Object { $_ })
     $fixes = @($allRecs | Where-Object { $_.category -ne 'improve' }).Count
@@ -397,7 +400,7 @@ function ConvertTo-PostureReportHtml {
     & $w (& $jsonBlock 'data-attestations' $r.attestations)
     & $w (& $jsonBlock 'data-meta' ([ordered]@{ tenantId = $r.tenantId; clientName = $r.clientName; generatedUtc = $r.generatedUtc; licenceId = $(if ($r.licence) { $r.licence.licenceId } else { $null }) }))
     if ($r.Contains('findings') -and $r.findings) { & $w (& $jsonBlock 'tenantkeep-findings' $r.findings) }
-    & $w (& $jsonBlock 'data-labels' ([ordered]@{ status = $statusLabel; domains = $domainLabel; frameworks = $frameworkLabel; methods = $methodLabel; thresholds = $thresholdLabel }))
+    & $w (& $jsonBlock 'data-labels' ([ordered]@{ facts = $catLabels.facts; status = $statusLabel; domains = $domainLabel; frameworks = $frameworkLabel; methods = $methodLabel; thresholds = $thresholdLabel }))
     & $w "<script>`n$js`n</script>"
     & $w '</body></html>'
     return $sb.ToString()

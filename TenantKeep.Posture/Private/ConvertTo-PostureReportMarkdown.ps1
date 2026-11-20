@@ -142,7 +142,8 @@ function ConvertTo-PostureReportMarkdown {
             & $line
             & $line "$($x.severity)$(if ($x.effort) { ", $($effortWord[[string]$x.effort])" })$(if ($x.category -eq 'improve') { ', improvement' }), $($x.domain)$(if ($x.license.Count -gt 0) { ", needs $($x.license -join ' or ')" })$(if ($x.affectedCount -gt 0) { ", $($x.affectedCount) affected" })."
             & $line
-            $found = @(@($x.observed.Keys | ForEach-Object { "$_ = $($x.observed[$_])" }) + @($(if ($x.thresholds) { $x.thresholds.Keys | ForEach-Object { "threshold $_ = $($x.thresholds[$_])" } })))
+            $lf = $(if ($r.Contains('labels') -and $r.labels) { $r.labels } else { @{ facts = @{}; thresholds = @{} } })
+            $found = @(@($x.observed.Keys | ForEach-Object { "$(if ($lf.facts.Contains($_)) { $lf.facts[$_] } else { $_ }): $(if ($x.observed[$_] -is [bool]) { if ($x.observed[$_]) { 'yes' } else { 'no' } } else { $x.observed[$_] })" }) + @($(if ($x.thresholds) { $x.thresholds.Keys | ForEach-Object { "$(if ($lf.thresholds.Contains($_)) { $lf.thresholds[$_] } else { "threshold $_" }): $($x.thresholds[$_])" } })))
             if ($x.reason) { & $line "Found: $(& $esc $x.reason)"; & $line }
             if ($found.Count) { & $line "Values: $(& $esc ($found -join '; '))"; & $line }
             & $line "Why it matters: $(& $esc $x.why)"

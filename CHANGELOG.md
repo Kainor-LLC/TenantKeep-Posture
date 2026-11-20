@@ -6,6 +6,8 @@ work landed on main.
 
 ## Unreleased
 
+- Plain labels on the finding cards (2026-11-20): every value a check judged reads in words ("Sharing level below
+  Anyone: no"), from checks/facts.json, in report.html, report.md and findings.json (found: label and value).
 - Catalog filled (2026-11-20): every check has an effort (115 quick fixes, 73 planned changes, 19 projects) and a
   category (41 improvements); 84 have their fix as numbered steps, in the order to do them.
 - Inventory view (2026-11-20): what the tenant has, as tables from evidence already collected: mail domains with

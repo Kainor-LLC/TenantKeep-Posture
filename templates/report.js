@@ -95,7 +95,7 @@
   function kvRows(obj, labelFn, valueFn) { var keys = Object.keys(obj || {}); if (!keys.length) { return ''; } return '<dl class="kv">' + keys.map(function (k) { var v = obj[k]; return '<dt>' + esc(labelFn(k)) + '</dt><dd>' + esc(valueFn ? valueFn(v) : (typeof v === 'object' ? JSON.stringify(v) : v)) + '</dd>'; }).join('') + '</dl>'; }
   // A fact name as words (anonymousLinkDays: Anonymous link days), the same rule the report's cards use.
   var ACRONYMS = /\b(mfa|ca|spo|dlp|pim|sspr|tap|dkim|dmarc|spf|mde|edr|av|os|ip|id|url|api|smtp|imap|pop|ews|tls|ssl)\b/gi;
-  function factLabel(k) { var t = words(String(k).replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')); t = t.charAt(0) + t.slice(1).toLowerCase(); return t.replace(ACRONYMS, function (m) { return m.toUpperCase(); }).replace(/\bpct\b/i, '(%)'); }
+  function factLabel(k) { if (L.facts && L.facts[k]) { return L.facts[k]; } var t = words(String(k).replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')); t = t.charAt(0) + t.slice(1).toLowerCase(); return t.replace(ACRONYMS, function (m) { return m.toUpperCase(); }).replace(/\bpct\b/i, '(%)'); }
   function factValue(v) { if (v === true) { return 'yes'; } if (v === false) { return 'no'; } if (v === null || v === undefined || v === '') { return 'none'; } return typeof v === 'number' ? v.toLocaleString() : String(v); }
   function openDrawer(id) {
     var r = byId[id], c = data.catalog[id] || {}; if (!r || !drawer) { return; }

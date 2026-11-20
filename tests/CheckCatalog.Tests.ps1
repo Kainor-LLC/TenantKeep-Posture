@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeDiscovery {
-    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
+    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json', 'facts.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
     $script:BaselineFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'baselines') -Filter '*.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
 }
 
@@ -17,6 +17,17 @@ Describe 'Shipped check catalog' {
             $c = Import-PostureCheckCatalog
             $c.version | Should -Match '^\d{4}\.\d{1,2}\.\d+$'
             $c.checks | ForEach-Object { $_.custom | Should -BeFalse }
+        }
+    }
+
+    It 'labels every fact a pass expression reads and every threshold, in plain words (checks/facts.json)' {
+        InModuleScope TenantKeep.Posture {
+            $c = Import-PostureCheckCatalog
+            foreach ($check in $c.checks) {
+                foreach ($m in [regex]::Matches([string]$check.pass, 'facts\.([A-Za-z0-9_]+)')) { $c.labels.facts.Keys | Should -Contain $m.Groups[1].Value -Because "$($check.id) shows that value on its card" }
+                foreach ($t in @($check.thresholds.Keys)) { $c.labels.thresholds.Keys | Should -Contain $t -Because "$($check.id) shows that threshold on its card" }
+            }
+            Get-Content -Raw (Join-Path $c.path 'facts.json') | Should -Not -Match ([char]0x2014)
         }
     }
 
