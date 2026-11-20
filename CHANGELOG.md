@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Scale (2026-11-20), for tenants with hundreds of thousands of users, groups and devices and millions of
+  sign-ins: every Graph read retries throttling and transient failures (honouring Retry-After) and renews an expired
+  token mid-read; users, registration, groups, Entra devices and Intune devices stream to disk in one pass with
+  their summaries tallied on the way; evidence is parsed once per evaluation and shared by every domain; the
+  report page carries at most 500 affected objects per check, with affected/<id>.csv holding all of them.
+- `SignIns` collector and check ID-016 (2026-11-20): the Entra sign-in log for `-SignInDays` (default 7, up to
+  30), streamed and tallied, checkpointed every ten pages, self-resuming after a failure and resumable with
+  Resume-PostureRun. Needs Entra ID P1 and Reports Reader or Global Reader.
 - Clear errors and Resume-PostureRun (2026-11-20): requirements.json names the least-privilege role, delegated
   permission and licence for every collector and the steps that differ; a failed step is classified from its error
   text and written to errors.jsonl with what it needs. Start-PostureRun checks the account's roles before collecting

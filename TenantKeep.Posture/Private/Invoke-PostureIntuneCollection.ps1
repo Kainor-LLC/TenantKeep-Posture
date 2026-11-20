@@ -32,22 +32,38 @@ function Invoke-PostureIntuneCollection {
 
     # ---------- 9. Intune managed devices (beta for joinType and autopilotEnrolled) ----------
     # The step returns the flattened list so the summaries and the return value share it.
-    $managed = @(Invoke-PostureStep -Label 'Intune managed devices' -Folder $Folder -Script {
-            $rows = & $get 'deviceManagement/managedDevices?$select=id,deviceName,userPrincipalName,operatingSystem,osVersion,skuFamily,complianceState,managementAgent,joinType,deviceEnrollmentType,managedDeviceOwnerType,autopilotEnrolled,isEncrypted,isSupervised,lastSyncDateTime,enrolledDateTime,manufacturer,model,serialNumber,azureADDeviceId&$top=999' 'beta'
-            $flat = @($rows | ForEach-Object {
-                    [ordered]@{
-                        Id = $_.id; DeviceName = (& $v $_ 'deviceName'); UserPrincipalName = (& $v $_ 'userPrincipalName'); OperatingSystem = (& $v $_ 'operatingSystem'); OSVersion = (& $v $_ 'osVersion'); SkuFamily = (& $v $_ 'skuFamily')
-                        ComplianceState = (& $v $_ 'complianceState'); ManagementAgent = (& $v $_ 'managementAgent'); JoinType = (& $v $_ 'joinType'); DeviceEnrollmentType = (& $v $_ 'deviceEnrollmentType'); ManagedDeviceOwnerType = (& $v $_ 'managedDeviceOwnerType')
-                        AutopilotEnrolled = [bool](& $v $_ 'autopilotEnrolled'); IsEncrypted = [bool](& $v $_ 'isEncrypted'); IsSupervised = [bool](& $v $_ 'isSupervised'); LastSyncDateTime = (& $v $_ 'lastSyncDateTime'); EnrolledDateTime = (& $v $_ 'enrolledDateTime')
-                        Manufacturer = (& $v $_ 'manufacturer'); Model = (& $v $_ 'model'); SerialNumber = (& $v $_ 'serialNumber'); AzureAdDeviceId = (& $v $_ 'azureADDeviceId')
+    # Streamed: one pass writes the device rows and tallies the three summaries (the Group-Object shape: Name
+    # "a, b, c" and Count, largest first), so a fleet of hundreds of thousands is never held in memory.
+    $managed = @{ Count = 0 }
+    Invoke-PostureStep -Label 'Intune managed devices' -Folder $Folder -Script {
+        $byOsAgentJoin = @{}; $byOsCompliance = @{}; $byWindowsBuild = @{}
+        $tally = { param([hashtable] $Map, [string] $Key) $Map[$Key] = 1 + $(if ($Map.ContainsKey($Key)) { $Map[$Key] } else { 0 }) }
+        $stream = Open-PostureEvidenceStream -Folder $Folder -Name '09-intune-managed-devices' -Csv -Confirm:$false
+        try {
+            $null = Invoke-PostureGraphRequest -Uri 'deviceManagement/managedDevices?$select=id,deviceName,userPrincipalName,operatingSystem,osVersion,skuFamily,complianceState,managementAgent,joinType,deviceEnrollmentType,managedDeviceOwnerType,autopilotEnrolled,isEncrypted,isSupervised,lastSyncDateTime,enrolledDateTime,manufacturer,model,serialNumber,azureADDeviceId&$top=999' -ApiVersion 'beta' -Label 'Intune devices' -OnPage {
+                param($page)
+                foreach ($d in $page) {
+                    $row = [ordered]@{
+                        Id = $d['id']; DeviceName = $d['deviceName']; UserPrincipalName = $d['userPrincipalName']; OperatingSystem = $d['operatingSystem']; OSVersion = $d['osVersion']; SkuFamily = $d['skuFamily']
+                        ComplianceState = $d['complianceState']; ManagementAgent = $d['managementAgent']; JoinType = $d['joinType']; DeviceEnrollmentType = $d['deviceEnrollmentType']; ManagedDeviceOwnerType = $d['managedDeviceOwnerType']
+                        AutopilotEnrolled = [bool]$d['autopilotEnrolled']; IsEncrypted = [bool]$d['isEncrypted']; IsSupervised = [bool]$d['isSupervised']; LastSyncDateTime = $d['lastSyncDateTime']; EnrolledDateTime = $d['enrolledDateTime']
+                        Manufacturer = $d['manufacturer']; Model = $d['model']; SerialNumber = $d['serialNumber']; AzureAdDeviceId = $d['azureADDeviceId']
                     }
-                })
-            & $save $flat '09-intune-managed-devices' $true
-            & $save (& $group $flat @('OperatingSystem', 'ManagementAgent', 'JoinType')) '09-intune-summary-os-agent-join' $true
-            & $save (& $group $flat @('OperatingSystem', 'ComplianceState')) '09-intune-summary-compliance' $true
-            & $save (& $group @($flat | Where-Object { $_.OperatingSystem -eq 'Windows' }) @('OSVersion')) '09-intune-summary-windows-builds' $true
-            $flat
-        })
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    $managed.Count++
+                    & $tally $byOsAgentJoin "$($row.OperatingSystem), $($row.ManagementAgent), $($row.JoinType)"
+                    & $tally $byOsCompliance "$($row.OperatingSystem), $($row.ComplianceState)"
+                    if ($row.OperatingSystem -eq 'Windows') { & $tally $byWindowsBuild ([string]$row.OSVersion) }
+                }
+            }
+            $files.Add((Close-PostureEvidenceStream -Stream $stream))
+        }
+        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        $rows = { param([hashtable] $Map) @($Map.Keys | ForEach-Object { [ordered]@{ Name = $_; Count = $Map[$_] } } | Sort-Object { - $_.Count }) }
+        & $save (& $rows $byOsAgentJoin) '09-intune-summary-os-agent-join' $true
+        & $save (& $rows $byOsCompliance) '09-intune-summary-compliance' $true
+        & $save (& $rows $byWindowsBuild) '09-intune-summary-windows-builds' $true
+    } | Out-Null
 
     Invoke-PostureStep -Label 'Autopilot devices' -Folder $Folder -Script {
         $rows = & $get 'deviceManagement/windowsAutopilotDeviceIdentities?$top=999'
