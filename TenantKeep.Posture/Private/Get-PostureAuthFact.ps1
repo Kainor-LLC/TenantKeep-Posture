@@ -17,15 +17,13 @@ function Get-PostureAuthFact {
     )
 
     $ErrorActionPreference = 'Stop'
+    # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
+    # $null, an empty one an empty array.
     $load = {
         param([string] $Name)
-        $f = Join-Path $Evidence "$Name.json"
-        if (-not (Test-Path -LiteralPath $f)) { return $null }
-        $text = Get-Content -Raw -LiteralPath $f
-        if ([string]::IsNullOrWhiteSpace($text)) { return , @() }
-        $parsed = ConvertFrom-Json -InputObject $text -AsHashtable -Depth 20
-        # An empty JSON array parses to nothing; keep it distinct from a missing file.
-        if ($null -eq $parsed) { return , @() }
+        $parsed = Read-PostureEvidenceFile -Folder $Evidence -Name $Name
+        if ($null -eq $parsed) { return $null }
+        if ($parsed -is [array] -and $parsed.Count -eq 0) { return , @() }
         return $parsed
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
@@ -80,7 +78,9 @@ function Get-PostureAuthFact {
         $facts.usersWithSms = [int](& $v $summary 'UsersWithSms')
     }
 
-    $reg = & $load '05-auth-registration'
+    # The admin-only file the collector writes; the full one for runs made before it existed.
+    $reg = & $load '05-auth-registration-admins'
+    if ($null -eq $reg) { $reg = & $load '05-auth-registration' }
     $active = & $load '04-role-assignments-active'
     if ($null -eq $reg) { $notEvaluated['AU-008'] = '05-auth-registration.json was not collected.' }
     else {

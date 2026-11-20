@@ -34,14 +34,13 @@ function ConvertTo-PostureReportModel {
     $Run.entitlement = ConvertTo-PostureEntitlementRecord -Entitlement $Entitlement
     $buildState = $(if (Get-Variable -Name PostureBuildState -Scope Script -ValueOnly -ErrorAction SilentlyContinue) { $script:PostureBuildState } else { @{ state = 'development'; detail = 'Development build: no signed release manifest.'; version = $script:ModuleVersion; changed = @() } })
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
+    # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
+    # $null, an empty one an empty array.
     $load = {
         param([string] $Name)
-        $f = Join-Path $Evidence "$Name.json"
-        if (-not (Test-Path -LiteralPath $f)) { return $null }
-        $text = Get-Content -Raw -LiteralPath $f
-        if ([string]::IsNullOrWhiteSpace($text)) { return , @() }
-        $parsed = ConvertFrom-Json -InputObject $text -AsHashtable -Depth 20
-        if ($null -eq $parsed) { return , @() }
+        $parsed = Read-PostureEvidenceFile -Folder $Evidence -Name $Name
+        if ($null -eq $parsed) { return $null }
+        if ($parsed -is [array] -and $parsed.Count -eq 0) { return , @() }
         return $parsed
     }
     $byId = @{}; foreach ($c in $Catalog.checks) { $byId[[string]$c['id']] = $c }
@@ -210,8 +209,11 @@ function ConvertTo-PostureReportModel {
     # Who are your admins (spec 7.2): roles joined to registration and users.
     $active = & $load '04-role-assignments-active'
     $eligible = & $load '04-role-assignments-pim-eligible'
-    $reg = & $load '05-auth-registration'
-    $users = & $load '06-users'
+    # Admin-only files from the collector; the full lists only for runs made before them.
+    $reg = & $load '05-auth-registration-admins'
+    if ($null -eq $reg) { $reg = & $load '05-auth-registration' }
+    $users = & $load '06-users-admins'
+    if ($null -eq $users) { $users = & $load '06-users' }
     $regByUpn = @{}; foreach ($r in @($reg | Where-Object { $_ })) { $regByUpn[[string]$r.UserPrincipalName] = $r }
     $userByUpn = @{}; foreach ($u in @($users | Where-Object { $_ })) { $userByUpn[[string]$u.UserPrincipalName] = $u }
     $strongest = {

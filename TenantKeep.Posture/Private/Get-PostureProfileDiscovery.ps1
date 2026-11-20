@@ -25,14 +25,13 @@ function Get-PostureProfileDiscovery {
 
     $ErrorActionPreference = 'Stop'
     if (-not (Test-Path -LiteralPath $Evidence -PathType Container)) { throw "Evidence folder not found: $Evidence" }
+    # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
+    # $null, an empty one an empty array.
     $load = {
         param([string] $Name)
-        $f = Join-Path $Evidence "$Name.json"
-        if (-not (Test-Path -LiteralPath $f)) { return $null }
-        $text = Get-Content -Raw -LiteralPath $f
-        if ([string]::IsNullOrWhiteSpace($text)) { return , @() }
-        $parsed = ConvertFrom-Json -InputObject $text -AsHashtable -Depth 20
-        if ($null -eq $parsed) { return , @() }
+        $parsed = Read-PostureEvidenceFile -Folder $Evidence -Name $Name
+        if ($null -eq $parsed) { return $null }
+        if ($parsed -is [array] -and $parsed.Count -eq 0) { return , @() }
         return $parsed
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }

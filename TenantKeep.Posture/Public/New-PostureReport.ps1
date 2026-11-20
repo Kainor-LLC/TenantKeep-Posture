@@ -100,6 +100,18 @@ function New-PostureReport {
         [System.IO.File]::WriteAllText($checksPath, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
         $written.Add($checksPath)
     }
+    # Every affected list in full as a CSV per check; the page carries the first 500 of each, so a check with tens
+    # of thousands of objects does not make the report too heavy to open.
+    $withAffected = @($run.results | Where-Object { $_.affectedCount -gt 0 })
+    $affectedFolder = Join-Path $outFolder 'affected'
+    if ($withAffected.Count -gt 0 -and $PSCmdlet.ShouldProcess($affectedFolder, 'Write the affected objects per check')) {
+        New-Item -ItemType Directory -Path $affectedFolder -Force | Out-Null
+        Get-ChildItem -LiteralPath $affectedFolder -Filter '*.csv' -File | Remove-Item -Force
+        foreach ($r in $withAffected) {
+            @($r.affected | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]@{ Name = [string]$_['name']; Detail = [string]$_['detail'] } } else { [pscustomobject]@{ Name = [string]$_; Detail = '' } } }) |
+                Export-Csv -LiteralPath (Join-Path $affectedFolder "$($r.id).csv") -NoTypeInformation -Encoding utf8
+        }
+    }
     $formats = [System.Collections.Generic.List[string]]::new([string[]]$Format)
     if ($formats -contains 'Pdf' -and $formats -notcontains 'Html') { $formats.Insert(0, 'Html') }
     $htmlPath = $null
@@ -122,6 +134,7 @@ function New-PostureReport {
     }
 
     Write-Verbose "Score $($report.score.value) ($($report.score.grade)); $($run.counts.fail) failed check(s)"
+    Clear-PostureEvidenceCache -Confirm:$false
     if ($PassThru) { return [pscustomobject]@{ Files = $written.ToArray(); Report = $report; Run = $run } }
     return $written.ToArray()
 }

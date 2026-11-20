@@ -107,7 +107,7 @@
       '<h4>Why It Matters</h4><p>' + esc(c.narrative) + '</p>' +
       '<h4>Remediation</h4><p>' + esc(c.remediation) + '</p><p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
       (fw ? '<h4>Frameworks</h4><p class="chips">' + fw + '</p>' : '') +
-      (affected ? '<h4>Affected (' + list.length + ')</h4><ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +
+      (affected ? '<h4>Affected (' + Math.max(list.length, r.affectedCount || 0).toLocaleString() + ')</h4>' + ((r.affectedCount || 0) > list.length ? '<p class="hint">Showing the first ' + list.length + '. Every one is in affected/' + esc(r.id) + '.csv in the run folder.</p>' : '') + '<ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +
       (exList ? '<h4>Accepted Risks</h4><p class="hint">To withdraw one, copy its command. ' + esc(RERUN_HINT) + '</p><ul class="exception-list">' + exList + '</ul>' : '') +
       acceptPanel(r, list) +
       inputPanel(c) +
@@ -159,7 +159,7 @@
   function toCsv(headers, list) { var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }; return [headers.map(q).join(',')].concat(list.map(function (r) { return r.map(q).join(','); })).join('\r\n') + '\r\n'; }
   function downloadText(name, text, type) { var blob = new Blob([text], { type: type || 'application/json' }), url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Downloaded ' + name); }
   var exportAll = $('export-checks');
-  if (exportAll) { exportAll.addEventListener('click', function () { downloadText('checks.csv', toCsv(['ID', 'Domain', 'Title', 'Status', 'Severity', 'Affected', 'Reason'], data.results.map(function (r) { return [r.id, domainLabel(r.domain), r.title, statusLabel(r.status), r.severity, (r.affected || []).length, r.reason]; })), 'text/csv'); }); }
+  if (exportAll) { exportAll.addEventListener('click', function () { downloadText('checks.csv', toCsv(['ID', 'Domain', 'Title', 'Status', 'Severity', 'Affected', 'Reason'], data.results.map(function (r) { return [r.id, domainLabel(r.domain), r.title, statusLabel(r.status), r.severity, (r.affectedCount != null ? r.affectedCount : (r.affected || []).length), r.reason]; })), 'text/csv'); }); }
 
   bindCopy(document);
 

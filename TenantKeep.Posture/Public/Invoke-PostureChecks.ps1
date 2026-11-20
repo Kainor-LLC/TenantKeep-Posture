@@ -80,6 +80,7 @@ function Invoke-PostureChecks {
     $path = Join-Path (Resolve-Path -LiteralPath $outFolder).Path 'checks.json'
     [System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
 
+    Clear-PostureEvidenceCache -Confirm:$false
     $c = $run.counts
     Write-Verbose "checks.json: pass $($c.pass), fail $($c.fail), not evaluated $($c.notEvaluated), not applicable $($c.notApplicable), accepted risk $($c.acceptedRisk), covered $($c.coveredBy)"
     if ($PassThru) { return $run }

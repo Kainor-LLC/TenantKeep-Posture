@@ -285,7 +285,8 @@ function ConvertTo-PostureReportHtml {
     if ($b.footer) { & $w "<footer class=`"doc`">$(& $h $b.footer)</footer>" }
 
     # Embedded data, then the behaviour.
-    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds } }))
+    # At most 500 affected objects per check in the page; affected/<id>.csv beside the report has them all.
+    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected | Select-Object -First 500); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds } }))
     & $w (& $jsonBlock 'data-catalog' $r.catalogText)
     & $w (& $jsonBlock 'data-exceptions' @($r.exceptions))
     & $w (& $jsonBlock 'data-attestations' $r.attestations)
