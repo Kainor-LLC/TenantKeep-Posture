@@ -26,15 +26,18 @@ function Test-PostureRoleCoverage {
         # Entra directory roles are plain names; role groups and Azure roles carry a qualifier in brackets.
         $entra = @($need | Where-Object { $_ -notmatch '\(' })
         $other = @($need | Where-Object { $_ -match '\(' })
-        $have = @($held | Where-Object { $_ -in $entra -or $_ -eq 'Global Administrator' })
-        $status = $(if ($have.Count -gt 0) { 'ok' } elseif ($other.Count -gt 0 -or $entra.Count -eq 0) { 'unknown' } else { 'missing' })
+        # Roles that work but grant more than this read-only run needs (Exchange Administrator, Global Administrator).
+        $broader = @(@(if ($map['collectors'][$c].Contains('alsoWorks')) { $map['collectors'][$c]['alsoWorks'] }) + @('Global Administrator') | Sort-Object -Unique)
+        $have = @($held | Where-Object { $_ -in $entra })
+        $haveBroader = @($held | Where-Object { $_ -in $broader -and $_ -notin $entra })
+        $status = $(if ($have.Count -gt 0 -or $haveBroader.Count -gt 0) { 'ok' } elseif ($other.Count -gt 0 -or $entra.Count -eq 0) { 'unknown' } else { 'missing' })
         [pscustomobject]@{
             Collector = $c
             Status    = $status
             Have      = ($have -join ', ')
             Needs     = ($need -join ' or ')
             Detail    = switch ($status) {
-                'ok' { "covered by $($have -join ', ')" }
+                'ok' { $(if ($have.Count -gt 0) { "covered by $($have -join ', ')" } else { "covered by $($haveBroader -join ', '), which is more than this run needs; $($need -join ' or ') is enough" }) }
                 'missing' { "needs $($need -join ' or '); you have $(if ($held.Count) { $held -join ', ' } else { 'no admin role' })" }
                 default { "checked when it connects: needs $($need -join ' or ')" }
             }

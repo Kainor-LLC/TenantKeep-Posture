@@ -62,6 +62,10 @@ Describe 'Why a step failed' {
             $entra.Detail | Should -Match 'needs Global Reader; you have Security Reader'
             ($rows | Where-Object Collector -eq 'Exchange').Status | Should -Be 'unknown' -Because 'View-Only Organization Management is an Exchange role group Graph cannot see'
             ($rows | Where-Object Collector -eq 'Azure').Status | Should -Be 'unknown'
+            Mock Invoke-PostureGraphRequest { @(@{ displayName = 'Exchange Administrator' }) }
+            $exo = @(Test-PostureRoleCoverage -Collector Exchange)[0]
+            $exo.Status | Should -Be 'ok'
+            $exo.Detail | Should -Match 'more than this run needs' -Because 'Exchange Administrator works, and says it is more than needed'
             Mock Invoke-PostureGraphRequest { @(@{ displayName = 'Global Administrator' }) }
             @(Test-PostureRoleCoverage -Collector Entra, Intune | Where-Object Status -ne 'ok').Count | Should -Be 0
         }

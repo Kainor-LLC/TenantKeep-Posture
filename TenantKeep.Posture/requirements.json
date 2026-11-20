@@ -30,7 +30,10 @@
         "Intune Administrator"
       ],
       "licence": "Intune",
-      "note": "Global Reader reads Intune configuration (verify); an Intune Read Only Operator role assignment also works."
+      "note": "Global Reader reads Intune configuration (verify); an Intune Read Only Operator role assignment also works.",
+      "alsoWorks": [
+        "Global Administrator"
+      ]
     },
     "Defender": {
       "service": "Microsoft Graph (Defender XDR)",
@@ -38,7 +41,11 @@
         "Security Reader",
         "Global Reader"
       ],
-      "note": "Defender for Endpoint data also needs read access to the device groups in Defender unified RBAC when it is turned on (verify)."
+      "note": "Defender for Endpoint data also needs read access to the device groups in Defender unified RBAC when it is turned on (verify).",
+      "alsoWorks": [
+        "Security Administrator",
+        "Global Administrator"
+      ]
     },
     "Exchange": {
       "service": "Exchange Online PowerShell",
@@ -46,22 +53,33 @@
         "Global Reader",
         "View-Only Organization Management (Exchange role group)"
       ],
-      "note": "Never Exchange Administrator: the collector only reads."
+      "alsoWorks": [
+        "Exchange Administrator",
+        "Global Administrator"
+      ],
+      "note": "Global Reader reads Exchange configuration (verify on the Phase 3 run). Exchange Administrator works too but can change everything; this run only reads."
     },
     "Purview": {
       "service": "Security & Compliance PowerShell",
       "roles": [
-        "TenantKeep Posture (view only) role group",
-        "Compliance Administrator"
+        "Global Reader",
+        "Compliance Data Administrator"
       ],
-      "note": "deploy/setup/New-PosturePurviewApp.ps1 creates the view-only role group; Global Reader alone does not see every Purview setting (verify)."
+      "alsoWorks": [
+        "Compliance Administrator",
+        "Global Administrator"
+      ],
+      "note": "Global Reader reads most Purview configuration (verify on the Phase 3 run); Insider Risk, Communication Compliance and eDiscovery have role groups of their own, named per step. The TenantKeep Posture (view only) role group exists only where deploy/setup/New-PosturePurviewApp.ps1 created it, for the scheduled run's app."
     },
     "SharePoint": {
       "service": "SharePoint admin (PnP.PowerShell)",
       "roles": [
         "SharePoint Administrator"
       ],
-      "note": "The tenant settings read is refused to Global Reader (verify in Phase 3)."
+      "note": "The tenant settings read is refused to Global Reader (verify in Phase 3).",
+      "alsoWorks": [
+        "Global Administrator"
+      ]
     },
     "Teams": {
       "service": "Teams PowerShell",
@@ -69,7 +87,10 @@
         "Global Reader",
         "Teams Administrator"
       ],
-      "note": "Global Reader reads the Teams tenant configuration (verify)."
+      "note": "Global Reader reads the Teams tenant configuration (verify).",
+      "alsoWorks": [
+        "Global Administrator"
+      ]
     },
     "Azure": {
       "service": "Azure Resource Manager",
