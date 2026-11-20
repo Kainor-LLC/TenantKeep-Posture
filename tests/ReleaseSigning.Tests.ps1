@@ -59,7 +59,7 @@ Describe 'New-PostureSigningIdentity.ps1' {
 
 Describe 'build.ps1 Verify and Package' {
     It 'offers Verify, makes Package accept Verify in place of Sign, and keeps the certificate gate otherwise' {
-        $script:Build | Should -Match "ValidateSet\('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish'\)"
+        $script:Build | Should -Match "ValidateSet\('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData'\)"
         $script:Build | Should -Match '-notcontains ''Sign'' -and \$tasks -notcontains ''Verify'' -and -not \$Unsigned\) \{ \$tasks\.Add\(''Sign''\) \}'
         $script:Build | Should -Match "Package needs Sign \(local certificate\) or Verify"
     }

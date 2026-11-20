@@ -1,0 +1,300 @@
+{
+  "description": "Licensed features: the token the check catalog gates on, the service plans that grant it, and what it unlocks. Detection (Get-PostureLicenseToken) and the licensing advisor read this file; nothing else holds plan names.",
+  "reviewed": "2026-11-20",
+  "sources": [
+    "https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference",
+    "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
+  ],
+  "features": [
+    {
+      "id": "entraP1",
+      "name": "Microsoft Entra ID P1",
+      "token": "P1",
+      "plans": [
+        "AAD_PREMIUM"
+      ],
+      "includes": [],
+      "what": "Conditional Access, group-based licensing, dynamic groups, sign-in logs beyond 7 days."
+    },
+    {
+      "id": "entraP2",
+      "name": "Microsoft Entra ID P2",
+      "token": "P2",
+      "plans": [
+        "AAD_PREMIUM_P2"
+      ],
+      "includes": [
+        "entraP1"
+      ],
+      "what": "Risk-based Conditional Access, Identity Protection, Privileged Identity Management, access reviews."
+    },
+    {
+      "id": "governance",
+      "name": "Microsoft Entra ID Governance",
+      "token": "Governance",
+      "plans": [
+        "Entra_Identity_Governance"
+      ],
+      "includes": [],
+      "what": "Lifecycle workflows, entitlement management at scale, advanced access reviews.",
+      "requires": [
+        "entraP1"
+      ]
+    },
+    {
+      "id": "internetAccess",
+      "name": "Microsoft Entra Internet Access",
+      "token": "InternetAccess",
+      "plans": [
+        "Entra_Premium_Internet_Access"
+      ],
+      "includes": [],
+      "what": "Secure web gateway: web filtering and Conditional Access on internet traffic."
+    },
+    {
+      "id": "privateAccess",
+      "name": "Microsoft Entra Private Access",
+      "token": "PrivateAccess",
+      "plans": [
+        "Entra_Premium_Private_Access"
+      ],
+      "includes": [],
+      "what": "Zero trust access to private apps without a VPN."
+    },
+    {
+      "id": "workloadId",
+      "name": "Microsoft Entra Workload ID",
+      "token": "WorkloadID",
+      "plans": [
+        "AAD_WRKLDID_P1",
+        "AAD_WRKLDID_P2"
+      ],
+      "includes": [],
+      "what": "Conditional Access and risk detection for service principals."
+    },
+    {
+      "id": "intune",
+      "name": "Microsoft Intune Plan 1",
+      "token": "Intune",
+      "plans": [
+        "INTUNE_A",
+        "INTUNE_A_VL",
+        "INTUNE_EDU",
+        "INTUNE_SMBIZ"
+      ],
+      "includes": [],
+      "what": "Device enrollment, compliance, configuration, app protection."
+    },
+    {
+      "id": "intuneSuite",
+      "name": "Microsoft Intune Suite",
+      "token": "IntuneSuite",
+      "plans": [
+        "INTUNE_P2",
+        "Intune-EPM",
+        "Intune_AdvancedEA",
+        "Intune-MAMTunnel"
+      ],
+      "includes": [],
+      "what": "Endpoint Privilege Management, Remote Help, advanced analytics, Tunnel for MAM.",
+      "note": "The Intune Suite SKU carries these plans; each add-on sold alone carries one of them. Intune Plan 1 is a prerequisite, not part of the suite.",
+      "requires": [
+        "intune"
+      ]
+    },
+    {
+      "id": "mde1",
+      "name": "Microsoft Defender for Endpoint Plan 1",
+      "token": "MDE1",
+      "plans": [
+        "MDE_LITE"
+      ],
+      "includes": [],
+      "what": "Next-generation antivirus, attack surface reduction, device control."
+    },
+    {
+      "id": "mde2",
+      "name": "Microsoft Defender for Endpoint Plan 2",
+      "token": "MDE2",
+      "plans": [
+        "WINDEFATP"
+      ],
+      "includes": [
+        "mde1"
+      ],
+      "what": "EDR, automated investigation, vulnerability management, advanced hunting."
+    },
+    {
+      "id": "mdeBusiness",
+      "name": "Microsoft Defender for Business",
+      "token": "MDEBusiness",
+      "plans": [
+        "MDE_SMB"
+      ],
+      "includes": [
+        "mde1"
+      ],
+      "what": "EDR and automated investigation for up to 300 users."
+    },
+    {
+      "id": "mdo1",
+      "name": "Microsoft Defender for Office 365 Plan 1",
+      "token": "MDO1",
+      "plans": [
+        "ATP_ENTERPRISE"
+      ],
+      "includes": [],
+      "what": "Safe Links, Safe Attachments, anti-phishing impersonation protection."
+    },
+    {
+      "id": "mdo2",
+      "name": "Microsoft Defender for Office 365 Plan 2",
+      "token": "MDO2",
+      "plans": [
+        "THREAT_INTELLIGENCE"
+      ],
+      "includes": [
+        "mdo1"
+      ],
+      "what": "Threat Explorer, automated investigation, attack simulation training."
+    },
+    {
+      "id": "mdi",
+      "name": "Microsoft Defender for Identity",
+      "token": "MDI",
+      "plans": [
+        "ATA"
+      ],
+      "includes": [],
+      "what": "Detects attacks on on-premises Active Directory."
+    },
+    {
+      "id": "mdca",
+      "name": "Microsoft Defender for Cloud Apps",
+      "token": "MDCA",
+      "plans": [
+        "ADALLOM_S_STANDALONE"
+      ],
+      "includes": [],
+      "what": "Shadow IT discovery, session controls, app governance."
+    },
+    {
+      "id": "labels",
+      "name": "Purview Information Protection (standard)",
+      "token": "IP1",
+      "plans": [
+        "MIP_S_CLP1",
+        "RMS_S_PREMIUM"
+      ],
+      "includes": [],
+      "what": "Manual sensitivity labels with encryption."
+    },
+    {
+      "id": "purviewIp",
+      "name": "Purview Information Protection (premium)",
+      "token": "Purview",
+      "plans": [
+        "MIP_S_CLP2",
+        "RMS_S_PREMIUM2"
+      ],
+      "includes": [
+        "labels"
+      ],
+      "what": "Automatic labelling, labelling at scale, content explorer."
+    },
+    {
+      "id": "endpointDlp",
+      "name": "Purview Endpoint DLP",
+      "token": "EndpointDLP",
+      "plans": [
+        "MICROSOFTENDPOINTDLP"
+      ],
+      "includes": [],
+      "what": "Data loss prevention on Windows and macOS devices."
+    },
+    {
+      "id": "teamsDlp",
+      "name": "Purview DLP for Teams",
+      "token": "TeamsDLP",
+      "plans": [
+        "COMMUNICATIONS_DLP"
+      ],
+      "includes": [],
+      "what": "Data loss prevention in Teams chats and channels."
+    },
+    {
+      "id": "auditPremium",
+      "name": "Purview Audit (Premium)",
+      "token": "AuditPremium",
+      "plans": [
+        "M365_ADVANCED_AUDITING"
+      ],
+      "includes": [],
+      "what": "One-year audit retention and the high-value events investigations need."
+    },
+    {
+      "id": "insiderRisk",
+      "name": "Purview Insider Risk Management",
+      "token": "InsiderRisk",
+      "plans": [
+        "INSIDER_RISK"
+      ],
+      "includes": [],
+      "what": "Policies for data theft by departing users and similar risks."
+    },
+    {
+      "id": "ediscoveryPremium",
+      "name": "Purview eDiscovery (Premium)",
+      "token": "eDiscoveryPremium",
+      "plans": [
+        "EQUIVIO_ANALYTICS"
+      ],
+      "includes": [],
+      "what": "Review sets, analytics and holds at scale."
+    },
+    {
+      "id": "commsCompliance",
+      "name": "Purview Communication Compliance",
+      "token": "CommsCompliance",
+      "plans": [
+        "MICROSOFT_COMMUNICATION_COMPLIANCE"
+      ],
+      "includes": [],
+      "what": "Policies over messages for regulatory and conduct risks."
+    },
+    {
+      "id": "infoBarriers",
+      "name": "Purview Information Barriers",
+      "token": "InfoBarriers",
+      "plans": [
+        "INFORMATION_BARRIERS"
+      ],
+      "includes": [],
+      "what": "Stops groups of users communicating where rules require it."
+    },
+    {
+      "id": "copilot",
+      "name": "Microsoft 365 Copilot",
+      "token": "Copilot",
+      "plans": [
+        "M365_COPILOT_APPS",
+        "M365_COPILOT_BUSINESS_CHAT",
+        "M365_COPILOT_TEAMS"
+      ],
+      "includes": [],
+      "what": "Copilot in the Microsoft 365 apps and grounded on work data."
+    },
+    {
+      "id": "sam",
+      "name": "SharePoint Advanced Management",
+      "token": "SAM",
+      "plans": [],
+      "includes": [],
+      "what": "Data access governance reports, restricted access control, site access reviews.",
+      "impliedBy": [
+        "copilot"
+      ],
+      "note": "(verify) No SharePoint Advanced Management service plan appears in Microsoft's list as of 2026-11-20; Microsoft 365 Copilot licences include it, so Copilot implies it. Add the plan name here once seen on a live tenant."
+    }
+  ]
+}

@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Licensing data (2026-11-20): licensing/features.json maps every licensed feature to the service plans that grant it,
+  from Microsoft's service plan list; bundles.json (built by `build.ps1 -Task LicensingData`) lists what each SKU
+  carries; goals.json the goals the advisor works from. Licence detection reads them, which fixes plan names that
+  did not exist: Defender for Endpoint Plan 1 inside E3 and Business Premium, Copilot, ID Governance. Suspended and
+  deleted subscriptions no longer count. GV-005 (lifecycle workflows) needs ID Governance, from Entra Suite or alone.
 - Defence in depth (2026-11-20): checks/layers.json stacks catalog checks into layers; the overview draws email
   protection, Conditional Access coverage and Copilot data readiness as layered rings, each layer holds, partly or
   missing with n of m checks beside it.

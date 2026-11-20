@@ -60,7 +60,7 @@ function New-PostureProfile {
         [switch] $FromGraph,
         [switch] $NonInteractive,
         [switch] $AskAll,
-        [ValidateSet('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Intune', 'IntuneSuite', 'EntraSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'Purview', 'Copilot', 'SAM')]
+        [ValidateSet('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Governance', 'EntraSuite', 'InternetAccess', 'PrivateAccess', 'WorkloadID', 'Intune', 'IntuneSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'MDI', 'MDCA', 'IP1', 'Purview', 'EndpointDLP', 'TeamsDLP', 'AuditPremium', 'InsiderRisk', 'eDiscoveryPremium', 'CommsCompliance', 'InfoBarriers', 'Copilot', 'SAM')]
         [string[]] $Licenses,
         [ValidateSet('windows', 'macOS', 'linux', 'iOS', 'android')] [string[]] $Platforms,
         [ValidateSet('cloud-only', 'hybrid-connect', 'hybrid-cloud-sync', 'hybrid-adfs')] [string] $IdentityModel,
@@ -173,8 +173,8 @@ function New-PostureProfile {
         $ask = { param($q, $why, $choices, $default, [bool] $multi) Read-PostureAnswer -Question $q -Why $why -Choices $choices -Default $default -Multi:$multi }
         $skip = { param([string] $k) ($discovered -contains $k) -and -not $AskAll }
         if (-not (& $skip 'clientName')) { $answers.clientName = & $ask 'Client or tenant display name?' 'Shown on the report cover.' @() $answers.clientName $false }
-        $licenseWhy = if ($null -ne $detected) { "Detected from $licenseSource. Edit the list if it is wrong." } else { 'Tokens: E3, E5, BusinessPremium, P1, P2, Intune, IntuneSuite, EntraSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, Purview, Copilot, SAM. Use -FromGraph or -Evidence to detect.' }
-        if (-not (& $skip 'licenses')) { $answers.licenses = @(& $ask 'Licenses present?' $licenseWhy @('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Intune', 'IntuneSuite', 'EntraSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'Purview', 'Copilot', 'SAM') $answers.licenses $true) }
+        $licenseWhy = if ($null -ne $detected) { "Detected from $licenseSource. Edit the list if it is wrong." } else { 'Tokens: E3, E5, BusinessPremium, P1, P2, Governance, EntraSuite, Intune, IntuneSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, MDI, MDCA, Purview, Copilot, SAM and the Purview add-ons (licensing/features.json lists them all). Use -FromGraph or -Evidence to detect.' }
+        if (-not (& $skip 'licenses')) { $answers.licenses = @(& $ask 'Licenses present?' $licenseWhy @('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Governance', 'EntraSuite', 'InternetAccess', 'PrivateAccess', 'WorkloadID', 'Intune', 'IntuneSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'MDI', 'MDCA', 'IP1', 'Purview', 'EndpointDLP', 'TeamsDLP', 'AuditPremium', 'InsiderRisk', 'eDiscoveryPremium', 'CommsCompliance', 'InfoBarriers', 'Copilot', 'SAM') $answers.licenses $true) }
         if (-not (& $skip 'platforms')) { $answers.platforms = @(& $ask 'Platforms in scope?' 'Decides which device and endpoint checks appear.' @('windows', 'macOS', 'linux', 'iOS', 'android') $answers.platforms $true) }
         if (-not (& $skip 'identityModel')) { $answers.identityModel = & $ask 'Identity model?' 'Hybrid renders the AD domain; ADFS adds the federation checks.' @('cloud-only', 'hybrid-connect', 'hybrid-cloud-sync', 'hybrid-adfs') $answers.identityModel $false }
         if (-not (& $skip 'byod')) { $answers.byod = & $ask 'BYOD stance for phones?' 'none: corporate devices only. mam: app protection without enrollment. mdm: enrolled.' @('none', 'mam', 'mdm') $answers.byod $false }

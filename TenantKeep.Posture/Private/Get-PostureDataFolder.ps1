@@ -7,7 +7,7 @@ function Get-PostureDataFolder {
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory)] [ValidateSet('checks', 'baselines', 'templates', 'schedules')] [string] $Name
+        [Parameter(Mandatory)] [ValidateSet('checks', 'baselines', 'templates', 'schedules', 'licensing')] [string] $Name
     )
 
     $ErrorActionPreference = 'Stop'

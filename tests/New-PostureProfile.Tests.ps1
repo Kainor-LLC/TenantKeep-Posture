@@ -18,14 +18,15 @@ AfterAll {
 Describe 'Get-PostureLicenseToken' {
     It 'expands bundles into the tokens the catalog gates on' {
         InModuleScope TenantKeep.Posture -Parameters @{ S = $script:Skus } {
-            Get-PostureLicenseToken -Sku $S | Should -Be @('BusinessPremium', 'Intune', 'MDEBusiness', 'MDO1', 'P1', 'P2')
+            Get-PostureLicenseToken -Sku $S | Should -Be @('BusinessPremium', 'Intune', 'IP1', 'MDE1', 'MDEBusiness', 'MDO1', 'P1', 'P2') -Because 'Defender for Business brings the Plan 1 features, and Business Premium manual labels'
         }
     }
 
     It 'reads the audit plan CSV-shaped rows too' {
         InModuleScope TenantKeep.Posture {
             $rows = @(@{ SkuPartNumber = 'SPE_E5'; ServicePlans = 'AAD_PREMIUM;AAD_PREMIUM_P2;WINDEFATP;THREAT_INTELLIGENCE;INTUNE_A;MIP_S_CLP2' })
-            Get-PostureLicenseToken -Sku $rows | Should -Be @('E5', 'Intune', 'MDE2', 'MDO2', 'P1', 'P2', 'Purview')
+            foreach ($t in 'E5', 'MDE1', 'MDO1', 'IP1', 'Purview') { Get-PostureLicenseToken -Sku $rows | Should -Contain $t -Because 'Plan 2 includes Plan 1, and E5 brings its whole feature list' }
+            Get-PostureLicenseToken -Sku @(@{ SkuPartNumber = 'SPE_E5'; ServicePlans = 'WINDEFATP'; CapabilityStatus = 'Suspended' }) | Should -BeNullOrEmpty -Because 'a suspended subscription is not owned'
             Get-PostureLicenseToken -Sku @() | Should -BeNullOrEmpty
         }
     }
@@ -125,7 +126,7 @@ Describe 'New-PostureProfile' {
             New-Item -ItemType Directory -Path $ev | Out-Null
             ConvertTo-Json -InputObject @(@{ SkuPartNumber = 'SPE_E3'; ServicePlans = 'AAD_PREMIUM;INTUNE_A' }) -Depth 5 | Set-Content (Join-Path $ev '01-subscribed-skus.json')
             $p = New-PostureProfile -Path (Join-Path $script:Root 'b.json') -NonInteractive -Evidence $ev -PassThru
-            $p.licenses | Should -Be @('E3', 'Intune', 'P1')
+            $p.licenses | Should -Be @('E3', 'Intune', 'IP1', 'MDE1', 'MDO1', 'P1') -Because 'Microsoft 365 E3 carries Defender for Endpoint P1, Defender for Office P1 and labels (Microsoft service plan list)'
             $p.licensesSource | Should -Match '^evidence:'
         }
 

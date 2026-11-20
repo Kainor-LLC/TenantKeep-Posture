@@ -5,7 +5,7 @@
   Build script for TenantKeep.Posture.
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
-  PowerShell Gallery). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
+  PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
   manifest is required either way. Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
@@ -13,6 +13,9 @@
   without integrity.json and without Sign or Verify in the same run. Sign and Verify are Windows-only; the rest runs everywhere.
 .EXAMPLE
   ./build.ps1 -Task Analyze, Test
+.EXAMPLE
+  ./build.ps1 -Task LicensingData -LicensingCsv './Product names and service plan identifiers for licensing.csv'
+  # the CSV from learn.microsoft.com/entra/identity/users/licensing-service-plan-reference; review the diff before committing
 .EXAMPLE
   ./build.ps1 -Task Package -CertificatePath ./signing.pfx
   # password from TENANTKEEP_SIGNING_PASSWORD
@@ -25,7 +28,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -36,6 +39,9 @@ param(
 
     # Catalog task only: where catalog.md and catalog.html land. Default: out/.
     [string] $CatalogPath,
+
+    # LicensingData task: Microsoft's "Product names and service plan identifiers for licensing" CSV, downloaded by hand.
+    [string] $LicensingCsv,
 
     # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY).
     [string] $GalleryApiKey = $env:TENANTKEEP_GALLERY_KEY,
@@ -156,6 +162,43 @@ function Invoke-Publish {
     Write-Host "Published $ModuleName $full to the PowerShell Gallery"
 }
 
+function Invoke-LicensingData {
+    # bundles.json: for each SKU the advisor compares, its name and the features its service plans grant. Built from
+    # Microsoft's CSV so no plan list is typed by hand; a SKU the CSV lacks keeps the plans written in bundle-list.json.
+    Write-Task 'LicensingData'
+    if (-not $LicensingCsv -or -not (Test-Path -LiteralPath $LicensingCsv)) { throw '-LicensingCsv: the service plan CSV from learn.microsoft.com/entra/identity/users/licensing-service-plan-reference' }
+    $dir = Join-Path $Root 'licensing'
+    $features = @((Get-Content -Raw (Join-Path $dir 'features.json') | ConvertFrom-Json -AsHashtable).features)
+    $list = Get-Content -Raw (Join-Path $dir 'bundle-list.json') | ConvertFrom-Json -AsHashtable
+    $rows = @(Import-Csv -LiteralPath $LicensingCsv)
+    $plansOf = @{}; $nameOf = @{}
+    foreach ($r in $rows) {
+        if (-not $plansOf.ContainsKey($r.String_Id)) { $plansOf[$r.String_Id] = [System.Collections.Generic.HashSet[string]]::new(); $nameOf[$r.String_Id] = $r.Product_Display_Name }
+        $null = $plansOf[$r.String_Id].Add($r.Service_Plan_Name.Trim())
+    }
+    $out = foreach ($s in $list.skus) {
+        $id = [string]$s.sku
+        $plans = $(if ($plansOf.ContainsKey($id)) { @($plansOf[$id]) } elseif ($s.Contains('plans')) { @($s.plans) } else { throw "bundle-list.json: $id is not in the CSV and names no plans" })
+        $have = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($f in $features) { if (@($f.plans | Where-Object { $_ -in $plans }).Count) { $null = $have.Add($f.id) } }
+        # Included and implied features (Plan 2 includes Plan 1; Copilot implies SharePoint Advanced Management).
+        do {
+            $before = $have.Count
+            foreach ($f in $features) {
+                if ($have.Contains($f.id) -and $f.Contains('includes')) { foreach ($i in @($f.includes)) { $null = $have.Add($i) } }
+                if ($f.Contains('impliedBy') -and @($f.impliedBy | Where-Object { $have.Contains($_) }).Count) { $null = $have.Add($f.id) }
+            }
+        } while ($have.Count -gt $before)
+        $b = [ordered]@{ sku = $id; name = $(if ($s.Contains('name')) { $s.name } else { $nameOf[$id] }); kind = $s.kind; features = @($features | Where-Object { $have.Contains($_.id) } | ForEach-Object { $_.id }) }
+        foreach ($k in 'token', 'seatCap', 'verify') { if ($s.Contains($k)) { $b[$k] = $s[$k] } }
+        $b
+    }
+    $doc = [ordered]@{ description = 'Generated by build.ps1 -Task LicensingData from bundle-list.json and Microsoft''s service plan CSV. Do not edit by hand.'; reviewed = $list.reviewed; source = 'https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference'; bundles = @($out) }
+    $path = Join-Path $dir 'bundles.json'
+    [System.IO.File]::WriteAllText($path, ($doc | ConvertTo-Json -Depth 6) + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Wrote $path ($(@($out).Count) SKUs)"
+}
+
 function Invoke-Catalog {
     # The public catalog page for the website (CLAUDE.md, Licensing): ids, titles, the narrative and the licence required.
     # No pass logic, no remediation, no framework mappings: those are the product.
@@ -263,7 +306,7 @@ function Invoke-Build {
     if (Test-Path $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     Copy-Item -Path (Join-Path $SrcPath '*') -Destination $stage -Recurse -Exclude '.gitkeep'
-    foreach ($data in 'checks', 'baselines', 'templates') {
+    foreach ($data in 'checks', 'baselines', 'templates', 'licensing') {
         $src = Join-Path $Root $data
         if (Test-Path $src) { Copy-Item -Path $src -Destination (Join-Path $stage $data) -Recurse -Exclude '.gitkeep' }
     }
@@ -373,7 +416,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -385,6 +428,7 @@ foreach ($t in @('Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integri
         'Integrity' { Invoke-Integrity -Stage $stage }
         'Package' { Invoke-Package -Stage $stage }
         'Catalog' { Invoke-Catalog }
+        'LicensingData' { Invoke-LicensingData }
         'Publish' { Invoke-Publish -Stage $stage }
     }
 }

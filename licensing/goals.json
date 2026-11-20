@@ -1,0 +1,254 @@
+{
+  "description": "Goals a customer can choose; each needs every group of features, and any one feature satisfies a group. The advisor reads this with features.json and bundles.json.",
+  "reviewed": "2026-11-20",
+  "goals": [
+    {
+      "id": "phishing-resistant-mfa",
+      "name": "Phishing-resistant sign-in enforced",
+      "what": "Require passkeys or keys through Conditional Access authentication strengths, for administrators first.",
+      "needs": [
+        [
+          "entraP1"
+        ]
+      ]
+    },
+    {
+      "id": "risk-based-access",
+      "name": "Risky sign-ins challenged, compromised accounts contained",
+      "what": "Sign-in risk and user risk policies from Identity Protection.",
+      "needs": [
+        [
+          "entraP2"
+        ]
+      ]
+    },
+    {
+      "id": "just-in-time-admin",
+      "name": "Administrator roles just in time",
+      "what": "Privileged Identity Management: eligible roles activated with MFA, approval and a time limit.",
+      "needs": [
+        [
+          "entraP2"
+        ]
+      ]
+    },
+    {
+      "id": "device-gating",
+      "name": "Only compliant devices reach company data",
+      "what": "Intune compliance with Conditional Access requiring a compliant device.",
+      "needs": [
+        [
+          "entraP1"
+        ],
+        [
+          "intune"
+        ]
+      ]
+    },
+    {
+      "id": "device-risk",
+      "name": "A device under attack loses access",
+      "what": "Defender reports device risk to Intune, compliance acts on it, Conditional Access requires compliance.",
+      "needs": [
+        [
+          "entraP1"
+        ],
+        [
+          "intune"
+        ],
+        [
+          "mde2",
+          "mdeBusiness"
+        ]
+      ]
+    },
+    {
+      "id": "edr",
+      "name": "Endpoint detection and automated response",
+      "what": "EDR with automated investigation and remediation, vulnerability management.",
+      "needs": [
+        [
+          "mde2",
+          "mdeBusiness"
+        ]
+      ]
+    },
+    {
+      "id": "email-protection",
+      "name": "Phishing and malware stopped in mail, Teams and Office",
+      "what": "Safe Links, Safe Attachments and impersonation protection.",
+      "needs": [
+        [
+          "mdo1"
+        ]
+      ]
+    },
+    {
+      "id": "phishing-training",
+      "name": "Attack simulation training",
+      "what": "Simulated phishing with training for the people who click.",
+      "needs": [
+        [
+          "mdo2"
+        ]
+      ]
+    },
+    {
+      "id": "labels",
+      "name": "Sensitive files labelled and encrypted",
+      "what": "Sensitivity labels people apply, with encryption on the top tier.",
+      "needs": [
+        [
+          "labels"
+        ]
+      ]
+    },
+    {
+      "id": "auto-labels",
+      "name": "Sensitive data labelled automatically",
+      "what": "Auto-labelling policies for the information types that matter.",
+      "needs": [
+        [
+          "purviewIp"
+        ]
+      ]
+    },
+    {
+      "id": "dlp-devices",
+      "name": "Data loss prevention on devices",
+      "what": "Endpoint DLP on Windows and macOS.",
+      "needs": [
+        [
+          "endpointDlp"
+        ]
+      ]
+    },
+    {
+      "id": "dlp-teams",
+      "name": "Data loss prevention in Teams",
+      "what": "DLP policies over Teams chats and channels.",
+      "needs": [
+        [
+          "teamsDlp"
+        ]
+      ]
+    },
+    {
+      "id": "copilot-data",
+      "name": "Copilot cannot surface what was overshared",
+      "what": "Oversharing reports and restricted access, labels, and DLP for Copilot.",
+      "needs": [
+        [
+          "copilot"
+        ],
+        [
+          "sam"
+        ],
+        [
+          "purviewIp"
+        ]
+      ]
+    },
+    {
+      "id": "oversharing",
+      "name": "Oversharing found and closed",
+      "what": "Data access governance reports, restricted access control and site access reviews.",
+      "needs": [
+        [
+          "sam"
+        ]
+      ]
+    },
+    {
+      "id": "insider-risk",
+      "name": "Insider risk monitored",
+      "what": "Insider Risk Management policies, connected to HR for leavers.",
+      "needs": [
+        [
+          "insiderRisk"
+        ]
+      ]
+    },
+    {
+      "id": "audit-year",
+      "name": "A year of audit history for investigations",
+      "what": "Audit (Premium) retention and high-value events.",
+      "needs": [
+        [
+          "auditPremium"
+        ]
+      ]
+    },
+    {
+      "id": "access-reviews",
+      "name": "Access reviewed on a schedule",
+      "what": "Recurring access reviews of privileged roles, guests and groups.",
+      "needs": [
+        [
+          "entraP2",
+          "governance"
+        ]
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "name": "Joiners, movers and leavers automated",
+      "what": "Lifecycle workflows driven by HR data.",
+      "needs": [
+        [
+          "governance"
+        ]
+      ]
+    },
+    {
+      "id": "ad-threats",
+      "name": "Attacks on on-premises AD detected",
+      "what": "Defender for Identity sensors on the domain controllers.",
+      "needs": [
+        [
+          "mdi"
+        ]
+      ]
+    },
+    {
+      "id": "shadow-it",
+      "name": "Shadow IT discovered and governed",
+      "what": "Defender for Cloud Apps discovery, session controls and app governance.",
+      "needs": [
+        [
+          "mdca"
+        ]
+      ]
+    },
+    {
+      "id": "vpn-replacement",
+      "name": "Private apps without a VPN",
+      "what": "Entra Private Access with Conditional Access on each app.",
+      "needs": [
+        [
+          "privateAccess"
+        ]
+      ]
+    },
+    {
+      "id": "web-filtering",
+      "name": "Internet traffic filtered and governed",
+      "what": "Entra Internet Access web content filtering.",
+      "needs": [
+        [
+          "internetAccess"
+        ]
+      ]
+    },
+    {
+      "id": "admin-elevation",
+      "name": "Users run as standard users, elevation on request",
+      "what": "Endpoint Privilege Management.",
+      "needs": [
+        [
+          "intuneSuite"
+        ]
+      ]
+    }
+  ]
+}

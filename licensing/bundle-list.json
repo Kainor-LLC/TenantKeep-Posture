@@ -1,0 +1,127 @@
+{
+  "description": "The SKUs the advisor compares, hand-kept. build.ps1 -Task LicensingData turns this list and Microsoft's service plan CSV into bundles.json (name and features per SKU). A SKU missing from the CSV carries its plans here and is marked verify.",
+  "reviewed": "2026-11-20",
+  "skus": [
+    {
+      "sku": "O365_BUSINESS_ESSENTIALS",
+      "kind": "suite",
+      "seatCap": 300
+    },
+    {
+      "sku": "O365_BUSINESS_PREMIUM",
+      "kind": "suite",
+      "seatCap": 300
+    },
+    {
+      "sku": "SPB",
+      "kind": "suite",
+      "token": "BusinessPremium",
+      "seatCap": 300
+    },
+    {
+      "sku": "ENTERPRISEPACK",
+      "kind": "suite",
+      "token": "E3"
+    },
+    {
+      "sku": "ENTERPRISEPREMIUM",
+      "kind": "suite",
+      "token": "E5"
+    },
+    {
+      "sku": "SPE_E3",
+      "kind": "suite",
+      "token": "E3"
+    },
+    {
+      "sku": "SPE_E5",
+      "kind": "suite",
+      "token": "E5"
+    },
+    {
+      "sku": "SPE_F1",
+      "kind": "suite"
+    },
+    {
+      "sku": "EMS",
+      "kind": "suite"
+    },
+    {
+      "sku": "EMSPREMIUM",
+      "kind": "suite"
+    },
+    {
+      "sku": "IDENTITY_THREAT_PROTECTION",
+      "kind": "addon"
+    },
+    {
+      "sku": "INFORMATION_PROTECTION_COMPLIANCE",
+      "kind": "addon"
+    },
+    {
+      "sku": "AAD_PREMIUM",
+      "kind": "addon"
+    },
+    {
+      "sku": "AAD_PREMIUM_P2",
+      "kind": "addon"
+    },
+    {
+      "sku": "Microsoft_Entra_ID_Governance",
+      "kind": "addon"
+    },
+    {
+      "sku": "Microsoft_Entra_Suite",
+      "kind": "addon",
+      "token": "EntraSuite",
+      "name": "Microsoft Entra Suite",
+      "plans": [
+        "Entra_Identity_Governance",
+        "Entra_Premium_Internet_Access",
+        "Entra_Premium_Private_Access",
+        "AAD_PREMIUM_P2"
+      ],
+      "verify": "Not in Microsoft's CSV as of 2026-11-20; plans from the Entra Suite announcement. Needs Entra ID P1 as a prerequisite."
+    },
+    {
+      "sku": "Microsoft_Entra_Suite_Step_Up_for_Microsoft_Entra_ID_P2",
+      "kind": "addon",
+      "token": "EntraSuite"
+    },
+    {
+      "sku": "Microsoft_Intune_Suite",
+      "kind": "addon",
+      "token": "IntuneSuite"
+    },
+    {
+      "sku": "INTUNE_A",
+      "kind": "addon"
+    },
+    {
+      "sku": "MDE_SMB",
+      "kind": "addon",
+      "seatCap": 300
+    },
+    {
+      "sku": "DEFENDER_ENDPOINT_P1",
+      "kind": "addon"
+    },
+    {
+      "sku": "WIN_DEF_ATP",
+      "kind": "addon"
+    },
+    {
+      "sku": "ATP_ENTERPRISE",
+      "kind": "addon"
+    },
+    {
+      "sku": "THREAT_INTELLIGENCE",
+      "kind": "addon"
+    },
+    {
+      "sku": "Microsoft_365_Copilot",
+      "kind": "addon",
+      "token": "Copilot"
+    }
+  ]
+}

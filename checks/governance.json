@@ -141,6 +141,7 @@
       "title": "Joiner and leaver lifecycle workflows enabled",
       "severityDefault": "Medium",
       "license": [
+        "Governance",
         "EntraSuite"
       ],
       "applicableWhen": {},
