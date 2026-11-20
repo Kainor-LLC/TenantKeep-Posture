@@ -56,6 +56,11 @@ the default `~/tenantkeep/clients/<tenant name>/`; `-OutRoot ~/Clients/Contoso/A
 somewhere else for one run, and `New-PostureProfile -OutputRoot` (or the wizard's last question) makes that the
 client's default.
 
+The sign-in log: the run reads the last 7 days of Entra sign-ins (`-SignInDays` up to 30) for legacy protocol use,
+Conditional Access outcomes, failures and countries. On a large tenant that is millions of records and the longest
+part of the run; it streams, saves a checkpoint every ten pages, carries on by itself after a failure, and
+`Resume-PostureRun` continues it from the page it stopped at. It needs Entra ID P1.
+
 ## 2. The licence
 
 The Conditional Access tools are free. The full report needs the licence file Kainor sent for your tenant: save it as
