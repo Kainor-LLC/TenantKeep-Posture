@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- Sign-in flows (2026-11-20): the sign-in read also tallies successful sign-ins by Conditional Access applied and MFA
+  (CaByMfa) and by device trust, managed and compliant, managed only or unmanaged (DeviceTrust, from deviceDetail),
+  in 06-signins-summary.json. No new permission.
 - User impact (2026-11-20): every check says what users notice when the fix lands (none, low, medium or high, and a
   sentence). Cards, the drawer, report.md and findings.json show it; Recommendations opens with Do today, up to ten
   quick fixes users will barely notice. The unused `impact` field is retired in its favour.

@@ -87,7 +87,7 @@ Describe 'Sign-in log collector' {
             $script:SignIns = @(for ($i = 0; $i -lt 2500; $i++) {
                     @{ id = "s$i"; createdDateTime = ([datetime]'2026-11-20T12:00:00Z').AddSeconds(-$i * 10).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); userPrincipalName = "user$($i % 50)@contoso.example"
                         clientAppUsed = $(if ($i % 10 -eq 0) { 'IMAP4' } else { 'Browser' }); isInteractive = $true; conditionalAccessStatus = $(if ($i % 2) { 'success' } else { 'notApplied' })
-                        status = @{ errorCode = $(if ($i % 25 -eq 0) { 50126 } else { 0 }) }; authenticationRequirement = 'singleFactorAuthentication'; riskLevelDuringSignIn = 'none'; location = @{ countryOrRegion = 'US' }
+                        status = @{ errorCode = $(if ($i % 25 -eq 0) { 50126 } else { 0 }) }; authenticationRequirement = $(if ($i % 2) { 'multiFactorAuthentication' } else { 'singleFactorAuthentication' }); deviceDetail = @{ isManaged = [bool]($i % 2); isCompliant = ($i % 4 -eq 1) }; riskLevelDuringSignIn = 'none'; location = @{ countryOrRegion = 'US' }
                         ipAddress = $(if ($i % 25 -eq 0) { '203.0.113.7' } else { '198.51.100.1' })
                         appliedConditionalAccessPolicies = @(@{ id = 'p1'; displayName = 'Require MFA for everyone'; result = $(if ($i % 4 -eq 0) { 'reportOnlyInterrupted' } else { 'reportOnlySuccess' }) }, @{ id = 'p2'; displayName = 'Block legacy'; result = 'reportOnlyNotApplied' })
                     }
@@ -116,6 +116,12 @@ Describe 'Sign-in log collector' {
             $s.Failures | Should -Be 100
             $s.ByConditionalAccessStatus.notApplied | Should -Be 1250
             $s.ByCountry.US | Should -Be 2500
+            # Successful sign-ins only (every 25th fails): odd ones went through CA with MFA from a managed device.
+            $s.CaByMfa.'caApplied|mfa' | Should -Be 1200
+            $s.CaByMfa.'noCa|singleFactor' | Should -Be 1200
+            $s.DeviceTrust.managedCompliant | Should -Be 600
+            $s.DeviceTrust.managedNoncompliant | Should -Be 600
+            $s.DeviceTrust.unmanaged | Should -Be 1200
             $ro = @($s.ReportOnlyPolicies)
             $ro.Count | Should -Be 1 -Because 'a policy that did not apply is not an impact'
             $ro[0].Name | Should -Be 'Require MFA for everyone'

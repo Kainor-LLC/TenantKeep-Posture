@@ -65,10 +65,10 @@ function Invoke-PostureSignInCollection {
         $f = Join-Path $Folder "$name.json"
         if (Test-Path -LiteralPath $f) { foreach ($a in @(Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable)) { if ($a -and $a['PrincipalUpn']) { $null = $adminSet.Add([string]$a['PrincipalUpn']) } } }
     }
-    foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
+    foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp', 'caByMfa', 'deviceTrust') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
     $maxIps = 20000; $maxPolicyUsers = 5000
     $saveCheckpoint = { Save-PostureJsonFile -Path $checkpointPath -InputObject $state -Confirm:$false }
-    $select = 'id,createdDateTime,userPrincipalName,appDisplayName,clientAppUsed,isInteractive,conditionalAccessStatus,status,authenticationRequirement,riskLevelDuringSignIn,location,ipAddress,appliedConditionalAccessPolicies'
+    $select = 'id,createdDateTime,userPrincipalName,appDisplayName,clientAppUsed,isInteractive,conditionalAccessStatus,status,authenticationRequirement,riskLevelDuringSignIn,location,ipAddress,appliedConditionalAccessPolicies,deviceDetail'
     $legacySet = [System.Collections.Generic.HashSet[string]]::new([string[]]$script:PostureLegacyClientApps, [System.StringComparer]::OrdinalIgnoreCase)
     $bump = { param([hashtable] $Map, [string] $Key) if (-not $Key) { $Key = '(none)' }; $Map[$Key] = 1 + $(if ($Map.ContainsKey($Key)) { [long]$Map[$Key] } else { 0 }) }
 
@@ -102,6 +102,15 @@ function Invoke-PostureSignInCollection {
                     }
                     elseif ($ip) { $state.ipCapReached = $true }
                 }
+            }
+            # For the report's flows, the sign-ins that got in: CA applied or not by MFA or single factor, and the
+            # device they came from, managed and compliant, managed only, or unmanaged.
+            if ($code -eq 0) {
+                $ca = $(if ([string]$r['conditionalAccessStatus'] -in 'success', 'failure') { 'caApplied' } else { 'noCa' })
+                $mfa = $(if ([string]$r['authenticationRequirement'] -eq 'multiFactorAuthentication') { 'mfa' } else { 'singleFactor' })
+                & $bump $state.caByMfa "$ca|$mfa"
+                $dd = $r['deviceDetail']
+                & $bump $state.deviceTrust $(if ($dd -and $dd['isManaged'] -eq $true) { if ($dd['isCompliant'] -eq $true) { 'managedCompliant' } else { 'managedNoncompliant' } } else { 'unmanaged' })
             }
             # What each report-only policy would have done to this sign-in.
             foreach ($pol in @($r['appliedConditionalAccessPolicies'])) {
@@ -182,6 +191,9 @@ function Invoke-PostureSignInCollection {
         AdminSignIns = @($state.admins.Keys | ForEach-Object { $ad = $state.admins[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$ad.signIns; SingleFactor = [long]$ad.singleFactor; Failures = [long]$ad.failures; LastSignIn = $ad.last } } | Sort-Object { - $_.SingleFactor }, { - $_.SignIns })
         SprayAddresses = @($state.failedByIp.Keys | Where-Object { $state.failedByIp[$_].Count -ge 10 } | ForEach-Object { [ordered]@{ IpAddress = $_; AccountsFailed = $state.failedByIp[$_].Count } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
         SprayTrackingCapped = [bool]$state.ipCapReached
+        # Successful sign-ins only. CaByMfa keys: caApplied or noCa, then mfa or singleFactor ("caApplied|mfa").
+        CaByMfa = (& $byKey $state.caByMfa)
+        DeviceTrust = (& $byKey $state.deviceTrust)
     }
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-summary' -InputObject $summary))
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-legacy-users' -InputObject $legacyRows -AsArray -Csv))
