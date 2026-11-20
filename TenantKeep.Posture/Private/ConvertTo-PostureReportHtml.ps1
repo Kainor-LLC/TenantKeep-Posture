@@ -467,12 +467,14 @@ function ConvertTo-PostureReportHtml {
             if ($ad.met) { & $w '<p class="banner ready"><strong>Covered.</strong> The licences you hold include every feature these goals need. The work is configuration: see Recommendations.</p>' }
             else {
                 & $w ('<p>Missing: ' + (& $h (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; ')) + '.</p><div class="advice-options">')
-                if (@($ad.addOns).Count) {
-                    $li = @($ad.addOns | ForEach-Object { '<li><strong>' + (& $h $_.name) + '</strong> <span class="muted">adds ' + (& $h (@($_.adds) -join ', ')) + '</span>' + $(if ($_.verify) { ' <span class="tech">(verify: ' + (& $h $_.verify) + ')</span>' }) + '</li>' }) -join ''
-                    & $w ('<div class="advice-card"><h4>Fewest add-ons</h4><ul>' + $li + '</ul><p class="hint">On top of what you have, for ' + $ad.seats + ' licensed users.</p></div>')
+                foreach ($o in @($ad.options)) {
+                    $parts = '<div class="advice-card"><h4>' + (& $h $o.title) + '</h4><ul class="advice-skus">' + (@($o.skus | ForEach-Object { '<li><strong>' + (& $h $_.name) + '</strong> <code class="tech">' + (& $h $_.sku) + '</code>' + $(if ($_.verify) { ' <span class="tech">(verify: ' + (& $h $_.verify) + ')</span>' }) + '</li>' }) -join '') + '</ul>'
+                    if (@($o.adds).Count) { $parts += '<p><strong>Adds</strong> ' + (& $h (@($o.adds) -join ', ')) + '.</p>' }
+                    if (@($o.redundant).Count) { $parts += '<p class="muted"><strong>Already covered</strong> ' + (& $h (@($o.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', ')) + '.</p>' }
+                    if (@($o.alsoIncludes).Count) { $parts += '<p class="muted"><strong>Also includes</strong> ' + (& $h (@($o.alsoIncludes) -join ', ')) + '.</p>' }
+                    & $w ($parts + '</div>')
                 }
-                if ($ad.upgrade) { & $w ('<div class="advice-card"><h4>One bundle instead</h4><p><strong>' + (& $h $ad.upgrade.name) + '</strong> covers these goals on its own, in place of your current suite.</p></div>') }
-                & $w '</div>'
+                & $w ('</div><p class="hint">For ' + $ad.seats + ' licensed users. Compare these with your Microsoft partner; prices and eligibility are theirs to quote.</p>')
                 foreach ($pq in @($ad.prerequisite)) { & $w ('<p class="hint">' + (& $h $pq) + '</p>') }
             }
             & $w ('<p class="hint">' + (& $h $ad.note) + '</p></div>')
@@ -485,11 +487,11 @@ function ConvertTo-PostureReportHtml {
             & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Seats Assigned' -Takeaway "$free paid seats are not assigned to anyone." -Body ('<div class="seats">' + $bars + '</div>' + (ConvertTo-PostureChartTable -Header @('Licence', 'Purchased', 'Assigned', 'Free', 'Status') -Row @($r.licensing | ForEach-Object { , @($_.sku, $_.purchased, $_.assigned, $_.available, $_.status) })))) + '</div>')
         }
         if ($la) {
-            $stLabel = @{ owned = 'Owned'; partial = 'Partly assigned'; missing = 'Not owned' }
-            $stClass = @{ owned = 'pass'; partial = 'acceptedRisk'; missing = 'notApplicable' }
+            $stLabel = @{ owned = 'Owned'; partial = 'Partly assigned'; missing = 'Not owned'; covered = 'Covered by' }
+            $stClass = @{ owned = 'pass'; partial = 'acceptedRisk'; missing = 'notApplicable'; covered = 'coveredBy' }
             & $w '<h3>Features</h3><p class="hint">Partly assigned: bought, but switched on for fewer people than hold a licence. Sometimes deliberate (Entra ID P2 for administrators only), often an oversight.</p><table><thead><tr><th>Feature</th><th>Status</th><th>What it unlocks</th></tr></thead><tbody>'
-            foreach ($f in @($la.features | Sort-Object { @{ partial = 0; owned = 1; missing = 2 }[[string]$_.status] }, { $_.name })) {
-                $who = $(if ($f.status -eq 'partial') { ' <span class="muted">' + $f.users + ' of ' + $f.licensedUsers + ' users</span>' } else { '' })
+            foreach ($f in @($la.features | Sort-Object { if ($_.kind -eq 'value') { 1 } else { 0 } }, { @{ partial = 0; owned = 1; covered = 2; missing = 3 }[[string]$_.status] }, { $_.name })) {
+                $who = $(if ($f.status -eq 'partial') { ' <span class="muted">' + $f.users + ' of ' + $f.licensedUsers + ' users</span>' } elseif ($f.status -eq 'covered') { ' <span class="muted">' + (& $h $f.vendor) + '</span>' } elseif ($f.kind -eq 'value') { ' <span class="muted">not security</span>' } else { '' })
                 & $w ('<tr><td>' + (& $h $f.name) + '</td><td><span class="status ' + $stClass[[string]$f.status] + '">' + (& $h $stLabel[[string]$f.status]) + '</span>' + $who + '</td><td>' + (& $h $f.what) + '</td></tr>')
             }
             & $w '</tbody></table>'

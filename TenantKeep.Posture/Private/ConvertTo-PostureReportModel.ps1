@@ -351,7 +351,7 @@ function ConvertTo-PostureReportModel {
         $licensedUsers = $(if ($planUse) { [int](& $v $planUse 'LicensedEnabledUsers') } else { 0 })
         $members = [int](& $v (& $load '06-users-summary') 'Members')
         $goalIds = @($(if ($OrgProfile -and $OrgProfile.Contains('goals')) { $OrgProfile['goals'] }) | Where-Object { $_ })
-        $licenseAdvice = Get-PostureLicenseAdvice -Owned @(Get-PostureOwnedFeature -Sku @($skus | Where-Object { $_ })) -Goal $goalIds -Seats $(if ($licensedUsers) { $licensedUsers } else { $members }) -UsersByPlan $byPlan -LicensedUsers $licensedUsers
+        $licenseAdvice = Get-PostureLicenseAdvice -Owned @(Get-PostureOwnedFeature -Sku @($skus | Where-Object { $_ })) -Goal $goalIds -Seats $(if ($licensedUsers) { $licensedUsers } else { $members }) -UsersByPlan $byPlan -LicensedUsers $licensedUsers -ThirdParty $(if ($OrgProfile -and $OrgProfile.Contains('thirdParty') -and $OrgProfile['thirdParty']) { $OrgProfile['thirdParty'] } else { @{} })
         $licenseAdvice.notEvaluated = @($results | Where-Object { $_.status -eq 'notEvaluated' -and [string]$_.reason -match '^Requires (.+)\.$' } | Group-Object { [string]$_.reason } | Sort-Object Name | ForEach-Object { [ordered]@{ needs = ($_.Name -replace '^Requires |\.$', ''); checks = @($_.Group | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title } }) } })
     }
 

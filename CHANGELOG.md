@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Licensing options side by side (2026-11-20): for the chosen goals, What To Add now lists options: the fewest add-ons,
+  the add-ons that bring nothing another vendor already covers, and suite upgrades with the add-ons they still need
+  (for example Microsoft 365 E5 with ID Governance). Each says what it adds, what is already covered by the
+  customer's other products (from the profile's third-party controls) and what else it includes (Power BI Pro,
+  Teams Phone). A feature a vendor covers counts as covered for the goals. Still no prices.
 - Licensing data, wider (2026-11-20): Power BI Pro, Teams Phone, Audio Conferencing and Windows Enterprise are known as
   value a bundle brings (never a goal); the suites carry their current names (Microsoft Purview Suite, was E5
   Compliance; Microsoft Defender Suite, was E5 Security); the Purview Suite for Business and the Defender and Purview

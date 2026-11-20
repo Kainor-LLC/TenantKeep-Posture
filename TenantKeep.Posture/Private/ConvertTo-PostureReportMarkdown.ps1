@@ -186,8 +186,10 @@ function ConvertTo-PostureReportMarkdown {
         & $line "For the $(if ($ad.goalSource -eq 'profile') { 'goals in the profile' } else { 'core goals' }): $(if ($ad.met) { 'covered by the licences held.' } else { "missing $(& $esc (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; '))." })"
         & $line
         if (-not $ad.met) {
-            if (@($ad.addOns).Count) { & $line "- Fewest add-ons: $(& $esc (@($ad.addOns | ForEach-Object { $_.name }) -join ' + ')), for $($ad.seats) licensed users." }
-            if ($ad.upgrade) { & $line "- One bundle instead: $(& $esc $ad.upgrade.name)." }
+            foreach ($o in @($ad.options)) {
+                & $line "- $(& $esc $o.title): $(& $esc (@($o.skus | ForEach-Object { $_.name }) -join ' + '))$(if (@($o.adds).Count) { "; adds $(& $esc (@($o.adds) -join ', '))" })$(if (@($o.redundant).Count) { "; already covered: $(& $esc (@($o.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', '))" })$(if (@($o.alsoIncludes).Count) { "; also includes $(& $esc (@($o.alsoIncludes) -join ', '))" })."
+            }
+            & $line "For $($ad.seats) licensed users. No prices: compare the options with your Microsoft partner."
             & $line
         }
         $open = @($r.licenseAdvice.goals | Where-Object { -not $_.met })

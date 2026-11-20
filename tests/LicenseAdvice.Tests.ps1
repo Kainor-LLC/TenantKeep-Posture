@@ -14,23 +14,44 @@ Describe 'Get-PostureLicenseAdvice' {
             $a = Get-PostureLicenseAdvice -Owned $owned -Seats 40
             $a.advice.goalSource | Should -Be 'core'
             $a.advice.met | Should -BeFalse
-            @($a.advice.addOns.sku) | Should -Be @('AAD_PREMIUM_P2') -Because 'the smallest purchase that covers risk-based access and just-in-time admin'
-            $a.advice.upgrade.sku | Should -Be 'SPE_E5'
+            @($a.advice.options[0].skus.sku) | Should -Be @('AAD_PREMIUM_P2') -Because 'the smallest purchase that covers risk-based access and just-in-time admin'
+            @($a.advice.options | Where-Object kind -EQ 'suite')[0].skus[0].sku | Should -Be 'SPE_E5'
+            @($a.advice.options | Where-Object kind -EQ 'suite')[0].alsoIncludes | Should -Contain 'Power BI Pro' -Because 'E5 brings value a Business Premium tenant does not have'
             ($a.goals | Where-Object id -EQ 'device-risk').met | Should -BeTrue -Because 'Defender for Business reports device risk'
             ($a.features | Where-Object id -EQ 'entraP2').status | Should -Be 'missing'
             $a.advice.note | Should -Match 'not licensing advice'
             $b = Get-PostureLicenseAdvice -Owned $owned -Seats 40 -Goal 'risk-based-access', 'ad-threats', 'phishing-training'
-            @($b.advice.addOns.sku) | Should -Be @('DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW') -Because 'same features as E5 Security, and made for a business this size'
+            @($b.advice.options[0].skus.sku) | Should -Be @('DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW') -Because 'same features as E5 Security, and made for a business this size'
             $c = Get-PostureLicenseAdvice -Owned $owned -Seats 400 -Goal 'risk-based-access', 'ad-threats', 'phishing-training'
-            @($c.advice.addOns.sku) | Should -Be @('IDENTITY_THREAT_PROTECTION') -Because 'above 300 users the business suite is not offered'
+            @($c.advice.options[0].skus.sku) | Should -Be @('IDENTITY_THREAT_PROTECTION') -Because 'above 300 users the business suite is not offered'
+        }
+    }
+
+    It 'compares an E3 tenant with other EDR and SWG vendors: add-ons, add-ons with nothing redundant, and E5 with ID Governance' {
+        InModuleScope TenantKeep.Posture {
+            $owned = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E3' }))
+            $a = Get-PostureLicenseAdvice -Owned $owned -Seats 2000 -Goal 'risk-based-access', 'lifecycle', 'auto-labels', 'dlp-devices', 'insider-risk', 'audit-year', 'edr', 'vpn-replacement' -ThirdParty @{ edr = 'CrowdStrike'; swg = 'Zscaler'; ztna = 'Zscaler' }
+            ($a.goals | Where-Object id -EQ 'edr').met | Should -BeTrue -Because 'CrowdStrike covers it'
+            ($a.features | Where-Object id -EQ 'mde2').status | Should -Be 'covered'
+            $opts = @($a.advice.options)
+            @($opts[0].skus.sku) | Should -Be @('INFORMATION_PROTECTION_COMPLIANCE', 'Microsoft_Entra_Suite') -Because 'the fewest SKUs: Entra Suite brings P2 and ID Governance in one'
+            @($opts[0].redundant.name) | Should -Contain 'Microsoft Entra Private Access'
+            $lean = $opts | Where-Object { $_.title -like 'Add only what*' }
+            @($lean.skus.sku | Sort-Object) | Should -Be @('AAD_PREMIUM_P2', 'INFORMATION_PROTECTION_COMPLIANCE', 'Microsoft_Entra_ID_Governance')
+            @($lean.redundant).Count | Should -Be 0
+            $e5 = @($opts | Where-Object kind -EQ 'suite')[0]
+            @($e5.skus.sku) | Should -Be @('SPE_E5', 'Microsoft_Entra_ID_Governance')
+            @($e5.redundant.name) | Should -Contain 'Microsoft Defender for Endpoint Plan 2' -Because 'CrowdStrike already does that job'
+            @($e5.alsoIncludes) | Should -Contain 'Teams Phone'
+            $opts[0].skus[0].name | Should -Be 'Microsoft Purview Suite (was Microsoft 365 E5 Compliance)'
         }
     }
 
     It 'pairs add-ons when one does not cover, keeps capped bundles out above their cap, and names prerequisites' {
         InModuleScope TenantKeep.Posture {
             $a = Get-PostureLicenseAdvice -Owned @('mdo1') -Goal 'lifecycle', 'edr' -Seats 500
-            @($a.advice.addOns.sku) | Should -Not -Contain 'MDE_SMB' -Because 'Defender for Business stops at 300 users'
-            @($a.advice.addOns).Count | Should -BeLessOrEqual 2
+            @($a.advice.options.skus.sku) | Should -Not -Contain 'MDE_SMB' -Because 'Defender for Business stops at 300 users'
+            @($a.advice.options[0].skus).Count | Should -BeLessOrEqual 2
             $a.advice.prerequisite | Should -Contain 'Microsoft Entra ID Governance needs Microsoft Entra ID P1.'
             $a.advice.goalSource | Should -Be 'profile'
         }
@@ -41,7 +62,7 @@ Describe 'Get-PostureLicenseAdvice' {
             $owned = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E5' }))
             $a = Get-PostureLicenseAdvice -Owned $owned -LicensedUsers 100 -UsersByPlan @{ AAD_PREMIUM_P2 = 30; AAD_PREMIUM = 100 }
             $a.advice.met | Should -BeTrue
-            @($a.advice.addOns).Count | Should -Be 0
+            @($a.advice.options).Count | Should -Be 0
             ($a.features | Where-Object id -EQ 'entraP2').status | Should -Be 'partial'
             ($a.features | Where-Object id -EQ 'entraP2').users | Should -Be 30
             ($a.features | Where-Object id -EQ 'entraP1').status | Should -Be 'owned'
@@ -64,7 +85,7 @@ Describe 'Get-PostureLicenseAdvice' {
             $html | Should -Match 'id="goals-unmet-only"'
             (Get-Content -Raw (Get-ChildItem $root -Recurse -Filter 'report.md' | Select-Object -First 1).FullName) | Should -Match '## Licensing'
             $doc = Get-Content -Raw (Get-ChildItem $root -Recurse -Filter 'findings.json' | Select-Object -First 1).FullName | ConvertFrom-Json
-            $doc.licensing.advice.addOns.sku | Should -Contain 'AAD_PREMIUM_P2'
+            $doc.licensing.advice.options[0].skus.sku | Should -Contain 'AAD_PREMIUM_P2'
             $doc.licensing.featuresPartlyAssigned | Should -Contain 'Microsoft Intune Plan 1'
         }
         finally { if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
