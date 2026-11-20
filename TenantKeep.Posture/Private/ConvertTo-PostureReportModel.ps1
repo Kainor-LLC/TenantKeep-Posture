@@ -272,6 +272,19 @@ function ConvertTo-PostureReportModel {
     $tenantName = $(if ($org) { [string](& $v @($org)[0] 'displayName') } else { $null })
     $clientName = $(if ($Brand.client.name) { [string]$Brand.client.name } elseif ($OrgProfile.clientName) { [string]$OrgProfile.clientName } elseif ($tenantName) { $tenantName } else { [string]$tenantId })
 
+    # Licences the tenant holds, from the SKUs the Entra collector read: purchased, assigned, free.
+    $skus = & $load '01-subscribed-skus'
+    $licensing = $null
+    if ($null -ne $skus) {
+        $licensing = @(@($skus) | Where-Object { $_ } | ForEach-Object {
+                $bought = [int](Get-PostureValue $_ 'prepaidUnits.enabled'); $used = [int](Get-PostureValue $_ 'consumedUnits')
+                [ordered]@{ sku = [string]$_['skuPartNumber']; purchased = $bought; assigned = $used; available = [Math]::Max(0, $bought - $used); status = [string]$_['capabilityStatus'] }
+            } | Sort-Object { - $_.purchased }, { $_.sku })
+    }
+    # Who ran it, with which roles, from run.json (Start-PostureRun records them after the sign-in).
+    $plan = & $load 'run'
+    $runAs = $(if ($plan -and (Get-PostureValue $plan 'runAs')) { Get-PostureValue $plan 'runAs' } else { $null })
+
     # Run health: every failed step with its cause and what to grant, worst cause first (errors.jsonl, or errors.txt
     # for runs made before it existed).
     $causeOrder = @{ permission = 0; unavailable = 1; licence = 2; token = 3; module = 4; throttled = 5; network = 6; notProvisioned = 7; unknown = 8 }
@@ -316,6 +329,8 @@ function ConvertTo-PostureReportModel {
         results      = $results
         catalogText  = $catalogText
         runHealth    = $runHealth
+        licensing    = $licensing
+        runAs        = $runAs
         appendix     = [ordered]@{
             catalogVersion = $Run.catalogVersion; baseline = $Run.baseline; profile = $Run.profile; profilePresent = [bool]$OrgProfile.present
             profileAnswers = $(if ($OrgProfile.present) { [ordered]@{ licenses = @($OrgProfile.licenses); platforms = @($OrgProfile.platforms); identityModel = $OrgProfile.identityModel; byod = $OrgProfile.byod; externalCollaboration = $OrgProfile.externalCollaboration; copilot = $OrgProfile.copilot; azure = $OrgProfile.azure; thirdParty = $OrgProfile.thirdParty; frameworks = @($OrgProfile.frameworks); thresholds = $OrgProfile.thresholds; breakGlass = @($OrgProfile.breakGlass) } } else { $null })

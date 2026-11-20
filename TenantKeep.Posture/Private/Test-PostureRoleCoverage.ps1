@@ -12,12 +12,13 @@ function Test-PostureRoleCoverage {
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param(
-        [Parameter(Mandatory)] [string[]] $Collector
+        [Parameter(Mandatory)] [string[]] $Collector,
+        # The account's active roles, when the caller already read them (Get-PostureSignedInRole).
+        [AllowEmptyCollection()] [string[]] $HeldRole
     )
 
     $ErrorActionPreference = 'Stop'
-    $null = Assert-PostureGraphScope -AnyOfScope 'Directory.Read.All', 'RoleManagement.Read.Directory'
-    $held = @(Invoke-PostureGraphRequest -ApiVersion v1.0 -Uri 'me/transitiveMemberOf/microsoft.graph.directoryRole?$select=displayName' | ForEach-Object { [string]$_['displayName'] } | Where-Object { $_ })
+    $held = @(if ($PSBoundParameters.ContainsKey('HeldRole')) { $HeldRole } else { Get-PostureSignedInRole })
     $map = Get-PostureRequirementMap
     foreach ($c in $Collector) {
         if (-not $map['collectors'].Contains($c)) { continue }
@@ -39,4 +40,18 @@ function Test-PostureRoleCoverage {
             }
         }
     }
+}
+
+function Get-PostureSignedInRole {
+    <#
+    .SYNOPSIS
+        The signed-in account's active directory roles, including those it holds through a group.
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param()
+
+    $ErrorActionPreference = 'Stop'
+    $null = Assert-PostureGraphScope -AnyOfScope 'Directory.Read.All', 'RoleManagement.Read.Directory'
+    return @(Invoke-PostureGraphRequest -ApiVersion v1.0 -Uri 'me/transitiveMemberOf/microsoft.graph.directoryRole?$select=displayName' | ForEach-Object { [string]$_['displayName'] } | Where-Object { $_ } | Sort-Object -Unique)
 }

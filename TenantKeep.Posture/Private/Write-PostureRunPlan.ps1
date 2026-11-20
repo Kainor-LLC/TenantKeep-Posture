@@ -13,6 +13,8 @@ function Write-PostureRunPlan {
         [Parameter(Mandatory)] [string] $Client,
         [AllowEmptyCollection()] [string[]] $Collector = @(),
         [System.Collections.IDictionary] $Skipped = @{},
+        # Who ran it: the account, its active roles and the role check per domain.
+        [System.Collections.IDictionary] $RunAs,
         [switch] $Resume
     )
 
@@ -22,10 +24,10 @@ function Write-PostureRunPlan {
     $doc = $null
     if ($Resume -and (Test-Path -LiteralPath $path)) { try { $doc = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $doc = $null } }
     if ($doc) {
-        $doc['resumes'] = @(@($(if ($doc.Contains('resumes')) { $doc['resumes'] })) + @([ordered]@{ startedUtc = $now; collectors = @($Collector) }) | Where-Object { $_ })
+        $doc['resumes'] = @(@($(if ($doc.Contains('resumes')) { $doc['resumes'] })) + @([ordered]@{ startedUtc = $now; collectors = @($Collector); runAs = $RunAs }) | Where-Object { $_ })
     }
     else {
-        $doc = [ordered]@{ tenantId = $TenantId; client = $Client; startedUtc = $now; planned = @($Collector); skipped = [ordered]@{}; resumes = @() }
+        $doc = [ordered]@{ tenantId = $TenantId; client = $Client; startedUtc = $now; planned = @($Collector); skipped = [ordered]@{}; runAs = $RunAs; resumes = @() }
         foreach ($k in @($Skipped.Keys)) { $doc['skipped'][[string]$k] = [string]$Skipped[$k] }
     }
     if ($PSCmdlet.ShouldProcess($path, 'Write the run plan')) { Save-PostureJsonFile -Path $path -InputObject $doc -Confirm:$false }

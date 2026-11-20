@@ -78,7 +78,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive Mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export Checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and Value', $false), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing', [bool]$r.licensing), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -111,13 +111,16 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</ol>'
     }
-    & $w '<h3>What We Recommend This Quarter</h3><ul>'
+    # One card per priority, one finding per line: the first six, then a link to the rest.
+    $when = [ordered]@{ 'Stop the bleeding' = 'Critical. This week.'; 'Foundations' = 'High. This quarter.'; 'Program workstreams' = 'Medium. Planned work.'; 'Later' = 'Low. When time allows.' }
+    & $w '<h3>What We Recommend This Quarter</h3><div class="buckets">'
     foreach ($bucket in $r.recommendations.Keys) {
         $items = @($r.recommendations[$bucket]); if ($items.Count -eq 0) { continue }
-        $links = @($items | ForEach-Object { '<a href="#recommendations" data-check="' + (& $h $_.id) + '">' + (& $h $_.id) + '</a> ' + (& $h $_.title) }) -join '; '
-        & $w ('<li><strong>' + (& $h $bucket) + '</strong>: ' + $links + '</li>')
+        $lines = @($items | Select-Object -First 6 | ForEach-Object { '<li><a href="#recommendations" data-check="' + (& $h $_.id) + '"><code>' + (& $h $_.id) + '</code> ' + (& $h $_.title) + '</a>' + $(if ($_.affectedCount -gt 0) { ' <span class="tech">' + $_.affectedCount + ' affected</span>' }) + '</li>' }) -join ''
+        $more = $(if ($items.Count -gt 6) { '<p class="more"><a href="#recommendations">and ' + ($items.Count - 6) + ' more</a></p>' } else { '' })
+        & $w ('<div class="bucket-card"><h4>' + (& $h $bucket) + ' <span class="count">' + $items.Count + '</span></h4><p class="hint">' + (& $h $when[$bucket]) + '</p><ul class="rec-list">' + $lines + '</ul>' + $more + '</div>')
     }
-    & $w '</ul>'
+    & $w '</div>'
     if (@($r.domainsNotCollected).Count -gt 0) { & $w "<div class=`"notice`">Not collected yet: $(& $h (@($r.domainsNotCollected | ForEach-Object { $_.label }) -join ', ')). Scores cover the collected domains only.</div>" }
     & $w '</section>'
 
@@ -164,9 +167,10 @@ function ConvertTo-PostureReportHtml {
     }
     & $w '</section>'
 
-    $naViews = @(@('exposure', 'External Exposure', 'Guests by domain, sharing links, anonymous links and Teams federation come from the SharePoint and Teams collectors, not collected yet.'), @('copilot', 'Copilot Readiness', 'The Copilot readiness gates need the collaboration, labelling and governance evidence, not collected yet.'), @('trend', 'Trend', 'Headline numbers and domain scores across runs appear once a previous run exists in the same evidence root.'), @('licensing', 'Licensing and Value', 'Unassigned and overlapping licences need the full collection set; the licences present are in the profile appendix.'))
+    $naViews = @(@('exposure', 'External Exposure', 'Guests by domain, sharing links, anonymous links and Teams federation come from the SharePoint and Teams collectors, not collected yet.'), @('copilot', 'Copilot Readiness', 'The Copilot readiness gates need the collaboration, labelling and governance evidence, not collected yet.'), @('trend', 'Trend', 'Headline numbers and domain scores across runs appear once a previous run exists in the same evidence root.'), @('licensing', 'Licensing', 'The subscribed licences were not collected (01-subscribed-skus.json, from the Entra collector).'))
     if ($r.copilot -and $r.copilot.present) { $naViews = @($naViews | Where-Object { $_[0] -ne 'copilot' }) }
     if ($r.trend) { $naViews = @($naViews | Where-Object { $_[0] -ne 'trend' }) }
+    if ($r.licensing) { $naViews = @($naViews | Where-Object { $_[0] -ne 'licensing' }) }
     foreach ($na in $naViews) {
         & $w "<section class=`"view`" id=`"$($na[0])`"><h2>$(& $h $na[1])</h2><p class=`"na-panel`">$(& $h $na[2])</p></section>"
     }
@@ -250,6 +254,19 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</section>'
     }
+    # Licensing: what the tenant holds and how much of it is in use.
+    if ($r.licensing) {
+        & $w '<section class="view" id="licensing"><h2>Licensing</h2><p>The licences the tenant holds, with how many are assigned. Free seats are money spent on nothing; a licence the tenant pays for and leaves unused is usually a feature turned off.</p>'
+        & $w '<table><thead><tr><th>Licence (SKU)</th><th>Purchased</th><th>Assigned</th><th>Free</th><th class="tech">Status</th></tr></thead><tbody>'
+        foreach ($l in $r.licensing) { & $w "<tr><td><code>$(& $h $l.sku)</code></td><td>$($l.purchased)</td><td>$($l.assigned)</td><td>$($l.available)</td><td class=`"tech`">$(& $h $l.status)</td></tr>" }
+        & $w '</tbody></table></section>'
+    }
+
+    # Crosswalk without a framework baseline: say how to get one, so the link does not fall back to the overview.
+    if (-not $r.crosswalk) {
+        & $w '<section class="view" id="crosswalk"><h2>Framework Crosswalk</h2><p class="na-panel">The crosswalk maps each control of a framework to the checks that answer it. Build the report with a framework baseline to see it, for example <code>New-PostureReport -Evidence &lt;run folder&gt; -Baseline nist-csf-2</code>. Baselines: nist-csf-2, iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba, hipaa, copilot-readiness.</p></section>'
+    }
+
     # Run health: what failed, why, and what to grant.
     & $w '<section class="view" id="health"><h2>Run Health</h2>'
     if (-not $rh -or @($rh.failures).Count -eq 0) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' }
@@ -270,6 +287,19 @@ function ConvertTo-PostureReportHtml {
         & $w '<h3>Profile</h3><table><tbody>'
         foreach ($k in $a.profileAnswers.Keys) { $val = $a.profileAnswers[$k]; $text = if ($val -is [System.Collections.IDictionary]) { (@($val.Keys | ForEach-Object { "$_=$($val[$_])" }) -join '; ') } elseif ($val -is [array]) { $val -join ', ' } else { [string]$val }; & $w "<tr><th>$(& $h $k)</th><td>$(& $h $text)</td></tr>" }
         & $w '</tbody></table>'
+    }
+    if ($r.runAs) {
+        $ra = $r.runAs
+        & $w '<h3>Who Ran It</h3><table><tbody>'
+        & $w "<tr><th>Account</th><td>$(& $h $ra.account)</td></tr>"
+        & $w "<tr><th>Directory roles at the time</th><td>$(& $h $(if (@($ra.roles).Count) { @($ra.roles) -join ', ' } else { 'none active (PIM roles count once activated)' }))</td></tr>"
+        & $w "<tr><th>Checked</th><td>$(& $fmtDate $ra.checkedUtc)</td></tr>"
+        & $w '</tbody></table>'
+        if (@($ra.coverage).Count) {
+            & $w '<table><thead><tr><th>Domain</th><th>Role Check</th><th>Detail</th></tr></thead><tbody>'
+            foreach ($c in $ra.coverage) { & $w "<tr><td>$(& $h $c.collector)</td><td>$(& $h $c.status)</td><td>$(& $h $c.detail)</td></tr>" }
+            & $w '</tbody></table>'
+        }
     }
     & $w '<h3>Exceptions</h3>'
     if (@($a.exceptions).Count -eq 0) { & $w '<p>None.</p>' }

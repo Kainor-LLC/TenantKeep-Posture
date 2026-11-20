@@ -174,8 +174,8 @@ function Start-PostureRun {
     }
 
     # Roles before a long run: what will come back empty, and what to grant. The run goes on either way.
-    $coverage = @()
-    try { $coverage = @(Test-PostureRoleCoverage -Collector (@($main) + @($localPlan) + @($child))) }
+    $coverage = @(); $heldRoles = @()
+    try { $heldRoles = @(Get-PostureSignedInRole); $coverage = @(Test-PostureRoleCoverage -Collector (@($main) + @($localPlan) + @($child)) -HeldRole $heldRoles) }
     catch { Write-Verbose "Role check skipped: $($_.Exception.Message)" }
     $short = @($coverage | Where-Object { $_.Status -eq 'missing' })
     foreach ($row in $coverage) {
@@ -197,7 +197,8 @@ function Start-PostureRun {
         }
         else { $folder = New-PostureEvidenceFolder -OutRoot $OutRoot }
         Write-Host "Run folder:    $folder"
-        Write-PostureRunPlan -Folder $folder -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -Resume:([bool]$into) -Confirm:$false
+        $runAs = [ordered]@{ account = [string]$session.account; roles = @($heldRoles); checkedUtc = [datetime]::UtcNow.ToString('o'); coverage = @($coverage | ForEach-Object { [ordered]@{ collector = $_.Collector; status = $_.Status; detail = $_.Detail } }) }
+        Write-PostureRunPlan -Folder $folder -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -RunAs $runAs -Resume:([bool]$into) -Confirm:$false
         $estimates = Get-PostureRunEstimate -OutRoot $OutRoot -TenantId ([string]$session.tenantId)
         $phases = @(@($(if (-not $caDone -and ($main.Count -gt 0 -or -not $into)) { 'ConditionalAccess' })) + $main + @($localPlan) + @($(if ($child.Count -gt 0) { 'Second' })) + @($(if (-not $SkipReport) { 'Report' })) | Where-Object { $_ })
         $childFile = $(if ($child.Count -gt 0) { Join-Path $folder '.progress-child.json' } else { $null })

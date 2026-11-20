@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Report (2026-11-20): the overview's recommendations are a card per priority with one finding per line; a
+  Licensing view lists every licence the tenant holds with purchased, assigned and free seats; the Crosswalk link
+  explains how to get one instead of falling back to the overview; the appendix says who ran the assessment, with
+  their directory roles and the role check per domain (recorded in run.json).
 - Simpler resume (2026-11-20): `Resume-PostureRun` with no arguments resumes the newest run, `-Client <name>` the
   newest of one client; the domains to collect again come from the run's own plan. A cmdlet the account's roles or
   the tenant's licences do not expose is a new cause, unavailable, which a resume leaves alone.

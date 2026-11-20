@@ -111,6 +111,8 @@ function Read-PostureRunFailure {
         foreach ($line in Get-Content -LiteralPath $jsonl) {
             if (-not $line.Trim()) { continue }
             try { $e = $line | ConvertFrom-Json -AsHashtable } catch { continue }
+            # The reason is worked out again, so a run recorded by an older version reads with today's wording.
+            $e['cause'] = Get-PostureFailureCause -Message ([string]$e['message'])
             $out.Add($e); $null = $covered.Add("$($e['step']) :: $($e['message'])")
         }
     }
