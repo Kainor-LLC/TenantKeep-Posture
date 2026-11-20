@@ -277,4 +277,19 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .pillar:hover { background: var(--soft); }
 .pillar .frac { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .pillar .segbar { grid-column: 1 / -1; }
+.advisor { background: var(--card); border: 1px solid var(--info); border-radius: var(--radius); padding: 14px 18px; margin: 10px 0 18px; box-shadow: var(--shadow); }
+.advisor h3 { margin-top: 0; }
+.advice-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 8px 0; }
+.advice-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--soft); }
+.advice-card h4 { margin: 0 0 6px; }
+.advice-card ul { margin: 0; padding-left: 18px; }
+.seats { display: grid; gap: 8px; }
+.seat-row { display: grid; grid-template-columns: minmax(160px, 1fr) auto; gap: 3px 10px; align-items: center; font-size: 13px; }
+.seat-row .segbar { grid-column: 1 / -1; }
+.seat-frac { color: var(--muted); font-variant-numeric: tabular-nums; }
+.goal-filter { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.goal-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.goal-card { display: grid; grid-template-columns: 24px 1fr; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.goal-card p { margin: 3px 0; font-size: 14px; }
+.goal-cards.unmet-only .goal-card.met { display: none; }
 

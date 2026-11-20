@@ -372,12 +372,63 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</section>'
     }
-    # Licensing: what the tenant holds and how much of it is in use.
+    # Licensing: what the tenant holds and uses, what each goal needs, and what to add. No prices anywhere.
     if ($r.licensing) {
-        & $w '<section class="view" id="licensing"><h2>Licensing</h2><p>The licences the tenant holds, with how many are assigned. Free seats are money spent on nothing; a licence the tenant pays for and leaves unused is usually a feature turned off.</p>'
-        & $w '<table><thead><tr><th>Licence (SKU)</th><th>Purchased</th><th>Assigned</th><th>Free</th><th class="tech">Status</th></tr></thead><tbody>'
-        foreach ($l in $r.licensing) { & $w "<tr><td><code>$(& $h $l.sku)</code></td><td>$($l.purchased)</td><td>$($l.assigned)</td><td>$($l.available)</td><td class=`"tech`">$(& $h $l.status)</td></tr>" }
-        & $w '</tbody></table></section>'
+        $la = $(if ($r.Contains('licenseAdvice')) { $r.licenseAdvice } else { $null })
+        & $w '<section class="view" id="licensing"><h2>Licensing</h2><p class="lede">What the tenant holds, what is switched on, what each security goal needs, and the smallest change that covers the goals. No prices: take the answer to your Microsoft partner.</p>'
+        if ($la) {
+            $ad = $la.advice
+            $goalNames = @{}; foreach ($g in $la.goals) { $goalNames[[string]$g.id] = $g.name }
+            $forWhat = $(if ($ad.goalSource -eq 'profile') { 'the goals in your profile' } else { 'the core goals (set your own with New-PostureProfile -Goal)' })
+            & $w ('<div class="advisor"><h3>What To Add</h3><p class="hint">For ' + (& $h $forWhat) + ': ' + (& $h (@($ad.goals | ForEach-Object { $goalNames[[string]$_] }) -join '; ')) + '.</p>')
+            if ($ad.met) { & $w '<p class="banner ready"><strong>Covered.</strong> The licences you hold include every feature these goals need. The work is configuration: see Recommendations.</p>' }
+            else {
+                & $w ('<p>Missing: ' + (& $h (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; ')) + '.</p><div class="advice-options">')
+                if (@($ad.addOns).Count) {
+                    $li = @($ad.addOns | ForEach-Object { '<li><strong>' + (& $h $_.name) + '</strong> <span class="muted">adds ' + (& $h (@($_.adds) -join ', ')) + '</span>' + $(if ($_.verify) { ' <span class="tech">(verify: ' + (& $h $_.verify) + ')</span>' }) + '</li>' }) -join ''
+                    & $w ('<div class="advice-card"><h4>Fewest add-ons</h4><ul>' + $li + '</ul><p class="hint">On top of what you have, for ' + $ad.seats + ' licensed users.</p></div>')
+                }
+                if ($ad.upgrade) { & $w ('<div class="advice-card"><h4>One bundle instead</h4><p><strong>' + (& $h $ad.upgrade.name) + '</strong> covers these goals on its own, in place of your current suite.</p></div>') }
+                & $w '</div>'
+                foreach ($pq in @($ad.prerequisite)) { & $w ('<p class="hint">' + (& $h $pq) + '</p>') }
+            }
+            & $w ('<p class="hint">' + (& $h $ad.note) + '</p></div>')
+        }
+        # Seats per SKU.
+        $seatRows = @($r.licensing | Where-Object { $_.purchased -gt 0 })
+        if ($seatRows.Count) {
+            $bars = @($seatRows | Select-Object -First 12 | ForEach-Object { '<div class="seat-row"><span class="seat-name"><code>' + (& $h $_.sku) + '</code></span><span class="seat-frac">' + $_.assigned + ' of ' + $_.purchased + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.sku -Segment @(@{ label = 'Assigned'; value = $_.assigned; tone = 'c1' }, @{ label = 'Free'; value = $_.available; tone = 'na' })) + '</div>' }) -join ''
+            $free = [int](@($seatRows | ForEach-Object { $_.available }) | Measure-Object -Sum).Sum
+            & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Seats Assigned' -Takeaway "$free paid seats are not assigned to anyone." -Body ('<div class="seats">' + $bars + '</div>' + (ConvertTo-PostureChartTable -Header @('Licence', 'Purchased', 'Assigned', 'Free', 'Status') -Row @($r.licensing | ForEach-Object { , @($_.sku, $_.purchased, $_.assigned, $_.available, $_.status) })))) + '</div>')
+        }
+        if ($la) {
+            $stLabel = @{ owned = 'Owned'; partial = 'Partly assigned'; missing = 'Not owned' }
+            $stClass = @{ owned = 'pass'; partial = 'acceptedRisk'; missing = 'notApplicable' }
+            & $w '<h3>Features</h3><p class="hint">Partly assigned: bought, but switched on for fewer people than hold a licence. Sometimes deliberate (Entra ID P2 for administrators only), often an oversight.</p><table><thead><tr><th>Feature</th><th>Status</th><th>What it unlocks</th></tr></thead><tbody>'
+            foreach ($f in @($la.features | Sort-Object { @{ partial = 0; owned = 1; missing = 2 }[[string]$_.status] }, { $_.name })) {
+                $who = $(if ($f.status -eq 'partial') { ' <span class="muted">' + $f.users + ' of ' + $f.licensedUsers + ' users</span>' } else { '' })
+                & $w ('<tr><td>' + (& $h $f.name) + '</td><td><span class="status ' + $stClass[[string]$f.status] + '">' + (& $h $stLabel[[string]$f.status]) + '</span>' + $who + '</td><td>' + (& $h $f.what) + '</td></tr>')
+            }
+            & $w '</tbody></table>'
+            $metCount = @($la.goals | Where-Object { $_.met }).Count
+            & $w ('<h3>Goals <span class="count">' + $metCount + ' of ' + @($la.goals).Count + ' covered</span></h3><label class="goal-filter"><input type="checkbox" id="goals-unmet-only"> Show only goals not covered</label><div class="goal-cards">')
+            foreach ($g in $la.goals) {
+                $miss = $(if ($g.met) { '<p class="muted">Covered by what you hold.</p>' } else { '<p>Needs ' + (& $h (@($g.missing | ForEach-Object { @($_) -join ' or ' }) -join ', and ')) + '.</p>' })
+                & $w ('<div class="goal-card ' + $(if ($g.met) { 'met' } else { 'unmet' }) + '"><span class="status-dot t-' + $(if ($g.met) { 'ok' } else { 'err' }) + '" aria-hidden="true">' + $(if ($g.met) { [string][char]0x2713 } else { [string][char]0x2715 }) + '</span><div><strong>' + (& $h $g.name) + '</strong>' + $(if ($g.core) { ' <span class="chip">core</span>' }) + '<p class="hint">' + (& $h $g.what) + '</p>' + $miss + '</div></div>')
+            }
+            & $w '</div>'
+            if (@($la.notEvaluated).Count) {
+                & $w '<h3>Checks Waiting on a Licence</h3><p class="hint">These were not evaluated because the tenant does not hold what they need.</p><ul>'
+                foreach ($ne in $la.notEvaluated) { & $w ('<li><strong>Needs ' + (& $h $ne.needs) + '</strong>: ' + (@($ne.checks | ForEach-Object { '<a href="#checks" data-check="' + (& $h $_.id) + '"><code>' + (& $h $_.id) + '</code> ' + (& $h $_.title) + '</a>' }) -join '; ') + '</li>') }
+                & $w '</ul>'
+            }
+        }
+        else {
+            & $w '<table><thead><tr><th>Licence (SKU)</th><th>Purchased</th><th>Assigned</th><th>Free</th><th class="tech">Status</th></tr></thead><tbody>'
+            foreach ($l in $r.licensing) { & $w "<tr><td><code>$(& $h $l.sku)</code></td><td>$($l.purchased)</td><td>$($l.assigned)</td><td>$($l.available)</td><td class=`"tech`">$(& $h $l.status)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        & $w '</section>'
     }
 
     # Crosswalk without a framework baseline: say how to get one, so the link does not fall back to the overview.

@@ -58,7 +58,8 @@ function Get-PostureLicenseAdvice {
                     3 { for ($i = 0; $i -lt $cands.Count; $i++) { for ($j = $i + 1; $j -lt $cands.Count; $j++) { for ($k = $j + 1; $k -lt $cands.Count; $k++) { , @($cands[$i], $cands[$j], $cands[$k]) } } } }
                 })
             # Among the sets that cover, the one adding the fewest features: the smallest purchase that does the job.
-            $ok = @($combos | Where-Object { & $covers @($_ | ForEach-Object { $_.features }) } | Sort-Object { @($_ | ForEach-Object { $_.features } | Sort-Object -Unique).Count })
+            # On a tie, the bundle made for a business of this size (it has a seat cap the tenant fits under).
+            $ok = @($combos | Where-Object { & $covers @($_ | ForEach-Object { $_.features }) } | Sort-Object { @($_ | ForEach-Object { $_.features } | Sort-Object -Unique).Count }, { @($_ | Where-Object { -not $_.Contains('seatCap') }).Count })
             if ($ok.Count) { $best = $ok[0]; break search }
         }
         if ($best) { $addOns = @($best | ForEach-Object { [ordered]@{ sku = $_.sku; name = $_.name; adds = @($_.features | Where-Object { -not $have.Contains([string]$_) } | ForEach-Object { $data.features[[string]$_].name }); verify = $(if ($_.Contains('verify')) { $_.verify } else { $null }) } }) }

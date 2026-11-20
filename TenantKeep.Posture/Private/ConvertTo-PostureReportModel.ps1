@@ -301,6 +301,19 @@ function ConvertTo-PostureReportModel {
                 [ordered]@{ sku = [string]$_['skuPartNumber']; purchased = $bought; assigned = $used; available = [Math]::Max(0, $bought - $used); status = [string]$_['capabilityStatus'] }
             } | Sort-Object { - $_.purchased }, { $_.sku })
     }
+    # The licensing advisor: features owned, partly assigned or missing, goals, and what to add for the profile's
+    # goals; and the checks that could not be judged for lack of a licence, by what they need.
+    $licenseAdvice = $null
+    if ($null -ne $skus) {
+        $planUse = & $load '06-users-license-plans'
+        $byPlan = $(if ($planUse -and (& $v $planUse 'UsersByServicePlan')) { & $v $planUse 'UsersByServicePlan' } else { @{} })
+        $licensedUsers = $(if ($planUse) { [int](& $v $planUse 'LicensedEnabledUsers') } else { 0 })
+        $members = [int](& $v (& $load '06-users-summary') 'Members')
+        $goalIds = @($(if ($OrgProfile -and $OrgProfile.Contains('goals')) { $OrgProfile['goals'] }) | Where-Object { $_ })
+        $licenseAdvice = Get-PostureLicenseAdvice -Owned @(Get-PostureOwnedFeature -Sku @($skus | Where-Object { $_ })) -Goal $goalIds -Seats $(if ($licensedUsers) { $licensedUsers } else { $members }) -UsersByPlan $byPlan -LicensedUsers $licensedUsers
+        $licenseAdvice.notEvaluated = @($results | Where-Object { $_.status -eq 'notEvaluated' -and [string]$_.reason -match '^Requires (.+)\.$' } | Group-Object { [string]$_.reason } | Sort-Object Name | ForEach-Object { [ordered]@{ needs = ($_.Name -replace '^Requires |\.$', ''); checks = @($_.Group | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title } }) } })
+    }
+
     # Who ran it, with which roles, from run.json (Start-PostureRun records them after the sign-in).
     $runLayout = Get-PostureRunLayout -Folder $Evidence
     $planFile = Join-Path $runLayout.logs 'run.json'
@@ -359,6 +372,7 @@ function ConvertTo-PostureReportModel {
         labels       = $(if ($Catalog.Contains('labels') -and $Catalog['labels']) { $Catalog['labels'] } else { @{ facts = @{}; thresholds = @{} } })
         runHealth    = $runHealth
         licensing    = $licensing
+        licenseAdvice = $licenseAdvice
         runAs        = $runAs
         appendix     = [ordered]@{
             catalogVersion = $Run.catalogVersion; baseline = $Run.baseline; profile = $Run.profile; profilePresent = [bool]$OrgProfile.present

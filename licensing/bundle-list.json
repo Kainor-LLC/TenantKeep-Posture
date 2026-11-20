@@ -59,6 +59,21 @@
       "kind": "addon"
     },
     {
+      "sku": "DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW",
+      "kind": "addon",
+      "seatCap": 300,
+      "name": "Microsoft Defender Suite for Business",
+      "plans": [
+        "AAD_PREMIUM_P2",
+        "THREAT_INTELLIGENCE",
+        "ATP_ENTERPRISE",
+        "ATA",
+        "WINDEFATP",
+        "ADALLOM_S_STANDALONE"
+      ],
+      "verify": "Not in Microsoft's CSV as of 2026-11-20; plans read from a live subscription. Sold to Business Premium customers."
+    },
+    {
       "sku": "AAD_PREMIUM",
       "kind": "addon"
     },

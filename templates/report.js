@@ -88,6 +88,9 @@
     var count = $('checks-count'); if (count) { count.textContent = shown + ' of ' + rows.length; }
   }
   [search, fStatus, fDomain, fSev].forEach(function (el) { if (el) { el.addEventListener('input', applyFilters); el.addEventListener('change', applyFilters); } });
+  // Licensing: show only the goals not covered.
+  var unmetOnly = $('goals-unmet-only');
+  if (unmetOnly) { unmetOnly.addEventListener('change', function () { var g = document.querySelector('.goal-cards'); if (g) { g.classList.toggle('unmet-only', unmetOnly.checked); } }); }
   // A chart's View the checks link, or a domain tile: open the explorer filtered to that domain.
   Array.prototype.slice.call(document.querySelectorAll('[data-filter-domain]')).forEach(function (a) {
     a.addEventListener('click', function () { if (fDomain) { fDomain.value = a.getAttribute('data-filter-domain'); } if (fStatus) { fStatus.value = ''; } applyFilters(); });

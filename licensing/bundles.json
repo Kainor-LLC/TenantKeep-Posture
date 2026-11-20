@@ -165,6 +165,23 @@
       ]
     },
     {
+      "sku": "DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW",
+      "name": "Microsoft Defender Suite for Business",
+      "kind": "addon",
+      "features": [
+        "entraP1",
+        "entraP2",
+        "mde1",
+        "mde2",
+        "mdo1",
+        "mdo2",
+        "mdi",
+        "mdca"
+      ],
+      "seatCap": 300,
+      "verify": "Not in Microsoft's CSV as of 2026-11-20; plans read from a live subscription. Sold to Business Premium customers."
+    },
+    {
       "sku": "AAD_PREMIUM",
       "name": "Microsoft Entra ID P1",
       "kind": "addon",

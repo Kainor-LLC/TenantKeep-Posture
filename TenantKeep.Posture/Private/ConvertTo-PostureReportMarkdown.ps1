@@ -179,6 +179,23 @@ function ConvertTo-PostureReportMarkdown {
         }
     }
 
+    if ($r.Contains('licenseAdvice') -and $r.licenseAdvice) {
+        $ad = $r.licenseAdvice.advice
+        & $line '## Licensing'
+        & $line
+        & $line "For the $(if ($ad.goalSource -eq 'profile') { 'goals in the profile' } else { 'core goals' }): $(if ($ad.met) { 'covered by the licences held.' } else { "missing $(& $esc (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; '))." })"
+        & $line
+        if (-not $ad.met) {
+            if (@($ad.addOns).Count) { & $line "- Fewest add-ons: $(& $esc (@($ad.addOns | ForEach-Object { $_.name }) -join ' + ')), for $($ad.seats) licensed users." }
+            if ($ad.upgrade) { & $line "- One bundle instead: $(& $esc $ad.upgrade.name)." }
+            & $line
+        }
+        $open = @($r.licenseAdvice.goals | Where-Object { -not $_.met })
+        if ($open.Count) { & $line "Goals not covered: $(& $esc (@($open | ForEach-Object { $_.name }) -join '; '))."; & $line }
+        & $line (& $esc $ad.note)
+        & $line
+    }
+
     & $line '## Conditional Access'
     & $line
     if (-not $r.ca) { & $line 'No Conditional Access snapshot in the evidence folder.'; & $line }

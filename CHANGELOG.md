@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Licensing view and advisor (2026-11-20): the Licensing view opens with What To Add: for the profile's goals, or
+  the core goals, whether the licences held cover them, else the fewest add-ons and the one bundle that would, for
+  the licensed seat count, with no prices. Then seats assigned per SKU, every feature owned, partly assigned (bought
+  but switched on for fewer users than hold a licence, from the new 06-users-license-plans.json) or not owned, the
+  goals with what each still needs, and the checks waiting on a licence. report.md and findings.json carry it.
 - Licensing data (2026-11-20): licensing/features.json maps every licensed feature to the service plans that grant it,
   from Microsoft's service plan list; bundles.json (built by `build.ps1 -Task LicensingData`) lists what each SKU
   carries; goals.json the goals the advisor works from. Licence detection reads them, which fixes plan names that
