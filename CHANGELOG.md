@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Inventory view (2026-11-20): what the tenant has, as tables from evidence already collected: mail domains with
+  DKIM, SPF, DMARC and MX; transport rules; mail connectors; devices by platform and compliance; compliance
+  policies, configuration profiles and endpoint security policies with assignment counts; privileged roles held
+  permanently, activated or eligible; Conditional Access policies by state. Each table names its evidence files;
+  report.md carries the first 50 rows of each. Recommendations moves next to the overview in the navigation.
 - Control chains (2026-11-20): checks/chains.json names controls that only protect together; the Recommendations
   view opens with one card per chain, the first failing link marked as the one to fix. Three chains: a device under
   attack loses access, a risky sign-in is challenged, Copilot cannot surface what was overshared. New check DEV-015:

@@ -79,7 +79,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive Mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export Checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing', [bool]$r.licensing), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('recommendations', 'Recommendations', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('inventory', 'Inventory', [bool]($r.Contains('inventory') -and @($r.inventory | Where-Object { $_.total -gt 0 }).Count)), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing', [bool]$r.licensing), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -294,6 +294,24 @@ function ConvertTo-PostureReportHtml {
             & $w ('<details><summary>' + (& $h (& $dl $d)) + ' <span class="count">' + @($r.alreadyGood[$d]).Count + '</span></summary><ul>' + $li + '</ul></details>')
         }
         & $w '</div>'
+    }
+    & $w '</section>'
+
+    # Inventory: what the tenant has, as tables, each naming the evidence it came from.
+    & $w '<section class="view" id="inventory"><h2>Inventory</h2><p class="lede">What the tenant has, read from the evidence: no pass or fail here. The checks judge these; this is the list to plan from.</p>'
+    $invList = @($(if ($r.Contains('inventory')) { $r.inventory }))
+    if ($invList.Count) {
+        & $w ('<p class="chips">' + (@($invList | ForEach-Object { '<a class="chip" href="#inv-' + (& $h $_.key) + '">' + (& $h $_.title) + ' <span class="count">' + $_.total + '</span></a>' }) -join '') + '</p>')
+    }
+    foreach ($s in $invList) {
+        & $w ('<h3 id="inv-' + (& $h $s.key) + '">' + (& $h $s.title) + ' <span class="count">' + $s.total + '</span></h3>')
+        if ($s.note) { & $w ('<p class="hint">' + (& $h $s.note) + '</p>') }
+        if (@($s.rows).Count) {
+            & $w ('<div class="scroll"><table class="inventory"><thead><tr>' + (@($s.columns | ForEach-Object { '<th>' + (& $h $_) + '</th>' }) -join '') + '</tr></thead><tbody>')
+            foreach ($row in $s.rows) { & $w ('<tr>' + (@($s.columns | ForEach-Object { '<td>' + (& $h ([string]$row[$_])) + '</td>' }) -join '') + '</tr>') }
+            & $w '</tbody></table></div>'
+        }
+        & $w ('<p class="tech chips">' + (@($s.source | ForEach-Object { '<span class="chip">' + (& $h $_) + '</span>' }) -join '') + '</p>')
     }
     & $w '</section>'
 

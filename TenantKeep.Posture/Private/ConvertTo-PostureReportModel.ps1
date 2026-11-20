@@ -340,6 +340,7 @@ function ConvertTo-PostureReportModel {
         recommendations = $recommendations
         alreadyGood     = $alreadyGood
         chains          = $chains
+        inventory       = @(Get-PostureInventory -Evidence $Evidence)
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot

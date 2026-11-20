@@ -155,6 +155,20 @@ function ConvertTo-PostureReportMarkdown {
         }
     }
 
+    if ($r.Contains('inventory') -and @($r.inventory).Count) {
+        & $line '## Inventory'
+        & $line
+        & $line 'What the tenant has, read from the evidence. No pass or fail here.'
+        & $line
+        foreach ($s in $r.inventory) {
+            & $line "### $($s.title) ($($s.total))"
+            & $line
+            if ($s.note) { & $line (& $esc $s.note); & $line }
+            if (@($s.rows).Count) { & $table @($s.columns) @($s.rows | Select-Object -First 50 | ForEach-Object { $row = $_; , @($s.columns | ForEach-Object { [string]$row[$_] }) }) }
+            if ($s.total -gt 50) { & $line "The first 50 of $($s.total); report.html has up to 500."; & $line }
+        }
+    }
+
     & $line '## Conditional Access'
     & $line
     if (-not $r.ca) { & $line 'No Conditional Access snapshot in the evidence folder.'; & $line }

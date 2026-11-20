@@ -118,11 +118,13 @@ Describe 'New-PostureReport' {
         }
 
         It 'renders every view server-side with the navigation' {
-            foreach ($id in 'overview', 'domains', 'checks', 'admins', 'exposure', 'copilot', 'ca', 'recommendations', 'trend', 'licensing', 'appendix') {
+            foreach ($id in 'overview', 'domains', 'checks', 'admins', 'exposure', 'copilot', 'ca', 'recommendations', 'inventory', 'trend', 'licensing', 'appendix') {
                 $script:Html | Should -Match "<section class=`"view( active)?`" id=`"$id`""
                 $script:Html | Should -Match "<a href=`"#$id`""
             }
             $script:Html | Should -Match '<section class="view active" id="overview">'
+            $script:Html | Should -Match 'id="inv-ca-policies"' -Because 'the fixture has a CA snapshot'
+            $script:Html | Should -Match '<a href="#overview"[^>]*>Overview</a>\s*<a href="#recommendations"' -Because 'what to fix sits next to the overview'
             $script:Html | Should -Match 'Not collected yet\.'
             ([regex]::Matches($script:Html, '<tr data-check="')).Count | Should -BeGreaterThan 39 -Because 'rows appear in the scorecards and the explorer'
             $script:Html | Should -Match '<button type="button" id="toggle-exec"'
