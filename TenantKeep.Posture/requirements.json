@@ -532,6 +532,20 @@
         "DeviceManagementConfiguration.Read.All"
       ],
       "licence": "Microsoft Intune Plan 1"
+    },
+    {
+      "collector": "Entra",
+      "match": "^Global Secure Access",
+      "roles": [
+        "Global Reader",
+        "Global Secure Access Administrator",
+        "Security Administrator"
+      ],
+      "scopes": [
+        "NetworkAccess.Read.All"
+      ],
+      "licence": "Microsoft Entra Internet Access or Private Access (Entra Suite)",
+      "note": "Read only where the tenant holds Internet Access or Private Access."
     }
   ]
 }

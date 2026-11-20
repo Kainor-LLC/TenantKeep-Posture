@@ -29,7 +29,10 @@ run continues.
 | `gov-03-lifecycle-workflows` (+csv) | lifecycleWorkflows/workflows | LifecycleWorkflows.Read.All |
 | `gov-04-pim-groups` (+csv), `gov-04-pim-groups-summary` | privilegedAccess/group/eligibilitySchedules | PrivilegedEligibilitySchedule.Read.AzureADGroup (verify) |
 | `gov-05-administrative-units` (+csv) | directory/administrativeUnits | AdministrativeUnit.Read.All |
-| `01-domains` (+csv) | domains with authentication type | Federated domains feed the identity model discovery |
+| `01-domains` (+csv) | domains with authentication type and password expiry | Federated domains feed the identity model discovery; expiry feeds ID-017 |
+| `01-company-branding` | organization/{id}/branding | Presence only (logo, background, sign-in text); a 404 means no branding |
+| `02-directory-settings` | groupSettings | Tenant directory settings; Password Rule Settings feed ID-018 and ID-019. The banned password list is kept as a count, never its words |
+| `gsa-01-forwarding-profiles`, `gsa-02-filtering-profiles`, `gsa-03-settings` | networkAccess (beta) | Read only where the tenant holds Internet Access or Private Access; NetworkAccess.Read.All |
 | `policies`, `named-locations`, `auth-strengths`, `auth-context`, `resolved-names`, `group-scope`, `metadata` | Export-PostureCaSnapshot into the same folder | The CA checks and documents read these |
 | `collection` | run manifest: tenant, account, scopes, API versions, files, errors | `metadata.json` stays the CA snapshot's own |
 
@@ -226,7 +229,7 @@ User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagem
 OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All. All delegated, all read-only.
 
 ```powershell
-Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All -NoWelcome
+Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All -NoWelcome, NetworkAccess.Read.All
 Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
 ```
 

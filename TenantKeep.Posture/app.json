@@ -44,7 +44,8 @@
         "Organization.Read.All",
         "Application.Read.All",
         "Reports.Read.All",
-        "SharePointTenantSettings.Read.All"
+        "SharePointTenantSettings.Read.All",
+        "NetworkAccess.Read.All"
       ]
     },
     {

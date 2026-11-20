@@ -99,6 +99,26 @@ function Invoke-PostureEntraCollection {
             }) '02-directory-settings'
     } | Out-Null
 
+    # ---------- 3. Global Secure Access, only where licensed ----------
+    # A tenant without Internet Access or Private Access answers these APIs with errors that would land in Run Health
+    # on every run, so they are read only when the subscriptions carry one of them.
+    $gsaOwned = @(Get-PostureOwnedFeature -Sku @(& $load '01-subscribed-skus' | Where-Object { $_ }) | Where-Object { $_ -in 'internetAccess', 'privateAccess' })
+    if ($gsaOwned.Count) {
+        Invoke-PostureStep -Label 'Global Secure Access forwarding profiles' -Folder $Folder -Script {
+            $fp = & $get 'networkAccess/forwardingProfiles' 'beta'
+            & $save @($fp | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); TrafficForwardingType = (& $v $_ 'trafficForwardingType'); State = (& $v $_ 'state') } }) 'gsa-01-forwarding-profiles'
+        } | Out-Null
+        Invoke-PostureStep -Label 'Global Secure Access filtering' -Folder $Folder -Script {
+            $prof = & $get 'networkAccess/filteringProfiles?$expand=policies' 'beta'
+            & $save @($prof | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); State = (& $v $_ 'state'); Priority = (& $v $_ 'priority'); Policies = @(& $v $_ 'policies').Count } }) 'gsa-02-filtering-profiles'
+        } | Out-Null
+        Invoke-PostureStep -Label 'Global Secure Access remote networks and signaling' -Folder $Folder -Script {
+            $rn = @(& $get 'networkAccess/connectivity/remoteNetworks' 'beta')
+            $sig = $(try { & $one 'networkAccess/settings/conditionalAccess' 'beta' } catch { $null })
+            & $saveOne ([ordered]@{ RemoteNetworks = $rn.Count; SignalingStatus = (& $v $sig 'signalingStatus'); Licensed = $gsaOwned }) 'gsa-03-settings'
+        } | Out-Null
+    }
+
     # ---------- 4. Privileged roles ----------
     Invoke-PostureStep -Label 'Role assignments' -Folder $Folder -Script {
         # isPrivileged is beta-only on unifiedRoleDefinition; v1.0 rejects it in $select.

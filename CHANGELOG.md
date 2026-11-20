@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Network access domain (2026-11-20): Global Secure Access checks: NET-001 Microsoft traffic forwarded, NET-002
+  internet traffic filtered, NET-003 private apps through Private Access, NET-004 Conditional Access sees the original
+  source address. Licensed by Internet Access, Private Access or Entra Suite; covered by another secure web gateway or
+  ZTNA product named in the profile. Read only where the tenant holds one of those licences, with the new
+  NetworkAccess.Read.All permission: rerun deploy/setup/New-PostureClientApp.ps1 and consent again to add it.
 - Group Policy analytics (2026-11-20): the Intune collector reads the GPOs imported into Group Policy analytics
   (counts and percentages only); DEV-018 asks hybrid tenants to analyse Group Policy for the move to Intune, and
   the Inventory lists each GPO with the share of its settings MDM supports.

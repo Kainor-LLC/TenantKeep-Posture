@@ -139,6 +139,7 @@ function Invoke-PostureCollection {
         'LifecycleWorkflows.Read.All'             = 'Lifecycle workflows'
         'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups'
         'AdministrativeUnit.Read.All'             = 'Administrative units'
+        'NetworkAccess.Read.All'                  = 'Global Secure Access (only where licensed)'
         'ThreatHunting.Read.All'                  = 'Defender devices, antivirus state, secure configuration, vulnerabilities (advanced hunting)'
         'SecurityIncident.Read.All'               = 'Defender incidents'
         'SecurityEvents.Read.All'                 = 'Secure Score'

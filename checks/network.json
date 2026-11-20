@@ -1,0 +1,161 @@
+{
+  "domain": "network",
+  "checks": [
+    {
+      "id": "NET-001",
+      "domain": "network",
+      "title": "Microsoft traffic forwarded through Global Secure Access",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-01-forwarding-profiles.json"
+      ],
+      "pass": "facts.microsoftProfileEnabled",
+      "remediation": [
+        "In Entra, Global Secure Access, Connect, Traffic forwarding, enable the Microsoft traffic profile and assign it to all users.",
+        "Deploy the Global Secure Access client to Windows and macOS through Intune.",
+        "Turn on universal tenant restrictions so only the organisation's tenant can be signed in to through the client (NET-004 covers signaling)."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The Global Secure Access client runs in the background; Microsoft 365 works as before, only through Microsoft's network edge."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-manage-microsoft-profile",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/ForwardingProfile.ReactView",
+      "narrative": "Routing Microsoft 365 traffic through Global Secure Access lets Conditional Access require a compliant network and enforce tenant restrictions, which stops a token or session from being used against another tenant or from outside the organisation's path.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "NET-002",
+      "domain": "network",
+      "title": "Internet traffic filtered",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-01-forwarding-profiles.json"
+      ],
+      "pass": "facts.internetProfileEnabled && facts.webFilteringPolicies > 0",
+      "remediation": [
+        "Enable the Internet access traffic profile and assign it.",
+        "Create a web content filtering policy that blocks the categories the organisation does not allow (malware, phishing, newly registered domains at least) and link it to a security profile.",
+        "Apply the security profile through a Conditional Access policy for the users in scope."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Sites in blocked categories show a block page; everything else browses as before."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-web-content-filtering",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/WebFilteringPolicy.ReactView",
+      "narrative": "With the Internet Access profile on but no filtering policy linked, traffic flows through the service without being checked. A web content filtering policy is what blocks known malware and phishing sites for people wherever they work.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "NET-003",
+      "domain": "network",
+      "title": "Private apps reached through Private Access",
+      "severityDefault": "Medium",
+      "license": [
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-01-forwarding-profiles.json"
+      ],
+      "pass": "facts.privateProfileEnabled",
+      "remediation": [
+        "Install Private Network connectors in each network that hosts private apps, two or more per site.",
+        "Enable the Private Access traffic profile and publish the apps (Quick Access or per-app segments).",
+        "Require MFA and a compliant device for each app with Conditional Access, then retire the VPN for those apps."
+      ],
+      "effort": "L",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "People reach internal apps without starting a VPN, after signing in like any other Microsoft 365 app."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-quick-access",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/ForwardingProfile.ReactView",
+      "narrative": "A VPN puts a device on the network and trusts it there. Private Access publishes each app on its own, behind Conditional Access, so a stolen password or an infected laptop reaches one app at most, not the whole network.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.22",
+        "cmmc": "AC.L2-3.1.12",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "NET-004",
+      "domain": "network",
+      "title": "Conditional Access sees the original source address",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-01-forwarding-profiles.json"
+      ],
+      "pass": "facts.signalingEnabled",
+      "remediation": [
+        "In Entra, Global Secure Access, Settings, Session management, Adaptive access, turn on Enable Global Secure Access signaling in Conditional Access."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing visible; sign-in logs and named locations see people's real addresses."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-source-ip-restoration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/Settings.ReactView",
+      "narrative": "Without signaling, traffic through Global Secure Access reaches Entra from Microsoft's addresses, so named locations, sign-in risk and the sign-in log see the service instead of the person. Source IP restoration gives Conditional Access the real address back.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    }
+  ]
+}
