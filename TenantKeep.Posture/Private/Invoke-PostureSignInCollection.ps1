@@ -6,8 +6,10 @@ function Invoke-PostureSignInCollection {
     <#
     .SYNOPSIS
         Reads the Entra sign-in log for the last -Days days, at any volume, and writes what the checks and charts
-        need: totals, legacy-protocol sign-ins by user, Conditional Access outcomes, failures, sign-ins per day and
-        per country. The raw records are never kept.
+        need: totals, legacy-protocol sign-ins by user, Conditional Access outcomes, what each report-only policy would
+        have done, every role holder's sign-ins and how many were single-factor, failures by error code and the
+        addresses where many accounts failed (password spray), sign-ins per day and per country. The raw records are
+        never kept; every per-object tally is capped.
     .DESCRIPTION
         Built for tenants with millions of sign-ins and runs of hours:
           - Pages of 1,000 records with only the fields counted ($select), streamed and tallied page by page, so
@@ -54,11 +56,19 @@ function Invoke-PostureSignInCollection {
         $state = @{
             days = $Days; windowStartUtc = $windowStart.ToString('o'); windowEndUtc = $windowEnd.ToString('o'); nextLink = $null; oldestUtc = $null; boundaryIds = @()
             pages = 0; count = 0; byClientApp = @{}; byCaStatus = @{}; failures = 0; interactive = 0; byDay = @{}; byCountry = @{}; risky = 0; legacy = 0; legacyUsers = @{}
-            mfaRequired = 0; completed = $false
+            mfaRequired = 0; completed = $false; reportOnly = @{}; admins = @{}; errorCodes = @{}; failedByIp = @{}; ipCapReached = $false
         }
     }
+    # Role holders (active and eligible) from the Entra collector's files in this folder, for the admin tallies.
+    $adminSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($name in '04-role-assignments-active', '04-role-assignments-pim-eligible') {
+        $f = Join-Path $Folder "$name.json"
+        if (Test-Path -LiteralPath $f) { foreach ($a in @(Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable)) { if ($a -and $a['PrincipalUpn']) { $null = $adminSet.Add([string]$a['PrincipalUpn']) } } }
+    }
+    foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
+    $maxIps = 20000; $maxPolicyUsers = 5000
     $saveCheckpoint = { Save-PostureJsonFile -Path $checkpointPath -InputObject $state -Confirm:$false }
-    $select = 'id,createdDateTime,userPrincipalName,appDisplayName,clientAppUsed,isInteractive,conditionalAccessStatus,status,authenticationRequirement,riskLevelDuringSignIn,location'
+    $select = 'id,createdDateTime,userPrincipalName,appDisplayName,clientAppUsed,isInteractive,conditionalAccessStatus,status,authenticationRequirement,riskLevelDuringSignIn,location,ipAddress,appliedConditionalAccessPolicies'
     $legacySet = [System.Collections.Generic.HashSet[string]]::new([string[]]$script:PostureLegacyClientApps, [System.StringComparer]::OrdinalIgnoreCase)
     $bump = { param([hashtable] $Map, [string] $Key) if (-not $Key) { $Key = '(none)' }; $Map[$Key] = 1 + $(if ($Map.ContainsKey($Key)) { [long]$Map[$Key] } else { 0 }) }
 
@@ -78,13 +88,44 @@ function Invoke-PostureSignInCollection {
             & $bump $state.byCaStatus ([string]$r['conditionalAccessStatus'])
             if ($created.Length -ge 10) { & $bump $state.byDay $created.Substring(0, 10) }
             $loc = $r['location']; & $bump $state.byCountry $(if ($loc) { [string]$loc['countryOrRegion'] } else { '' })
-            $st = $r['status']; if ($st -and [int]$st['errorCode'] -ne 0) { $state.failures++ }
+            $st = $r['status']; $code = $(if ($st) { [int]$st['errorCode'] } else { 0 })
+            $upn = [string]$r['userPrincipalName']
+            if ($code -ne 0) {
+                $state.failures++
+                & $bump $state.errorCodes ([string]$code)
+                # Many accounts failing from one address is the password spray pattern; tracked for bad password and lockout.
+                if ($code -in 50126, 50053) {
+                    $ip = [string]$r['ipAddress']
+                    if ($ip -and ($state.failedByIp.ContainsKey($ip) -or $state.failedByIp.Count -lt $maxIps)) {
+                        if (-not $state.failedByIp.ContainsKey($ip)) { $state.failedByIp[$ip] = @{} }
+                        if ($state.failedByIp[$ip].Count -lt 1000) { $state.failedByIp[$ip][$upn] = 1 }
+                    }
+                    elseif ($ip) { $state.ipCapReached = $true }
+                }
+            }
+            # What each report-only policy would have done to this sign-in.
+            foreach ($pol in @($r['appliedConditionalAccessPolicies'])) {
+                if (-not $pol) { continue }
+                $res = [string]$pol['result']
+                if (-not $res.StartsWith('reportOnly') -or $res -eq 'reportOnlyNotApplied') { continue }
+                $policyId = [string]$pol['id']
+                if (-not $state.reportOnly.ContainsKey($policyId)) { $state.reportOnly[$policyId] = @{ name = [string]$pol['displayName']; wouldBlock = 0; wouldInterrupt = 0; wouldPass = 0; users = @{} } }
+                $ro = $state.reportOnly[$policyId]
+                switch ($res) { 'reportOnlyFailure' { $ro.wouldBlock++ } 'reportOnlyInterrupted' { $ro.wouldInterrupt++ } default { $ro.wouldPass++ } }
+                if ($res -ne 'reportOnlySuccess' -and $ro.users.Count -lt $maxPolicyUsers) { $ro.users[$upn] = 1 }
+            }
+            if ($adminSet.Contains($upn)) {
+                if (-not $state.admins.ContainsKey($upn)) { $state.admins[$upn] = @{ signIns = 0; singleFactor = 0; failures = 0; last = $created } }
+                $ad = $state.admins[$upn]; $ad.signIns++
+                if ([string]$r['authenticationRequirement'] -eq 'singleFactorAuthentication' -and $code -eq 0) { $ad.singleFactor++ }
+                if ($code -ne 0) { $ad.failures++ }
+                if ($created -gt [string]$ad.last) { $ad.last = $created }
+            }
             if ($r['isInteractive']) { $state.interactive++ }
             if ([string]$r['authenticationRequirement'] -eq 'multiFactorAuthentication') { $state.mfaRequired++ }
             $risk = [string]$r['riskLevelDuringSignIn']; if ($risk -and $risk -notin 'none', 'hidden', 'unknownFutureValue') { $state.risky++ }
             if ($legacySet.Contains($app)) {
                 $state.legacy++
-                $upn = [string]$r['userPrincipalName']
                 if (-not $state.legacyUsers.ContainsKey($upn)) { $state.legacyUsers[$upn] = @{ count = 0; apps = @{}; last = $created } }
                 $lu = $state.legacyUsers[$upn]; $lu.count++; & $bump $lu.apps $app; if ($created -gt [string]$lu.last) { $lu.last = $created }
             }
@@ -133,6 +174,11 @@ function Invoke-PostureSignInCollection {
         ByClientApp = (& $sorted $state.byClientApp); ByConditionalAccessStatus = (& $sorted $state.byCaStatus)
         ByDay = (& $byKey $state.byDay)
         ByCountry = (& $sorted $state.byCountry)
+        FailuresByErrorCode = (& $sorted $state.errorCodes)
+        ReportOnlyPolicies = @($state.reportOnly.Keys | ForEach-Object { $ro = $state.reportOnly[$_]; [ordered]@{ Id = $_; Name = $ro.name; WouldBlock = [long]$ro.wouldBlock; WouldInterrupt = [long]$ro.wouldInterrupt; WouldPass = [long]$ro.wouldPass; UsersAffected = $ro.users.Count } } | Sort-Object { - ($_.WouldBlock + $_.WouldInterrupt) })
+        AdminSignIns = @($state.admins.Keys | ForEach-Object { $ad = $state.admins[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$ad.signIns; SingleFactor = [long]$ad.singleFactor; Failures = [long]$ad.failures; LastSignIn = $ad.last } } | Sort-Object { - $_.SingleFactor }, { - $_.SignIns })
+        SprayAddresses = @($state.failedByIp.Keys | Where-Object { $state.failedByIp[$_].Count -ge 10 } | ForEach-Object { [ordered]@{ IpAddress = $_; AccountsFailed = $state.failedByIp[$_].Count } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
+        SprayTrackingCapped = [bool]$state.ipCapReached
     }
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-summary' -InputObject $summary))
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-legacy-users' -InputObject $legacyRows -AsArray -Csv))

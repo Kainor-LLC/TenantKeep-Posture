@@ -88,6 +88,8 @@ Describe 'Sign-in log collector' {
                     @{ id = "s$i"; createdDateTime = ([datetime]'2026-11-20T12:00:00Z').AddSeconds(-$i * 10).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); userPrincipalName = "user$($i % 50)@contoso.example"
                         clientAppUsed = $(if ($i % 10 -eq 0) { 'IMAP4' } else { 'Browser' }); isInteractive = $true; conditionalAccessStatus = $(if ($i % 2) { 'success' } else { 'notApplied' })
                         status = @{ errorCode = $(if ($i % 25 -eq 0) { 50126 } else { 0 }) }; authenticationRequirement = 'singleFactorAuthentication'; riskLevelDuringSignIn = 'none'; location = @{ countryOrRegion = 'US' }
+                        ipAddress = $(if ($i % 25 -eq 0) { '203.0.113.7' } else { '198.51.100.1' })
+                        appliedConditionalAccessPolicies = @(@{ id = 'p1'; displayName = 'Require MFA for everyone'; result = $(if ($i % 4 -eq 0) { 'reportOnlyInterrupted' } else { 'reportOnlySuccess' }) }, @{ id = 'p2'; displayName = 'Block legacy'; result = 'reportOnlyNotApplied' })
                     }
                 })
             $script:Page = {
@@ -104,6 +106,7 @@ Describe 'Sign-in log collector' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             param($root)
             $f = Join-Path $root 'signins-full'; New-Item -ItemType Directory -Path $f | Out-Null
+            @(@{ PrincipalUpn = 'user0@contoso.example'; Role = 'Global Administrator' }) | ConvertTo-Json -AsArray | Set-Content (Join-Path $f '04-role-assignments-active.json')
             Mock Invoke-MgGraphRequest { $m = [regex]::Match($Uri, 'skip=(\d+)'); & $script:Page $(if ($m.Success) { [int]$m.Groups[1].Value } else { 0 }) }
             $null = Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z')
             $s = Get-Content -Raw (Join-Path $f '06-signins-summary.json') | ConvertFrom-Json -AsHashtable
@@ -113,6 +116,16 @@ Describe 'Sign-in log collector' {
             $s.Failures | Should -Be 100
             $s.ByConditionalAccessStatus.notApplied | Should -Be 1250
             $s.ByCountry.US | Should -Be 2500
+            $ro = @($s.ReportOnlyPolicies)
+            $ro.Count | Should -Be 1 -Because 'a policy that did not apply is not an impact'
+            $ro[0].Name | Should -Be 'Require MFA for everyone'
+            $ro[0].WouldInterrupt | Should -Be 625
+            $ro[0].UsersAffected | Should -Be 25 -Because 'every fourth sign-in, over fifty users, lands on each of the 25 even-numbered users'
+            $admin = @($s.AdminSignIns)[0]
+            $admin.UserPrincipalName | Should -Be 'user0@contoso.example'
+            $admin.SignIns | Should -Be 50
+            @($s.SprayAddresses).Count | Should -Be 0 -Because 'two accounts failing from one address is below the spray threshold of ten'
+            $s.FailuresByErrorCode.'50126' | Should -Be 100
             @((Get-Content -Raw (Join-Path $f '06-signins-legacy-users.json') | ConvertFrom-Json)).Count | Should -Be 5
             Join-Path $f '.signins-checkpoint.json' | Should -Not -Exist -Because 'a finished read leaves no checkpoint'
             Should -Invoke Invoke-MgGraphRequest -Times 1 -Exactly -ParameterFilter { $Uri -match 'top=1000' -and $Uri -match 'select=' -and $Uri -match 'createdDateTime ge' }
