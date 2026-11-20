@@ -64,6 +64,10 @@ function Get-PostureHybridFact {
     $facts.machineAccountQuota = [int](& $v $forest 'MachineAccountQuota')
     $facts.minPasswordLength = [int](& $v $forest 'PasswordPolicy.MinPasswordLength'); $facts.lockoutThreshold = [int](& $v $forest 'PasswordPolicy.LockoutThreshold'); $facts.reversibleEncryption = (& $v $forest 'PasswordPolicy.ReversibleEncryptionEnabled') -eq $true
     $facts.passwordPolicyOk = $facts.minPasswordLength -ge [int]$t.minPasswordLength -and $facts.lockoutThreshold -gt 0 -and -not $facts.reversibleEncryption
+    # NIST SP 800-63B: no periodic change. A maximum age of zero, or the effectively unlimited value, means never.
+    $maxAge = [double](& $v $forest 'PasswordPolicy.MaxPasswordAgeDays')
+    $facts.adPasswordMaxAgeDays = [int][Math]::Min($maxAge, 99999)
+    $facts.adPasswordsExpire = ($maxAge -gt 0 -and $maxAge -lt 3650)
 
     $dcs = & $load 'ad-02-domain-controllers'
     if ($null -eq $dcs) { & $adMissing @('HY-022') 'ad-02-domain-controllers' }

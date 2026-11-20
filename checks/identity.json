@@ -567,6 +567,215 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.1.1v1"
       }
+    },
+    {
+      "id": "ID-017",
+      "domain": "identity",
+      "title": "Cloud passwords do not expire on a schedule",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-domains.json"
+      ],
+      "pass": "facts.domainsWithPasswordExpiry == 0",
+      "affected": "facts.domainsWithPasswordExpiry",
+      "remediation": [
+        "In the Microsoft 365 admin center, Settings, Org settings, Security and privacy, Password expiration policy, set passwords to never expire.",
+        "Keep MFA and the banned password list doing the work periodic changes used to do; force a change only when a password is known or suspected to be compromised."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People stop being made to change their password every few months."
+      },
+      "learn": "https://learn.microsoft.com/microsoft-365/admin/manage/set-password-expiration-policy",
+      "deepLink": "https://admin.microsoft.com/#/Settings/SecurityPrivacy/:/Settings/L1/PasswordPolicy",
+      "narrative": "NIST SP 800-63B and Microsoft both advise against periodic password changes: people respond with predictable variations (Spring2026!, Summer2026!) that attackers guess first. Expiry adds help desk calls and no protection once MFA is in place; a change belongs after a suspected compromise.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": "MS.AAD.6.1v1"
+      }
+    },
+    {
+      "id": "ID-018",
+      "domain": "identity",
+      "title": "Custom banned password list in use",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "facts.bannedPasswordCheckEnabled && facts.bannedPasswordCount > 0",
+      "remediation": [
+        "In Entra, Authentication methods, Password protection, set Enforce custom list to Yes.",
+        "Add the words people reach for here: the organisation's name and abbreviations, products, sports teams and the city. Up to 1,000 terms; Microsoft also blocks variations and its own global list."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People choosing a new password that contains a blocked word are asked to pick another."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/concept-password-ban-bad",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/PasswordProtection",
+      "narrative": "NIST SP 800-63B asks for new passwords to be checked against words likely to be guessed. Microsoft's global list covers common passwords; only the custom list knows the organisation's own name, products and places, which are the first words a password spray tries.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "ID-019",
+      "domain": "identity",
+      "title": "Password protection enforced on-premises",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "facts.bannedPasswordOnPremEnforced",
+      "remediation": [
+        "Install the Entra Password Protection proxy service and the domain controller agent on every domain controller (verify the agents report in the Entra admin center).",
+        "In Entra, Password protection, set Enable password protection on Windows Server Active Directory to Yes and the mode to Enforced, after a period in Audit."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People changing an on-premises password to a banned word are asked to pick another, the same as in the cloud."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/howto-password-ban-bad-on-premises-operations",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/PasswordProtection",
+      "narrative": "With synced identities the password is set in Active Directory, so the cloud banned list only protects what changes in the cloud. The agents carry the same list to the domain controllers; in Audit mode they only log.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "ID-020",
+      "domain": "identity",
+      "title": "Guests cannot invite other guests",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.guestsCanInviteGuests",
+      "remediation": [
+        "In Entra, External Identities, External collaboration settings, set Guest invite settings to Only users assigned to specific admin roles can invite guest users, or Member users and users assigned to specific admin roles.",
+        "Give the Guest Inviter role to the people who bring in partners, if members should not invite freely."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Guests can no longer invite other guests; members and guest inviters invite as before."
+      },
+      "learn": "https://learn.microsoft.com/entra/external-id/external-collaboration-settings-configure",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/Settings",
+      "narrative": "When guests can invite guests, one compromised or careless partner account can bring in anyone, and nobody in the organisation approved them. Keeping invitations with members or named inviters keeps a person accountable for every guest.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.AAD.8.2v1"
+      }
+    },
+    {
+      "id": "ID-021",
+      "domain": "identity",
+      "title": "Guest access limited to their own objects",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.guestAccessAsMembers",
+      "remediation": [
+        "In Entra, External Identities, External collaboration settings, set Guest user access to Guest user access is restricted to properties and memberships of their own directory objects (most restrictive), or at least limited access."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Guests keep working in the teams and sites they were invited to; they just cannot browse the directory."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/users/users-restrict-guest-permissions",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/Settings",
+      "narrative": "A guest with the same directory access as members can list every user, group and device, which is reconnaissance for phishing and a map of the organisation. Restricted access is CISA's baseline and breaks nothing guests normally do.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": "MS.AAD.8.1v1"
+      }
+    },
+    {
+      "id": "ID-022",
+      "domain": "identity",
+      "title": "Outbound guest access to other tenants reviewed",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-cross-tenant-access-defaults.json"
+      ],
+      "pass": "!facts.crossTenantOutboundDefaultOpen",
+      "remediation": [
+        "In Entra, External Identities, Cross-tenant access settings, Default settings, review Outbound access settings for B2B collaboration.",
+        "Block the default and allow the partner organisations people work with under Organizational settings, or limit the default to a group.",
+        "If the open default is intended, record it as an accepted risk with the reason."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "People can accept guest invitations only from the partner organisations allowed; others are refused at sign-in."
+      },
+      "learn": "https://learn.microsoft.com/entra/external-id/cross-tenant-access-settings-b2b-collaboration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/CrossTenantAccessSettings",
+      "narrative": "By default every user can accept a guest invitation to any other Microsoft 365 tenant and take the organisation's files into it under their work identity. Allowing only known partners closes a quiet exfiltration route that data loss prevention does not watch.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

@@ -13,7 +13,7 @@ BeforeAll {
     & $w '01-domains' @(@{ Id = 'contoso.example'; AuthenticationType = 'Managed' })
     & $w 'az-08-entra-connect-health' @(@{ Name = 'AadSyncService-contoso'; Type = 'AadSyncService'; Health = 'Healthy'; ActiveAlerts = 2 })
     # AD side, as the Windows collector writes it. Every value is made up.
-    & $w 'ad-01-forest-domain' @{ ForestFunctionalLevel = 'Windows2016Forest'; DomainFunctionalLevel = 'Windows2012R2Domain'; RecycleBinEnabled = $true; MachineAccountQuota = 10; PasswordPolicy = @{ MinPasswordLength = 8; LockoutThreshold = 10; ReversibleEncryptionEnabled = $false } }
+    & $w 'ad-01-forest-domain' @{ ForestFunctionalLevel = 'Windows2016Forest'; DomainFunctionalLevel = 'Windows2012R2Domain'; RecycleBinEnabled = $true; MachineAccountQuota = 10; PasswordPolicy = @{ MaxPasswordAgeDays = 42; MinPasswordLength = 8; LockoutThreshold = 10; ReversibleEncryptionEnabled = $false } }
     & $w 'ad-01-trusts' @(@{ Name = 'partner.example'; Direction = 'Outbound'; TrustType = 'Uplevel'; SidFilteringQuarantined = $false; SidFilteringForestAware = $false; IntraForest = $false }, @{ Name = 'child.contoso.example'; Direction = 'BiDirectional'; TrustType = 'Uplevel'; SidFilteringQuarantined = $false; SidFilteringForestAware = $false; IntraForest = $true })
     & $w 'ad-02-domain-controllers' @(@{ Name = 'DC01'; OperatingSystem = 'Windows Server 2022 Standard'; Supported = $true }, @{ Name = 'DC02'; OperatingSystem = 'Windows Server 2012 R2 Standard'; Supported = $false })
     & $w 'ad-03-privileged-groups' @(
@@ -43,7 +43,7 @@ Describe 'Hybrid checks from the Windows collector files' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates 25 checks' { $script:Run.results.Count | Should -Be 25 }
+    It 'evaluates 26 checks' { $script:Run.results.Count | Should -Be 26 }
 
     It 'gives <Id> status <Status>' -ForEach @(
         @{ Id = 'HY-001'; Status = 'pass' }
@@ -71,6 +71,7 @@ Describe 'Hybrid checks from the Windows collector files' {
         @{ Id = 'HY-028'; Status = 'fail' }
         @{ Id = 'HY-029'; Status = 'fail' }
         @{ Id = 'HY-030'; Status = 'fail' }
+        @{ Id = 'HY-031'; Status = 'fail' }
     ) { $script:By[$Id].status | Should -Be $Status -Because ($script:By[$Id].reason) }
 
     It 'names the affected objects' {

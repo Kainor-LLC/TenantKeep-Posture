@@ -140,6 +140,38 @@ function Get-PostureIdentityFact {
         $facts.userConsentMode = if ($grants.Count -eq 0) { 'none' } elseif ($grants -match 'microsoft-user-default-low') { 'low' } else { 'all' }
         $facts.userConsentPolicies = ($grants -join ', ')
     }
+    if ($null -eq $authz) { & $missing 'ID-020' '02-authorization-policy'; & $missing 'ID-021' '02-authorization-policy' }
+    else {
+        # Who can invite guests, and what guests can see: guests inviting guests, and guests with member access, are
+        # the two settings that open the directory.
+        $facts.guestInviteSetting = [string](& $v $authz 'allowInvitesFrom')
+        $facts.guestsCanInviteGuests = $facts.guestInviteSetting -eq 'everyone'
+        $roleOf = @{ '2af84b1e-32c8-42b7-82bc-daa82404023b' = 'restricted'; '10dae51f-b6af-4016-8d66-8c2a99b929b3' = 'limited'; 'a0b1b346-4d3e-4e8b-98f8-753987be4970' = 'same as members' }
+        $gr = [string](& $v $authz 'guestUserRoleId')
+        $facts.guestAccessLevel = $(if ($roleOf.ContainsKey($gr)) { $roleOf[$gr] } else { 'unknown' })
+        $facts.guestAccessAsMembers = $facts.guestAccessLevel -eq 'same as members'
+    }
+
+    # NIST SP 800-63B: no periodic password change. Each managed verified domain's expiry, 2147483647 meaning never.
+    $doms = & $load '01-domains'
+    if ($null -eq $doms) { & $missing 'ID-017' '01-domains' }
+    elseif (@($doms | Where-Object { $_ }).Count -and @($doms | Where-Object { $_ -and (& $v $_ 'IsVerified') -eq $true -and ($_ -is [System.Collections.IDictionary]) -and $_.Contains('PasswordValidityPeriodInDays') }).Count -eq 0) { $notEvaluated['ID-017'] = '01-domains.json was collected before TenantKeep read password expiry. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+    else {
+        $expiring = @($doms | Where-Object { $_ -and (& $v $_ 'IsVerified') -eq $true -and [string](& $v $_ 'AuthenticationType') -ne 'Federated' -and $null -ne (& $v $_ 'PasswordValidityPeriodInDays') -and [long](& $v $_ 'PasswordValidityPeriodInDays') -lt 2147483647 })
+        $facts.domainsWithPasswordExpiry = $expiring.Count
+        $affected.domainsWithPasswordExpiry = @($expiring | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Id'); detail = "passwords expire every $(& $v $_ 'PasswordValidityPeriodInDays') days" } })
+    }
+    # Entra Password Protection: the custom banned list, and enforcement on-premises for hybrid identity.
+    $dirSettings = & $load '02-directory-settings'
+    if ($null -eq $dirSettings) { & $missing 'ID-018' '02-directory-settings'; & $missing 'ID-019' '02-directory-settings' }
+    else {
+        $pr = @($dirSettings | Where-Object { $_ -and [string](& $v $_ 'TemplateId') -eq '5cf42378-d67d-4f36-ba46-e8b86229381d' })
+        $pv = $(if ($pr.Count) { & $v $pr[0] 'Values' } else { $null })
+        $facts.bannedPasswordCheckEnabled = [bool]($pv -and [string](& $v $pv 'EnableBannedPasswordCheck') -eq 'True')
+        $facts.bannedPasswordCount = $(if ($pv) { [int](& $v $pv 'BannedPasswordCount') } else { 0 })
+        $facts.bannedPasswordOnPremEnforced = [bool]($pv -and [string](& $v $pv 'EnableBannedPasswordCheckOnPremises') -eq 'True' -and [string](& $v $pv 'BannedPasswordCheckOnPremisesMode') -eq 'Enforce')
+    }
+
     $consent = & $load '02-admin-consent-request-policy'
     if ($null -eq $consent) { & $missing 'ID-009' '02-admin-consent-request-policy' }
     else {
@@ -190,7 +222,11 @@ function Get-PostureIdentityFact {
         $allAppsAllowed = ((& $v $appsIn 'accessType') -eq 'allowed') -and [bool](@(& $v $appsIn 'targets') | Where-Object { (& $v $_ 'target') -eq 'AllApplications' })
         $facts.crossTenantInboundDefaultOpen = ($allUsersAllowed -and $allAppsAllowed)
         $facts.crossTenantInboundTrustMfa = [bool](& $v $xtap 'inboundTrust.isMfaAccepted')
+        # Outbound: whether everyone may accept guest invitations to any other tenant, for any app.
+        $usersOut = & $v $xtap 'b2bCollaborationOutbound.usersAndGroups'; $appsOut = & $v $xtap 'b2bCollaborationOutbound.applications'
+        $facts.crossTenantOutboundDefaultOpen = (((& $v $usersOut 'accessType') -eq 'allowed') -and [bool](@(& $v $usersOut 'targets') | Where-Object { (& $v $_ 'target') -eq 'AllUsers' })) -and (((& $v $appsOut 'accessType') -eq 'allowed') -and [bool](@(& $v $appsOut 'targets') | Where-Object { (& $v $_ 'target') -eq 'AllApplications' }))
     }
+    if ($null -eq $xtap) { & $missing 'ID-022' '02-cross-tenant-access-defaults' }
 
     $risky = & $load '11-risky-users'
     if ($null -eq $risky) { $notEvaluated['ID-015'] = '11-risky-users.json was not collected (needs Entra ID P2 and IdentityRiskyUser.Read.All).' }

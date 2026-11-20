@@ -949,6 +949,45 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "HY-031",
+      "domain": "hybrid",
+      "title": "Domain passwords do not expire on a schedule",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "ad-01-forest-domain.json"
+      ],
+      "pass": "!facts.adPasswordsExpire",
+      "remediation": [
+        "Set Maximum password age to 0 (never) in the Default Domain Policy, once MFA and Entra Password Protection on-premises are in place (ID-019).",
+        "Keep a stricter fine-grained policy for service and admin accounts that need rotation by design, and rotate those with a vault."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People stop being made to change their Windows password every few weeks."
+      },
+      "learn": "https://learn.microsoft.com/windows/security/threat-protection/security-policy-settings/maximum-password-age",
+      "deepLink": "https://learn.microsoft.com/windows/security/threat-protection/security-policy-settings/maximum-password-age",
+      "narrative": "NIST SP 800-63B advises against periodic password changes; they produce predictable patterns and help desk calls. With a long minimum length, a banned list and MFA, a change belongs after a suspected compromise, not on a calendar.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

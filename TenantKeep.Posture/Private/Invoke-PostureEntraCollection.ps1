@@ -88,6 +88,17 @@ function Invoke-PostureEntraCollection {
         } | Out-Null
     }
 
+    Invoke-PostureStep -Label 'Directory settings' -Folder $Folder -Script {
+        # Tenant-wide directory settings, among them Entra Password Protection (Password Rule Settings). The custom
+        # banned password list is kept as a count: its words are often the organisation's own names.
+        $settings = & $get 'groupSettings'
+        & $save @($settings | ForEach-Object {
+                $vals = [ordered]@{}
+                foreach ($x in @(& $v $_ 'values')) { $n = [string](& $v $x 'name'); $val = [string](& $v $x 'value'); if ($n -eq 'BannedPasswordList') { $vals.BannedPasswordCount = @($val -split "[`t,;`r`n]+" | Where-Object { $_.Trim() }).Count } else { $vals[$n] = $val } }
+                [ordered]@{ DisplayName = (& $v $_ 'displayName'); TemplateId = (& $v $_ 'templateId'); Values = $vals }
+            }) '02-directory-settings'
+    } | Out-Null
+
     # ---------- 4. Privileged roles ----------
     Invoke-PostureStep -Label 'Role assignments' -Folder $Folder -Script {
         # isPrivileged is beta-only on unifiedRoleDefinition; v1.0 rejects it in $select.

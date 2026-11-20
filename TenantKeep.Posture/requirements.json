@@ -498,6 +498,16 @@
         "DeviceManagementServiceConfig.Read.All"
       ],
       "licence": "Microsoft Intune Plan 1"
+    },
+    {
+      "collector": "Entra",
+      "match": "^Directory settings$",
+      "roles": [
+        "Global Reader"
+      ],
+      "scopes": [
+        "Directory.Read.All"
+      ]
     }
   ]
 }

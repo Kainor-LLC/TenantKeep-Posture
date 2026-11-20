@@ -23,6 +23,7 @@ BeforeAll {
             '^admin/sharepoint/settings$' { @{ sharingCapability = 'externalUserSharingOnly'; isResharingByExternalUsersEnabled = $false }; break }
             '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
+            '^groupSettings' { & $u @(@{ displayName = 'Password Rule Settings'; templateId = '5cf42378-d67d-4f36-ba46-e8b86229381d'; values = @(@{ name = 'EnableBannedPasswordCheck'; value = 'True' }, @{ name = 'BannedPasswordList'; value = "contoso`tcontosoltd`tseattle" }, @{ name = 'BannedPasswordCheckOnPremisesMode'; value = 'Audit' }) }); break }
             '^organization/[^/?]+/branding' { @{ backgroundImageRelativeUrl = 'bg.png'; bannerLogoRelativeUrl = 'logo.png'; signInPageText = 'Contoso staff only' }; break }
             '^deviceManagement/windowsAutopilotDeploymentProfiles' { & $u @(@{ id = 'ap1'; displayName = 'Standard'; '@odata.type' = '#microsoft.graph.azureADWindowsAutopilotDeploymentProfile'; deviceNameTemplate = 'CTS-%SERIAL%'; assignments = @(@{ id = 'a1' }) }); break }
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
@@ -404,6 +405,9 @@ Describe 'Invoke-PostureCollection' {
             $s.DisabledWithLicenses | Should -Be 1
             $s.PendingGuestInvites | Should -Be 1
             $s.SignInActivityAvailable | Should -BeFalse
+            $ds = @(& $script:Read '02-directory-settings')[0]
+            $ds.Values.BannedPasswordCount | Should -Be 3
+            ($ds | ConvertTo-Json -Depth 5) | Should -Not -Match 'seattle' -Because 'the banned words are the organisation''s own names; only the count is kept'
             $lp = & $script:Read '06-users-license-plans'
             $lp.LicensedEnabledUsers | Should -Be 1 -Because 'the disabled user does not count'
             $lp.UsersByServicePlan.AAD_PREMIUM | Should -Be 1

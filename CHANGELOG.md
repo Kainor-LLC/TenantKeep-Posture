@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Passwords to NIST and guest settings (2026-11-20): ID-017 cloud passwords do not expire on a schedule, ID-018 a
+  custom banned password list in use, ID-019 Password Protection enforced on-premises (hybrid), ID-020 guests cannot
+  invite guests, ID-021 guest access limited, ID-022 outbound guest access to other tenants reviewed, HY-031 domain
+  passwords do not expire on a schedule. The Entra collector reads the directory settings, keeping the banned
+  password list as a count only.
 - User experience domain (2026-11-20): ten improvement checks on how smoothly people work, each with what users
   notice: OneDrive signs people in and moves their folders silently, Edge sign-in not turned off, the Enrollment
   Status Page shows progress, Windows settings backup and restore, Autopilot device naming, a branded sign-in page,
