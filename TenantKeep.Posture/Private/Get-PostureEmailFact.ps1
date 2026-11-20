@@ -211,11 +211,11 @@ function Get-PostureEmailFact {
 
         $shared = @($m | Where-Object { [string]$_.RecipientTypeDetails -eq 'SharedMailbox' })
         $facts.sharedMailboxes = $shared.Count
-        $users = & $load '06-users'
-        if ($null -eq $users) { $notEvaluated['EM-018'] = '06-users.json was not collected (Entra collector); the shared mailbox sign-in state needs it.' }
+        # Only the shared mailboxes' accounts, read a row at a time from the users file, not every user.
+        $accounts = Find-PostureEvidenceRow -Folder $Evidence -Name '06-users' -Key 'Id' -Value @($shared | ForEach-Object { [string]$_.ExternalDirectoryObjectId })
+        if ($null -eq $accounts) { $notEvaluated['EM-018'] = '06-users.json was not collected (Entra collector); the shared mailbox sign-in state needs it.' }
         else {
-            $enabledIds = @{}; foreach ($u in @(& $rows $users | Where-Object { $_.AccountEnabled -eq $true })) { $enabledIds[[string]$u.Id] = $true }
-            $signIn = @($shared | Where-Object { $_.ExternalDirectoryObjectId -and $enabledIds.ContainsKey([string]$_.ExternalDirectoryObjectId) })
+            $signIn = @($shared | Where-Object { $id = [string]$_.ExternalDirectoryObjectId; $id -and $accounts.ContainsKey($id) -and [string]$accounts[$id].AccountEnabled -eq 'True' })
             $facts.sharedMailboxesSignInEnabled = $signIn.Count
             $affected.sharedMailboxesSignInEnabled = @($signIn | ForEach-Object { [ordered]@{ name = [string]$_.UserPrincipalName; detail = 'shared mailbox whose account is enabled for sign-in' } })
         }

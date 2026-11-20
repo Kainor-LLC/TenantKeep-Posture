@@ -35,72 +35,90 @@ function Get-PostureDevicesFact {
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Intune; check errors.txt and the scopes)." } }
 
-    # Entra devices (08)
-    $entra = & $load '08-entra-devices'
-    if ($null -eq $entra) { & $missing @('DEV-002', 'DEV-003', 'DEV-005') '08-entra-devices' }
+    # Entra devices (08): one pass, a row at a time, every count and affected list built on the way.
+    $keys = & $load '08-bitlocker-keys-by-device'
+    $withKey = @{}; foreach ($k in @($keys | Where-Object { $_ })) { $withKey[[string]$k.DeviceId] = [int]$k.Keys }
+    $e = @{ enabled = 0; entraJoined = 0; hybridJoined = 0; registered = 0; windows = 0; escrowed = 0 }
+    $staleList = [System.Collections.Generic.List[object]]::new(); $noKey = [System.Collections.Generic.List[object]]::new()
+    $haveEntra = Read-PostureEvidenceRow -Folder $Evidence -Name '08-entra-devices' -OnRow {
+        param($_row)
+        $row = $_row
+        if ([string]$row.AccountEnabled -eq 'False') { return }
+        $e.enabled++
+        switch ([string]$row.JoinType) { 'EntraJoined' { $e.entraJoined++ } 'HybridJoined' { $e.hybridJoined++ } 'Registered' { $e.registered++ } }
+        if (Test-PostureTrue $row.Stale) { $staleList.Add([ordered]@{ name = $row.DisplayName; detail = "$($row.JoinType), $($row.OperatingSystem), last sign-in $(if ($row.ApproximateLastSignInDateTime) { (ConvertTo-PostureUtcDateTime $row.ApproximateLastSignInDateTime).ToString('yyyy-MM-dd') } else { 'never' })" }) }
+        if ([string]$row.OperatingSystem -eq 'Windows' -and [string]$row.JoinType -in @('EntraJoined', 'HybridJoined')) {
+            $e.windows++
+            if ($withKey.ContainsKey([string]$row.DeviceId)) { $e.escrowed++ } else { $noKey.Add([ordered]@{ name = $row.DisplayName; detail = 'no BitLocker recovery key in Entra' }) }
+        }
+    }
+    if (-not $haveEntra) { & $missing @('DEV-002', 'DEV-003', 'DEV-005') '08-entra-devices' }
     else {
-        $enabled = @($entra | Where-Object { $_ -and $_.AccountEnabled -ne $false })
-        $facts.entraDevices = $enabled.Count
-        $facts.entraJoined = @($enabled | Where-Object { $_.JoinType -eq 'EntraJoined' }).Count
-        $facts.hybridJoined = @($enabled | Where-Object { $_.JoinType -eq 'HybridJoined' }).Count
-        $facts.registered = @($enabled | Where-Object { $_.JoinType -eq 'Registered' }).Count
-        $facts.hybridJoinedPct = $(if ($enabled.Count -gt 0) { & $pct $facts.hybridJoined $enabled.Count } else { 0 })
-        $stale = @($enabled | Where-Object { $_.Stale -eq $true })
-        $facts.staleEntraDevices = $stale.Count
-        $affected.staleEntraDevices = @($stale | ForEach-Object { [ordered]@{ name = $_.DisplayName; detail = "$($_.JoinType), $($_.OperatingSystem), last sign-in $(if ($_.ApproximateLastSignInDateTime) { (ConvertTo-PostureUtcDateTime $_.ApproximateLastSignInDateTime).ToString('yyyy-MM-dd') } else { 'never' })" } })
-
-        $keys = & $load '08-bitlocker-keys-by-device'
-        $windows = @($enabled | Where-Object { $_.OperatingSystem -eq 'Windows' -and $_.JoinType -in @('EntraJoined', 'HybridJoined') })
+        $facts.entraDevices = $e.enabled
+        $facts.entraJoined = $e.entraJoined; $facts.hybridJoined = $e.hybridJoined; $facts.registered = $e.registered
+        $facts.hybridJoinedPct = $(if ($e.enabled -gt 0) { & $pct $e.hybridJoined $e.enabled } else { 0 })
+        $facts.staleEntraDevices = $staleList.Count
+        $affected.staleEntraDevices = @($staleList)
         if ($null -eq $keys) { & $missing @('DEV-005') '08-bitlocker-keys-by-device' }
         else {
-            $withKey = @{}; foreach ($k in @($keys | Where-Object { $_ })) { $withKey[[string]$k.DeviceId] = [int]$k.Keys }
-            $escrowed = @($windows | Where-Object { $withKey.ContainsKey([string]$_.DeviceId) })
-            $facts.windowsEntraDevices = $windows.Count
-            $facts.bitlockerEscrowedPct = $(if ($windows.Count -gt 0) { & $pct $escrowed.Count $windows.Count } else { 100 })
-            $affected.windowsDevicesWithoutBitLockerKey = @($windows | Where-Object { -not $withKey.ContainsKey([string]$_.DeviceId) } | ForEach-Object { [ordered]@{ name = $_.DisplayName; detail = 'no BitLocker recovery key in Entra' } })
+            $facts.windowsEntraDevices = $e.windows
+            $facts.bitlockerEscrowedPct = $(if ($e.windows -gt 0) { & $pct $e.escrowed $e.windows } else { 100 })
+            $affected.windowsDevicesWithoutBitLockerKey = @($noKey)
         }
     }
 
-    # Intune managed devices (09)
-    $managed = & $load '09-intune-managed-devices'
-    if ($null -eq $managed) { & $missing @('DEV-001', 'DEV-004', 'DEV-006', 'DEV-007', 'DEV-014') '09-intune-managed-devices' }
-    else {
-        $m = @($managed | Where-Object { $_ })
-        $facts.managedDevices = $m.Count
-        $known = @($m | Where-Object { $_.ComplianceState -in @('compliant', 'noncompliant', 'inGracePeriod', 'conflict', 'error') })
-        $compliant = @($known | Where-Object { $_.ComplianceState -eq 'compliant' })
-        $facts.intuneCompliancePct = $(if ($known.Count -gt 0) { & $pct $compliant.Count $known.Count } else { $null })
-        $byPlat = [ordered]@{}
-        foreach ($os in @($m | ForEach-Object { $_.OperatingSystem } | Sort-Object -Unique)) {
-            $k = @($known | Where-Object { $_.OperatingSystem -eq $os }); $c = @($k | Where-Object { $_.ComplianceState -eq 'compliant' })
-            $byPlat[[string]$os] = $(if ($k.Count -gt 0) { & $pct $c.Count $k.Count } else { $null })
+    # Intune managed devices (09): one pass as well.
+    $i = @{ total = 0; known = 0; compliant = 0; windows = 0; autopilot = 0; macs = 0; macsEncrypted = 0; linux = 0 }
+    $plat = @{}
+    $noncompliant = [System.Collections.Generic.List[object]]::new(); $macsOpen = [System.Collections.Generic.List[object]]::new(); $win10 = [System.Collections.Generic.List[object]]::new()
+    $states = @('compliant', 'noncompliant', 'inGracePeriod', 'conflict', 'error')
+    $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow {
+        param($_row)
+        $row = $_row
+        $i.total++
+        $os = [string]$row.OperatingSystem
+        if (-not $plat.ContainsKey($os)) { $plat[$os] = @{ known = 0; compliant = 0 } }
+        $state = [string]$row.ComplianceState
+        if ($state -in $states) {
+            $i.known++; $plat[$os].known++
+            if ($state -eq 'compliant') { $i.compliant++; $plat[$os].compliant++ }
+            else { $noncompliant.Add([ordered]@{ name = $row.DeviceName; detail = "$($row.OperatingSystem) $($row.OSVersion), $($row.ComplianceState), user $($row.UserPrincipalName)" }) }
         }
+        if ($os -eq 'Windows') {
+            $i.windows++
+            if (Test-PostureTrue $row.AutopilotEnrolled) { $i.autopilot++ }
+            if ([string]$row.OSVersion -match '^10\.0\.1\d{4}') { $win10.Add([ordered]@{ name = $row.DeviceName; detail = "Windows build $($row.OSVersion)" }) }
+        }
+        if ($os -eq 'macOS') { $i.macs++; if (Test-PostureTrue $row.IsEncrypted) { $i.macsEncrypted++ } else { $macsOpen.Add([ordered]@{ name = $row.DeviceName; detail = 'FileVault not reported as enabled' }) } }
+        if ($os -match '(?i)linux|ubuntu') { $i.linux++ }
+    }
+    if (-not $haveManaged) { & $missing @('DEV-001', 'DEV-004', 'DEV-006', 'DEV-007', 'DEV-014') '09-intune-managed-devices' }
+    else {
+        $facts.managedDevices = $i.total
+        $facts.intuneCompliancePct = $(if ($i.known -gt 0) { & $pct $i.compliant $i.known } else { $null })
+        $byPlat = [ordered]@{}
+        foreach ($os in @($plat.Keys | Sort-Object)) { $byPlat[$os] = $(if ($plat[$os].known -gt 0) { & $pct $plat[$os].compliant $plat[$os].known } else { $null }) }
         $facts.compliancePctByPlatform = $byPlat
-        $affected.noncompliantDevices = @($known | Where-Object { $_.ComplianceState -ne 'compliant' } | ForEach-Object { [ordered]@{ name = $_.DeviceName; detail = "$($_.OperatingSystem) $($_.OSVersion), $($_.ComplianceState), user $($_.UserPrincipalName)" } })
+        $affected.noncompliantDevices = @($noncompliant)
         if ($null -eq $facts.intuneCompliancePct) { $notEvaluated['DEV-001'] = 'No Intune managed devices with a compliance state.' }
 
-        $win = @($m | Where-Object { $_.OperatingSystem -eq 'Windows' })
-        $facts.windowsManagedDevices = $win.Count
+        $facts.windowsManagedDevices = $i.windows
         $auto = & $load '09-autopilot-devices'
         if ($null -eq $auto) { & $missing @('DEV-004') '09-autopilot-devices' }
         else {
-            $autoCount = @($win | Where-Object { $_.AutopilotEnrolled -eq $true }).Count
             $facts.autopilotRegistered = @($auto | Where-Object { $_ }).Count
-            $facts.autopilotPct = $(if ($win.Count -gt 0) { & $pct $autoCount $win.Count } else { $null })
+            $facts.autopilotPct = $(if ($i.windows -gt 0) { & $pct $i.autopilot $i.windows } else { $null })
             if ($null -eq $facts.autopilotPct) { $notEvaluated['DEV-004'] = 'No Windows devices managed by Intune.' }
         }
 
-        $macs = @($m | Where-Object { $_.OperatingSystem -eq 'macOS' })
-        $facts.macManagedDevices = $macs.Count
-        $facts.macEncryptedPct = $(if ($macs.Count -gt 0) { & $pct @($macs | Where-Object { $_.IsEncrypted -eq $true }).Count $macs.Count } else { $null })
-        $affected.macsNotEncrypted = @($macs | Where-Object { $_.IsEncrypted -ne $true } | ForEach-Object { [ordered]@{ name = $_.DeviceName; detail = 'FileVault not reported as enabled' } })
+        $facts.macManagedDevices = $i.macs
+        $facts.macEncryptedPct = $(if ($i.macs -gt 0) { & $pct $i.macsEncrypted $i.macs } else { $null })
+        $affected.macsNotEncrypted = @($macsOpen)
         if ($null -eq $facts.macEncryptedPct) { $notEvaluated['DEV-006'] = 'No macOS devices managed by Intune.' }
 
-        $win10 = @($win | Where-Object { [string]$_.OSVersion -match '^10\.0\.1\d{4}' })
         $facts.windows10Devices = $win10.Count
-        $affected.windows10Devices = @($win10 | ForEach-Object { [ordered]@{ name = $_.DeviceName; detail = "Windows build $($_.OSVersion)" } })
-
-        $facts.linuxManagedDevices = @($m | Where-Object { $_.OperatingSystem -match '(?i)linux|ubuntu' }).Count
+        $affected.windows10Devices = @($win10)
+        $facts.linuxManagedDevices = $i.linux
     }
 
     # Apple certificates

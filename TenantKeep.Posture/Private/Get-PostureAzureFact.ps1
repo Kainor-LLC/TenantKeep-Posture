@@ -137,10 +137,14 @@ function Get-PostureAzureFact {
     if ($null -eq $ra) { & $missing @('AZ-011', 'AZ-012', 'AZ-013', 'AZ-014', 'AZ-015', 'AZ-018') 'az-05-role-assignments' }
     else {
         $a = @(& $rows $ra)
-        $users = & $load '06-users'; $groups = & $load '07-groups'; $sps = & $load '10-service-principals'
-        $userById = @{}; foreach ($u in @(& $rows $users)) { $userById[[string]$u.Id] = $u }
-        $groupIds = @{}; foreach ($g in @(& $rows $groups)) { $groupIds[[string]$g.Id] = $g }
-        $spById = @{}; foreach ($sp in @(& $rows $sps)) { $spById[[string]$sp.Id] = $sp }
+        # Only the principals the assignments name, read a row at a time from each list, not every user, group and app.
+        $principalIds = @($a | ForEach-Object { [string]$_.PrincipalId } | Sort-Object -Unique)
+        $users = Find-PostureEvidenceRow -Folder $Evidence -Name '06-users' -Key 'Id' -Value $principalIds
+        $groups = Find-PostureEvidenceRow -Folder $Evidence -Name '07-groups' -Key 'Id' -Value $principalIds
+        $sps = Find-PostureEvidenceRow -Folder $Evidence -Name '10-service-principals' -Key 'Id' -Value $principalIds
+        $userById = $(if ($null -ne $users) { $users } else { @{} })
+        $groupIds = $(if ($null -ne $groups) { $groups } else { @{} })
+        $spById = $(if ($null -ne $sps) { $sps } else { @{} })
         $who = { param($x) $id = [string]$x.PrincipalId; if ($userById.ContainsKey($id)) { [string]$userById[$id].UserPrincipalName } elseif ($spById.ContainsKey($id)) { [string]$spById[$id].DisplayName } elseif ($groupIds.ContainsKey($id)) { [string]$groupIds[$id].DisplayName } else { "$($x.PrincipalType) $id" } }
 
         # AZ-011 owners per subscription (direct plus inherited from management group and root)

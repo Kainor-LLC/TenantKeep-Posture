@@ -212,12 +212,17 @@ function Invoke-PostureEntraCollection {
     # kept, for the per-user MFA step. Nothing holds the whole user list.
     $memberIds = [System.Collections.Generic.List[object]]::new()
     $adminUsers = [System.Collections.Generic.List[object]]::new()
+    # Break-glass candidates for ID-005: every role holder (a break-glass account holds Global Administrator) and any
+    # account named like one. Small, so the check never needs the full user list.
+    $breakGlass = [System.Collections.Generic.List[object]]::new()
     Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
         $base = 'id,userPrincipalName,displayName,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
         $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
         $read = {
             param([string] $Select)
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users' -Csv -Confirm:$false
+            # Guests only, the columns ID-012 reads: the inactive guest check reads this instead of every user.
+            $guestStream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users-guests' -Csv -Confirm:$false
             try {
                 $null = Invoke-PostureGraphRequest -Uri "users?`$select=$Select&`$top=999" -ApiVersion 'v1.0' -Label 'Users' -OnPage {
                     param($page)
@@ -232,7 +237,10 @@ function Invoke-PostureEntraCollection {
                             LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
                         }
                         Add-PostureEvidenceRow -Stream $stream -Row $row
-                        if ($adminUpns.Contains([string]$row.UserPrincipalName)) { $adminUsers.Add($row) }
+                        $isAdmin = $adminUpns.Contains([string]$row.UserPrincipalName)
+                        if ($isAdmin) { $adminUsers.Add($row) }
+                        if ($isAdmin -or [string]$row.UserPrincipalName -match '(?i)break.?glass|emergency' -or [string]$row.DisplayName -match '(?i)break.?glass|emergency') { $breakGlass.Add($row) }
+                        if ($row.UserType -eq 'Guest') { Add-PostureEvidenceRow -Stream $guestStream -Row ([ordered]@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName; DisplayName = $row.DisplayName; AccountEnabled = $row.AccountEnabled; CreatedDateTime = $row.CreatedDateTime; ExternalUserState = $row.ExternalUserState; LastInteractiveSignIn = $row.LastInteractiveSignIn }) }
                         $member = $row.UserType -eq 'Member'; $guest = $row.UserType -eq 'Guest'; $enabled = [bool]$row.AccountEnabled
                         $old = $(if ($last) { (& $date $last) -lt $cutoff } else { $false })
                         $c.Total++
@@ -247,17 +255,19 @@ function Invoke-PostureEntraCollection {
                     }
                 }
                 $files.Add((Close-PostureEvidenceStream -Stream $stream))
+                $files.Add((Close-PostureEvidenceStream -Stream $guestStream))
             }
-            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; Stop-PostureEvidenceStream -Stream $guestStream -Confirm:$false; throw }
         }
         try { & $read "$base,signInActivity" }
         catch {
             Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
             foreach ($k in @($c.Keys)) { $c[$k] = 0 }
-            $memberIds.Clear(); $adminUsers.Clear()
+            $memberIds.Clear(); $adminUsers.Clear(); $breakGlass.Clear()
             & $read $base
         }
         & $save @($adminUsers) '06-users-admins'
+        & $save @($breakGlass) '06-users-breakglass-candidates'
         $summary = [ordered]@{}
         foreach ($k in 'Total', 'Members', 'Guests', 'Synced', 'CloudOnlyMembers', 'Disabled', 'DisabledWithLicenses', 'EnabledInactiveMembers', 'EnabledNeverSignedIn', 'InactiveGuests', 'PendingGuestInvites') { $summary[$k] = $c[$k] }
         $summary.SignInActivityAvailable = $c.WithSignIn -gt 0

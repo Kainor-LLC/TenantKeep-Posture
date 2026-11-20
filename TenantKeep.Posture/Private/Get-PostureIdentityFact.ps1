@@ -38,10 +38,17 @@ function Get-PostureIdentityFact {
 
     $active = & $load '04-role-assignments-active'
     $eligible = & $load '04-role-assignments-pim-eligible'
-    $users = & $load '06-users'
     $usersSummary = & $load '06-users-summary'
-    $usersByUpn = @{}; $usersById = @{}
-    foreach ($u in @($users | Where-Object { $_ })) { if ($u.UserPrincipalName) { $usersByUpn[[string]$u.UserPrincipalName] = $u }; if ($u.Id) { $usersById[[string]$u.Id] = $u } }
+    # The collector's slim files (admins, break-glass candidates, guests) instead of every user; the full list only for
+    # runs made before them.
+    $adminRows = & $load '06-users-admins'; $bgRows = & $load '06-users-breakglass-candidates'; $guestRows = & $load '06-users-guests'
+    $users = $null
+    if ($null -eq $adminRows -or $null -eq $bgRows -or $null -eq $guestRows) { $users = & $load '06-users' }
+    if ($null -eq $adminRows) { $adminRows = $users }
+    if ($null -eq $bgRows) { $bgRows = $users }
+    if ($null -eq $guestRows -and $null -ne $users) { $guestRows = @($users | Where-Object { $_ -and $_.UserType -eq 'Guest' }) }
+    $usersByUpn = @{}
+    foreach ($u in @($adminRows | Where-Object { $_ })) { if ($u.UserPrincipalName) { $usersByUpn[[string]$u.UserPrincipalName] = $u } }
 
     # Break-glass accounts: profile list first, else name heuristic over users.
     $bgNames = @($OrgProfile['breakGlass'] | Where-Object { $_ })
@@ -73,7 +80,7 @@ function Get-PostureIdentityFact {
         $affected.adminsSyncedFromOnPrem = @($synced | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = 'synced from on-premises AD' } })
 
         $adminUsers = @($permanent | Where-Object { $_.PrincipalType -eq 'user' -and $_.PrincipalUpn } | ForEach-Object { $_.PrincipalUpn } | Sort-Object -Unique)
-        if ($null -eq $users) { & $missing 'ID-004' '06-users' }
+        if ($null -eq $adminRows) { & $missing 'ID-004' '06-users' }
         else {
             $licensed = @($adminUsers | Where-Object { $usersByUpn.ContainsKey($_) -and [int]$usersByUpn[$_].LicenseCount -gt 0 -and -not (& $isBreakGlassUser $_ $usersByUpn[$_].DisplayName) })
             $facts.adminsWithLicenses = $licensed.Count
@@ -86,9 +93,9 @@ function Get-PostureIdentityFact {
         $affected.servicePrincipalsWithRoles = @($spRoles | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = 'service principal holding a directory role' } })
     }
 
-    if ($null -eq $users) { & $missing 'ID-005' '06-users' }
+    if ($null -eq $bgRows) { & $missing 'ID-005' '06-users' }
     else {
-        $bg = @($users | Where-Object { & $isBreakGlassUser $_.UserPrincipalName $_.DisplayName })
+        $bg = @($bgRows | Where-Object { $_ -and (& $isBreakGlassUser $_.UserPrincipalName $_.DisplayName) })
         $facts.breakGlassAccounts = $bg.Count
         $facts.breakGlassSynced = @($bg | Where-Object { $_.OnPremisesSyncEnabled -eq $true }).Count
         $facts.breakGlassDisabled = @($bg | Where-Object { $_.AccountEnabled -eq $false }).Count
@@ -164,13 +171,13 @@ function Get-PostureIdentityFact {
         $affected.highPrivilegeAppPermissions = @($hits | ForEach-Object { [ordered]@{ name = "$($_.PrincipalDisplayName): $($_.Permission)"; detail = "application permission granted $((& $v $_ 'CreatedDateTime'))" } })
     }
 
-    if ($null -eq $usersSummary -or $null -eq $users) { & $missing 'ID-012' '06-users-summary' }
+    if ($null -eq $usersSummary -or $null -eq $guestRows) { & $missing 'ID-012' '06-users-summary' }
     elseif (-not (& $v $usersSummary 'SignInActivityAvailable')) { $notEvaluated['ID-012'] = 'Sign-in activity was not available (AuditLog.Read.All), so guest inactivity cannot be measured.' }
     else {
         $cutoff = $AsOf.AddDays(-[int]$t.inactiveGuestDays)
-        $inactive = @($users | Where-Object { $_.UserType -eq 'Guest' -and (-not $_.LastInteractiveSignIn -or (ConvertTo-PostureUtcDateTime $_.LastInteractiveSignIn) -lt $cutoff) })
+        $inactive = @($guestRows | Where-Object { $_ -and (-not $_.LastInteractiveSignIn -or (ConvertTo-PostureUtcDateTime $_.LastInteractiveSignIn) -lt $cutoff) })
         $facts.inactiveGuests = $inactive.Count
-        $facts.guests = @($users | Where-Object { $_.UserType -eq 'Guest' }).Count
+        $facts.guests = @($guestRows | Where-Object { $_ }).Count
         $affected.inactiveGuests = @($inactive | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = $(if ($_.LastInteractiveSignIn) { "last sign-in $((ConvertTo-PostureUtcDateTime $_.LastInteractiveSignIn).ToString('yyyy-MM-dd'))" } else { 'never signed in' }) } })
     }
 

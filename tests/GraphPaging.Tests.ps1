@@ -262,3 +262,41 @@ Describe 'Per-user MFA on a large tenant' {
     }
 }
 
+Describe 'Checks read large lists a row at a time' {
+    It 'gives the device checks the same facts from the CSV as from the JSON of older runs' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            Mock Write-Host { }
+            $f = Join-Path $root 'devices-equal'; New-Item -ItemType Directory -Path $f | Out-Null
+            $entra = @(for ($n = 0; $n -lt 300; $n++) { [ordered]@{ Id = "e$n"; DeviceId = "d$n"; DisplayName = "PC-$n"; OperatingSystem = $(if ($n % 3) { 'Windows' } else { 'macOS' }); AccountEnabled = ($n % 50 -ne 0); JoinType = @('EntraJoined', 'HybridJoined', 'Registered')[$n % 3]; Stale = ($n % 7 -eq 0); ApproximateLastSignInDateTime = '2026-01-01T00:00:00Z' } })
+            $managed = @(for ($n = 0; $n -lt 300; $n++) { [ordered]@{ DeviceName = "PC-$n"; OperatingSystem = @('Windows', 'macOS', 'iOS')[$n % 3]; OSVersion = $(if ($n % 2) { '10.0.19045.1' } else { '10.0.26100.1' }); ComplianceState = @('compliant', 'noncompliant', 'unknown')[$n % 3]; AutopilotEnrolled = ($n % 4 -eq 0); IsEncrypted = ($n % 5 -ne 0); UserPrincipalName = "u$n@contoso.example" } })
+            $null = Write-PostureEvidence -Folder $f -Name '08-entra-devices' -InputObject $entra -AsArray -Csv
+            $null = Write-PostureEvidence -Folder $f -Name '09-intune-managed-devices' -InputObject $managed -AsArray -Csv
+            $null = Write-PostureEvidence -Folder $f -Name '08-bitlocker-keys-by-device' -InputObject @(@{ DeviceId = 'd1'; Keys = 1 }) -AsArray
+            $null = Write-PostureEvidence -Folder $f -Name '09-autopilot-devices' -InputObject @() -AsArray
+            $fromCsv = Get-PostureDevicesFact -Evidence $f
+            Clear-PostureEvidenceCache -Confirm:$false
+            Remove-Item (Join-Path $f '*.csv')
+            $fromJson = Get-PostureDevicesFact -Evidence $f
+            ($fromCsv.facts | ConvertTo-Json -Depth 5 -Compress) | Should -Be ($fromJson.facts | ConvertTo-Json -Depth 5 -Compress)
+            ($fromCsv.affected | ConvertTo-Json -Depth 5 -Compress) | Should -Be ($fromJson.affected | ConvertTo-Json -Depth 5 -Compress)
+            $fromCsv.facts.staleEntraDevices | Should -BeGreaterThan 0
+            $fromCsv.facts.windows10Devices | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'finds a handful of rows by id without loading the list, and says when the list was not collected' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            Mock Write-Host { }
+            $f = Join-Path $root 'find-rows'; New-Item -ItemType Directory -Path $f | Out-Null
+            $null = Write-PostureEvidence -Folder $f -Name '06-users' -InputObject @(for ($n = 0; $n -lt 1000; $n++) { [ordered]@{ Id = "u$n"; UserPrincipalName = "u$n@contoso.example"; AccountEnabled = ($n % 2 -eq 0) } }) -AsArray -Csv
+            $hit = Find-PostureEvidenceRow -Folder $f -Name '06-users' -Key Id -Value @('u2', 'u3', 'missing')
+            @($hit.Keys | Sort-Object) | Should -Be @('u2', 'u3')
+            Test-PostureTrue $hit['u2'].AccountEnabled | Should -BeTrue
+            Test-PostureTrue $hit['u3'].AccountEnabled | Should -BeFalse
+            Find-PostureEvidenceRow -Folder $f -Name 'not-collected' -Key Id -Value @('x') | Should -BeNullOrEmpty
+        }
+    }
+}
+
