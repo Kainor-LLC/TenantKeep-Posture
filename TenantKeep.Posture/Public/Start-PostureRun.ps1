@@ -152,6 +152,17 @@ function Start-PostureRun {
         if ($exo.status -eq 'missing') { foreach ($n in $child) { $skipped[$n] = $exo.message }; $child = @() }
     }
 
+    # Roles before a long run: what will come back empty, and what to grant. The run goes on either way.
+    $coverage = @()
+    try { $coverage = @(Test-PostureRoleCoverage -Collector (@($main) + @($localPlan) + @($child))) }
+    catch { Write-Verbose "Role check skipped: $($_.Exception.Message)" }
+    $short = @($coverage | Where-Object { $_.Status -eq 'missing' })
+    foreach ($row in $coverage) {
+        $colour = @{ ok = 'Green'; missing = 'Yellow'; unknown = 'DarkGray' }[$row.Status]
+        Write-Host ('  {0,-11} {1}' -f $row.Collector, $row.Detail) -ForegroundColor $colour
+    }
+    if ($short.Count -gt 0) { Write-Host "  $($short.Count) domain(s) will come back incomplete. Grant the role and run again, or carry on and use Resume-PostureRun after. PIM roles count once activated." -ForegroundColor Yellow }
+
     $awake = $(if ($AllowSleep) { $null } else { Enable-PostureKeepAwake })
     if ($awake) { Write-Host "Keeping this computer awake until the run ends ($($awake['method'])); a closed lid still sleeps." }
     $folder = $null

@@ -50,6 +50,22 @@ Describe 'Why a step failed' {
         }
     }
 
+    It 'checks the account''s roles before the run: ok, missing with what to grant, unknown for role groups' {
+        InModuleScope TenantKeep.Posture {
+            Mock Assert-PostureGraphScope { @{ Scopes = @('Directory.Read.All') } }
+            Mock Invoke-PostureGraphRequest { @(@{ displayName = 'Security Reader' }) }
+            $rows = @(Test-PostureRoleCoverage -Collector Entra, Defender, Exchange, Azure)
+            ($rows | Where-Object Collector -eq 'Defender').Status | Should -Be 'ok'
+            $entra = $rows | Where-Object Collector -eq 'Entra'
+            $entra.Status | Should -Be 'missing'
+            $entra.Detail | Should -Match 'needs Global Reader; you have Security Reader'
+            ($rows | Where-Object Collector -eq 'Exchange').Status | Should -Be 'unknown' -Because 'View-Only Organization Management is an Exchange role group Graph cannot see'
+            ($rows | Where-Object Collector -eq 'Azure').Status | Should -Be 'unknown'
+            Mock Invoke-PostureGraphRequest { @(@{ displayName = 'Global Administrator' }) }
+            @(Test-PostureRoleCoverage -Collector Entra, Intune | Where-Object Status -ne 'ok').Count | Should -Be 0
+        }
+    }
+
     It 'writes the failure to errors.jsonl with its cause and role, and reads old errors.txt lines too' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             param($root)

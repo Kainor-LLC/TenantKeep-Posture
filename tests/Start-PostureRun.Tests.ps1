@@ -40,6 +40,7 @@ Describe 'Start-PostureRun' {
             Mock Enable-PostureKeepAwake { $script:Calls.Add('awake'); @{ method = 'test'; process = $null } }
             Mock Disable-PostureKeepAwake { $script:Calls.Add('sleep-ok') }
             Mock Write-Progress { }
+            Mock Test-PostureRoleCoverage { @() }
             Mock New-PostureProfile { $script:Calls.Add('profile'); Set-Content -LiteralPath $Path -Value (@{ tenantId = $script:TestTid; clientName = $ClientName } | ConvertTo-Json) }
             Mock New-PostureReport {
                 $script:Calls.Add("report:$(if ($Previous) { Split-Path $Previous -Leaf } else { 'none' })")
