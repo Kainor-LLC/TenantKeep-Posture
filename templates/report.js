@@ -88,6 +88,33 @@
     var count = $('checks-count'); if (count) { count.textContent = shown + ' of ' + rows.length; }
   }
   [search, fStatus, fDomain, fSev].forEach(function (el) { if (el) { el.addEventListener('input', applyFilters); el.addEventListener('change', applyFilters); } });
+  // Licensing: recompute the options when goals or vendor toggles change (templates/licensing.js); nothing is saved.
+  var licData = $('data-licensing') ? JSON.parse($('data-licensing').textContent) : null;
+  var live = $('advice-live');
+  function adviceState() {
+    var goals = Array.prototype.slice.call(document.querySelectorAll('.adv-goal:checked')).map(function (c) { return c.value; });
+    var tp = {}; Object.keys(licData.thirdParty || {}).forEach(function (k) { tp[k] = licData.thirdParty[k]; });
+    Array.prototype.slice.call(document.querySelectorAll('.adv-cat')).forEach(function (c) {
+      var name = document.querySelector('.adv-name[data-cat="' + c.value + '"]');
+      tp[c.value] = c.checked ? ((name && name.value.trim()) || 'another product') : 'none';
+    });
+    return { goals: goals, thirdParty: tp, seats: licData.seats };
+  }
+  function renderAdvice() {
+    if (!licData || !live || typeof tkLicenseAdvice !== 'function') { return; }
+    var a = tkLicenseAdvice(licData, adviceState());
+    var goalName = {}; licData.goals.forEach(function (g) { goalName[g.id] = g.name; });
+    var forEl = $('advice-for'); if (forEl) { forEl.textContent = 'For ' + (adviceState().goals.length ? 'the goals ticked below' : 'the core goals') + ': ' + a.goals.map(function (id) { return goalName[id]; }).join('; ') + '.'; }
+    if (a.met) { live.innerHTML = '<p class="banner ready"><strong>Covered.</strong> The licences you hold, with the products you named, include every feature these goals need. The work is configuration: see Recommendations.</p>'; return; }
+    var cards = a.options.map(function (o) {
+      return '<div class="advice-card"><h4>' + esc(o.title) + '</h4><ul class="advice-skus">' + o.skus.map(function (s) { return '<li><strong>' + esc(s.name) + '</strong> <code class="tech">' + esc(s.sku) + '</code>' + (s.verify ? ' <span class="tech">(verify: ' + esc(s.verify) + ')</span>' : '') + '</li>'; }).join('') + '</ul>' +
+        (o.adds.length ? '<p><strong>Adds</strong> ' + esc(o.adds.join(', ')) + '.</p>' : '') +
+        (o.redundant.length ? '<p class="muted"><strong>Already covered</strong> ' + esc(o.redundant.map(function (r) { return r.name + ' (' + r.vendor + ')'; }).join(', ')) + '.</p>' : '') +
+        (o.alsoIncludes.length ? '<p class="muted"><strong>Also includes</strong> ' + esc(o.alsoIncludes.join(', ')) + '.</p>' : '') + '</div>';
+    }).join('');
+    live.innerHTML = '<p>Missing: ' + esc(a.missing.map(function (g) { return g.join(' or '); }).join('; ')) + '.</p><div class="advice-options">' + cards + '</div><p class="hint">For ' + licData.seats + ' licensed users. Compare these with your Microsoft partner; prices and eligibility are theirs to quote.</p>';
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.adv-goal, .adv-cat, .adv-name')).forEach(function (el) { el.addEventListener(el.type === 'text' ? 'input' : 'change', renderAdvice); });
   // Licensing: show only the goals not covered.
   var unmetOnly = $('goals-unmet-only');
   if (unmetOnly) { unmetOnly.addEventListener('change', function () { var g = document.querySelector('.goal-cards'); if (g) { g.classList.toggle('unmet-only', unmetOnly.checked); } }); }

@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- What To Add recomputes in the page (2026-11-20): tick goals or say another product covers a category (EDR, email,
+  web gateway, private access, device management) and the options redraw; nothing is saved. The page runs the same
+  search as the module (templates/licensing.js, kept equal by a test that runs it under node). Add-ons sold only on
+  a base licence (the business suites on Business Premium, the Purview Suite on E3) are offered only with it.
 - Licensing options side by side (2026-11-20): for the chosen goals, What To Add now lists options: the fewest add-ons,
   the add-ons that bring nothing another vendor already covers, and suite upgrades with the add-ons they still need
   (for example Microsoft 365 E5 with ID Governance). Each says what it adds, what is already covered by the

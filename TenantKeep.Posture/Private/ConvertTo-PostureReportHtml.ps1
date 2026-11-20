@@ -50,7 +50,7 @@ function ConvertTo-PostureReportHtml {
     $domainLabel = @{}; foreach ($d in @($r.domains) + @($r.domainsNotCollected)) { $domainLabel[[string]$d.key] = [string]$d.label }
     $dl = { param([string] $k) if ($domainLabel.ContainsKey($k)) { $domainLabel[$k] } else { $k } }
     $css = Get-Content -LiteralPath (Get-PostureTemplatePath -Name 'report.css') -Raw
-    $js = Get-Content -LiteralPath (Get-PostureTemplatePath -Name 'report.js') -Raw
+    $js = (Get-Content -LiteralPath (Get-PostureTemplatePath -Name 'licensing.js') -Raw) + "`n" + (Get-Content -LiteralPath (Get-PostureTemplatePath -Name 'report.js') -Raw)
     $font = if ($b.font) { [string]$b.font } else { 'Inter, Helvetica, Arial, sans-serif' }
     $override = ":root { --primary: $(& $safeColor ([string]$b.colors.primary) '#1F3A5F'); --accent: $(& $safeColor ([string]$b.colors.accent) '#E8A33D'); --font: $(& $h ($font -replace '[^A-Za-z0-9 ,\-]', '')); }"
 
@@ -463,7 +463,13 @@ function ConvertTo-PostureReportHtml {
             $ad = $la.advice
             $goalNames = @{}; foreach ($g in $la.goals) { $goalNames[[string]$g.id] = $g.name }
             $forWhat = $(if ($ad.goalSource -eq 'profile') { 'the goals in your profile' } else { 'the core goals (set your own with New-PostureProfile -Goal)' })
-            & $w ('<div class="advisor"><h3>What To Add</h3><p class="hint">For ' + (& $h $forWhat) + ': ' + (& $h (@($ad.goals | ForEach-Object { $goalNames[[string]$_] }) -join '; ')) + '.</p>')
+            & $w ('<div class="advisor"><h3>What To Add</h3><p class="hint" id="advice-for">For ' + (& $h $forWhat) + ': ' + (& $h (@($ad.goals | ForEach-Object { $goalNames[[string]$_] }) -join '; ')) + '.</p>')
+            # Controls: change the goals or say another product covers a category; the page recomputes, nothing is saved.
+            $catLabel = [ordered]@{ edr = 'Endpoint detection and response (instead of Defender for Endpoint)'; email = 'Email security (instead of Defender for Office 365)'; swg = 'Secure web gateway (instead of Entra Internet Access)'; ztna = 'Zero trust network access (instead of Entra Private Access)'; mdm = 'Device management (instead of Intune)' }
+            $tp = $(if ($la.Contains('page')) { $la.page.thirdParty } else { @{} })
+            $ctl = '<details class="advisor-controls"><summary>Change the goals or the products you already use</summary><div class="ctl-grid"><fieldset><legend>Goals</legend>' + (@($la.goals | ForEach-Object { '<label><input type="checkbox" class="adv-goal" value="' + (& $h $_.id) + '"' + $(if ($_.id -in @($ad.goals)) { ' checked' }) + '> ' + (& $h $_.name) + '</label>' }) -join '') + '</fieldset><fieldset><legend>Covered by another product</legend>' + (@($catLabel.Keys | ForEach-Object { $vn = $(if ($tp.Contains($_) -and $tp[$_] -and $tp[$_] -ne 'none') { [string]$tp[$_] } else { '' }); '<label class="adv-vendor"><input type="checkbox" class="adv-cat" value="' + $_ + '"' + $(if ($vn) { ' checked' }) + '> ' + (& $h $catLabel[$_]) + ' <input type="text" class="adv-name" data-cat="' + $_ + '" value="' + (& $h $vn) + '" placeholder="product name" aria-label="Product for ' + $_ + '"></label>' }) -join '') + '</fieldset></div><p class="hint">Nothing here is saved. To keep a change, set it in the profile: New-PostureProfile -Goal ... -ThirdParty @{ edr = ''CrowdStrike'' }.</p></details>'
+            & $w $ctl
+            & $w '<div id="advice-live">'
             if ($ad.met) { & $w '<p class="banner ready"><strong>Covered.</strong> The licences you hold include every feature these goals need. The work is configuration: see Recommendations.</p>' }
             else {
                 & $w ('<p>Missing: ' + (& $h (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; ')) + '.</p><div class="advice-options">')
@@ -477,7 +483,7 @@ function ConvertTo-PostureReportHtml {
                 & $w ('</div><p class="hint">For ' + $ad.seats + ' licensed users. Compare these with your Microsoft partner; prices and eligibility are theirs to quote.</p>')
                 foreach ($pq in @($ad.prerequisite)) { & $w ('<p class="hint">' + (& $h $pq) + '</p>') }
             }
-            & $w ('<p class="hint">' + (& $h $ad.note) + '</p></div>')
+            & $w ('</div><p class="hint">' + (& $h $ad.note) + '</p></div>')
         }
         # Seats per SKU.
         $seatRows = @($r.licensing | Where-Object { $_.purchased -gt 0 })
@@ -576,6 +582,7 @@ function ConvertTo-PostureReportHtml {
     & $w (& $jsonBlock 'data-attestations' $r.attestations)
     & $w (& $jsonBlock 'data-meta' ([ordered]@{ tenantId = $r.tenantId; clientName = $r.clientName; generatedUtc = $r.generatedUtc; licenceId = $(if ($r.licence) { $r.licence.licenceId } else { $null }) }))
     if ($r.Contains('findings') -and $r.findings) { & $w (& $jsonBlock 'tenantkeep-findings' $r.findings) }
+    if ($r.Contains('licenseAdvice') -and $r.licenseAdvice -and $r.licenseAdvice.Contains('page')) { & $w (& $jsonBlock 'data-licensing' $r.licenseAdvice.page) }
     & $w (& $jsonBlock 'data-labels' ([ordered]@{ facts = $catLabels.facts; status = $statusLabel; domains = $domainLabel; frameworks = $frameworkLabel; methods = $methodLabel; thresholds = $thresholdLabel }))
     & $w "<script>`n$js`n</script>"
     & $w '</body></html>'

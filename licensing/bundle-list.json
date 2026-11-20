@@ -1,5 +1,5 @@
 {
-  "description": "The SKUs the advisor compares, hand-kept. build.ps1 -Task LicensingData turns this list and Microsoft's service plan CSV into bundles.json (name and features per SKU). A SKU missing from the CSV carries its plans here and is marked verify.",
+  "description": "The SKUs the advisor compares, hand-kept. build.ps1 -Task LicensingData turns this list and Microsoft's service plan CSV into bundles.json (name and features per SKU). A SKU missing from the CSV carries its plans here and is marked verify. requiresBase: the base SKUs an add-on is sold on top of (any one); the advisor offers it only with one of them, held or in the same option (verify against Microsoft's prerequisites).",
   "reviewed": "2026-11-20",
   "skus": [
     {
@@ -53,12 +53,21 @@
     {
       "sku": "IDENTITY_THREAT_PROTECTION",
       "kind": "addon",
-      "name": "Microsoft Defender Suite (was Microsoft 365 E5 Security)"
+      "name": "Microsoft Defender Suite (was Microsoft 365 E5 Security)",
+      "requiresBase": [
+        "SPE_E3",
+        "ENTERPRISEPACK",
+        "SPB"
+      ]
     },
     {
       "sku": "INFORMATION_PROTECTION_COMPLIANCE",
       "kind": "addon",
-      "name": "Microsoft Purview Suite (was Microsoft 365 E5 Compliance)"
+      "name": "Microsoft Purview Suite (was Microsoft 365 E5 Compliance)",
+      "requiresBase": [
+        "SPE_E3",
+        "ENTERPRISEPACK"
+      ]
     },
     {
       "sku": "DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW",
@@ -73,7 +82,10 @@
         "WINDEFATP",
         "ADALLOM_S_STANDALONE"
       ],
-      "verify": "Not in Microsoft's CSV as of 2026-11-20; plans read from a live subscription. Sold to Business Premium customers."
+      "verify": "Not in Microsoft's CSV as of 2026-11-20; plans read from a live subscription. Sold to Business Premium customers.",
+      "requiresBase": [
+        "SPB"
+      ]
     },
     {
       "sku": "PURVIEW_SUITE_FOR_BUSINESS",
@@ -90,7 +102,10 @@
         "ediscoveryPremium",
         "commsCompliance"
       ],
-      "verify": "SKU id and plans not in Microsoft's CSV as of 2026-11-20; features from Microsoft's product page. Needs Business Premium."
+      "verify": "SKU id and plans not in Microsoft's CSV as of 2026-11-20; features from Microsoft's product page. Needs Business Premium.",
+      "requiresBase": [
+        "SPB"
+      ]
     },
     {
       "sku": "DEFENDER_PURVIEW_SUITES_FOR_BUSINESS",
@@ -115,7 +130,10 @@
         "ediscoveryPremium",
         "commsCompliance"
       ],
-      "verify": "Sold as a bundle of the two business suites; SKU id not in Microsoft's CSV as of 2026-11-20. Needs Business Premium."
+      "verify": "Sold as a bundle of the two business suites; SKU id not in Microsoft's CSV as of 2026-11-20. Needs Business Premium.",
+      "requiresBase": [
+        "SPB"
+      ]
     },
     {
       "sku": "AAD_PREMIUM",

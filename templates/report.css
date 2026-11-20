@@ -281,7 +281,7 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .advisor h3 { margin-top: 0; }
 .advice-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 8px 0; }
 .advice-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--soft); }
-.advice-card h4 { margin: 0 0 6px; }
+.advice-card h4 { margin: 0 0 6px; text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--fg); }
 .advice-card ul { margin: 0; padding-left: 18px; }
 .seats { display: grid; gap: 8px; }
 .seat-row { display: grid; grid-template-columns: minmax(160px, 1fr) auto; gap: 3px 10px; align-items: center; font-size: 13px; }
@@ -343,4 +343,11 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 table.heatmap { width: auto; min-width: 100%; }
 table.heatmap td.hm { text-align: center; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--c1) var(--hm), var(--card)); }
 table.heatmap td.hm.dark { color: #fff; }
+.advisor-controls { margin: 8px 0 10px; }
+.advisor-controls summary { cursor: pointer; color: var(--info); font-size: 14px; }
+.ctl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 8px; }
+.ctl-grid fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 4px; font-size: 13px; }
+.ctl-grid legend { font-weight: 600; padding: 0 4px; }
+.adv-vendor { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; align-items: center; }
+.adv-vendor input[type="text"] { grid-column: 2; font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
 

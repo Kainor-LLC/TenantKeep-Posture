@@ -22,7 +22,10 @@ function Get-PostureLicenseAdvice {
         [int] $LicensedUsers = 0,
         # The profile's thirdParty: category to vendor ('none' or empty means none). A feature whose coveredBy names a
         # category with a vendor counts as covered for goals and as redundant in a bundle.
-        [System.Collections.IDictionary] $ThirdParty = @{}
+        [System.Collections.IDictionary] $ThirdParty = @{},
+        # The SKU part numbers the tenant holds: an add-on sold only on top of a base (the business suites on
+        # Business Premium) is offered only when the base is held or is in the same option.
+        [string[]] $OwnedSku = @()
     )
 
     $ErrorActionPreference = 'Stop'
@@ -72,9 +75,10 @@ function Get-PostureLicenseAdvice {
     # The fewest add-ons (0 to -Max) that close every gap on top of -Base; on a tie the smallest purchase, then the
     # bundle made for a business of this size.
     $search = {
-        param($base, [int] $max, [bool] $noRedundant = $false, $need = $groups)
+        param($base, [int] $max, [bool] $noRedundant = $false, $need = $groups, [string[]] $skusHeld = $OwnedSku)
         $baseSet = [System.Collections.Generic.HashSet[string]]::new([string[]]@($base))
         $cands = @($data.bundles | Where-Object { $_.kind -eq 'addon' -and (& $fits $_) -and @($_.features | Where-Object { -not $baseSet.Contains([string]$_) -and (& $isSecurity $_) }).Count })
+        $cands = @($cands | Where-Object { -not $_.Contains('requiresBase') -or @($_.requiresBase | Where-Object { $_ -in $skusHeld }).Count })
         # Optionally only add-ons that bring nothing a vendor already covers (P2 and ID Governance rather than Entra
         # Suite when another product does Global Secure Access's job).
         if ($noRedundant) { $cands = @($cands | Where-Object { @($_.features | Where-Object { $vendorOf.ContainsKey([string]$_) -and -not $owned.Contains([string]$_) }).Count -eq 0 }) }
@@ -86,7 +90,9 @@ function Get-PostureLicenseAdvice {
                     2 { for ($i = 0; $i -lt $cands.Count; $i++) { for ($j = $i + 1; $j -lt $cands.Count; $j++) { , @($cands[$i], $cands[$j]) } } }
                     3 { for ($i = 0; $i -lt $cands.Count; $i++) { for ($j = $i + 1; $j -lt $cands.Count; $j++) { for ($k = $j + 1; $k -lt $cands.Count; $k++) { , @($cands[$i], $cands[$j], $cands[$k]) } } } }
                 })
-            $ok = @($combos | Where-Object { & $coversAll $base $_ $need } | Sort-Object { @($_ | ForEach-Object { $_.features } | Sort-Object -Unique).Count }, { @($_ | Where-Object { -not $_.Contains('seatCap') }).Count }, { (@($_ | ForEach-Object { $_.sku }) -join ',') })
+            # Stable sort with no name key: templates/licensing.js runs the same search in the page, and culture-aware
+            # string order differs between PowerShell and JavaScript, so ties keep the bundle-list order.
+            $ok = @($combos | Where-Object { & $coversAll $base $_ $need } | Sort-Object -Stable { @($_ | ForEach-Object { $_.features } | Sort-Object -Unique).Count }, { @($_ | Where-Object { -not $_.Contains('seatCap') }).Count })
             if ($ok.Count) { return , @($ok[0]) }
         }
         return $null
@@ -116,11 +122,11 @@ function Get-PostureLicenseAdvice {
         $suiteOpts = foreach ($s in @($data.bundles | Where-Object { $_.kind -eq 'suite' -and (& $fits $_) })) {
             if (@($s.features | Where-Object { -not $owned.Contains([string]$_) -and (& $isSecurity $_) }).Count -eq 0) { continue }
             $base = @(@($s.features) + @($vendorOf.Keys))
-            $extra = & $search $base 2 $false $allGroups
+            $extra = & $search $base 2 $false $allGroups @($s.sku)
             if ($null -eq $extra) { continue }
             @{ suite = $s; extra = @($extra); n = @($extra).Count; size = @($s.features).Count }
         }
-        foreach ($so in @($suiteOpts | Sort-Object { $_.n }, { $_.size } | Select-Object -First 2)) {
+        foreach ($so in @($suiteOpts | Sort-Object -Stable { $_.n }, { $_.size } | Select-Object -First 2)) {
             $title = 'Move to ' + $so.suite.name + $(if ($so.n) { ' with ' + (@($so.extra | ForEach-Object { $_.name }) -join ' and ') } else { '' })
             $options.Add((& $describe 'suite' $title @(@($so.suite) + @($so.extra))))
         }
@@ -145,3 +151,32 @@ function Get-PostureLicenseAdvice {
         reviewed = $data.reviewed
     }
 }
+
+function Get-PostureLicensePageData {
+    <#
+    .SYNOPSIS
+        What templates/licensing.js needs to run the advisor in the page: the licensing data in the order the
+        PowerShell reads it, the features owned, the vendors, the seats and the profile's goals.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [string[]] $Owned,
+        [System.Collections.IDictionary] $ThirdParty = @{},
+        [int] $Seats = 0,
+        [string[]] $Goal = @(),
+        [string[]] $OwnedSku = @()
+    )
+    $ld = Get-PostureLicensingData
+    return [ordered]@{
+        features   = @($ld.features.Values | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; kind = $(if ($_.Contains('kind')) { $_.kind } else { 'security' }); coveredBy = $(if ($_.Contains('coveredBy')) { $_.coveredBy } else { $null }) } })
+        bundles    = @($ld.bundles | ForEach-Object { [ordered]@{ sku = $_.sku; name = $_.name; kind = $_.kind; features = @($_.features); seatCap = $(if ($_.Contains('seatCap')) { [int]$_.seatCap } else { $null }); verify = $(if ($_.Contains('verify')) { $_.verify } else { $null }); requiresBase = @($(if ($_.Contains('requiresBase')) { $_.requiresBase })) } })
+        goals      = @($ld.goals | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; core = [bool]$_.core; needs = @($_.needs | ForEach-Object { , @($_) }) } })
+        owned      = @($Owned)
+        thirdParty = $ThirdParty
+        seats      = $Seats
+        goalIds    = @($Goal)
+        ownedSkus  = @($OwnedSku)
+    }
+}
+

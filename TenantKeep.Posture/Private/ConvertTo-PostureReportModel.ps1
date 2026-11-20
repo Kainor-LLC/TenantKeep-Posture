@@ -351,7 +351,12 @@ function ConvertTo-PostureReportModel {
         $licensedUsers = $(if ($planUse) { [int](& $v $planUse 'LicensedEnabledUsers') } else { 0 })
         $members = [int](& $v (& $load '06-users-summary') 'Members')
         $goalIds = @($(if ($OrgProfile -and $OrgProfile.Contains('goals')) { $OrgProfile['goals'] }) | Where-Object { $_ })
-        $licenseAdvice = Get-PostureLicenseAdvice -Owned @(Get-PostureOwnedFeature -Sku @($skus | Where-Object { $_ })) -Goal $goalIds -Seats $(if ($licensedUsers) { $licensedUsers } else { $members }) -UsersByPlan $byPlan -LicensedUsers $licensedUsers -ThirdParty $(if ($OrgProfile -and $OrgProfile.Contains('thirdParty') -and $OrgProfile['thirdParty']) { $OrgProfile['thirdParty'] } else { @{} })
+        $ownedFeatures = @(Get-PostureOwnedFeature -Sku @($skus | Where-Object { $_ }))
+        $thirdPartyMap = $(if ($OrgProfile -and $OrgProfile.Contains('thirdParty') -and $OrgProfile['thirdParty']) { $OrgProfile['thirdParty'] } else { @{} })
+        $seatCount = $(if ($licensedUsers) { $licensedUsers } else { $members })
+        $licenseAdvice = Get-PostureLicenseAdvice -Owned $ownedFeatures -Goal $goalIds -Seats $seatCount -UsersByPlan $byPlan -LicensedUsers $licensedUsers -ThirdParty $thirdPartyMap -OwnedSku @($skus | Where-Object { $_ } | ForEach-Object { [string](Get-PostureValue $_ 'skuPartNumber') } | Where-Object { $_ })
+        # What the page needs to run the same advisor again when goals or vendors change (templates/licensing.js).
+        $licenseAdvice.page = Get-PostureLicensePageData -Owned $ownedFeatures -ThirdParty $thirdPartyMap -Seats $seatCount -Goal $goalIds -OwnedSku @($skus | Where-Object { $_ } | ForEach-Object { [string](Get-PostureValue $_ 'skuPartNumber') } | Where-Object { $_ })
         $licenseAdvice.notEvaluated = @($results | Where-Object { $_.status -eq 'notEvaluated' -and [string]$_.reason -match '^Requires (.+)\.$' } | Group-Object { [string]$_.reason } | Sort-Object Name | ForEach-Object { [ordered]@{ needs = ($_.Name -replace '^Requires |\.$', ''); checks = @($_.Group | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title } }) } })
     }
 
