@@ -13,36 +13,35 @@ BeforeAll {
 AfterAll { if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -Recurse -Force } }
 
 Describe 'Export-PostureFindings' {
-    It 'writes one Appendix E row per failed check, risk-ordered, with the affected names in the finding' {
+    It 'writes one row per failed check, most severe first, with the affected names in the finding' {
         $path = Export-PostureFindings -Path $script:Ev
         $path | Should -Be (Join-Path $script:Ev 'findings.csv')
         $rows = @(Import-Csv -LiteralPath $path)
         $rows.Count | Should -BeGreaterThan 3
-        @($rows[0].PSObject.Properties.Name)[0..12] | Should -Be @('ID', 'Workstream', 'Finding', 'Evidence', 'Likelihood 1-5', 'Impact 1-5', 'Risk', 'Effort S/M/L/XL', 'Dependency', 'Quick win', 'Bucket', 'Owner', 'Status')
-        @($rows | ForEach-Object { [int]$_.Risk }) | Should -Be @($rows | ForEach-Object { [int]$_.Risk } | Sort-Object -Descending)
-        @($rows | Where-Object { $_.Status -ne 'Open' }).Count | Should -Be 0
+        @($rows[0].PSObject.Properties.Name) | Should -Be @('ID', 'Domain', 'Finding', 'Severity', 'Priority', 'Status', 'Affected', 'Remediation', 'Portal', 'Learn', 'Evidence', 'Checked', 'Licence')
+        $weight = @{ Critical = 4; High = 3; Medium = 2; Low = 1 }
+        @($rows | ForEach-Object { $weight[$_.Severity] }) | Should -Be @($rows | ForEach-Object { $weight[$_.Severity] } | Sort-Object -Descending)
+        @($rows | Where-Object { $_.Status -ne 'Fail' }).Count | Should -Be 0
         @($rows | Where-Object { $_.Finding -match '\d+ affected: ' }).Count | Should -BeGreaterThan 0
-        @($rows | Where-Object { $_.Workstream -eq 'Identity and privileged access' }).Count | Should -BeGreaterThan 0
+        @($rows | Where-Object { $_.Domain -eq 'Identity and privileged access' }).Count | Should -BeGreaterThan 0
+        @($rows | Where-Object { $_.Portal -like 'https://*' }).Count | Should -BeGreaterThan 0
     }
 
-    It 'keeps owner, status, effort and dependency from an earlier register for the same IDs' {
-        $earlier = Join-Path $script:Root 'earlier.csv'
-        $first = @(Export-PostureFindings -Path $script:Ev -PassThru)
-        $first[0].Owner = 'J. Smith'; $first[0].Status = 'In progress'; $first[0].'Effort S/M/L/XL' = 'L'; $first[0].Dependency = 'HR feed'
-        $first | Export-Csv -LiteralPath $earlier -NoTypeInformation
-        $merged = @(Export-PostureFindings -Path $script:Ev -Merge $earlier -OutputPath (Join-Path $script:Root 'merged.csv') -PassThru)
-        $hit = $merged | Where-Object { $_.ID -eq $first[0].ID }
-        $hit.Owner | Should -Be 'J. Smith'
-        $hit.Status | Should -Be 'In progress'
-        $hit.'Effort S/M/L/XL' | Should -Be 'L'
-        $hit.Dependency | Should -Be 'HR feed'
-        Join-Path $script:Root 'merged.csv' | Should -Exist
+    It 'has no merge: an earlier file in the output place is replaced, not read' {
+        $out = Join-Path $script:Root 'replace.csv'
+        Set-Content -LiteralPath $out -Value "ID,Owner`nID-001,J. Smith"
+        $rows = @(Export-PostureFindings -Path $script:Ev -OutputPath $out -PassThru)
+        @($rows[0].PSObject.Properties.Name) | Should -Not -Contain 'Owner'
+        (Get-Command Export-PostureFindings).Parameters.Keys | Should -Not -Contain 'Merge'
+        Get-Content -LiteralPath $out -Raw | Should -Not -Match 'J\. Smith'
     }
 
-    It 'writes passing checks as Resolved only with -IncludePassed' {
+    It 'writes passing checks as Pass only with -IncludePassed, after the failures' {
         $all = @(Export-PostureFindings -Path $script:Ev -IncludePassed -PassThru)
-        @($all | Where-Object { $_.Status -eq 'Resolved' }).Count | Should -BeGreaterThan 0
-        @($all | Where-Object { $_.Status -eq 'Open' }).Count | Should -Be @(Export-PostureFindings -Path $script:Ev -PassThru).Count
+        @($all | Where-Object { $_.Status -eq 'Pass' }).Count | Should -BeGreaterThan 0
+        @($all | Where-Object { $_.Status -eq 'Fail' }).Count | Should -Be @(Export-PostureFindings -Path $script:Ev -PassThru).Count
+        $firstPass = [array]::IndexOf(@($all.Status), 'Pass')
+        @($all | Select-Object -Skip $firstPass | Where-Object { $_.Status -eq 'Fail' }).Count | Should -Be 0
     }
 
     It 'refuses a folder without checks.json' {

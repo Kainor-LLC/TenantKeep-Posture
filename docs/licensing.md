@@ -10,7 +10,7 @@ the module does with it.
 |---|---|---|
 | Free | `Export-PostureCaSnapshot`, `New-PostureCaDocument`, `Compare-PostureCaSnapshot`, the Conditional Access domain in any report, any number of tenants | none |
 | TenantKeep CA | The scheduled CA cycle (nightly snapshot, diff, alerts) in the customer's own automation | `ca` |
-| TenantKeep Posture | Every domain in the report, the findings register, the trend, the framework crosswalks | `full` |
+| TenantKeep Posture | Every domain in the report, the findings list, the trend, the framework crosswalks | `full` |
 
 Without a valid Full licence the report still generates: the Conditional Access domain is evaluated, every other
 check reads as not evaluated with the licence reason, and the report's header says so.
@@ -82,7 +82,7 @@ more edits, make the result visibly tampered, and make the deliverable say so. F
    Automation runbook, an MSP's jump host) set the execution policy to `AllSigned`: Windows then refuses to run an edited
    file at all. That enforcement is the operating system's, not ours, and it costs nothing.
 3. **Attribution.** The licence id, customer and tier are in the report header and appendix, and every row of the
-   findings register carries the licence id. A report that surfaces where it should not is attributable to one licence.
+   findings list carries the licence id. A report that surfaces where it should not is attributable to one licence.
 4. **Verification where it is consumed.** The engine, the report model and the findings export each verify the licence
    from its file rather than trusting a record made earlier, so a single edit is not enough.
 

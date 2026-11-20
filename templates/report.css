@@ -69,7 +69,6 @@ section.view.active { display: block; }
 .score .grade { font-size: 3.2rem; font-weight: 700; color: var(--primary); width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid var(--accent); }
 .score .value { font-size: 1.3rem; font-weight: 600; }
 .score .method { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.score .live { color: var(--info); font-size: 13px; margin-top: 4px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .stat .n { font-size: 1.6rem; font-weight: 700; }
@@ -127,22 +126,9 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 .form textarea { min-height: 70px; resize: vertical; }
 .form-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0 14px; }
 .hint { color: var(--muted); font-size: 13px; }
-.savebar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); margin-bottom: 16px; }
-.savebar .state { color: var(--muted); font-size: 13px; }
-.savebar .dirty { color: var(--warn); font-weight: 600; }
-.settings-group { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
-.settings-group h3 { margin-top: 0; }
 .kv { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 6px 14px; margin: 6px 0 14px; }
 .kv dt { color: var(--muted); font-size: 13px; }
 .kv dd { margin: 0; }
-
-/* The save dock: on every view and above the drawer, so a change made anywhere can be saved from where you are */
-.savedock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 12; margin: 0; border-radius: 0; border-left: none; border-right: none; border-bottom: none; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); padding: 10px 24px; }
-.savedock.attention { border-top: 2px solid var(--warn); }
-.savedock .result { flex-basis: 100%; }
-.savedock .result:empty { display: none; }
-main { padding-bottom: 110px; }
-#drawer { padding-bottom: 120px; }
 
 /* Drawer */
 #drawer { position: fixed; top: 0; right: 0; width: min(640px, 100%); height: 100%; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); padding: 22px 24px 48px; transform: translateX(100%); transition: transform 0.18s ease; z-index: 10; }
@@ -156,11 +142,11 @@ main { padding-bottom: 110px; }
 .toast.show { opacity: 1; }
 
 /* Executive mode hides the technical detail */
-body.executive .tech, body.executive #checks, body.executive #appendix, body.executive #register, body.executive #settings { display: none !important; }
+body.executive .tech, body.executive #checks, body.executive #appendix { display: none !important; }
 
 @media print {
   :root { --bg: #fff; --fg: #000; --card: #fff; --line: #bbb; --panel: #fff; --soft: #f3f3f3; --shadow: none; }
-  nav.views, .toolbar, #drawer, .filters, .savebar, .savedock, .form-actions, button, .toast { display: none !important; }
+  nav.views, .toolbar, #drawer, .filters, .form-actions, button, .toast { display: none !important; }
   section.view { display: block !important; page-break-before: always; }
   section.view.active { page-break-before: auto; }
   a { color: inherit; text-decoration: none; }

@@ -129,10 +129,8 @@ Describe 'New-PostureReport' {
             $script:Html | Should -Match 'class="tech"'
             $script:Html | Should -Match '@media print'
             $script:Html | Should -Match '<aside id="drawer"'
-            $script:Html | Should -Match '<section class="view" id="register">'
-            $script:Html | Should -Match '<section class="view" id="settings">'
-            foreach ($block in 'data-exceptions', 'data-profile', 'data-register', 'data-meta', 'data-labels') { $script:Html | Should -Match "<script type=`"application/json`" id=`"$block`">" }
-            $script:Html | Should -Match 'data-save' -Because 'the page saves to the client folder'
+            foreach ($block in 'data-exceptions', 'data-attestations', 'data-meta', 'data-labels') { $script:Html | Should -Match "<script type=`"application/json`" id=`"$block`">" }
+            foreach ($gone in 'id="register"', 'id="settings"', 'data-register', 'data-profile', 'data-save', 'savedock', 'showDirectoryPicker', 'createWritable') { $script:Html | Should -Not -Match ([regex]::Escape($gone)) -Because 'the page writes no files (risk register retired 2026-11-20)' }
             $script:Html | Should -Match 'Microsoft Security Posture Report'
             $script:Html | Should -Not -CMatch '>Checks explorer<' -Because 'view names are Title Case'
         }

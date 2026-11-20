@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 // Customer-hosted nightly Conditional Access monitoring (spec 5.4 / 11 option B) and, with includePosture, the monthly
-// full posture cycle: every collector with the managed identity, the report, the findings register, the trend.
+// full posture cycle: every collector with the managed identity, the report, the findings list, the trend.
 // Automation account with a system-assigned identity, a storage account for snapshots (RBAC only, no shared keys),
 // the variables the runbook reads, the daily schedule, and the runbook shell. Runbook content and the module are
 // uploaded by deploy.ps1 because ARM cannot carry inline runbook content.
@@ -271,7 +271,7 @@ resource postureRunbook 'Microsoft.Automation/automationAccounts/runbooks@2023-0
     runtimeEnvironment: runtimeEnvironment.name
     logProgress: false
     logVerbose: false
-    description: 'Monthly full posture cycle: every collector with the managed identity, report, findings register, trend. Content uploaded by deploy.ps1.'
+    description: 'Monthly full posture cycle: every collector with the managed identity, report, findings list, trend. Content uploaded by deploy.ps1.'
   }
 }
 

@@ -53,10 +53,9 @@ Contributor on the snapshots. Dev deployments upload an unsigned zip of the stag
 
 `deploy.ps1 -IncludePosture` adds a second runbook, `Invoke-PostureCycle`, on a monthly schedule, with two more
 containers: `posture-runs` (one folder per run: evidence, report.html, report.md, checks.json, findings.csv) and
-`client` (what the customer maintains: profile.json, brand.json, exceptions.json, tenantkeep.lic, and findings.csv,
-which the run writes back after merging owners and statuses; hybrid tenants also drop the Windows collector's ad-*
+`client` (what the customer maintains: profile.json, brand.json, exceptions.json, tenantkeep.lic; hybrid tenants also drop the Windows collector's ad-*
 files under `hybrid/`). The job signs in everywhere as the managed identity, runs every collector whose sign-in
-succeeded, builds the report against the previous run for the trend, exports the register and uploads the lot. A
+succeeded, builds the report against the previous run for the trend, exports the findings list and uploads the lot. A
 collector that could not sign in is named in the job output and in the report's "not collected" list.
 
 ```powershell

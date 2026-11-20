@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Risk register retired (2026-11-20): the report no longer has the Risk Register or Settings views, the exception
+  form or the save bar, and writes no files. `Export-PostureFindings` drops `-Merge` and writes findings.csv fresh
+  each run (ID, Domain, Finding, Severity, Priority, Status, Affected, Remediation, Portal, Learn, Evidence, Checked,
+  Licence). Accepted risks stay in exceptions.json; the runbook no longer writes findings.csv back to the `client`
+  container.
 - Relayed alerts to TenantKeep On-Call retired (2026-11-15): `ca-relay.ps1`, `New-PostureRelaySender.ps1` and the
   `-RelayPairingCode` and `-RelaySenderKey` parameters are gone, and the runbook no longer reads `RELAY_SENDER_KEY` or
   `RELAY_PAIRING_CODES`. Phone alerts are TenantKeep On-Call's Instant alerts. Nothing leaves a customer's tenant now.

@@ -16,7 +16,7 @@ function Start-PostureRun {
           4. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are copied into the run.
           5. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
              answer the wizard would ask left to the report's Settings view.
-          6. The report, with the trend against the newest earlier run, and findings.csv merged with the register.
+          6. The report, with the trend against the newest earlier run, and findings.csv in the run folder.
           7. The report opens in the browser. Without a Full licence for the tenant, the closing lines give the trial link
              with the tenant id filled in; the module sends nothing anywhere, the admin opens it or not.
 
@@ -29,7 +29,7 @@ function Start-PostureRun {
     .PARAMETER TenantId
         Pin the run to one tenant: a sign-in to any other is refused before anything is read.
     .PARAMETER Client
-        The client folder (profile.json, exceptions.json, findings.csv, tenantkeep.lic, imports/, hybrid/). Default:
+        The client folder (profile.json, exceptions.json, tenantkeep.lic, imports/, hybrid/). Default:
         ~/tenantkeep/clients/<tenant display name, lower case, spaces to dashes>/, created on first run.
     .PARAMETER OutRoot
         Where run folders go. Default ~/tenantkeep/evidence.
@@ -182,9 +182,7 @@ function Start-PostureRun {
         if ($previous.Count -gt 0) { $reportArgs.Previous = $previous[0].FullName }
         $report = New-PostureReport @reportArgs
         $reportFile = @($report.Files | Where-Object { $_ -like '*.html' })[0]
-        $findingsArgs = @{ Path = $folder; OutputPath = (Join-Path $folder 'findings.csv') }
-        if (Test-Path -LiteralPath (Join-Path $Client 'findings.csv')) { $findingsArgs.Merge = Join-Path $Client 'findings.csv' }
-        $null = Export-PostureFindings @findingsArgs
+        $null = Export-PostureFindings -Path $folder -OutputPath (Join-Path $folder 'findings.csv')
         if ($reportFile -and -not $NoBrowser) { try { Start-Process $reportFile } catch { Write-Verbose "Report did not open: $($_.Exception.Message)" } }
     }
 

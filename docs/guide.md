@@ -1,7 +1,7 @@
 # Using TenantKeep Posture, step by step
 
 Written for the administrator or MSP engineer who runs the report. Everything below reads the tenant; nothing in the
-module writes to it. Each run leaves an evidence folder you keep, a report you deliver, and a findings register you
+module writes to it. Each run leaves an evidence folder you keep, a report you deliver, and a findings list you
 work from until the next run.
 
 ## 1. Two lines
@@ -57,9 +57,9 @@ produces the Conditional Access domain and says what the full tier adds.
 ## 3. What the run leaves behind
 
 - `~/tenantkeep/evidence/<yyyyMMdd-HHmm>/`: the evidence files, checks.json, report.html, report.md, findings.csv.
-- `~/tenantkeep/clients/<tenant name>/`: profile.json (discovered on the first run, yours to edit in the report's
-  Settings view), exceptions.json and findings.csv once you save from the report, tenantkeep.lic, imports/ for the
-  reports you provide (section 8b), hybrid/ for the Windows AD collector's files.
+- `~/tenantkeep/clients/<tenant name>/`: profile.json (discovered on the first run, yours to change with
+  New-PostureProfile, section 6), exceptions.json once you accept a risk (section 8a), tenantkeep.lic, imports/ for
+  the reports you provide (section 8b), hybrid/ for the Windows AD collector's files.
 
 Nothing is written anywhere else. Nothing leaves the machine.
 
@@ -80,8 +80,7 @@ switches it takes. Section 11 has the fully manual path, with a sign-in per serv
 
 ## 6. Build the profile
 
-`Start-PostureRun` writes the profile from discovery alone and leaves every question to the report's Settings view.
-Run the wizard when you would rather answer at the console: discovery reads what the tenant says about itself and it
+`Start-PostureRun` writes the profile from discovery alone. Run the wizard to answer the rest: discovery reads what the tenant says about itself and it
 asks only what evidence cannot answer: third-party controls, thresholds, break-glass accounts and their last test,
 the Message Center owner, frameworks, audience, cadence.
 
@@ -102,38 +101,37 @@ Writes report.html (self-contained, interactive), report.md and checks.json into
 `-Baseline nist-csf-2` (or iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba, hipaa, copilot-readiness) to narrow the
 checks and add the crosswalk appendix. Add `-Format Pdf` for a PDF through a headless Edge or Chrome.
 
-## 8. Work the findings in the report
+## 8. Work the findings
 
-Open report.html in Edge or Chrome. The Risk Register view lists every failing and accepted check with owner, status,
-effort, dependency and notes; a check's detail panel has the exception form (scope, justification, owner, approver,
-expiry). Recording an exception re-scores the page at once. Settings holds the tenant profile: thresholds, third-party
-controls, break-glass accounts, frameworks, audience.
-
-The save bar at the bottom of every view holds Choose Client Folder and Save. Recording an exception asks for the
-folder if none is chosen yet. Save writes exceptions.json, findings.csv and profile.json into that folder, merging
-with what is already there, and reads them back before it reports success. The next run reads them, so exceptions and owners survive every rerun.
-Safari and Firefox cannot write folders; there Save downloads the files to move into the client folder by hand.
-Profile changes apply on the next run; the page says so.
-
-For Automation-produced reports, save locally and copy the three files to the deployment's `client` container
-(`az storage blob upload`), or pass the folder to `deploy.ps1 -ClientFolder` again.
-
-## 8a. Export the register by hand
+report.html opens in any browser and changes nothing: select a check for what was found, why it matters, how to fix
+it and the affected objects, with links to the portal page and Microsoft Learn. findings.csv in the run folder is the
+same list as a spreadsheet, most severe first, rebuilt on every run for whoever tracks remediation in their own tool:
 
 ```powershell
-Export-PostureFindings -Path $folder -Merge ~/tenantkeep/clients/contoso/findings.csv -OutputPath ~/tenantkeep/clients/contoso/findings.csv
+Export-PostureFindings -Path $folder
 ```
 
-One row per failing check in the audit plan's register format. Owners and statuses you type into the register survive
-the next export by check id. Accepted risks go into exceptions.json with an owner, approver and expiry; the next run
-marks them as accepted instead of failed.
+## 8a. Accepting a risk
+
+When a failing check is a decision rather than a gap, record it in exceptions.json in the client folder, for the
+whole check or for one affected object. The next run scores it as accepted, not failed, until it expires:
+
+```json
+{ "exceptions": [
+  { "check": "EM-016", "object": "payroll@contoso.example", "justification": "Forwarding to the payroll provider, contract 2026-14",
+    "owner": "IT Director", "approver": "CFO", "expires": "2027-06-30" }
+] }
+```
+
+For Automation-produced reports, copy the file to the deployment's `client` container (`az storage blob upload`),
+or pass the folder to `deploy.ps1 -ClientFolder` again.
 
 ## 8b. Reports and reviews you provide
 
 A few Copilot readiness gates have no API behind them. Their check panels say exactly what to provide and link to the
-portal page: the data access governance CSV reports go into `imports/sam-dag/` in the client folder (the panel's Add
-Report Files button copies them there), and the portal reviews (DSPM for AI, Copilot settings, site access reviews)
-are dates you record in the panel or on the Settings view. Both count on the next run.
+portal page: the data access governance CSV reports go into `imports/sam-dag/` in the client folder, and the portal
+reviews (DSPM for AI, Copilot settings, site access reviews) are dates under `attestations` in profile.json
+(docs/profile.md). Both count on the next run.
 
 ## 9. Next run, and the trend
 
@@ -157,7 +155,7 @@ and launchd samples in deploy/schedules run it from a machine you already have.
 ## 10. Unattended, in the customer's Azure
 
 deploy/automation deploys an Automation account with a managed identity that runs the Conditional Access cycle nightly
-and, with -IncludePosture, the whole posture report monthly: every collector, the trend, the findings register, with no
+and, with -IncludePosture, the whole posture report monthly: every collector, the trend, the findings list, with no
 sign-in by anyone. docs/scheduling.md walks through it. Set the execution policy to AllSigned on anything that runs the module
 unattended: releases are Authenticode-signed, so an edited file refuses to run. The full posture collection on a schedule and the Marketplace listing
 follow.

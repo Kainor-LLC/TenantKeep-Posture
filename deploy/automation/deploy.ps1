@@ -159,8 +159,8 @@ if ($IncludePosture) {
     $null = Invoke-Az automation runbook publish -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook -o none
     Write-Host "Published runbook $postureRunbook"
     if ($ClientFolder) {
-        # profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv; hybrid/ad-* for hybrid tenants.
-        foreach ($f in (Get-ChildItem -Path $ClientFolder -File -Recurse | Where-Object { $_.Name -in 'profile.json', 'brand.json', 'exceptions.json', 'tenantkeep.lic', 'findings.csv' -or $_.Name -like 'ad-*' })) {
+        # profile.json, brand.json, exceptions.json, tenantkeep.lic; hybrid/ad-* for hybrid tenants.
+        foreach ($f in (Get-ChildItem -Path $ClientFolder -File -Recurse | Where-Object { $_.Name -in 'profile.json', 'brand.json', 'exceptions.json', 'tenantkeep.lic' -or $_.Name -like 'ad-*' })) {
             $rel = $f.FullName.Substring((Resolve-Path $ClientFolder).Path.Length).TrimStart('/', '\') -replace '\\', '/'
             if ($f.Name -like 'ad-*' -and $rel -notlike 'hybrid/*') { $rel = "hybrid/$($f.Name)" }
             $null = Invoke-Az storage blob upload --account-name $storageAccount --container-name client --name $rel --file $f.FullName --auth-mode login --overwrite true -o none

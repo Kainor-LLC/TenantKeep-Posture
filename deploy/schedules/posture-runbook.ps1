@@ -8,11 +8,11 @@
       1. sign in as the managed identity: Graph and Azure first and every Graph call before PnP loads (its old
          Microsoft.Graph.Core breaks the Graph SDK), then Exchange, Purview (certificate app from the customer's Key
          Vault, when New-PosturePurviewApp.ps1 has run), then SharePoint and Teams
-      2. download the client container: profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv and any
+      2. download the client container: profile.json, brand.json, exceptions.json, tenantkeep.lic and any
          ad-* files a hybrid tenant's Windows collector produced
       3. Invoke-PostureCollection into a work folder (every collector whose session opened)
-      4. New-PostureReport against the previous run for the trend, Export-PostureFindings merged with the register
-      5. upload the run to the posture container, write findings.csv back to the client container, prune old runs
+      4. New-PostureReport against the previous run for the trend, Export-PostureFindings into the run
+      5. upload the run to the posture container, prune old runs
     A collector whose sign-in fails is skipped with the reason in the job output; the report says which domains were not
     collected. Nothing here writes to the tenant: sign-ins and reads only, storage in the customer's own subscription.
 
@@ -133,7 +133,7 @@ try {
     $profilePath = Join-Path $client 'profile.json'
     if (-not (Test-Path $profilePath)) { Write-Output 'No profile.json in the client container; the report uses discovery defaults. Upload one from New-PostureProfile for thresholds and third-party answers.' }
 
-    # ---- 3. Previous run, for the trend and the register merge.
+    # ---- 3. Previous run, for the trend.
     Write-Output 'step: list previous runs'
     $blobs = @(& $blobList $postureContainer)
     $runNames = @($blobs | ForEach-Object { ($_ -split '/')[0] } | Where-Object { $_ -match '^\d{8}-\d{4}$' } | Sort-Object -Unique)
@@ -193,16 +193,12 @@ try {
     if ($previous -and (Test-Path (Join-Path $previous 'checks.json'))) { $reportParams.Previous = $previous }
     $report = New-PostureReport @reportParams
     Write-Output "report written: $(@($report.Files) -join ', ')"
-    $register = Join-Path $client 'findings.csv'
-    $findingsParams = @{ Path = $folder; OutputPath = (Join-Path $folder 'findings.csv') }
-    if (Test-Path $register) { $findingsParams.Merge = $register }
-    $null = Export-PostureFindings @findingsParams
+    $null = Export-PostureFindings -Path $folder -OutputPath (Join-Path $folder 'findings.csv')
 
-    # ---- 5. Upload the run, write the register back, prune.
+    # ---- 5. Upload the run, prune.
     Write-Output 'step: upload'
     $runName = Split-Path $folder -Leaf
     foreach ($f in (Get-ChildItem -Path $folder -File)) { & $blobPut $postureContainer "$runName/$($f.Name)" $f.FullName }
-    & $blobPut $clientContainer 'findings.csv' (Join-Path $folder 'findings.csv')
     Write-Output "uploaded run $runName ($((Get-ChildItem -Path $folder -File).Count) files)"
     if ($keepRuns -gt 0) {
         $all = @(@($runNames) + @($runName) | Sort-Object -Unique)

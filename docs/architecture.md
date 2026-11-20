@@ -33,18 +33,16 @@ decisions; `(verify)` marks what has not been proven live yet.
    version. Nothing leaves the customer's environment.
 3. **Profile.** `New-PostureProfile` discovers what evidence can tell (licences, platforms, identity model, BYOD,
    Copilot) and asks only what it cannot (third-party tools, thresholds, break-glass accounts, frameworks, audience).
-   The result is `profile.json` in the client folder, beside `brand.json`, `exceptions.json`, `tenantkeep.lic` and
-   `findings.csv`.
+   The result is `profile.json` in the client folder, beside `brand.json`, `exceptions.json` and `tenantkeep.lic`.
 4. **Evaluate.** The engine reads the catalog, applies the baseline, asks one fact provider per domain for facts and
    affected objects from the evidence, evaluates each check's pass expression against thresholds, applies exceptions
    (accepted risk counts as a pass), third-party coverage and licence applicability. `checks.json` records every
    result with its reason, evidence files and affected list.
 5. **Report.** `New-PostureReport` builds a model (score, headline numbers, domain scorecards, top risks, admins,
    Copilot readiness, Conditional Access, recommendations, trend against a previous run, crosswalk, appendix) and
-   renders it. `Export-PostureFindings` writes the register, merging owner, status, effort and dependency by check id
-   from the previous register.
+   renders it. `Export-PostureFindings` writes findings.csv, the failing checks most severe first, rebuilt each run.
 6. **Keep.** Locally the run folder stays under `~/tenantkeep/evidence/`. In Automation it is uploaded to the
-   `posture-runs` container, the register is written back to the `client` container, old runs are pruned.
+   `posture-runs` container and old runs are pruned.
 
 ## Identities and permissions
 
@@ -85,18 +83,16 @@ decisions; `(verify)` marks what has not been proven live yet.
 ```
 <storage account>/ca-snapshots/<stamp>-ca/...        nightly Conditional Access runs
 <storage account>/posture-runs/<stamp>/...           monthly posture runs: evidence, checks.json, report.html, report.md, findings.csv
-<storage account>/client/                            profile.json, brand.json, exceptions.json, tenantkeep.lic, findings.csv, hybrid/ad-*
+<storage account>/client/                            profile.json, brand.json, exceptions.json, tenantkeep.lic, hybrid/ad-*
 <storage account>/modules/                           module zips imported into the runtime environment
 ```
 
-## The report site (Option B opt-in, decided 2026-10-15, being built)
+## Recording decisions
 
-The report is a file, so until now "save an exception" meant editing `exceptions.json` by hand. The report site makes
-the browser the place of record: a small web app in the customer's subscription, signed in with the customer's own
-Entra accounts, that serves the latest report and accepts saves. Exceptions, the register (owner, status, effort,
-dependency) and the tenant configuration (thresholds, third-party tools, baseline, break-glass accounts, frameworks)
-are written to the `client` container, which is exactly what the next scheduled run reads. Recording an exception
-re-scores the page immediately; the next run makes it permanent. Design details are in docs/report-site.md once built.
+The report is a file and writes nothing. Accepted risks live in `exceptions.json` and review dates under
+`attestations` in `profile.json`, both in the client folder (or the `client` container for Automation), and the next
+run reads them. A browser-side register and a hosted report site that accepted saves were both dropped on
+2026-11-20: saving from a page and reopening it was more trouble than the files it replaced.
 
 ## What is still manual
 

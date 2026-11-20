@@ -78,7 +78,7 @@ measured and what was answered.
 | `thresholds` | numbers, and `namePattern` | Override the catalog default by key; the appendix prints both |
 | `breakGlass` | UPNs or display names | Exclusion checks know which accounts belong in exclusions; CA-012 fails when none are named or found |
 | `audience`, `cadence` | see above | Template depth; trend window |
-| `attestations` | `siteAccessReviewsStartedUtc`, `dspmReviewedUtc`, `copilotSettingsReviewedUtc` (dates) | The Copilot gates no API can answer pass for 90 days from the date you reviewed the portal page; recorded from the report's Settings view or the check's panel |
+| `attestations` | `siteAccessReviewsStartedUtc`, `dspmReviewedUtc`, `copilotSettingsReviewedUtc` (dates) | The Copilot gates no API can answer pass for 90 days from the date you reviewed the portal page; recorded in profile.json as an ISO date, for example `"dspmReviewedUtc": "2026-11-20T00:00:00Z"` |
 
 ## Reports you provide
 

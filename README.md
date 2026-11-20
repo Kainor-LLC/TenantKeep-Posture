@@ -9,7 +9,7 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 Pre-release 0.3.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), Authenticode-signed by Kainor LLC. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
 one sign-in, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
-Windows-only Active Directory script), thirteen check domains, the interactive report, the findings register, the
+Windows-only Active Directory script), thirteen check domains, the interactive report, the findings list, the
 Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
 first tagged release, the Marketplace listing, the trial licence on first run.
 
@@ -39,7 +39,7 @@ Compare-PostureCaSnapshot -Before <older>-ca -After <newer>-ca -FailOnRiskReleva
 Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence                    # the evidence folder, every collector with a session
 Invoke-PostureChecks -Evidence <stamp> -Baseline cisa-scuba                # checks.json
 New-PostureReport -Evidence <stamp> -ProfilePath <client>/profile.json -Previous <last>/checks.json   # report.html with trend
-Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the register
+Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the findings list
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title
 Get-PostureRequirement | Format-Table Name, Installed, Tested, Status      # service modules here against the tested versions
 ```

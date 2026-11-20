@@ -78,14 +78,14 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive Mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export Checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('register', 'Risk Register', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('settings', 'Settings', $true), @('licensing', 'Licensing and Value', $false), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('recommendations', 'Recommendations', $true), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing and Value', $false), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
 
     # Overview
     & $w '<section class="view active" id="overview"><h2>Overview</h2>'
-    & $w "<div class=`"score`"><div class=`"grade`" id=`"score-grade`">$(& $h $r.score.grade)</div><div><div class=`"value`" id=`"score-value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div><div class=`"live`" id=`"score-live`"></div></div></div>"
+    & $w "<div class=`"score`"><div class=`"grade`" id=`"score-grade`">$(& $h $r.score.grade)</div><div><div class=`"value`" id=`"score-value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div></div></div>"
     $hl = $r.headline
     & $w '<div class="stats">'
     foreach ($pair in @(@('MFA Registered', (& $num $hl.mfaRegisteredPct '%')), @('Administrators on Phishing-Resistant MFA', (& $num $hl.adminsPhishingResistantPct '%')), @('Permanent Global Administrators', (& $num $hl.permanentGlobalAdmins)), @('Intune Compliance', (& $num $hl.intuneCompliancePct '%')), @('External Sharing Exposure', (& $num $hl.externalExposure)), @('Copilot Readiness', $(if ($hl.copilotBlocked) { 'Blocked' } else { & $num $hl.copilotReadinessPct '%' })))) {
@@ -147,14 +147,7 @@ function ConvertTo-PostureReportHtml {
     foreach ($x in @($r.results | Sort-Object { $_.id })) {
         & $w "<tr data-check=`"$(& $h $x.id)`" data-status=`"$(& $h $x.status)`" data-domain=`"$(& $h $x.domain)`" data-severity=`"$(& $h $x.severity)`"><td><code>$(& $h $x.id)</code></td><td>$(& $h (& $dl $x.domain))</td><td>$(& $h $x.title)</td><td><span class=`"status $(& $h $x.status)`">$(& $h $statusLabel[$x.status])</span></td><td><span class=`"sev $(& $h $x.severity)`">$(& $h $x.severity)</span></td><td class=`"tech`">$(& $h (@($r.catalogText[$x.id].license) -join ', '))</td><td data-affected-count>$($x.affectedCount)</td></tr>"
     }
-    & $w '</tbody></table><p class="tech">Select a row for the narrative, the remediation, the affected objects and the exception form.</p></section>'
-
-    # Risk register: every failing or accepted check with the register fields, editable in the page and saved to findings.csv.
-    $saveBar = ''
-    & $w '<section class="view" id="register"><h2>Risk Register</h2>'
-    & $w '<p>Every failing and accepted check, with the owner, status, effort and dependency the register tracks between runs. Record exceptions from a check''s detail panel; edits here and there are written to the client folder with Save, and the next run keeps them.</p>'
-    & $w $saveBar
-    & $w '<p class="tech" id="register-count"></p><div class="scroll"><table id="register-table"><thead><tr><th>Check</th><th>Finding</th><th>Severity</th><th>Status</th><th>Owner</th><th>Register Status</th><th>Effort</th><th>Dependency</th><th>Notes</th></tr></thead><tbody id="register-body"></tbody></table></div></section>'
+    & $w '</tbody></table><p class="tech">Select a row for the narrative, the remediation and the affected objects.</p></section>'
 
     # Admins
     & $w '<section class="view" id="admins"><h2>Your Administrators</h2>'
@@ -252,10 +245,6 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</section>'
     }
-    & $w '<section class="view" id="settings"><h2>Settings</h2>'
-    & $w '<p>The tenant profile the checks read: thresholds, third-party controls, break-glass accounts, frameworks and audience. Changes are saved to profile.json in the client folder and take effect on the next run.</p>'
-    & $w $saveBar
-    & $w '<div id="settings-form"></div></section>'
     & $w '<section class="view" id="appendix"><h2>Appendix</h2><table><tbody>'
     foreach ($pair in @(@('Catalog Version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence Folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API Versions', ($a.graphApiVersions -join ', ')), @('Module Version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }
     & $w '</tbody></table>'
@@ -274,7 +263,6 @@ function ConvertTo-PostureReportHtml {
     if (@($a.errors).Count -gt 0) { & $w '<h3>Collection Errors</h3><ul>'; foreach ($e in $a.errors) { & $w "<li>$(& $h $e)</li>" }; & $w '</ul>' }
     & $w '</section></main>'
     & $w '<aside id="drawer" aria-label="Check detail"></aside>'
-    & $w '<div id="savedock" class="savebar savedock" aria-label="Save changes"><span class="folder"><button type="button" data-pick>Choose Client Folder</button></span><button type="button" class="primary" data-save disabled>Save</button><button type="button" data-download>Download Files Instead</button><span class="state"></span><div class="result hint"></div></div>'
     & $w '<div id="toast" class="toast" role="status"></div>'
     if ($b.footer) { & $w "<footer class=`"doc`">$(& $h $b.footer)</footer>" }
 
@@ -282,8 +270,7 @@ function ConvertTo-PostureReportHtml {
     & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds } }))
     & $w (& $jsonBlock 'data-catalog' $r.catalogText)
     & $w (& $jsonBlock 'data-exceptions' @($r.exceptions))
-    & $w (& $jsonBlock 'data-profile' $r.profileModel)
-    & $w (& $jsonBlock 'data-register' @($r.register))
+    & $w (& $jsonBlock 'data-attestations' $r.attestations)
     & $w (& $jsonBlock 'data-meta' ([ordered]@{ tenantId = $r.tenantId; clientName = $r.clientName; generatedUtc = $r.generatedUtc; licenceId = $(if ($r.licence) { $r.licence.licenceId } else { $null }) }))
     & $w (& $jsonBlock 'data-labels' ([ordered]@{ status = $statusLabel; domains = $domainLabel; frameworks = $frameworkLabel; methods = $methodLabel; thresholds = $thresholdLabel }))
     & $w "<script>`n$js`n</script>"
