@@ -193,7 +193,8 @@ function Invoke-PostureCollection {
             $result = & $Block
             $timings[$Name] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = [Math]::Max(1, $script:PostureStepCount - $steps0) }
             $ran.Add($Name)
-            foreach ($f in @($result.files)) { if ($f) { $files.Add($f) } }
+            # A collector whose step failed returns nothing: record nothing, and never let that stop the others.
+            if ($result -is [System.Collections.IDictionary] -and $result.Contains('files')) { foreach ($f in @($result['files'])) { if ($f) { $files.Add($f) } } }
         }
         if (-not $SkipCaSnapshot) {
             Set-PostureProgressPhase -Name 'ConditionalAccess'

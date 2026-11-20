@@ -300,3 +300,35 @@ Describe 'Checks read large lists a row at a time' {
     }
 }
 
+Describe 'A failing sign-in read' {
+    It 'is recorded and the other collectors still run (seen live 2026-11-20: it stopped Intune, Defender, SharePoint and Teams)' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            Mock Write-Host { }
+            Mock Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'AuditLog.Read.All') } }
+            Mock Invoke-PostureSignInCollection { throw 'Response status code does not indicate success: BadRequest (Bad Request).' }
+            Mock Invoke-PostureIntuneCollection { @{ files = @() } }
+            $f = Join-Path $root 'signin-fails'
+            $r = Invoke-PostureCollection -Collector SignIns, Intune -SkipCaSnapshot -OutputFolder $f -PassThru -WarningAction SilentlyContinue
+            Should -Invoke Invoke-PostureIntuneCollection -Times 1 -Exactly
+            @($r.Collectors) | Should -Contain 'Intune'
+            Get-Content (Join-Path $f 'errors.txt') | Should -Match 'Sign-in log ::'
+        }
+    }
+
+    It 'does not wait and retry a query Graph rejects outright' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            Mock Assert-PostureGraphScope { @{ Scopes = @('AuditLog.Read.All') } }
+            Mock Start-Sleep { }
+            $script:Calls = 0
+            Mock Invoke-MgGraphRequest { $script:Calls++; throw "Response status code does not indicate success: BadRequest (Bad Request). Could not find a property named 'x' on type 'microsoft.graph.signIn'." }
+            $f = Join-Path $root 'signin-badrequest'; New-Item -ItemType Directory -Path $f | Out-Null
+            { Invoke-PostureSignInCollection -Folder $f -Days 7 -SelfRetryWaitSeconds 60 -WarningAction SilentlyContinue } | Should -Throw '*BadRequest*'
+            $script:Calls | Should -Be 1
+            Should -Invoke Start-Sleep -Times 0 -Exactly
+            Should -Invoke Invoke-MgGraphRequest -Times 1 -Exactly -ParameterFilter { $Uri -like 'https://graph.microsoft.com/beta/auditLogs/signIns*' }
+        }
+    }
+}
+

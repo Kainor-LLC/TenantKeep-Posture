@@ -141,12 +141,13 @@ function Invoke-PostureSignInCollection {
     $attempt = 0
     while (-not $state.completed) {
         try {
-            if ($state.nextLink) { $null = Invoke-PostureGraphRequest -Uri 'auditLogs/signIns' -StartAt $state.nextLink -ApiVersion 'v1.0' -Label 'Sign-in log' -OnPage $onPage }
+            # beta: authenticationRequirement (MFA required or single factor) exists only there; v1.0 refuses it in $select (seen live 2026-11-20).
+            if ($state.nextLink) { $null = Invoke-PostureGraphRequest -Uri 'auditLogs/signIns' -StartAt $state.nextLink -ApiVersion 'beta' -Label 'Sign-in log' -OnPage $onPage }
             else {
                 # From the start of the window, or after a refused page link from the oldest record already counted.
                 $until = $(if ($state.oldestUtc) { $state.oldestUtc } else { $windowEnd.ToString('yyyy-MM-ddTHH:mm:ssZ') })
                 $filter = "createdDateTime ge $($windowStart.ToString('yyyy-MM-ddTHH:mm:ssZ')) and createdDateTime le $until"
-                $null = Invoke-PostureGraphRequest -Uri "auditLogs/signIns?`$filter=$filter&`$select=$select&`$top=1000" -ApiVersion 'v1.0' -Label 'Sign-in log' -OnPage $onPage
+                $null = Invoke-PostureGraphRequest -Uri "auditLogs/signIns?`$filter=$filter&`$select=$select&`$top=1000" -ApiVersion 'beta' -Label 'Sign-in log' -OnPage $onPage
             }
             $state.completed = $true
         }
@@ -155,9 +156,11 @@ function Invoke-PostureSignInCollection {
             $attempt++
             & $saveCheckpoint
             $cause = Get-PostureFailureCause -Message $message
-            if ($cause -in 'permission', 'licence' -or $attempt -gt $SelfRetries) { throw }
+            $badRequest = $message -match '(?i)(BadRequest|\b400\b|\b410\b|Gone|skiptoken)'
+            # Refused, unlicensed, or a query Graph rejects outright: waiting will not change the answer.
+            if ($cause -in 'permission', 'licence' -or $attempt -gt $SelfRetries -or ($badRequest -and -not $state.nextLink)) { throw }
             # A page link Graph no longer accepts (400 or 410 on a skip token): query again from the oldest record counted.
-            if ($state.nextLink -and $message -match '(?i)(BadRequest|\b400\b|\b410\b|Gone|skiptoken)') { $state.nextLink = $null }
+            if ($state.nextLink -and $badRequest) { $state.nextLink = $null }
             Write-Warning "Sign-in log read stopped at $($state.count) records ($message); carrying on from the checkpoint in $SelfRetryWaitSeconds s (attempt $attempt of $SelfRetries)."
             if ($SelfRetryWaitSeconds -gt 0) { Start-Sleep -Seconds $SelfRetryWaitSeconds }
         }

@@ -82,6 +82,24 @@
   },
   "steps": [
     {
+      "collector": "Purview",
+      "match": "^Information barriers$",
+      "roles": [
+        "View-Only Information Barrier (verify)",
+        "Compliance Administrator"
+      ],
+      "licence": "Microsoft 365 E5 or E5 Compliance (information barriers are not in Business Premium or E3)"
+    },
+    {
+      "collector": "Purview",
+      "match": "^Auto-labeling policies$",
+      "roles": [
+        "Information Protection Reader",
+        "Compliance Administrator"
+      ],
+      "licence": "Microsoft 365 E5, E5 Compliance or E5 Information Protection (auto-labeling is not in Business Premium or E3)"
+    },
+    {
       "collector": "Entra",
       "match": "^(Risky users|Risk detections)$",
       "roles": [
@@ -347,14 +365,6 @@
         "Communication Compliance Admins"
       ],
       "licence": "Microsoft 365 E5 or E5 Compliance (verify)"
-    },
-    {
-      "collector": "Purview",
-      "match": "^Information barriers$",
-      "roles": [
-        "View-Only Information Barrier (verify)",
-        "Compliance Administrator"
-      ]
     },
     {
       "collector": "Purview",
