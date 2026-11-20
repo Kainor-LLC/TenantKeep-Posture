@@ -15,7 +15,7 @@ function Start-PostureRun {
              same admin (a device code with -DeviceCode or -NoBrowser).
           4. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are copied into the run.
           5. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
-             answer the wizard would ask left to the report's Settings view.
+             other answer kept as New-PostureProfile last wrote it.
           6. The report, with the trend against the newest earlier run, and findings.csv in the run folder.
           7. The report opens in the browser. Without a Full licence for the tenant, the closing lines give the trial link
              with the tenant id filled in; the module sends nothing anywhere, the admin opens it or not.
@@ -27,12 +27,15 @@ function Start-PostureRun {
 
         Read-only throughout. Nothing leaves the machine: evidence under -OutRoot, client files under -Client.
     .PARAMETER TenantId
-        Pin the run to one tenant: a sign-in to any other is refused before anything is read.
+        Pin the run to one tenant, by id or by a verified domain such as contoso.onmicrosoft.com: a sign-in to any
+        other is refused before anything is read. Optional: without it you pick the account in the browser and the
+        tenant comes from that sign-in.
     .PARAMETER Client
         The client folder (profile.json, exceptions.json, tenantkeep.lic, imports/, hybrid/). Default:
         ~/tenantkeep/clients/<tenant display name, lower case, spaces to dashes>/, created on first run.
     .PARAMETER OutRoot
-        Where run folders go. Default ~/tenantkeep/evidence.
+        Where run folders go, for this run. Default: outputRoot in the client's profile.json (New-PostureProfile
+        asks for it), else ~/tenantkeep/evidence. Each run is a dated folder inside it, with report.html.
     .PARAMETER Collector
         Which collectors to run. Default: all of them.
     .PARAMETER DeviceCode
@@ -47,6 +50,8 @@ function Start-PostureRun {
         Start-PostureRun
     .EXAMPLE
         Start-PostureRun -TenantId contoso.onmicrosoft.com -Collector Entra, Intune, Exchange
+    .EXAMPLE
+        Start-PostureRun -OutRoot ~/Clients/Contoso/Assessments
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string], [pscustomobject])]
@@ -54,7 +59,7 @@ function Start-PostureRun {
     param(
         [ValidatePattern('^([0-9a-fA-F-]{36}|[A-Za-z0-9.-]+\.[A-Za-z]{2,})$')] [string] $TenantId,
         [string] $Client,
-        [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
+        [string] $OutRoot,
         [ValidateSet('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
         [switch] $DeviceCode,
         [switch] $NoBrowser,
@@ -78,6 +83,8 @@ function Start-PostureRun {
     }
 
     # 1. One sign-in.
+    Write-Host 'Sign in once with an admin account that has the read roles (Get-PostureRequirement lists them).'
+    Write-Host 'Every service uses that one sign-in; Purview may ask once more, before collection starts.'
     $connect = @{}
     if ($TenantId) { $connect.TenantId = $TenantId }
     if ($DeviceCode) { $connect.DeviceCode = $true } elseif ($NoBrowser) { $connect.NoBrowser = $true }
@@ -92,7 +99,7 @@ function Start-PostureRun {
     }
     $Client = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Client)
     New-Item -ItemType Directory -Path $Client, (Join-Path $Client 'imports'), (Join-Path $Client 'hybrid') -Force | Out-Null
-    $OutRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutRoot)
+    $OutRoot = Get-PostureOutputRoot -Client $Client -OutRoot $OutRoot
     New-Item -ItemType Directory -Path $OutRoot -Force | Out-Null
     $profilePath = Join-Path $Client 'profile.json'
     $profileParam = @{}
@@ -107,6 +114,7 @@ function Start-PostureRun {
         }
     }
     Write-Host "Client folder: $Client"
+    Write-Host "Run folders:   $OutRoot"
 
     # 3. Graph-based collectors and Azure in this process.
     $main = @($Collector | Where-Object { $_ -in 'Entra', 'Intune' })
@@ -167,7 +175,7 @@ function Start-PostureRun {
     $adFiles = @(Get-ChildItem -LiteralPath $hybrid -Filter 'ad-*' -File -ErrorAction SilentlyContinue)
     if ($adFiles.Count -gt 0) { $adFiles | Copy-Item -Destination $folder -Force; Write-Host "Hybrid: $($adFiles.Count) ad-* files copied in" }
 
-    # 7. Profile: discovered from the evidence, the rest left to the report's Settings view.
+    # 7. Profile: discovered from the evidence; every other answer stays as the wizard or the cmdlets wrote it.
     & $step 'Profile'
     $profileArgs = @{ Path = $profilePath; Evidence = $folder; NonInteractive = $true; TenantId = $session.tenantId }
     if (-not (Test-Path -LiteralPath $profilePath)) { $profileArgs.ClientName = [string]$session.tenantDisplayName }

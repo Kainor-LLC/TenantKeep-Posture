@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Run folders where you want them (2026-11-20): `outputRoot` in profile.json (`New-PostureProfile -OutputRoot`, or
+  the wizard's new last question) is where Start-PostureRun puts a client's runs; `-OutRoot` still wins for one run.
+- Fixed: New-PostureProfile, which Start-PostureRun calls on every run, dropped every profile key it does not own,
+  so review dates under `attestations` were lost on the next run. It now keeps them.
 - Risk register retired (2026-11-20): the report no longer has the Risk Register or Settings views, the exception
   form or the save bar, and writes no files. `Export-PostureFindings` drops `-Merge` and writes findings.csv fresh
   each run (ID, Domain, Finding, Severity, Priority, Status, Affected, Remediation, Portal, Learn, Evidence, Checked,

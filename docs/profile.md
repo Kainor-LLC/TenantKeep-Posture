@@ -79,6 +79,7 @@ measured and what was answered.
 | `breakGlass` | UPNs or display names | Exclusion checks know which accounts belong in exclusions; CA-012 fails when none are named or found |
 | `audience`, `cadence` | see above | Template depth; trend window |
 | `attestations` | `siteAccessReviewsStartedUtc`, `dspmReviewedUtc`, `copilotSettingsReviewedUtc` (dates) | The Copilot gates no API can answer pass for 90 days from the date you reviewed the portal page; recorded with `Set-PostureAttestation` (the check's panel copies the command), or by hand as an ISO date, for example `"dspmReviewedUtc": "2026-11-20T00:00:00Z"` |
+| `outputRoot` | a folder, `~` allowed | Where this client's run folders go: Start-PostureRun and the exception cmdlets use it unless `-OutRoot` is given; unset means ~/tenantkeep/evidence. The wizard asks for it. A rewrite by New-PostureProfile keeps every key it does not own, attestations included |
 
 ## Reports you provide
 

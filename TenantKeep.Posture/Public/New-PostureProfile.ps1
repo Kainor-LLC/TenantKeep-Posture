@@ -31,6 +31,9 @@ function New-PostureProfile {
         Who reads the Microsoft 365 Message Center and turns changes into tickets (operations answer; OP-004).
     .PARAMETER SharePointClientId
         Application (client) id of the Entra app the SharePoint and Teams collector signs in with; deploy/setup/New-PostureSharePointApp.ps1 writes it.
+    .PARAMETER OutputRoot
+        Where this client's run folders go (Start-PostureRun, and the exception cmdlets looking for the newest run).
+        Default ~/tenantkeep/evidence. A -OutRoot given to a command wins over it.
     .PARAMETER Force
         Overwrite without asking, in interactive mode, when the file exists.
     .PARAMETER PassThru
@@ -76,6 +79,7 @@ function New-PostureProfile {
         [datetime] $BreakGlassTestedUtc,
         [string] $MessageCenterOwner,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $SharePointClientId,
+        [string] $OutputRoot,
         [switch] $Force,
         [switch] $PassThru
     )
@@ -101,6 +105,7 @@ function New-PostureProfile {
         breakGlass            = @()
         operations            = [ordered]@{ breakGlassTestedUtc = $null; messageCenterOwner = $null }
         sharePointClientId    = $null
+        outputRoot            = $null
     }
 
     # Existing file: its answers become the defaults.
@@ -134,6 +139,7 @@ function New-PostureProfile {
     if ($SharePointClientId) { $defaults.sharePointClientId = $SharePointClientId }
     if ($Audience) { $defaults.audience = $Audience }
     if ($Cadence) { $defaults.cadence = $Cadence }
+    if ($OutputRoot) { $defaults.outputRoot = $OutputRoot }
 
     # Licenses: detected, then confirmed.
     $licenseSource = $(if ($existing -and $existing.Contains('licensesSource')) { $existing.licensesSource } else { 'manual' })
@@ -190,6 +196,8 @@ function New-PostureProfile {
         $answers.operations.messageCenterOwner = & $ask 'Message Center triage owner (person or team, or blank)?' 'OP-004: who turns Microsoft 365 changes and retirements into tickets.' @() $answers.operations.messageCenterOwner $false
         $answers.audience = & $ask 'Primary audience?' 'executive: the 12-page view. technical: everything. auditor: crosswalk first.' @('executive', 'technical', 'auditor') $answers.audience $false
         $answers.cadence = & $ask 'Report cadence?' 'Sets the trend window and the "what changed" scope.' @('one-off', 'monthly', 'quarterly') $answers.cadence $false
+        $root = & $ask 'Where should the run folders go?' 'Each run makes a dated folder here with the evidence and report.html. Blank keeps the current place.' @() $(if ($answers.outputRoot) { $answers.outputRoot } else { Join-Path '~' 'tenantkeep' 'evidence' }) $false
+        $answers.outputRoot = $(if ($root -and $root -ne (Join-Path '~' 'tenantkeep' 'evidence')) { [string]$root } else { $null })
     }
 
     $written = [ordered]@{ version = 1 }
@@ -198,6 +206,8 @@ function New-PostureProfile {
     if ($discovery) { $written.discovery = [ordered]@{ evidence = $discovery.evidence; timestampUtc = [datetime]::UtcNow.ToString('o'); keys = @($discovered | Sort-Object); sources = $discovery.sources } }
     $written.createdUtc = $(if ($existing -and $existing.Contains('createdUtc')) { $existing.createdUtc } else { [datetime]::UtcNow.ToString('o') })
     $written.updatedUtc = [datetime]::UtcNow.ToString('o')
+    # Keys this cmdlet does not own (attestations from Set-PostureAttestation, anything added by hand) survive a rewrite.
+    if ($existing) { foreach ($k in @($existing.Keys)) { if (-not $written.Contains($k)) { $written[$k] = $existing[$k] } } }
 
     if ($existing -and -not $NonInteractive -and -not $Force) {
         $ok = Read-PostureAnswer -Question "Overwrite ${Path}?" -Choices @('yes', 'no') -Default 'yes'

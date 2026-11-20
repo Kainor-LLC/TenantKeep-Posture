@@ -43,9 +43,12 @@ What you need:
   with the app id in the message. Allow the app or exclude the admin running the report; the module works around
   nothing.
 
-Useful switches: `-TenantId` refuses a sign-in to any other tenant; `-Collector Entra, Intune, Exchange` runs a
-subset; `-DeviceCode` signs in from a machine without a browser; `-Client` points at a client folder other than the
-default `~/tenantkeep/clients/<tenant name>/`.
+Useful switches: `-TenantId` (an id or `contoso.onmicrosoft.com`) refuses a sign-in to any other tenant; without
+it you pick the account in the browser and the tenant comes from that sign-in. `-Collector Entra, Intune, Exchange`
+runs a subset; `-DeviceCode` signs in from a machine without a browser; `-Client` points at a client folder other than
+the default `~/tenantkeep/clients/<tenant name>/`; `-OutRoot ~/Clients/Contoso/Assessments` puts the run folders
+somewhere else for one run, and `New-PostureProfile -OutputRoot` (or the wizard's last question) makes that the
+client's default.
 
 ## 2. The licence
 

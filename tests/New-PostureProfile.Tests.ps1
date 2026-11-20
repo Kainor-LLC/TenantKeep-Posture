@@ -163,6 +163,7 @@ Describe 'New-PostureProfile' {
                     'Threshold maxPermanentGlobalAdmins*' { '4' }
                     'Threshold namePattern*' { '^CA-' }
                     'Break-glass*' { @('bg@fabrikam.example') }
+                    'Where should the run folders go*' { '~/Clients/Fabrikam/Runs' }
                     default { $Default }
                 }
             }
@@ -179,7 +180,25 @@ Describe 'New-PostureProfile' {
             $p.thresholds.namePattern | Should -Be '^CA-'
             $p.thresholds.staleDeviceDays | Should -Be 90
             $p.breakGlass | Should -Be @('bg@fabrikam.example')
-            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 28 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence'
+            $p.outputRoot | Should -Be '~/Clients/Fabrikam/Runs'
+            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 29 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence, run folder'
+        }
+
+        It 'keeps keys it does not own, such as attestations, when it rewrites the file' {
+            $path = Join-Path $script:Root 'keep.json'
+            @{ version = 1; clientName = 'Keep'; attestations = @{ dspmReviewedUtc = '2026-11-02T00:00:00Z' }; handAdded = 'yes' } | ConvertTo-Json | Set-Content $path
+            $p = New-PostureProfile -Path $path -NonInteractive -PassThru
+            $p.attestations.dspmReviewedUtc | Should -Not -BeNullOrEmpty
+            $p.handAdded | Should -Be 'yes'
+            (Get-Content -Raw $path) | Should -Match 'dspmReviewedUtc'
+        }
+
+        It 'records -OutputRoot, and a blank wizard answer leaves it unset' {
+            $p = New-PostureProfile -Path (Join-Path $script:Root 'out.json') -NonInteractive -OutputRoot '/data/runs' -PassThru
+            $p.outputRoot | Should -Be '/data/runs'
+            Mock -ModuleName TenantKeep.Posture Read-PostureAnswer { $Default }
+            $q = New-PostureProfile -Path (Join-Path $script:Root 'out2.json') -Force -PassThru
+            $q.outputRoot | Should -BeNullOrEmpty -Because 'the default place is not written out'
         }
 
         It 'asks before overwriting and respects no' {
