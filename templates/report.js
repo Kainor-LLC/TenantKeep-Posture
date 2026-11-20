@@ -137,6 +137,7 @@
       return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><p class="hint">' + esc(inp.label) + ': ' + esc(current ? String(current).substring(0, 10) : 'not recorded') + '. After the review, copy the command to record today\'s date. ' + esc(RERUN_HINT) + '</p>' + cmdBlock('cmd-attest', 'Set-PostureAttestation ' + target() + ' -Key ' + psq(inp.key));
     }
     if (inp.kind === 'files') {
+      if (inp.command) { return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p>' + cmdBlock('cmd-import', inp.command + ' ' + target() + ' -Path ') + '<p class="hint">' + esc(RERUN_HINT) + '</p>'; }
       return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><p class="hint">Copy the files into ' + esc(inp.folder) + ' in the client folder; the next run reads the newest one.</p>';
     }
     return '';

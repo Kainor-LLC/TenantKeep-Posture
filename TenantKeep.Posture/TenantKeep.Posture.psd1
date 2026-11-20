@@ -26,6 +26,7 @@
         'Get-PostureCheckCatalog',
         'Get-PostureException',
         'Get-PostureRequirement',
+        'Import-PostureSharingReport',
         'Initialize-PostureClient',
         'Invoke-PostureChecks',
         'Invoke-PostureCollection',

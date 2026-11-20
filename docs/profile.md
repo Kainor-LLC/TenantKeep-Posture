@@ -88,7 +88,7 @@ Some gates read reports only an admin can download. They live beside profile.jso
 
 | Folder | Report | Used by |
 |---|---|---|
-| `imports/sam-dag/` | Data access governance CSV exports from the SharePoint admin center (sharing links, everyone-except-external, potentially oversharing sites) | C3 oversharing baseline, C17 deployed ahead of the baseline; the newest file dates the baseline (a yyyy-MM-dd in the file name wins over the file's write time) |
+| `imports/sam-dag/` (also `Import-PostureSharingReport`, which files the site permissions report there by date) | Data access governance CSV exports from the SharePoint admin center (sharing links, everyone-except-external, potentially oversharing sites) | C3 oversharing baseline, C17 deployed ahead of the baseline; the newest file dates the baseline (a yyyy-MM-dd in the file name wins over the file's write time) |
 
 The report's check panel adds the files for you in Edge or Chrome (Add Report Files), or copy them in by hand.
 

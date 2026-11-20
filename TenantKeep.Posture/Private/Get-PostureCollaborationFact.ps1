@@ -88,6 +88,21 @@ function Get-PostureCollaborationFact {
         $facts.groupExpirationDays = & $v $lifecycle 'GroupLifetimeInDays'
     }
 
+    # Broad sharing (CL-015) from the SharePoint Advanced Management site permissions report the admin downloads;
+    # Import-PostureSharingReport or the run summarises it. No file is "not provided", never zero.
+    $dag = & $load 'spo-dag-site-permissions'
+    if ($null -eq $dag) { $notEvaluated['CL-015'] = 'The SharePoint site permissions report was not provided. Run Site permissions across your organization under Reports, Data access governance in the SharePoint admin center, download the CSV and add it with Import-PostureSharingReport.' }
+    else {
+        $dt = & $v $dag 'totals'
+        $facts.oversharedSites = [int](& $v $dag 'exposedSites')
+        foreach ($k in 'sites', 'sitesWithAnyoneLinks', 'anyoneLinks', 'sitesWithOrgLinks', 'orgLinks', 'sitesWithEeeu', 'eeeuGrants', 'sitesWithEveryone', 'everyoneGrants') { $facts["sharing$($k.Substring(0,1).ToUpper())$($k.Substring(1))"] = [int](& $v $dt $k) }
+        $facts.sharingReportDateUtc = [string](& $v $dag 'reportDateUtc')
+        $affected.oversharedSites = @(@(& $rows (& $v $dag 'listed')) | ForEach-Object {
+                $parts = @(@(@('Anyone links', $_.anyone), @('organization-wide links', $_.org), @('Everyone except external users grants', $_.eeeu), @('Everyone grants', $_.everyone)) | Where-Object { [int]$_[1] -gt 0 } | ForEach-Object { "$($_[1]) $($_[0])" })
+                [ordered]@{ name = [string]$_.url; detail = ($parts -join ', ') + $(if ($_.label) { "; label $($_.label)" } else { '; no sensitivity label' }) }
+            })
+    }
+
     # Teams (CL-010 to CL-014)
     if ($null -eq $teamsFed) { & $missing @('CL-010', 'CL-011') 'teams-federation' 'Teams' }
     else {
@@ -119,5 +134,5 @@ function Get-PostureCollaborationFact {
         $facts.thirdPartyAppsRestricted = [bool]($global.Count -gt 0 -and [string](& $v $global[0] 'GlobalCatalogAppsType') -eq 'AllowedAppList')
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('spo-tenant-settings.json', 'teams-federation.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('spo-tenant-settings.json', 'teams-federation.json', 'spo-dag-site-permissions.json') }
 }

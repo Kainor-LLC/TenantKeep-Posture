@@ -353,6 +353,44 @@
         "cmmc": "CM.L2-3.4.8",
         "cisa-scuba": "MS.TEAMS.5.1v1"
       }
+    },
+    {
+      "id": "CL-015",
+      "domain": "collaboration",
+      "title": "No site shared with Anyone links or Everyone grants beyond the threshold",
+      "severityDefault": "High",
+      "license": [
+        "SAM",
+        "Copilot"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxOversharedSites": 0
+      },
+      "evidence": [
+        "spo-dag-site-permissions.json"
+      ],
+      "pass": "facts.oversharedSites <= thresholds.maxOversharedSites",
+      "affected": "facts.oversharedSites",
+      "remediation": "Start with the sites at the top of the list. Remove Everyone and Everyone except external users from site and item permissions, replace organization-wide and Anyone links with links for specific people, and turn on restricted access control or restricted content discovery for sites that must stay broad until their owners review them.",
+      "learn": "https://learn.microsoft.com/sharepoint/data-access-governance-site-permissions-report",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
+      "narrative": "An Anyone link works for whoever holds it, an organization-wide link and an Everyone grant open a site to every account in the tenant. Search and Copilot answer from everything a person can reach, so a site shared this way is in reach of every question anyone asks.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      },
+      "input": {
+        "kind": "files",
+        "folder": "imports/sam-dag",
+        "label": "Site permissions report",
+        "portal": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
+        "command": "Import-PostureSharingReport",
+        "steps": "In the SharePoint admin center open Reports, Data access governance, Site permissions across your organization. Run it for SharePoint and again for OneDrive (the first run can take up to five days), then Download CSV. Copy the command below, add the downloaded file's path (drag the file into the PowerShell window), and run it."
+      }
     }
   ]
 }

@@ -205,6 +205,8 @@ function Start-PostureRun {
         # 5. Hybrid files from the Windows collector.
         $adFiles = @(Get-ChildItem -LiteralPath (Join-Path $Client 'hybrid') -Filter 'ad-*' -File -ErrorAction SilentlyContinue)
         if ($adFiles.Count -gt 0) { $adFiles | Copy-Item -Destination $folder -Force }
+        # The newest SharePoint site permissions report filed with Import-PostureSharingReport, summarised into this run.
+        $null = Write-PostureSharingSummary -Client $Client -Folder $folder -Confirm:$false
 
         # 6. Profile: discovered from the evidence; every other answer stays as the wizard or the cmdlets wrote it.
         Set-PostureProgressPhase -Name 'Report' -Label 'profile' -Confirm:$false

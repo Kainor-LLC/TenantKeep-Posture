@@ -144,6 +144,22 @@ upload`), or pass the folder to `deploy.ps1 -ClientFolder` again.
 
 ## 8b. Reports and reviews you provide
 
+**Anyone links, organization-wide links and Everyone grants per site** come from SharePoint Advanced Management's
+site permissions report, which no API reads and which the module will not start (starting it is a job on
+Microsoft's side). Before or after a run, an admin with SharePoint Administrator or SharePoint Advanced Management
+Administrator runs it: SharePoint admin center, Reports, Data access governance, Site permissions across your
+organization, Run report for SharePoint and again for OneDrive. The first run can take up to five days, later ones
+a day; it can run once every 30 days and needs SAM, which any Microsoft 365 Copilot licence in the tenant includes.
+Download the CSVs, then:
+
+```powershell
+Import-PostureSharingReport -TenantId 00000000-0000-0000-0000-000000000000 -Path ~/Downloads/SharePoint.csv, ~/Downloads/OneDrive.csv
+```
+
+It checks each file is that report and belongs to the tenant, files it in `imports/sam-dag/`, adds the totals and the
+most exposed sites to the newest run (check CL-015) and rebuilds the report. Later runs read the newest files on
+their own. Without a report, CL-015 says what to do instead of reading zero; its panel copies the command.
+
 A few Copilot readiness gates have no API behind them. Their check panels say exactly what to provide and link to the
 portal page: the data access governance CSV reports go into `imports/sam-dag/` in the client folder, and the portal
 reviews (DSPM for AI, Copilot settings, site access reviews) are dates: the check's panel copies the

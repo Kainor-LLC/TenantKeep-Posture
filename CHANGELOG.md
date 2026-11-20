@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- `Import-PostureSharingReport` and check CL-015 (2026-11-20): the SharePoint Advanced Management site permissions
+  report (downloaded from the admin center; no API reads it) gives Anyone links, organization-wide links and
+  Everyone grants per site. The cmdlet validates and files it, summarises it into the newest run
+  (spo-dag-site-permissions.json) and rebuilds the report; every run summarises the newest files again.
 - Run folders where you want them (2026-11-20): `outputRoot` in profile.json (`New-PostureProfile -OutputRoot`, or
   the wizard's new last question) is where Start-PostureRun puts a client's runs; `-OutRoot` still wins for one run.
 - A pleasanter run (2026-11-20): a progress bar with the domain and step, time so far and an estimate of the time
