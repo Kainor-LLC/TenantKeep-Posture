@@ -30,7 +30,9 @@ function Test-PostureRoleCoverage {
         $broader = @(@(if ($map['collectors'][$c].Contains('alsoWorks')) { $map['collectors'][$c]['alsoWorks'] }) + @('Global Administrator') | Sort-Object -Unique)
         $have = @($held | Where-Object { $_ -in $entra })
         $haveBroader = @($held | Where-Object { $_ -in $broader -and $_ -notin $entra })
-        $status = $(if ($have.Count -gt 0 -or $haveBroader.Count -gt 0) { 'ok' } elseif ($other.Count -gt 0 -or $entra.Count -eq 0) { 'unknown' } else { 'missing' })
+        # A role group that also works (View-Only Organization Management) is as invisible to Graph as one that is needed.
+        $hidden = @($other) + @($broader | Where-Object { $_ -match '\(' })
+        $status = $(if ($have.Count -gt 0 -or $haveBroader.Count -gt 0) { 'ok' } elseif ($hidden.Count -gt 0 -or $entra.Count -eq 0) { 'unknown' } else { 'missing' })
         [pscustomobject]@{
             Collector = $c
             Status    = $status

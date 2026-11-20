@@ -50,14 +50,14 @@
     "Exchange": {
       "service": "Exchange Online PowerShell",
       "roles": [
-        "Global Reader",
-        "View-Only Organization Management (Exchange role group)"
+        "Global Reader"
       ],
       "alsoWorks": [
+        "View-Only Organization Management (Exchange role group)",
         "Exchange Administrator",
         "Global Administrator"
       ],
-      "note": "Global Reader reads Exchange configuration (verify on the Phase 3 run). Exchange Administrator works too but can change everything; this run only reads."
+      "note": "Global Reader reads every Exchange setting the collector uses (seen on a least-privilege run, 2026-11-20). View-Only Organization Management is the Exchange-only alternative. Exchange Administrator works too but can change everything; this run only reads."
     },
     "Purview": {
       "service": "Security & Compliance PowerShell",
@@ -69,7 +69,7 @@
         "Compliance Administrator",
         "Global Administrator"
       ],
-      "note": "Global Reader reads most Purview configuration (verify on the Phase 3 run); Insider Risk, Communication Compliance and eDiscovery have role groups of their own, named per step. The TenantKeep Posture (view only) role group exists only where deploy/setup/New-PosturePurviewApp.ps1 created it, for the scheduled run's app."
+      "note": "Global Reader reads sensitivity labels, DLP, retention, alert policies and role groups (seen on a least-privilege run, 2026-11-20). It does not read Insider Risk, Communication Compliance, audit retention policies or eDiscovery cases: those have role groups of their own, named per step, and their checks show as not evaluated without them. The TenantKeep Posture (view only) role group exists only where deploy/setup/New-PosturePurviewApp.ps1 created it, for the scheduled run's app."
     },
     "SharePoint": {
       "service": "SharePoint admin (PnP.PowerShell)",
@@ -230,6 +230,17 @@
         "LifecycleWorkflows.Read.All"
       ],
       "licence": "Microsoft Entra ID Governance"
+    },
+    {
+      "collector": "Entra",
+      "match": "^Hybrid sync features$",
+      "roles": [
+        "Hybrid Identity Administrator (verify)"
+      ],
+      "scopes": [
+        "OnPremDirectorySynchronization.Read.All"
+      ],
+      "note": "Global Reader is refused (Forbidden). A cloud-only tenant loses nothing: the hybrid checks do not apply. Hybrid Identity Administrator can change sync settings, so grant it only where the tenant syncs from on-premises AD and the hybrid checks matter."
     },
     {
       "collector": "Entra",

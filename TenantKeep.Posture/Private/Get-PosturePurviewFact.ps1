@@ -46,6 +46,8 @@ function Get-PosturePurviewFact {
     # Audit (PV-001)
     $audit = & $load 'exo-01-audit-config'; $ret = & $load 'pv-05-audit-retention-policies'
     if ($null -eq $audit) { $notEvaluated['PV-001'] = 'exo-01-audit-config.json was not collected (Exchange collector).' }
+    # Where Premium Audit is expected, an unread retention list is not an empty one: Global Reader alone cannot read it.
+    elseif ($e5 -and $null -eq $ret) { & $missing @('PV-001') 'pv-05-audit-retention-policies' }
     else {
         $facts.unifiedAuditLogEnabled = (& $v $audit 'UnifiedAuditLogIngestionEnabled') -eq $true
         $facts.auditRetentionPolicies = $(if ($null -ne $ret) { @(& $rows $ret).Count } else { 0 })

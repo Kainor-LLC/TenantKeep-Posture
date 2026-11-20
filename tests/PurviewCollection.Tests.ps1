@@ -57,6 +57,16 @@ Describe 'Invoke-PostureCollection -Collector Purview' {
             $by['PV-008'].status | Should -Be 'fail' -Because 'six distinct members across the two admin groups'
             $by['PV-008'].affectedCount | Should -Be 6
         }
+
+        It 'does not fail audit retention it could not read' {
+            $partial = Join-Path $script:Root 'run-partial'
+            Copy-Item -LiteralPath $script:Folder -Destination $partial -Recurse
+            Remove-Item -LiteralPath (Join-Path $partial 'pv-05-audit-retention-policies.json')
+            $run = Invoke-PostureChecks -Evidence $partial -Domain purview -ProfilePath (Join-Path $script:Root 'profile.json') -PassThru
+            $pv1 = $run.results | Where-Object id -EQ 'PV-001'
+            $pv1.status | Should -Be 'notEvaluated' -Because 'on E5 an unread list is not proof of no policies'
+            $pv1.reason | Should -Match 'pv-05-audit-retention-policies'
+        }
     }
 
     Context 'not connected' {

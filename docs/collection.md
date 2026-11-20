@@ -57,7 +57,7 @@ DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLocker
 ## What the Exchange collector writes
 
 Needs a connected Exchange Online PowerShell session (ExchangeOnlineManagement 3.x, `Connect-ExchangeOnline`), with
-View-Only Organization Management or an equivalent read-only role. The module never connects; with no session the
+Global Reader, View-Only Organization Management or an equivalent read-only role. The module never connects; with no session the
 collector is skipped with a warning, or refused when `-Collector Exchange` was asked for by name. Every cmdlet goes
 through one `Get-` only entry point, so a write is impossible by construction. Rich cmdlet objects are projected to
 scalars and string lists before they are written.

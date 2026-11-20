@@ -30,9 +30,14 @@ What you need:
   (Graph 2.39, Exchange 3.10, PnP 3.2, Teams 7.9, Az.Accounts 5.5, Az.ResourceGraph 1.3 as of October 2026); an
   older version runs with a warning, and every run records the versions it used in collection.json. PnP.PowerShell
   2.12.0 is known to work except for the restricted search read behind the Copilot gate C9.
-- An account that can read: Global Reader covers Entra, Intune and Defender; Exchange needs View-Only Organization
-  Management; SharePoint needs SharePoint Administrator; Purview a compliance read role; Azure Reader and Security
-  Reader on the subscriptions. The module never reads more than the account can.
+- An account that can read: Global Reader covers Entra, Intune, Defender, Exchange, Teams and most of Purview;
+  SharePoint needs SharePoint Administrator; Azure needs Reader and Security Reader on the subscriptions. A few reads
+  need a role of their own and show as not evaluated without it: Insider Risk, Communication Compliance, audit
+  retention and eDiscovery (their Purview role groups) and hybrid sync features (Hybrid Identity Administrator, only
+  for a tenant that syncs from on-premises AD). The report's Run Health page names each one. The module never reads
+  more than the account can.
+- On a tenant whose Conditional Access demands phishing-resistant MFA, a new read-only account has no passkey to sign
+  in with yet: issue it a Temporary Access Pass, sign in once and register a passkey.
 - Consent, once per tenant. TenantKeep Posture is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
