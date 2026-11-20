@@ -180,13 +180,19 @@ function Get-PostureEndpointFact {
         $facts.mdeDevices = $d.Count
         $facts.mdeOnboarded = $onboarded.Count
         # Onboarding coverage against the Intune fleet: an Intune device with no onboarded Defender record is the gap. (verify) the join key AadDeviceId = azureADDeviceId
-        $managed = & $load '09-intune-managed-devices'
-        if ($null -ne $managed) {
-            $byAad = @{}; foreach ($x in $onboarded) { $k = [string]$x.AadDeviceId; if ($k) { $byAad[$k.ToLowerInvariant()] = $true } }
-            $fleet = @(& $rows $managed | Where-Object { [string]$_.OperatingSystem -in @('Windows', 'macOS', 'Linux') })
-            $notOnboarded = @($fleet | Where-Object { -not ($_.AzureAdDeviceId -and $byAad.ContainsKey(([string]$_.AzureAdDeviceId).ToLowerInvariant())) })
-            $facts.mdeFleet = $fleet.Count
-            $facts.mdeOnboardedPct = $(if ($fleet.Count -gt 0) { [Math]::Round(100.0 * ($fleet.Count - $notOnboarded.Count) / $fleet.Count, 1) } else { $null })
+        $byAad = @{}; foreach ($x in $onboarded) { $k = [string]$x.AadDeviceId; if ($k) { $byAad[$k.ToLowerInvariant()] = $true } }
+        # The Intune fleet a row at a time; only the devices with no onboarded Defender record are kept.
+        $fleet = @{ n = 0 }; $notOnboarded = [System.Collections.Generic.List[object]]::new()
+        $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow {
+            param($_row)
+            if ([string]$_row.OperatingSystem -notin @('Windows', 'macOS', 'Linux')) { return }
+            $fleet.n++
+            $aad = [string]$_row.AzureAdDeviceId
+            if (-not ($aad -and $byAad.ContainsKey($aad.ToLowerInvariant()))) { $notOnboarded.Add($_row) }
+        }
+        if ($haveManaged) {
+            $facts.mdeFleet = $fleet.n
+            $facts.mdeOnboardedPct = $(if ($fleet.n -gt 0) { [Math]::Round(100.0 * ($fleet.n - $notOnboarded.Count) / $fleet.n, 1) } else { $null })
             $affected.devicesNotOnboarded = @($notOnboarded | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "$($_.OperatingSystem), Intune-managed, no onboarded Defender record" } })
             if ($null -eq $facts.mdeOnboardedPct) { $notEvaluated['EP-019'] = 'No Intune-managed Windows, macOS or Linux devices to compare against.' }
         }

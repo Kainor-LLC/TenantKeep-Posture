@@ -73,11 +73,14 @@ function Get-PostureGovernanceFact {
     }
 
     # PIM for Groups (GV-006)
-    $groups = & $load '07-groups'; $pim = & $load 'gov-04-pim-groups-summary'
-    if ($null -eq $groups) { & $missing @('GV-006') '07-groups' 'Group.Read.All' }
+    $pim = & $load 'gov-04-pim-groups-summary'
+    # Counted a row at a time from the group list.
+    $assignable = @{ n = 0 }
+    $haveGroups = Read-PostureEvidenceRow -Folder $Evidence -Name '07-groups' -OnRow { param($_row) if (Test-PostureTrue $_row.IsAssignableToRole) { $assignable.n++ } }
+    if (-not $haveGroups) { & $missing @('GV-006') '07-groups' 'Group.Read.All' }
     elseif ($null -eq $pim) { & $missing @('GV-006') 'gov-04-pim-groups-summary' 'PrivilegedEligibilitySchedule.Read.AzureADGroup' }
     else {
-        $facts.roleAssignableGroups = @(& $rows $groups | Where-Object { $_.IsAssignableToRole -eq $true }).Count
+        $facts.roleAssignableGroups = $assignable.n
         $facts.pimManagedGroups = [int](& $v $pim 'Groups')
         $facts.pimEligibleGroupAssignments = [int](& $v $pim 'EligibleAssignments')
     }

@@ -106,7 +106,8 @@ function Get-PostureCopilotFact {
     }
 
     # C6 labels, C7 RAC on the top tier, C18 ownerless
-    $sites = & $load 'spo-sites'; $siteSummary = & $load 'spo-sites-summary'
+    # Whether the site list was collected; its rows are read a row at a time where a check needs them.
+    $sitesCollected = (Test-Path -LiteralPath (Join-Path $Evidence 'spo-sites.json')) -or (Test-Path -LiteralPath (Join-Path $Evidence 'spo-sites.csv')); $siteSummary = & $load 'spo-sites-summary'
     if ($null -eq $labels) { foreach ($id in 'CP-006', 'CP-007') { $notEvaluated[$id] = 'pv-01-sensitivity-labels.json was not collected (Purview collector).' } }
     else {
         $l = @(& $rows $labels | Where-Object { $_.Disabled -ne $true })
@@ -119,12 +120,14 @@ function Get-PostureCopilotFact {
         # Top tier: the encrypting label with the highest priority number (Purview orders them low to high).
         $top = @($encrypting | Sort-Object { [int]$_.Priority } -Descending | Select-Object -First 1)
         $facts.topTierLabel = $(if ($top.Count -gt 0) { [string]$top[0].DisplayName } else { $null })
-        if ($null -eq $sites) { $notEvaluated['CP-007'] = 'spo-sites.json was not collected (SharePoint collector without -SkipSiteEnumeration).' }
+        if (-not $sitesCollected) { $notEvaluated['CP-007'] = 'spo-sites.json was not collected (SharePoint collector without -SkipSiteEnumeration).' }
         elseif ($top.Count -eq 0) { $notEvaluated['CP-007'] = 'No encrypting sensitivity label defines a top tier yet (C6).' }
         else {
-            $topSites = @(& $rows $sites | Where-Object { -not $_.IsOneDrive -and ([string]$_.SensitivityLabel -eq [string]$top[0].Guid -or [string]$_.SensitivityLabel -eq [string]$top[0].DisplayName) })
+            # A row at a time: only the sites carrying the top-tier label are kept.
+            $topSites = [System.Collections.Generic.List[object]]::new()
+            $null = Read-PostureEvidenceRow -Folder $Evidence -Name 'spo-sites' -OnRow { param($_row) if (-not (Test-PostureTrue $_row.IsOneDrive) -and ([string]$_row.SensitivityLabel -eq [string]$top[0].Guid -or [string]$_row.SensitivityLabel -eq [string]$top[0].DisplayName)) { $topSites.Add($_row) } }
             $facts.topTierSites = $topSites.Count
-            $noRac = @($topSites | Where-Object { $_.RestrictedAccessControl -ne $true })
+            $noRac = @($topSites | Where-Object { -not (Test-PostureTrue $_.RestrictedAccessControl) })
             $facts.topTierSitesWithoutRac = $noRac.Count
             $affected.topTierSitesWithoutRac = @($noRac | ForEach-Object { [ordered]@{ name = [string]$_.Url; detail = "labeled $($top[0].DisplayName), restricted access control off" } })
         }

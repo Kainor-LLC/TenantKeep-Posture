@@ -194,12 +194,18 @@ function Get-PostureEmailFact {
     }
 
     # Mailboxes (EM-016 forwarding, EM-018 shared mailbox sign-in, EM-019 auditing)
-    $mbx = & $load 'exo-09-mailboxes'
-    if ($null -eq $mbx) { & $missing @('EM-016', 'EM-018') 'exo-09-mailboxes' }
+    # One pass over the mailbox list, a row at a time: the count, the forwarding mailboxes and the shared ones.
+    $mbxCount = @{ n = 0 }; $forwarders = [System.Collections.Generic.List[object]]::new(); $sharedRows = [System.Collections.Generic.List[object]]::new()
+    $haveMbx = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-09-mailboxes' -OnRow {
+        param($_row)
+        $mbxCount.n++
+        if ($_row.ForwardingSmtpAddress -or $_row.ForwardingAddress) { $forwarders.Add($_row) }
+        if ([string]$_row.RecipientTypeDetails -eq 'SharedMailbox') { $sharedRows.Add($_row) }
+    }
+    if (-not $haveMbx) { & $missing @('EM-016', 'EM-018') 'exo-09-mailboxes' }
     else {
-        $m = @(& $rows $mbx)
-        $facts.mailboxes = $m.Count
-        $fwd = @($m | Where-Object { $_.ForwardingSmtpAddress -or $_.ForwardingAddress } | ForEach-Object {
+        $facts.mailboxes = $mbxCount.n
+        $fwd = @($forwarders | ForEach-Object {
                 $smtp = ([string]$_.ForwardingSmtpAddress) -replace '^smtp:', ''
                 $dom = $(if ($smtp -match '@(.+)$') { $Matches[1].ToLowerInvariant() } else { '' })
                 $external = $smtp -and ($dom -notin $acceptedNames)
@@ -209,7 +215,7 @@ function Get-PostureEmailFact {
         $facts.mailboxesForwardingExternally = $fwd.Count
         $affected.mailboxesForwardingExternally = $fwd
 
-        $shared = @($m | Where-Object { [string]$_.RecipientTypeDetails -eq 'SharedMailbox' })
+        $shared = @($sharedRows)
         $facts.sharedMailboxes = $shared.Count
         # Only the shared mailboxes' accounts, read a row at a time from the users file, not every user.
         $accounts = Find-PostureEvidenceRow -Folder $Evidence -Name '06-users' -Key 'Id' -Value @($shared | ForEach-Object { [string]$_.ExternalDirectoryObjectId })

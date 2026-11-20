@@ -70,11 +70,13 @@ function Get-PostureCollaborationFact {
     if ($null -eq $sites) { $notEvaluated['CL-007'] = 'spo-sites-summary.json was not collected (Invoke-PostureCollection -Collector SharePoint without -SkipSiteEnumeration).' }
     elseif ($null -eq $groups) { & $missing @('CL-007') '07-groups-ownerless' 'Entra' }
     else {
-        $siteRows = & $load 'spo-sites'
+        # The ownerless sites, a row at a time from the site list.
+        $ownerlessSites = [System.Collections.Generic.List[object]]::new()
+        $null = Read-PostureEvidenceRow -Folder $Evidence -Name 'spo-sites' -OnRow { param($_row) if (Test-PostureTrue $_row.Ownerless) { $ownerlessSites.Add($_row) } }
         $facts.ownerlessSites = [int](& $v $sites 'Ownerless')
         $facts.ownerlessGroups = @(& $rows $groups).Count
         $facts.unifiedGroups = $(if ($null -ne $groupSummary) { [int](& $v $groupSummary 'UnifiedGroups') } else { $null })
-        $affected.ownerless = @(@(@(& $rows $siteRows) | Where-Object { $_.Ownerless -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Url; detail = "site ($($_.Template)) with no owner" } }) +
+        $affected.ownerless = @(@(@($ownerlessSites) | ForEach-Object { [ordered]@{ name = [string]$_.Url; detail = "site ($($_.Template)) with no owner" } }) +
             @(& $rows $groups | ForEach-Object { [ordered]@{ name = [string]$_.DisplayName; detail = "Microsoft 365 group with no owner, created $([string]$_.CreatedDateTime)" } }))
         $facts.sitesAnonymousSharingAllowed = [int](& $v $sites 'AnonymousSharingAllowed')
     }
