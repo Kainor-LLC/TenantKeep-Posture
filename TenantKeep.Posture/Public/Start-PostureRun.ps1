@@ -183,6 +183,7 @@ function Start-PostureRun {
     $awake = $(if ($AllowSleep) { $null } else { Enable-PostureKeepAwake })
     if ($awake) { Write-Host "Keeping this computer awake until the run ends ($($awake['method'])); a closed lid still sleeps." }
     $folder = $null
+    $tokenServer = $null
     $reportFile = $null
     $adFiles = @()
     try {
@@ -213,6 +214,9 @@ function Start-PostureRun {
                 profilePath = $(if ($profileParam.Count -gt 0) { $profilePath } else { '' }); collectors = $child; tokens = $tokens
                 purviewSignIn = $(if ($DeviceCode -or $NoBrowser) { 'device' } else { 'browser' }); progressFile = $childFile; estimates = $childEstimates
             }
+            # Fresh tokens for the second process on request, so a long Exchange collection never meets an expired one.
+            $tokenServer = Start-PostureTokenServer -Resource @($tokens.Keys) -Confirm:$false
+            if ($tokenServer) { $request.tokenPipe = $tokenServer.pipe; $request.tokenSecret = $tokenServer.secret }
             $childProcess = Start-PostureChildCollection -Request $request -NoWait
             Write-Host "Started $($child -join ' and ') in a second process.$(if ('Purview' -in $child) { ' Purview may open one more sign-in now; after that the run needs nothing from you.' })"
         }
@@ -259,6 +263,7 @@ function Start-PostureRun {
         }
     }
     finally {
+        Stop-PostureTokenServer -Server $tokenServer -Confirm:$false
         Complete-PostureProgress -Confirm:$false
         Disable-PostureKeepAwake -Handle $awake
         try { Stop-Transcript | Out-Null } catch { Write-Verbose 'No transcript to stop.' }

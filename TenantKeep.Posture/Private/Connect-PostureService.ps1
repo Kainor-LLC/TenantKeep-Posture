@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# The services the broker connected with a token of its own, which Update-PostureServiceSession renews.
+$script:PostureConnected = @{}
+
 function Connect-PostureService {
     <#
     .SYNOPSIS
@@ -61,7 +64,32 @@ function Connect-PostureService {
             Connect-AzAccount -AccessToken $token -AccountId $account -Tenant $tenantId -SkipContextPopulation | Out-Null
         }
     }
+    if ($Name -ne 'purview') { $script:PostureConnected[$Name] = $true }
     Write-Verbose "$Name session opened for $account in $tenantId."
+}
+
+function Update-PostureServiceSession {
+    <#
+    .SYNOPSIS
+        Before a call to a service the broker connected: when its access token has under ten minutes left, renew it
+        and connect again, so a collection that runs for hours does not fail on an expired token. Exchange, PnP,
+        Teams and Azure cannot renew a token they were handed; Graph renews on a 401 in its wrapper.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)] [ValidateSet('exchange', 'sharepoint', 'teams', 'azure')] [string] $Name)
+
+    $ErrorActionPreference = 'Stop'
+    $session = $script:PostureSession
+    if (-not $session -or -not $script:PostureConnected.ContainsKey($Name)) { return }
+    if (-not ($session['refreshToken'] -or ($session.ContainsKey('tokenPipe') -and $session['tokenPipe']))) { return }
+    $resources = $(if ($Name -eq 'teams') { @('graph', 'teams') } else { @($Name) })
+    $soon = [datetime]::UtcNow.AddMinutes(10)
+    $stale = @($resources | Where-Object { -not $session['tokens'].ContainsKey($_) -or $session['tokens'][$_]['expiresUtc'] -le $soon })
+    if ($stale.Count -eq 0) { return }
+    if (-not $PSCmdlet.ShouldProcess($Name, 'Renew the token and connect again')) { return }
+    foreach ($r in $stale) { $null = Get-PostureToken -Resource $r -Force }
+    Write-Verbose "$Name token near expiry; connecting again with a fresh one."
+    Connect-PostureService -Name $Name
 }
 
 function Disconnect-PostureService {

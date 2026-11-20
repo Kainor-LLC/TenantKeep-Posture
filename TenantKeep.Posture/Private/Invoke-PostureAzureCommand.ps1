@@ -32,6 +32,7 @@ function Invoke-PostureAzureQuery {
     )
 
     $ErrorActionPreference = 'Stop'
+    Update-PostureServiceSession -Name azure
     if (-not (Get-Command -Name Search-AzGraph -ErrorAction SilentlyContinue)) { throw 'Search-AzGraph is not available; install Az.ResourceGraph and connect first.' }
     $items = [System.Collections.Generic.List[object]]::new()
     $token = $null
@@ -58,6 +59,7 @@ function Invoke-PostureAzureRequest {
     )
 
     $ErrorActionPreference = 'Stop'
+    Update-PostureServiceSession -Name azure
     if (-not (Get-Command -Name Invoke-AzRestMethod -ErrorAction SilentlyContinue)) { throw 'Invoke-AzRestMethod is not available; install Az.Accounts and connect first.' }
     $items = [System.Collections.Generic.List[object]]::new()
     $next = $Path

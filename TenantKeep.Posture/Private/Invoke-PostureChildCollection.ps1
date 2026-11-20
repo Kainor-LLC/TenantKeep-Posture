@@ -70,8 +70,9 @@ function Invoke-PostureChildCollection {
     .SYNOPSIS
         The child side: reads the request from standard input, opens the sessions with the tokens, collects.
     .DESCRIPTION
-        Sets up the module's session with the given access tokens and no refresh token, so a token that expires
-        mid-way is a clear error rather than a silent re-acquire. Purview goes first: its sign-in is the one that may
+        Sets up the module's session with the given access tokens and no refresh token. A token near expiry is
+        renewed by asking the main process's token service (tokenPipe and tokenSecret in the request); without one, a
+        token that expires mid-way is a clear error. Purview goes first: its sign-in is the one that may
         need the admin, so it comes while they are still at the screen, and the run needs nothing from them after.
         Each collector is its own try; a failure is written to errors.txt and the process exits non-zero after
         running the others.
@@ -99,6 +100,8 @@ function Invoke-PostureChildCollection {
         clientId = [string]$request['clientId']; tenantId = [string]$request['tenantId']; tenantName = [string]$request['tenantName']
         account = [string]$request['account']; refreshToken = ''; signedInUtc = $now; tokens = $tokens
         purviewSignIn = [string]$(if ($request.ContainsKey('purviewSignIn')) { $request['purviewSignIn'] } else { 'browser' })
+        # Fresh tokens come from the main process's token service; this process never holds a refresh token.
+        tokenPipe = [string]$(if ($request.ContainsKey('tokenPipe')) { $request['tokenPipe'] }); tokenSecret = [string]$(if ($request.ContainsKey('tokenSecret')) { $request['tokenSecret'] })
     }
     $order = @('Purview', 'Exchange' | Where-Object { $_ -in @($request['collectors']) })
     $folder = [string]$request['folder']
@@ -114,7 +117,7 @@ function Invoke-PostureChildCollection {
         foreach ($collector in $order) {
             try {
                 Set-PostureProgressPhase -Name $collector -Label $(if ($collector -eq 'Purview') { 'waiting for the Purview sign-in' } else { 'connecting' }) -Confirm:$false
-                if ($collector -eq 'Exchange' -and $tokens.ContainsKey('exchange') -and $tokens['exchange']['expiresUtc'] -le [datetime]::UtcNow.AddMinutes(5)) {
+                if ($collector -eq 'Exchange' -and -not $script:PostureSession['tokenPipe'] -and $tokens.ContainsKey('exchange') -and $tokens['exchange']['expiresUtc'] -le [datetime]::UtcNow.AddMinutes(5)) {
                     throw 'The Exchange token from the sign-in expires before Exchange could start; run Start-PostureRun -Collector Exchange to collect it.'
                 }
                 Connect-PostureService -Name $collector.ToLowerInvariant()

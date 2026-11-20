@@ -108,7 +108,7 @@ function Invoke-PostureGraphPage {
             $status = Get-PostureHttpStatus -ErrorRecord $err
             $detail = $(if ($err.ErrorDetails) { [string]$err.ErrorDetails.Message } else { '' })
             # An expired access token: renew it from the sign-in and ask again (hours-long reads outlive one token).
-            if ($status -eq 401 -and $renewals -lt $policy.maxTokenRenewals -and $script:PostureSession -and $script:PostureSession['refreshToken']) {
+            if ($status -eq 401 -and $renewals -lt $policy.maxTokenRenewals -and $script:PostureSession -and ($script:PostureSession['refreshToken'] -or ($script:PostureSession.ContainsKey('tokenPipe') -and $script:PostureSession['tokenPipe']))) {
                 $renewals++
                 Write-Verbose "Graph token refused (401); renewing it ($renewals of $($policy.maxTokenRenewals))."
                 $null = Get-PostureToken -Resource graph -Force

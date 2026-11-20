@@ -42,6 +42,7 @@ function Invoke-PostureExoCommand {
     )
 
     $ErrorActionPreference = 'Stop'
+    Update-PostureServiceSession -Name exchange
     if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) {
         # A connected session loads only the cmdlets the signed-in roles and the tenant's licences expose (seen live on
         # Business Premium, 2026-10-23: no Get-AutoSensitivityLabelPolicy, no Get-InformationBarrierPolicy).

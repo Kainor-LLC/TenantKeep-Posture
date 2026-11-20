@@ -52,6 +52,12 @@ function Get-PostureToken {
     if (-not $Force -and $tokens.ContainsKey($Resource) -and $tokens[$Resource]['expiresUtc'] -gt $now.AddMinutes(5)) {
         $token = [string]$tokens[$Resource]['accessToken']
     }
+    elseif (-not $session['refreshToken'] -and $session.ContainsKey('tokenPipe') -and $session['tokenPipe']) {
+        # The second collection process holds no refresh token; the main process renews for it (Start-PostureTokenServer).
+        $tokens[$Resource] = Request-PostureParentToken -Resource $Resource
+        $token = [string]$tokens[$Resource]['accessToken']
+        Write-Verbose "Token for $Resource renewed by the main process, expires $($tokens[$Resource]['expiresUtc'].ToString('u'))."
+    }
     else {
         $scope = Get-PostureResourceScope -Resource $Resource -TenantName $session['tenantName']
         $form = @{ grant_type = 'refresh_token'; client_id = $session['clientId']; refresh_token = $session['refreshToken']; scope = $scope }

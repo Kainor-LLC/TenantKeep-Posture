@@ -170,3 +170,49 @@ Describe 'Sign-in log collector' {
         }
     }
 }
+
+Describe 'Fresh tokens for the second process' {
+    It 'answers the run''s secret with a token for an allowed resource, refuses anything else, and stops' {
+        InModuleScope TenantKeep.Posture {
+            $saved = $script:PostureSession
+            try {
+                $script:PostureSession = @{ clientId = 'c'; tenantId = 't'; tenantName = 'contoso'; account = 'a'; refreshToken = 'refresh-stays-here'; tokens = @{ exchange = @{ accessToken = 'exo-token'; expiresUtc = [datetime]::UtcNow.AddHours(1); scope = '' } } }
+                $server = Start-PostureTokenServer -Resource exchange -Confirm:$false
+                $server.pipe | Should -Match '^tenantkeep-[0-9a-f]{32}$'
+                $ok = Request-PosturePipeMessage -Pipe $server.pipe -Message "$($server.secret) exchange" -TimeoutMs 20000
+                $ok.accessToken | Should -Be 'exo-token'
+                $ok.Keys | Should -Not -Contain 'refreshToken'
+                (Request-PosturePipeMessage -Pipe $server.pipe -Message 'wrong-secret exchange').error | Should -Be 'refused'
+                (Request-PosturePipeMessage -Pipe $server.pipe -Message "$($server.secret) graph").error | Should -Match 'not a resource'
+                Stop-PostureTokenServer -Server $server -Confirm:$false
+                $server.job.State | Should -BeIn @('Completed', 'Stopped')
+
+                # The second process's side: no refresh token, so the broker asks the main process.
+                $server = Start-PostureTokenServer -Resource exchange -Confirm:$false
+                $script:PostureSession = @{ tenantId = 't'; tenantName = 'contoso'; refreshToken = ''; tokenPipe = $server.pipe; tokenSecret = $server.secret; tokens = @{} }
+                Get-PostureToken -Resource exchange | Should -Be 'exo-token'
+                $script:PostureSession = @{ refreshToken = 'refresh-stays-here'; tokens = @{} }
+                Stop-PostureTokenServer -Server $server -Confirm:$false
+            }
+            finally { $script:PostureSession = $saved }
+        }
+    }
+
+    It 'renews a broker-connected service before a call when its token is near expiry, and leaves a fresh one alone' {
+        InModuleScope TenantKeep.Posture {
+            $saved = $script:PostureSession; $savedConnected = $script:PostureConnected
+            try {
+                $script:PostureSession = @{ refreshToken = 'r'; tokens = @{ exchange = @{ accessToken = 'old'; expiresUtc = [datetime]::UtcNow.AddMinutes(4) }; sharepoint = @{ accessToken = 'fresh'; expiresUtc = [datetime]::UtcNow.AddHours(1) } } }
+                $script:PostureConnected = @{ exchange = $true; sharepoint = $true }
+                Mock Get-PostureToken { 'new' }
+                Mock Connect-PostureService { }
+                Update-PostureServiceSession -Name exchange
+                Update-PostureServiceSession -Name sharepoint
+                Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'exchange' }
+                Should -Invoke Get-PostureToken -Times 1 -Exactly -ParameterFilter { $Resource -eq 'exchange' -and $Force }
+            }
+            finally { $script:PostureSession = $saved; $script:PostureConnected = $savedConnected }
+        }
+    }
+}
+
