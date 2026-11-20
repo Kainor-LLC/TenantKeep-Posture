@@ -1,5 +1,5 @@
 {
-  "description": "Goals a customer can choose; each needs every group of features, and any one feature satisfies a group. The advisor reads this with features.json and bundles.json.",
+  "description": "Goals a customer can choose; each needs every group of features, and any one feature satisfies a group. core goals are the advisor's default when the profile names none. The advisor reads this with features.json and bundles.json.",
   "reviewed": "2026-11-20",
   "goals": [
     {
@@ -10,7 +10,8 @@
         [
           "entraP1"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "risk-based-access",
@@ -20,7 +21,8 @@
         [
           "entraP2"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "just-in-time-admin",
@@ -30,7 +32,8 @@
         [
           "entraP2"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "device-gating",
@@ -43,7 +46,8 @@
         [
           "intune"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "device-risk",
@@ -60,7 +64,8 @@
           "mde2",
           "mdeBusiness"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "edr",
@@ -71,7 +76,8 @@
           "mde2",
           "mdeBusiness"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "email-protection",
@@ -81,7 +87,8 @@
         [
           "mdo1"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "phishing-training",
@@ -91,7 +98,8 @@
         [
           "mdo2"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "labels",
@@ -101,7 +109,8 @@
         [
           "labels"
         ]
-      ]
+      ],
+      "core": true
     },
     {
       "id": "auto-labels",
@@ -111,7 +120,8 @@
         [
           "purviewIp"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "dlp-devices",
@@ -121,7 +131,8 @@
         [
           "endpointDlp"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "dlp-teams",
@@ -131,7 +142,8 @@
         [
           "teamsDlp"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "copilot-data",
@@ -147,7 +159,8 @@
         [
           "purviewIp"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "oversharing",
@@ -157,7 +170,8 @@
         [
           "sam"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "insider-risk",
@@ -167,7 +181,8 @@
         [
           "insiderRisk"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "audit-year",
@@ -177,7 +192,8 @@
         [
           "auditPremium"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "access-reviews",
@@ -188,7 +204,8 @@
           "entraP2",
           "governance"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "lifecycle",
@@ -198,7 +215,8 @@
         [
           "governance"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "ad-threats",
@@ -208,7 +226,8 @@
         [
           "mdi"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "shadow-it",
@@ -218,7 +237,8 @@
         [
           "mdca"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "vpn-replacement",
@@ -228,7 +248,8 @@
         [
           "privateAccess"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "web-filtering",
@@ -238,7 +259,8 @@
         [
           "internetAccess"
         ]
-      ]
+      ],
+      "core": false
     },
     {
       "id": "admin-elevation",
@@ -248,7 +270,8 @@
         [
           "intuneSuite"
         ]
-      ]
+      ],
+      "core": false
     }
   ]
 }
