@@ -1,7 +1,8 @@
 /* Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md. */
 /* TenantKeep Posture report behaviour. Plain JS, no dependencies, no network. The page is fully rendered without
    it; this adds view switching, executive mode, filters, the check drawer and CSV exports. The page writes no
-   files: exceptions and review dates are recorded with the module's cmdlets and read by the next run. */
+   files: accepting a risk or recording a review copies a module command (Add-PostureException,
+   Remove-PostureException, Set-PostureAttestation) that writes the client folder and rebuilds this report. */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -35,6 +36,20 @@
     return s;
   }
   function nameOf(a) { return a && typeof a === 'object' ? String(a.name || '') : String(a || ''); }
+
+  // ---------- commands to copy ----------
+  // PowerShell single quotes, including the typographic ones PowerShell also treats as quotes.
+  function psq(v) { return "'" + String(v).replace(/['\u2018\u2019\u201A\u201B]/g, function (q) { return q + q; }) + "'"; }
+  function target() { return data.meta.tenantId ? '-TenantId ' + psq(data.meta.tenantId) : '-Client ' + psq(data.meta.clientFolder || ''); }
+  function cmdBlock(id, text) { return '<div class="cmd"><code id="' + id + '">' + esc(text) + '</code><button type="button" data-copy="' + id + '">Copy</button></div>'; }
+  function copyText(text) {
+    var done = function () { toast('Copied. Paste it into PowerShell.'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text) ? done() : toast('Select the command and copy it.'); }); return; }
+    if (fallbackCopy(text)) { done(); } else { toast('Select the command and copy it.'); }
+  }
+  function fallbackCopy(text) { var t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } document.body.removeChild(t); return ok; }
+  function bindCopy(root) { Array.prototype.slice.call(root.querySelectorAll('[data-copy]')).forEach(function (b) { b.addEventListener('click', function () { var el = $(b.getAttribute('data-copy')); if (el) { copyText(el.textContent); } }); }); }
+  var RERUN_HINT = 'Paste it into PowerShell. It rebuilds this report from the same evidence in a few seconds, with no sign-in; then refresh the page.';
 
   // ---------- views ----------
   var views = Array.prototype.slice.call(document.querySelectorAll('section.view'));
@@ -84,7 +99,7 @@
     var affected = list.map(function (a) { return '<li>' + esc(nameOf(a)) + (a && a.detail ? ' <span class="tech">(' + esc(humanDetail(a.detail)) + ')</span>' : '') + '</li>'; }).join('');
     var fw = c.frameworks ? Object.keys(c.frameworks).filter(function (k) { return c.frameworks[k]; }).map(function (k) { return '<span class="chip">' + esc(frameworkLabel(k)) + ' ' + esc(c.frameworks[k]) + '</span>'; }).join('') : '';
     var mine = data.exceptions.filter(function (e) { return e.check === id; });
-    var exList = mine.map(function (e) { return '<li>' + (e.object ? '<strong>' + esc(e.object) + '</strong>: ' : '<strong>Whole check</strong>: ') + esc(e.justification || '') + ' <span class="tech">(owner ' + esc(e.owner || '') + ', approver ' + esc(e.approver || '') + ', until ' + esc(e.expires || 'no expiry') + ')</span></li>'; }).join('');
+    var exList = mine.map(function (e, i) { return '<li>' + (e.object ? '<strong>' + esc(e.object) + '</strong>: ' : '<strong>Whole check</strong>: ') + esc(e.justification || '') + ' <span class="tech">(owner ' + esc(e.owner || '') + ', approver ' + esc(e.approver || '') + ', until ' + esc(e.expires || 'no expiry') + ')</span>' + cmdBlock('cmd-remove-' + i, 'Remove-PostureException ' + target() + ' -Check ' + psq(id) + (e.object ? ' -Object ' + psq(e.object) : '')) + '</li>'; }).join('');
     drawer.innerHTML = '<button class="close" type="button">Close</button>' +
       '<h2>' + esc(r.id) + ' ' + esc(r.title) + '</h2>' +
       '<p><span class="status ' + esc(r.status) + '">' + esc(statusLabel(r.status)) + '</span> <span class="sev ' + esc(r.severity) + '">' + esc(r.severity) + '</span> <span class="chip">' + esc(domainLabel(r.domain)) + '</span>' + ((c.license && c.license.length) ? '<span class="chip">Needs ' + esc(c.license.join(' or ')) + '</span>' : '') + '</p>' +
@@ -93,13 +108,25 @@
       '<h4>Remediation</h4><p>' + esc(c.remediation) + '</p><p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
       (fw ? '<h4>Frameworks</h4><p class="chips">' + fw + '</p>' : '') +
       (affected ? '<h4>Affected (' + list.length + ')</h4><ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +
-      (exList ? '<h4>Accepted Risks</h4><ul class="exception-list">' + exList + '</ul>' : '') +
+      (exList ? '<h4>Accepted Risks</h4><p class="hint">To withdraw one, copy its command. ' + esc(RERUN_HINT) + '</p><ul class="exception-list">' + exList + '</ul>' : '') +
+      acceptPanel(r, list) +
       inputPanel(c) +
       (r.evidence && r.evidence.length ? '<h4 class="tech">Evidence</h4><p class="chips tech">' + r.evidence.map(function (f) { return '<span class="chip">' + esc(f) + '</span>'; }).join('') + '</p>' : '') +
       (r.thresholds && Object.keys(r.thresholds).length ? '<h4 class="tech">Thresholds Used</h4>' + kvRows(r.thresholds, thresholdLabel) : '');
     drawer.classList.add('open');
     drawer.querySelector('.close').addEventListener('click', closeDrawer);
     var ex = $('export-affected'); if (ex) { ex.addEventListener('click', function () { downloadText(r.id + '-affected.csv', toCsv(['Name', 'Detail'], list.map(function (a) { return [nameOf(a), humanDetail(a && a.detail)]; })), 'text/csv'); }); }
+    var scope = $('accept-scope'), acceptCmd = $('cmd-accept');
+    if (scope && acceptCmd) { scope.addEventListener('change', function () { acceptCmd.textContent = acceptCommand(r.id, scope.value); }); }
+    bindCopy(drawer);
+  }
+  function acceptCommand(id, object) { return 'Add-PostureException ' + target() + ' -Check ' + psq(id) + (object ? ' -Object ' + psq(object) : ''); }
+  // Accepting a risk is a decision recorded outside the page: the command asks for the reason, owner and expiry.
+  function acceptPanel(r, list) {
+    if (r.status !== 'fail') { return ''; }
+    var names = list.map(nameOf).filter(Boolean);
+    var picker = names.length ? '<label class="scope">Accept for<select id="accept-scope"><option value="">The whole check</option>' + names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select></label>' : '';
+    return '<h4>Accept This Risk</h4><p class="hint">When this is a decision rather than a gap, copy the command. It asks for the reason, the owner and an expiry, and the check counts as accepted until then. ' + esc(RERUN_HINT) + '</p>' + picker + cmdBlock('cmd-accept', acceptCommand(r.id, ''));
   }
   // Checks no API can answer ask for a review date or for report files; both live in the client folder.
   function inputPanel(c) {
@@ -107,7 +134,7 @@
     var portal = inp.portal ? ' <a class="btn" href="' + esc(inp.portal) + '" target="_blank" rel="noopener">Open the portal</a>' : '';
     if (inp.kind === 'attestation') {
       var current = data.attestations[inp.key];
-      return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><p class="hint">' + esc(inp.label) + ': ' + esc(current ? String(current).substring(0, 10) : 'not recorded') + '.</p>';
+      return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><p class="hint">' + esc(inp.label) + ': ' + esc(current ? String(current).substring(0, 10) : 'not recorded') + '. After the review, copy the command to record today\'s date. ' + esc(RERUN_HINT) + '</p>' + cmdBlock('cmd-attest', 'Set-PostureAttestation ' + target() + ' -Key ' + psq(inp.key));
     }
     if (inp.kind === 'files') {
       return '<h4>What To Provide</h4><p>' + esc(inp.steps) + '</p><p>' + portal + '</p><p class="hint">Copy the files into ' + esc(inp.folder) + ' in the client folder; the next run reads the newest one.</p>';

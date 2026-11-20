@@ -40,6 +40,7 @@ Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence                    # the
 Invoke-PostureChecks -Evidence <stamp> -Baseline cisa-scuba                # checks.json
 New-PostureReport -Evidence <stamp> -ProfilePath <client>/profile.json -Previous <last>/checks.json   # report.html with trend
 Export-PostureFindings -Path <stamp>/checks.json                         # findings.csv, the findings list
+Add-PostureException -TenantId <tenant id> -Check EM-016                   # accept a risk; rebuilds the newest report
 Get-PostureCheckCatalog -Domain ca | Format-Table Id, Severity, Title
 Get-PostureRequirement | Format-Table Name, Installed, Tested, Status      # service modules here against the tested versions
 ```

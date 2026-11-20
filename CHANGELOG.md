@@ -11,6 +11,10 @@ work landed on main.
   each run (ID, Domain, Finding, Severity, Priority, Status, Affected, Remediation, Portal, Learn, Evidence, Checked,
   Licence). Accepted risks stay in exceptions.json; the runbook no longer writes findings.csv back to the `client`
   container.
+- `Add-PostureException`, `Get-PostureException`, `Remove-PostureException` and `Set-PostureAttestation` (2026-11-20):
+  accept a risk, list and withdraw accepted risks, and record a portal review date in the client folder, found from
+  the tenant id. Each change rebuilds the newest report from its evidence, so a page refresh shows it. The report's
+  check panel copies the matching command.
 - Relayed alerts to TenantKeep On-Call retired (2026-11-15): `ca-relay.ps1`, `New-PostureRelaySender.ps1` and the
   `-RelayPairingCode` and `-RelaySenderKey` parameters are gone, and the runbook no longer reads `RELAY_SENDER_KEY` or
   `RELAY_PAIRING_CODES`. Phone alerts are TenantKeep On-Call's Instant alerts. Nothing leaves a customer's tenant now.

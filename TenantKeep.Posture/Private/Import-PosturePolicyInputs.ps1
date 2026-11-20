@@ -105,3 +105,24 @@ function Import-PostureException {
     }
     return @($out)
 }
+
+function Read-PostureExceptionFile {
+    <#
+    .SYNOPSIS
+        The entries of exceptions.json as written, for the cmdlets that change it. Missing file: an empty list.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.IDictionary[]])]
+    param(
+        [Parameter(Mandatory)] [string] $Path
+    )
+
+    $ErrorActionPreference = 'Stop'
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return @() }
+    $text = Get-Content -Raw -LiteralPath $Path
+    if ([string]::IsNullOrWhiteSpace($text)) { return @() }
+    try { $doc = $text | ConvertFrom-Json -AsHashtable -Depth 10 }
+    catch { throw "$Path is not valid JSON ($($_.Exception.Message)). Fix or remove it, then run the command again." }
+    $list = if ($doc -is [System.Collections.IDictionary] -and $doc.Contains('exceptions')) { @($doc['exceptions']) } else { @($doc) }
+    return @($list | Where-Object { $_ -is [System.Collections.IDictionary] })
+}

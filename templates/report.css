@@ -138,6 +138,11 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 #drawer .affected { padding-left: 20px; }
 #drawer .affected li { margin-bottom: 4px; }
 #drawer .exception-list li { margin-bottom: 6px; }
+.cmd { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0 12px; padding: 8px 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; }
+.cmd code { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; user-select: all; }
+.cmd button { flex: none; }
+#drawer label.scope { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); margin: 6px 0; }
+#drawer label.scope select { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); max-width: 100%; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 

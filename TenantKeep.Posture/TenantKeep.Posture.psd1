@@ -16,6 +16,7 @@
 
     # Maintained by build.ps1 from the Public/ folder. Keep in sync by hand for Import-Module from src/.
     FunctionsToExport = @(
+        'Add-PostureException',
         'Compare-PostureCaSnapshot',
         'Connect-PostureSession',
         'Disconnect-PostureSession',
@@ -23,6 +24,7 @@
         'Export-PostureFindings',
         'Get-PostureLicense',
         'Get-PostureCheckCatalog',
+        'Get-PostureException',
         'Get-PostureRequirement',
         'Initialize-PostureClient',
         'Invoke-PostureChecks',
@@ -30,6 +32,8 @@
         'New-PostureCaDocument',
         'New-PostureProfile',
         'New-PostureReport',
+        'Remove-PostureException',
+        'Set-PostureAttestation',
         'Start-PostureRun'
     )
     CmdletsToExport   = @()

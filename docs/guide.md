@@ -113,25 +113,33 @@ Export-PostureFindings -Path $folder
 
 ## 8a. Accepting a risk
 
-When a failing check is a decision rather than a gap, record it in exceptions.json in the client folder, for the
-whole check or for one affected object. The next run scores it as accepted, not failed, until it expires:
+When a failing check is a decision rather than a gap, accept it. In the report, select the check: Accept This Risk
+shows the command for the whole check or for one affected object, with a Copy button. Paste it into PowerShell:
 
-```json
-{ "exceptions": [
-  { "check": "EM-016", "object": "payroll@contoso.example", "justification": "Forwarding to the payroll provider, contract 2026-14",
-    "owner": "IT Director", "approver": "CFO", "expires": "2027-06-30" }
-] }
+```powershell
+Add-PostureException -TenantId 00000000-0000-0000-0000-000000000000 -Check 'EM-016' -Object 'payroll@contoso.example'
 ```
 
-For Automation-produced reports, copy the file to the deployment's `client` container (`az storage blob upload`),
-or pass the folder to `deploy.ps1 -ClientFolder` again.
+It asks why the risk is accepted, who owns it, who approved it and until when (a year by default), writes
+exceptions.json in the client folder, and rebuilds the newest report from the same evidence in a few seconds, with no
+sign-in. Refresh the page and the check reads as accepted. It fails again on its expiry date until someone decides
+again. Nothing is saved in the browser and nothing is written to the tenant.
+
+`Add-PostureException -TenantId <id>` with no check lists the newest run's failures to pick from.
+`Get-PostureException` lists what is accepted and what has expired; `Remove-PostureException -Check <id>` withdraws
+one (each accepted risk in the report has its own copy-ready command), and `-Expired` clears every lapsed entry.
+The tenant id finds the client folder whose profile.json names it; `-Client <folder>` works instead.
+
+For Automation-produced reports, copy exceptions.json to the deployment's `client` container (`az storage blob
+upload`), or pass the folder to `deploy.ps1 -ClientFolder` again.
 
 ## 8b. Reports and reviews you provide
 
 A few Copilot readiness gates have no API behind them. Their check panels say exactly what to provide and link to the
 portal page: the data access governance CSV reports go into `imports/sam-dag/` in the client folder, and the portal
-reviews (DSPM for AI, Copilot settings, site access reviews) are dates under `attestations` in profile.json
-(docs/profile.md). Both count on the next run.
+reviews (DSPM for AI, Copilot settings, site access reviews) are dates: the check's panel copies the
+`Set-PostureAttestation -TenantId <id> -Key <key>` command that records today and rebuilds the report. Both count on
+the next run.
 
 ## 9. Next run, and the trend
 
