@@ -6,6 +6,16 @@ work landed on main.
 
 ## Unreleased
 
+- Graph read of the SharePoint tenant settings (2026-11-20), written beside the PnP one as
+  spo-tenant-settings-graph.json to see whether Global Reader is enough. Adds the delegated scope
+  SharePointTenantSettings.Read.All to the TenantKeep Posture app: tenants consent again to pick it up, and until
+  then that one step reports the missing permission and the run goes on (tokens are requested as .default, so the
+  sign-in is unaffected).
+- Long runs: Exchange, SharePoint, Teams and Azure renew their token before a call when it is near expiry; the
+  Exchange and Purview process gets fresh tokens from the main process over a current-user-only pipe and never
+  holds the refresh token. Per-user MFA samples 1,000 members on tenants over 5,000 and reads everyone only when
+  one has it (`-FullPerUserMfa` reads all). The sign-in read also tallies report-only policy impact, admin
+  sign-ins and single-factor use, failures by error code and password-spray addresses.
 - Scale (2026-11-20), for tenants with hundreds of thousands of users, groups and devices and millions of
   sign-ins: every Graph read retries throttling and transient failures (honouring Retry-After) and renews an expired
   token mid-read; users, registration, groups, Entra devices and Intune devices stream to disk in one pass with

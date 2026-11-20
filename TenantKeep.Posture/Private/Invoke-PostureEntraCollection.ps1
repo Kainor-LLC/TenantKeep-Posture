@@ -324,6 +324,15 @@ function Invoke-PostureEntraCollection {
         } | Out-Null
     }
 
+    # ---------- 6c. SharePoint tenant settings through Graph ----------
+    # Beside the PnP read (which needs SharePoint Administrator): Graph's admin/sharepoint/settings may answer to Global
+    # Reader. Written as Graph sends it, to compare on a live run before any check moves to it (verify).
+    Invoke-PostureStep -Label 'SharePoint tenant settings (Graph)' -Folder $Folder -Script {
+        $context = Get-MgContext
+        if ($context -and 'SharePointTenantSettings.Read.All' -notin @($context.Scopes)) { throw 'missing scope SharePointTenantSettings.Read.All: the tenant consented to the TenantKeep Posture app before this permission was added; an admin consents again to add it.' }
+        & $saveOne (Invoke-PostureGraphRequest -Uri 'admin/sharepoint/settings' -ApiVersion 'v1.0' -Single) 'spo-tenant-settings-graph'
+    } | Out-Null
+
     # ---------- 7. Groups ----------
     Invoke-PostureStep -Label 'Group lifecycle policy' -Folder $Folder -Script {
         # Spec 4.6: the Microsoft 365 group expiration policy. One policy per tenant, or none.
