@@ -21,7 +21,7 @@ decisions; `(verify)` marks what has not been proven live yet.
 ## A run, end to end
 
 1. **Sign in.** Locally, once: `Start-PostureRun` opens the browser for the admin's sign-in to the TenantKeep Posture
-   app, then gets a delegated token per service (Graph, Exchange, SharePoint, Teams, Azure) from the refresh token it
+   app, then gets a delegated token per service (Graph, SharePoint, Teams, Azure) from the refresh token it
    holds in memory. `Connect-PostureService` is the only file in the module that opens a session, always with one of
    those tokens, except Exchange and Purview: Security and Compliance PowerShell issues no delegated token to a
    third-party app, and Exchange Online's only delegated scope reads "Manage" on a consent screen, so both sign the same
