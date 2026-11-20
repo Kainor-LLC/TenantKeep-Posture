@@ -83,7 +83,8 @@ Describe 'Add-PostureException' {
             try {
                 $doc = $saved | ConvertFrom-Json -AsHashtable; $doc.outputRoot = $F.OutRoot; $doc | ConvertTo-Json | Set-Content $p
                 Get-PostureOutputRoot -Client $F.Client | Should -Be $F.OutRoot
-                Get-PostureOutputRoot -Client $F.Client -OutRoot '/elsewhere' | Should -Be '/elsewhere'
+                $other = Join-Path ([System.IO.Path]::GetTempPath()) 'tkp-elsewhere'
+                Get-PostureOutputRoot -Client $F.Client -OutRoot $other | Should -Be $other
             }
             finally { Set-Content -LiteralPath $p -Value $saved }
         }
