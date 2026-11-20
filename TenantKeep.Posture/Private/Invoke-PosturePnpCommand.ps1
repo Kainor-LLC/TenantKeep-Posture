@@ -24,12 +24,15 @@ function Invoke-PosturePnpCommand {
     [OutputType([object[]])]
     param(
         [Parameter(Mandatory)] [ValidatePattern('^Get-PnP[A-Za-z0-9]+$')] [string] $Name,
-        [hashtable] $Parameters = @{}
+        [hashtable] $Parameters = @{},
+        # Called with each object as the cmdlet emits it, instead of collecting them: large tenants stream to disk.
+        [scriptblock] $OnItem
     )
 
     $ErrorActionPreference = 'Stop'
     Update-PostureServiceSession -Name sharepoint
     if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) { throw "$Name is not available; import PnP.PowerShell and connect first." }
+    if ($OnItem) { & $Name @Parameters | ForEach-Object { & $OnItem $_ }; return }
     return @(& $Name @Parameters)
 }
 

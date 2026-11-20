@@ -18,7 +18,6 @@ function Invoke-PostureSharePointCollection {
 
     $ErrorActionPreference = 'Stop'
     $files = [System.Collections.Generic.List[string]]::new()
-    $save = { param($Data, [string] $Name, [bool] $Csv = $false) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data -AsArray -Csv:$Csv)) }
     $saveOne = { param($Data, [string] $Name) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data)) }
     $pnp = { param([string] $Name, [hashtable] $Params = @{}) @(Invoke-PosturePnpCommand -Name $Name -Parameters $Params) }
     $prop = { param($o, [string] $n) if ($o.PSObject.Properties[$n]) { $o.$n } else { $null } }
@@ -43,31 +42,41 @@ function Invoke-PostureSharePointCollection {
     } | Out-Null
 
     if (-not $SkipSiteEnumeration) {
+        # Streamed: rows written one at a time with the ownerless flag worked out per row and the summary tallied. PnP
+        # still hands the whole list over at once (Get-PnPTenantSite has no paging), so this saves the copies, not that one.
         Invoke-PostureStep -Label 'SharePoint sites' -Folder $Folder -Script {
-            $sites = @(& $pnp 'Get-PnPTenantSite' @{ IncludeOneDriveSites = $true; Detailed = $true })
-            $rows = @($sites | Where-Object { $_ } | ForEach-Object {
-                    [ordered]@{
-                        Url = [string]$_.Url; Title = [string]$_.Title; Template = [string]$_.Template; SharingCapability = [string]$_.SharingCapability; StorageUsageCurrent = $_.StorageUsageCurrent
-                        LastContentModifiedDate = $_.LastContentModifiedDate; Owner = [string]$_.Owner; OwnerEmail = [string](& $prop $_ 'OwnerEmail'); OwnerLoginName = [string](& $prop $_ 'OwnerLoginName'); OwnerName = [string](& $prop $_ 'OwnerName')
-                        GroupId = (& $groupId $_); SensitivityLabel = [string]$_.SensitivityLabel; LockState = [string]$_.LockState
-                        RestrictedAccessControl = $_.RestrictedAccessControl; RestrictContentOrgWideSearch = (& $prop $_ 'RestrictContentOrgWideSearch'); DenyAddAndCustomizePages = [string]$_.DenyAddAndCustomizePages; IsOneDrive = ([string]$_.Template -like 'SPSPERS*')
-                        IsSystem = ([string]$_.Template -match '^(SRCHCEN|SPSMSITEHOST|APPCATALOG|POINTPUBLISHINGHUB|POINTPUBLISHINGTOPIC|EDISC|REDIRECTSITE|TEAMCHANNEL|SPSPERS|BDR|OFFILE|STS#-1)')
+            $sum = [ordered]@{ Total = 0; OneDrives = 0; Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
+            $byTemplate = @{}
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'spo-sites' -Csv -Confirm:$false
+            try {
+                Invoke-PosturePnpCommand -Name 'Get-PnPTenantSite' -Parameters @{ IncludeOneDriveSites = $true; Detailed = $true } -OnItem {
+                    param($site)
+                    if (-not $site) { return }
+                    $row = [ordered]@{
+                        Url = [string]$site.Url; Title = [string]$site.Title; Template = [string]$site.Template; SharingCapability = [string]$site.SharingCapability; StorageUsageCurrent = $site.StorageUsageCurrent
+                        LastContentModifiedDate = $site.LastContentModifiedDate; Owner = [string]$site.Owner; OwnerEmail = [string](& $prop $site 'OwnerEmail'); OwnerLoginName = [string](& $prop $site 'OwnerLoginName'); OwnerName = [string](& $prop $site 'OwnerName')
+                        GroupId = (& $groupId $site); SensitivityLabel = [string]$site.SensitivityLabel; LockState = [string]$site.LockState
+                        RestrictedAccessControl = $site.RestrictedAccessControl; RestrictContentOrgWideSearch = (& $prop $site 'RestrictContentOrgWideSearch'); DenyAddAndCustomizePages = [string]$site.DenyAddAndCustomizePages; IsOneDrive = ([string]$site.Template -like 'SPSPERS*')
+                        IsSystem = ([string]$site.Template -match '^(SRCHCEN|SPSMSITEHOST|APPCATALOG|POINTPUBLISHINGHUB|POINTPUBLISHINGTOPIC|EDISC|REDIRECTSITE|TEAMCHANNEL|SPSPERS|BDR|OFFILE|STS#-1)')
                     }
-                })
-            # Ownerless: a site that is not group-connected (the group's owners decide those), not a system site, and
-            # reports no owner in any of the four owner properties. (verify) which of the four Get-PnPTenantSite fills for modern sites.
-            $ownerless = @($rows | Where-Object { -not $_.IsOneDrive -and -not $_.IsSystem -and -not $_.GroupId -and -not ($_.Owner -or $_.OwnerEmail -or $_.OwnerLoginName -or $_.OwnerName) })
-            foreach ($r in $rows) { $r.Ownerless = ($ownerless -contains $r) }
-            & $save $rows 'spo-sites' $true
-            $teamSites = @($rows | Where-Object { -not $_.IsOneDrive })
-            & $saveOne ([ordered]@{
-                    Total = $rows.Count; OneDrives = @($rows | Where-Object { $_.IsOneDrive }).Count; Sites = $teamSites.Count
-                    ByTemplate = @($teamSites | Group-Object { $_.Template } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } })
-                    AnonymousSharingAllowed = @($teamSites | Where-Object { $_.SharingCapability -eq 'ExternalUserAndGuestSharing' }).Count
-                    Ownerless = $ownerless.Count
-                    Labeled = @($teamSites | Where-Object { $_.SensitivityLabel }).Count
-                    RestrictedAccessControl = @($teamSites | Where-Object { $_.RestrictedAccessControl -eq $true }).Count
-                }) 'spo-sites-summary'
+                    # Ownerless: a site that is not group-connected (the group's owners decide those), not a system site, and
+                    # reports no owner in any of the four owner properties. (verify) which of the four Get-PnPTenantSite fills for modern sites.
+                    $row.Ownerless = (-not $row.IsOneDrive -and -not $row.IsSystem -and -not $row.GroupId -and -not ($row.Owner -or $row.OwnerEmail -or $row.OwnerLoginName -or $row.OwnerName))
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    $sum.Total++
+                    if ($row.IsOneDrive) { $sum.OneDrives++; return }
+                    $sum.Sites++
+                    $t = $row.Template; $byTemplate[$t] = 1 + $(if ($byTemplate.ContainsKey($t)) { $byTemplate[$t] } else { 0 })
+                    if ($row.SharingCapability -eq 'ExternalUserAndGuestSharing') { $sum.AnonymousSharingAllowed++ }
+                    if ($row.Ownerless) { $sum.Ownerless++ }
+                    if ($row.SensitivityLabel) { $sum.Labeled++ }
+                    if ($row.RestrictedAccessControl -eq $true) { $sum.RestrictedAccessControl++ }
+                }
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
+            }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            $sum.ByTemplate = @($byTemplate.Keys | ForEach-Object { [ordered]@{ Name = $_; Count = $byTemplate[$_] } })
+            & $saveOne $sum 'spo-sites-summary'
         } | Out-Null
     }
 

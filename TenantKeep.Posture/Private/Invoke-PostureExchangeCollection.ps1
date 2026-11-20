@@ -63,30 +63,46 @@ function Invoke-PostureExchangeCollection {
     }
 
     if (-not $SkipMailboxEnumeration) {
+        # Streamed as Exchange returns them: rows written one at a time, the summaries and the forwarding list kept.
         Invoke-PostureStep -Label 'Mailboxes' -Folder $Folder -Script {
-            $mbx = & $exo 'Get-EXOMailbox' @{ ResultSize = 'Unlimited'; Properties = @('RecipientTypeDetails', 'LitigationHoldEnabled', 'InPlaceHolds', 'ArchiveStatus', 'ForwardingSmtpAddress', 'ForwardingAddress', 'DeliverToMailboxAndForward', 'AuditEnabled', 'WhenMailboxCreated', 'ExternalDirectoryObjectId') }
-            $rows = @($mbx | ForEach-Object {
-                    [ordered]@{
-                        UserPrincipalName = [string]$_.UserPrincipalName; DisplayName = [string]$_.DisplayName; RecipientTypeDetails = [string]$_.RecipientTypeDetails; LitigationHoldEnabled = [bool]$_.LitigationHoldEnabled
-                        InPlaceHoldCount = @($_.InPlaceHolds | Where-Object { $_ }).Count; ArchiveStatus = [string]$_.ArchiveStatus; ForwardingSmtpAddress = [string]$_.ForwardingSmtpAddress; ForwardingAddress = [string]$_.ForwardingAddress
-                        DeliverToMailboxAndForward = [bool]$_.DeliverToMailboxAndForward; AuditEnabled = [bool]$_.AuditEnabled; WhenMailboxCreated = $_.WhenMailboxCreated; ExternalDirectoryObjectId = [string]$_.ExternalDirectoryObjectId
+            $byType = @{}; $forwarding = [System.Collections.Generic.List[object]]::new()
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-09-mailboxes' -Csv -Confirm:$false
+            try {
+                Invoke-PostureExoCommand -Name 'Get-EXOMailbox' -Parameters @{ ResultSize = 'Unlimited'; Properties = @('RecipientTypeDetails', 'LitigationHoldEnabled', 'InPlaceHolds', 'ArchiveStatus', 'ForwardingSmtpAddress', 'ForwardingAddress', 'DeliverToMailboxAndForward', 'AuditEnabled', 'WhenMailboxCreated', 'ExternalDirectoryObjectId') } -OnItem {
+                    param($m)
+                    $row = [ordered]@{
+                        UserPrincipalName = [string]$m.UserPrincipalName; DisplayName = [string]$m.DisplayName; RecipientTypeDetails = [string]$m.RecipientTypeDetails; LitigationHoldEnabled = [bool]$m.LitigationHoldEnabled
+                        InPlaceHoldCount = @($m.InPlaceHolds | Where-Object { $_ }).Count; ArchiveStatus = [string]$m.ArchiveStatus; ForwardingSmtpAddress = [string]$m.ForwardingSmtpAddress; ForwardingAddress = [string]$m.ForwardingAddress
+                        DeliverToMailboxAndForward = [bool]$m.DeliverToMailboxAndForward; AuditEnabled = [bool]$m.AuditEnabled; WhenMailboxCreated = $m.WhenMailboxCreated; ExternalDirectoryObjectId = [string]$m.ExternalDirectoryObjectId
                     }
-                })
-            & $save $rows 'exo-09-mailboxes' $true
-            & $save @($rows | Group-Object { $_.RecipientTypeDetails } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } }) 'exo-09-mailboxes-by-type' $true
-            & $save @($rows | Where-Object { $_.ForwardingSmtpAddress -or $_.ForwardingAddress }) 'exo-09-mailboxes-with-forwarding' $true
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    $t = $row.RecipientTypeDetails; $byType[$t] = 1 + $(if ($byType.ContainsKey($t)) { $byType[$t] } else { 0 })
+                    if ($row.ForwardingSmtpAddress -or $row.ForwardingAddress) { $forwarding.Add($row) }
+                }
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
+            }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            & $save @($byType.Keys | ForEach-Object { [ordered]@{ Name = $_; Count = $byType[$_] } }) 'exo-09-mailboxes-by-type' $true
+            & $save @($forwarding) 'exo-09-mailboxes-with-forwarding' $true
         } | Out-Null
         Invoke-PostureStep -Label 'CAS mailbox protocols' -Folder $Folder -Script {
-            $cas = & $exo 'Get-EXOCASMailbox' @{ ResultSize = 'Unlimited'; Properties = @('ActiveSyncEnabled', 'ImapEnabled', 'PopEnabled', 'SmtpClientAuthenticationDisabled', 'OWAEnabled', 'MAPIEnabled', 'EwsEnabled') }
-            $rows = @($cas | ForEach-Object { [ordered]@{ PrimarySmtpAddress = [string]$_.PrimarySmtpAddress; ActiveSyncEnabled = [bool]$_.ActiveSyncEnabled; ImapEnabled = [bool]$_.ImapEnabled; PopEnabled = [bool]$_.PopEnabled; SmtpClientAuthenticationDisabled = $_.SmtpClientAuthenticationDisabled; OWAEnabled = [bool]$_.OWAEnabled; MAPIEnabled = [bool]$_.MAPIEnabled; EwsEnabled = $_.EwsEnabled } })
-            & $save $rows 'exo-10-cas-mailboxes' $true
-            & $saveOne ([ordered]@{
-                    Total = $rows.Count
-                    ImapEnabled = @($rows | Where-Object { $_.ImapEnabled }).Count
-                    PopEnabled = @($rows | Where-Object { $_.PopEnabled }).Count
-                    ActiveSyncEnabled = @($rows | Where-Object { $_.ActiveSyncEnabled }).Count
-                    SmtpAuthExplicitlyEnabled = @($rows | Where-Object { $_.SmtpClientAuthenticationDisabled -eq $false }).Count
-                }) 'exo-10-cas-summary'
+            $sum = [ordered]@{ Total = 0; ImapEnabled = 0; PopEnabled = 0; ActiveSyncEnabled = 0; SmtpAuthExplicitlyEnabled = 0 }
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-10-cas-mailboxes' -Csv -Confirm:$false
+            try {
+                Invoke-PostureExoCommand -Name 'Get-EXOCASMailbox' -Parameters @{ ResultSize = 'Unlimited'; Properties = @('ActiveSyncEnabled', 'ImapEnabled', 'PopEnabled', 'SmtpClientAuthenticationDisabled', 'OWAEnabled', 'MAPIEnabled', 'EwsEnabled') } -OnItem {
+                    param($c)
+                    $row = [ordered]@{ PrimarySmtpAddress = [string]$c.PrimarySmtpAddress; ActiveSyncEnabled = [bool]$c.ActiveSyncEnabled; ImapEnabled = [bool]$c.ImapEnabled; PopEnabled = [bool]$c.PopEnabled; SmtpClientAuthenticationDisabled = $c.SmtpClientAuthenticationDisabled; OWAEnabled = [bool]$c.OWAEnabled; MAPIEnabled = [bool]$c.MAPIEnabled; EwsEnabled = $c.EwsEnabled }
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    $sum.Total++
+                    if ($row.ImapEnabled) { $sum.ImapEnabled++ }
+                    if ($row.PopEnabled) { $sum.PopEnabled++ }
+                    if ($row.ActiveSyncEnabled) { $sum.ActiveSyncEnabled++ }
+                    if ($row.SmtpClientAuthenticationDisabled -eq $false) { $sum.SmtpAuthExplicitlyEnabled++ }
+                }
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
+            }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            & $saveOne $sum 'exo-10-cas-summary'
         } | Out-Null
     }
 

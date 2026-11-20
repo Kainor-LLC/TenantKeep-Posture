@@ -14,7 +14,7 @@ BeforeAll {
     Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
     Mock -ModuleName TenantKeep.Posture Test-PosturePnpSession { $env:TKP_COLLAB_CONNECTED -eq '1' }
     Mock -ModuleName TenantKeep.Posture Test-PostureTeamsSession { $env:TKP_COLLAB_CONNECTED -eq '1' }
-    Mock -ModuleName TenantKeep.Posture Invoke-PosturePnpCommand { . $env:TKP_COLLAB_FIXTURE; @(Get-CollaborationFixtureObject -Name $Name) }
+    Mock -ModuleName TenantKeep.Posture Invoke-PosturePnpCommand { . $env:TKP_COLLAB_FIXTURE; $items = @(Get-CollaborationFixtureObject -Name $Name); if ($PesterBoundParameters.ContainsKey('OnItem')) { foreach ($i in $items) { & $PesterBoundParameters['OnItem'] $i }; return }; $items }
     Mock -ModuleName TenantKeep.Posture Invoke-PostureTeamsCommand { . $env:TKP_COLLAB_FIXTURE; @(Get-CollaborationFixtureObject -Name $Name) }
 }
 

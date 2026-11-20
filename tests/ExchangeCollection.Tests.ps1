@@ -15,7 +15,7 @@ BeforeAll {
     Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
     Mock -ModuleName TenantKeep.Posture Test-PostureExoSession { $env:TKP_EXO_CONNECTED -eq '1' }
     # Mock bodies run in the module scope, so the fixture is dot-sourced from the path in the environment.
-    Mock -ModuleName TenantKeep.Posture Invoke-PostureExoCommand { . $env:TKP_EXO_FIXTURE; if ($Name -eq 'Get-RoleGroup' -and $env:TKP_EXO_FAIL -eq '1') { throw 'Access denied: View-Only Organization Management required' }; @(Get-ExchangeFixtureObject -Name $Name) }
+    Mock -ModuleName TenantKeep.Posture Invoke-PostureExoCommand { . $env:TKP_EXO_FIXTURE; if ($Name -eq 'Get-RoleGroup' -and $env:TKP_EXO_FAIL -eq '1') { throw 'Access denied: View-Only Organization Management required' }; $items = @(Get-ExchangeFixtureObject -Name $Name); if ($PesterBoundParameters.ContainsKey('OnItem')) { foreach ($i in $items) { & $PesterBoundParameters['OnItem'] $i }; return }; $items }
     Mock -ModuleName TenantKeep.Posture Resolve-PostureDnsRecord { . $env:TKP_EXO_FIXTURE; @(Get-ExchangeFixtureDnsRecord -Name $Name -Type $Type) }
 }
 

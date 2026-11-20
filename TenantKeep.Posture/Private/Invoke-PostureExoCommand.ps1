@@ -38,7 +38,9 @@ function Invoke-PostureExoCommand {
     [OutputType([object[]])]
     param(
         [Parameter(Mandatory)] [ValidatePattern('^Get-[A-Za-z0-9]+$')] [string] $Name,
-        [hashtable] $Parameters = @{}
+        [hashtable] $Parameters = @{},
+        # Called with each object as the cmdlet emits it, instead of collecting them: large tenants stream to disk.
+        [scriptblock] $OnItem
     )
 
     $ErrorActionPreference = 'Stop'
@@ -49,6 +51,7 @@ function Invoke-PostureExoCommand {
         if ((Test-PostureExoSession) -or (Test-PosturePurviewSession)) { throw "$Name is not in this session: the signed-in roles or the tenant's licences do not expose it." }
         throw "$Name is not available; import ExchangeOnlineManagement and connect first."
     }
+    if ($OnItem) { & $Name @Parameters | ForEach-Object { & $OnItem $_ }; return }
     return @(& $Name @Parameters)
 }
 
