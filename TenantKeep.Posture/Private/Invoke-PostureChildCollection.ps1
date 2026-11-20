@@ -123,7 +123,10 @@ function Invoke-PostureChildCollection {
             catch {
                 $failed++
                 $message = (([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()
-                if ($folder -and (Test-Path -LiteralPath $folder)) { Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path (Join-Path $folder 'errors.txt') -Value "$collector collector :: $message" } }
+                if ($folder -and (Test-Path -LiteralPath $folder)) {
+                    Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path (Join-Path $folder 'errors.txt') -Value "$collector collector :: $message" }
+                    Write-PostureStepFailure -Folder $folder -Label "$collector collector" -Collector $collector -Message $message -Confirm:$false
+                }
             }
         }
     }

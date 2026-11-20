@@ -179,6 +179,7 @@ function Invoke-PostureCollection {
         $timed = {
             param([string] $Name, [scriptblock] $Block)
             Set-PostureProgressPhase -Name $Name
+            $script:PostureCurrentCollector = $Name
             $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount
             $result = & $Block
             $timings[$Name] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = [Math]::Max(1, $script:PostureStepCount - $steps0) }
@@ -237,7 +238,7 @@ function Invoke-PostureCollection {
                 powerShell       = $PSVersionTable.PSVersion.ToString()
                 os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
                 staleDays        = $StaleDays
-                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'errors.txt') -and -not $_.Name.StartsWith('.') } | ForEach-Object { $_.Name } | Sort-Object)
+                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'errors.txt', 'errors.jsonl') -and -not $_.Name.StartsWith('.') } | ForEach-Object { $_.Name } | Sort-Object)
                 errorCount       = $errors.Count
                 errors           = $errors
                 timings          = $allTimings

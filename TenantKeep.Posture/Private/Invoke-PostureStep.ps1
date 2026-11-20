@@ -2,7 +2,8 @@
 function Invoke-PostureStep {
     <#
     .SYNOPSIS
-        Runs one collection step. A failure is logged to errors.txt in the run folder and the run continues.
+        Runs one collection step. A failure is logged to errors.txt in the run folder, and to errors.jsonl with its
+        cause and the role it needs (requirements.json), and the run continues.
     .DESCRIPTION
         Mirrors Invoke-Step from the audit plan's Appendix A. Permission errors on one endpoint must not abort a
         whole snapshot. Returns the step's output; on failure it returns nothing, so callers wrap the call in @().
@@ -27,6 +28,7 @@ function Invoke-PostureStep {
         Write-Verbose "$Label failed at $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)"
         Write-Warning "$Label failed: $message"
         Invoke-PostureFolderLock -Folder $Folder -Script { Add-Content -Path (Join-Path $Folder 'errors.txt') -Value "$Label :: $message" }
+        Write-PostureStepFailure -Folder $Folder -Label $Label -Message $message -Confirm:$false
         return
     }
 }
