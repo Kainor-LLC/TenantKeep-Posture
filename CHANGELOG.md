@@ -6,6 +6,8 @@ work landed on main.
 
 ## Unreleased
 
+- Catalog filled (2026-11-20): every check has an effort (115 quick fixes, 73 planned changes, 19 projects) and a
+  category (41 improvements); 84 have their fix as numbered steps, in the order to do them.
 - Inventory view (2026-11-20): what the tenant has, as tables from evidence already collected: mail domains with
   DKIM, SPF, DMARC and MX; transport rules; mail connectors; devices by platform and compliance; compliance
   policies, configuration profiles and endpoint security policies with assignment counts; privileged roles held

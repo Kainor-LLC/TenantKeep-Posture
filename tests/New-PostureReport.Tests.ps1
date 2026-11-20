@@ -67,7 +67,7 @@ Describe 'New-PostureReport' {
             $script:Rep.recommendations['Stop the bleeding'].id | Should -Contain 'CA-002'
             $script:Rep.recommendations['Later'].id | Should -Contain 'CA-014'
             $script:Md | Should -Match '### Stop the bleeding'
-            $script:Md | Should -Match '#### CA-002 MFA required for all users\s+Critical, ca, needs P1'
+            $script:Md | Should -Match '#### CA-002 MFA required for all users\s+Critical, planned change, ca, needs P1'
         }
 
         It 'applies the client folder: brand, profile and exceptions' {
