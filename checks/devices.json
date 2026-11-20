@@ -28,6 +28,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Owners of noncompliant devices are asked to update, encrypt or re-enroll them, and may be blocked until they do."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-get-started",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/compliance",
       "narrative": "The compliance rate is the fraction of managed devices meeting the policy: encrypted, current, protected, healthy. It is what the compliant-device Conditional Access control enforces, so the number is both a hygiene measure and the size of the population a device-based policy would lock out. The per-platform split is in the facts.",
@@ -59,6 +63,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Stale devices nobody uses are removed; active devices are not touched."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/devices/manage-stale-devices",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
       "narrative": "A device object that has not signed in for months still satisfies device-based Conditional Access if someone can use its credential, and it inflates every device count the report relies on. Stale objects are the inventory debt that makes join-type and compliance numbers unreliable.",
@@ -90,6 +98,10 @@
       ],
       "effort": "L",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "New and reset devices join Entra directly; users sign in the same way."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/devices/concept-directory-join",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
       "narrative": "Entra joined, hybrid joined and registered devices get different controls and different attack surfaces. The mix is reported here so the trend is visible across runs; the threshold lets a migration set its own pace.",
@@ -129,6 +141,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "New devices set themselves up from the box when the user signs in, instead of arriving imaged."
+      },
       "learn": "https://learn.microsoft.com/autopilot/overview",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/windowsAutopilotDevices",
       "narrative": "Autopilot-provisioned devices arrive Entra joined, enrolled and policy-bound before a user touches them. The share of the Windows fleet that came through Autopilot is a proxy for how much of it was built to the standard rather than migrated into it.",
@@ -166,6 +182,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Encryption and key backup happen silently in the background."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/BitLockerKeys",
       "narrative": "A Windows device without an escrowed recovery key is either unencrypted or encrypted with a key nobody holds, and the difference only shows up when the disk needs recovering. Key presence in Entra is the one signal that both encryption happened and the organisation can get the data back.",
@@ -206,6 +226,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Mac users are asked once to turn on FileVault and restart."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/encrypt-devices-filevault",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/encryptionReport",
       "narrative": "A lost MacBook without FileVault is a readable disk. Intune reports whether each managed Mac is encrypted; escrow of the recovery key is the second half, so that a locked-out user does not become a wiped machine.",
@@ -242,6 +266,10 @@
       ],
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "high",
+        "text": "Users on Windows 10 get an upgraded or replaced device, with the downtime that brings."
+      },
       "learn": "https://learn.microsoft.com/windows/whats-new/extended-security-updates",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/mDMDevicesPreview",
       "narrative": "An unsupported operating system gets no security fixes. Every Windows 10 device without ESU is a known-vulnerable endpoint on the network, and the count is the first thing an auditor or an insurer asks about.",
@@ -285,6 +313,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "An admin renewal users never see, as long as it is done before the date."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/enrollment/apple-mdm-push-certificate-get",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/appleEnrollment",
       "narrative": "When the Apple push certificate lapses, every iPhone, iPad and Mac silently stops receiving management. If it is renewed with a different Apple ID, all of them must be re-enrolled by hand. It expires yearly and the person who created it has often left.",
@@ -318,6 +350,10 @@
       "remediation": "In Intune enrollment device platform restrictions, block personally owned Windows devices in the default restriction, and only allow them for a named group if the BYOD stance in the profile changes to MDM.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users can no longer enroll a personal Windows PC; they use a company device or the web apps."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/enrollment/enrollment-restrictions-set",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/EnrollmentMenu/~/deviceEnrollmentRestrictions",
       "narrative": "With personal Windows enrollment open, anyone with a work account can enroll their home PC, which then counts as managed, may satisfy compliance, and pulls corporate data onto hardware nobody controls. The restriction keeps the managed fleet the organisation's own.",
@@ -347,6 +383,10 @@
       "remediation": "Create and assign an Intune endpoint security policy for each missing type: antivirus, disk encryption, firewall, attack surface reduction rules, and endpoint detection and response. Start from Microsoft's recommended settings and assign to all devices by platform.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Users may see firewall or antivirus prompts the first time; most protections run silently."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/overview",
       "narrative": "The five endpoint security policy types are how Intune tells devices to run Defender properly, encrypt the disk, keep the firewall on, block the common attack techniques and report to Defender for Endpoint. A missing type means that control is whatever the device defaulted to.",
@@ -382,6 +422,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "The local admin password is managed in the background."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/windows-laps-policy",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/accountProtection",
       "narrative": "Without LAPS every Windows device shares the same local administrator password, or has one nobody knows. Either way a single compromised machine gives lateral movement to all of them. LAPS makes each password unique, rotated and retrievable only through an audited read.",
@@ -418,6 +462,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "An admin connection users never see."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/advanced-threat-protection-configure",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/mdeConnector",
       "narrative": "The connector is what lets Intune onboard devices to Defender for Endpoint automatically and use device risk in compliance. Without it, onboarding is manual and a device under attack still reports compliant.",
@@ -446,6 +494,10 @@
       "remediation": "In Intune devices, device cleanup rules, enable the rule and set the inactivity period to 90 days or less so retired and forgotten devices leave the console on their own.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Devices inactive for months leave the console; active devices are not touched."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/remote-actions/devices-wipe",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/deviceCleanup",
       "narrative": "Without a cleanup rule, every device that was ever enrolled stays in the console, and the compliance and encryption percentages drift toward meaningless. The rule is a one-time setting that keeps the inventory honest.",
@@ -486,6 +538,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Linux users enroll their device and get Defender installed."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/fundamentals/deployment-guide-platform-linux",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/mDMDevicesPreview",
       "narrative": "Linux desktops are usually the developers' machines with the most access and the least management. The count enrolled is reported here because zero is the common answer, and at scale zero is a finding.",
@@ -523,7 +579,10 @@
       ],
       "effort": "S",
       "category": "fix",
-      "impact": "Conditional Access that requires a compliant device trusts Intune's verdict. Unless compliance asks Defender for the device's risk, a laptop with an active intrusion still reports compliant and keeps its access.",
+      "userImpact": {
+        "level": "low",
+        "text": "A device with an active threat loses access to Microsoft 365 until it is cleaned; users of healthy devices notice nothing."
+      },
       "learn": "https://learn.microsoft.com/mem/intune/protect/advanced-threat-protection-configure",
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies",
       "narrative": "Defender for Endpoint scores each device's risk from what it sees on the machine. A compliance policy can require that score to be Low or Clear, which is how an attack in progress cuts the device off from Microsoft 365 until it is cleaned up. The setting is per platform and off by default.",

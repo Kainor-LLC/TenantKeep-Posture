@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- User impact (2026-11-20): every check says what users notice when the fix lands (none, low, medium or high, and a
+  sentence). Cards, the drawer, report.md and findings.json show it; Recommendations opens with Do today, up to ten
+  quick fixes users will barely notice. The unused `impact` field is retired in its favour.
 - Plain labels on the finding cards (2026-11-20): every value a check judged reads in words ("Sharing level below
   Anyone: no"), from checks/facts.json, in report.html, report.md and findings.json (found: label and value).
 - Catalog filled (2026-11-20): every check has an effort (115 quick fixes, 73 planned changes, 19 projects) and a
@@ -24,7 +27,7 @@ work landed on main.
   Learn links and frameworks; quick fixes first within a priority; improvements marked as such; what already
   passes listed per domain. checks.json records each check's observed values; findings.json and report.md carry
   steps, effort, category and the values, in the same order.
-- Catalog fields (2026-11-20): a check's remediation can be a list of steps; optional `impact`, `effort` (S, M, L)
+- Catalog fields (2026-11-20): a check's remediation can be a list of steps; optional `effort` (S, M, L)
   and `category` (fix, improve). `Get-PostureCheckCatalog` shows effort and category, and with `-Full` the steps.
 - Output for tools and AI (2026-11-20): findings.json beside the report, a summary then every failing check ranked
   with why, how to fix, links, licence and affected samples, explained in its own "about" field; report.md opens with

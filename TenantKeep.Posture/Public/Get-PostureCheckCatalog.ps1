@@ -6,13 +6,13 @@ function Get-PostureCheckCatalog {
         sources and framework tags.
     .DESCRIPTION
         The same list is published on the website by a build step; this is the in-module view. Add -Full for the
-        narrative, impact, remediation steps and pass expression as well.
+        narrative, remediation steps, user impact and pass expression as well.
     .PARAMETER Domain
         Only checks in these domains.
     .PARAMETER Id
         Only these check ids.
     .PARAMETER Full
-        Include narrative, impact, remediation and its steps, learn link, pass expression and thresholds.
+        Include narrative, remediation and its steps, user impact, learn link, pass expression and thresholds.
     .PARAMETER CustomChecks
         Extra folders with org-specific checks.
     .EXAMPLE
@@ -47,6 +47,7 @@ function Get-PostureCheckCatalog {
             Severity       = [string]$c['severityDefault']
             Effort         = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null })
             Category       = [string]$c['category']
+            UserImpact     = $(if ($c.Contains('userImpact')) { [string]$c['userImpact']['level'] } else { $null })
             License        = @($c['license'])
             Evidence       = @($c['evidence'])
             Frameworks     = $c['frameworks']
@@ -55,7 +56,7 @@ function Get-PostureCheckCatalog {
         }
         if ($Full) {
             $o.Narrative = [string]$c['narrative']
-            $o.Impact = $(if ($c.Contains('impact')) { [string]$c['impact'] } else { $null })
+            $o.UserImpactText = $(if ($c.Contains('userImpact')) { [string]$c['userImpact']['text'] } else { $null })
             $o.Remediation = [string]$c['remediation']
             $o.Steps = @($c['steps'])
             $o.Learn = [string]$c['learn']

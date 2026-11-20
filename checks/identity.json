@@ -24,6 +24,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators who lose standing Global Administrator activate it in PIM when they need it, a minute or two each time."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "Every Global Administrator is a full tenant takeover away from any phishing kit or malware on that person's machine. Microsoft recommends fewer than five, and two is the floor because the break-glass accounts hold the role. Counts above that usually come from convenience assignments that nobody revisited.",
@@ -57,6 +61,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators activate their role in PIM before admin work, with MFA and a reason; everyone else sees nothing."
+      },
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-configure",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/aadmigratedroles",
       "narrative": "A standing privileged role is a standing target. Eligible assignments mean the role exists only for the hours it is activated, every activation is logged with a reason, and an attacker who lands in the account outside that window gets a normal user. This is what Entra ID P2 is for.",
@@ -88,6 +96,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators sign in to a separate cloud-only account for admin work."
+      },
       "learn": "https://learn.microsoft.com/entra/architecture/protect-m365-from-on-premises-attacks",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "A synced account's password and status are controlled from on-premises Active Directory. If a domain controller falls, every synced administrator falls with it, and the attacker reaches the cloud without touching it. Microsoft's guidance for protecting Microsoft 365 from on-premises attacks starts with cloud-only privileged accounts.",
@@ -119,6 +131,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators keep two accounts: the daily one for mail and Teams, the admin one for the portals."
+      },
       "learn": "https://learn.microsoft.com/microsoft-365/admin/add-users/about-admin-roles",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "An administrator who reads mail and browses with the same account exposes the role to every phishing message and drive-by download. A separate, unlicensed admin account has no mailbox to phish and no Office session to hijack. Licenses on it are the tell that it doubles as a daily account.",
@@ -152,6 +168,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nobody sees these accounts; they sit unused until an emergency."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "When MFA, federation or a policy misfire locks every administrator out, the break-glass accounts are the only way back in. They must be cloud-only so an on-premises outage cannot take them, enabled so they work, and excluded from blocking policies so the lockout does not apply to them.",
@@ -183,6 +203,10 @@
       "remediation": "In PIM, for Global Administrator, Privileged Role Administrator, Security Administrator and Conditional Access Administrator: require MFA on activation, require justification, cap activation at eight hours, and require approval for Global Administrator.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators answer MFA and give a reason when they activate a role; Global Administrator waits for an approver."
+      },
       "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/quickStart",
       "narrative": "Eligible assignments only help if activation is harder than a click. MFA on activation stops a stolen session from elevating, a duration cap limits how long an activated role lives, and approval on Global Administrator puts a second person between an attacker and the tenant.",
@@ -213,6 +237,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "No people involved; the app owner may need to re-grant narrower permissions to the workload."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/best-practices",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
       "narrative": "A service principal with a directory role is an administrator with no MFA, no sign-in frequency and usually a secret somewhere in a pipeline. Global Administrator on one of them is the most direct path from a leaked secret to full tenant control.",
@@ -242,6 +270,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users can no longer consent to new apps themselves; they request access and wait for an admin to approve."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-user-consent",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/UserSettings",
       "narrative": "Consent phishing asks a user to approve an app that reads their mail and files. If users can consent to any permission, one click gives the attacker a persistent OAuth grant that survives password changes and MFA. Restricting consent closes the door; the workflow keeps legitimate requests moving.",
@@ -271,6 +303,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Users who hit a consent prompt get a request button instead of a dead end."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-admin-consent-workflow",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/AdminConsentSettings",
       "narrative": "Once user consent is restricted, users need a way to ask. Without the workflow they ask by email or not at all, and administrators grant tenant-wide consent to get them unblocked, which is worse than the user consent that was removed.",
@@ -303,6 +339,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "No user change if credentials are rotated before they expire; an expired one already breaks the app."
+      },
       "learn": "https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
       "narrative": "An expired credential on a live integration is an outage waiting for the next token refresh. Expired credentials left in place also hide which ones are actually in use. Thirty days is the window in which rotation can be scheduled rather than done in an incident.",
@@ -334,6 +374,10 @@
       ],
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "An app whose permission is narrowed may lose a feature nobody was using; check with its owner first."
+      },
       "learn": "https://learn.microsoft.com/graph/permissions-reference",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
       "narrative": "An application permission applies to every mailbox, site or user in the tenant with no user present. Directory.ReadWrite.All or Mail.ReadWrite on a forgotten app is a complete data exfiltration path that bypasses Conditional Access entirely. Each one should have a name next to it.",
@@ -369,6 +413,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Removed guests lose access; active guests are not affected."
+      },
       "learn": "https://learn.microsoft.com/entra/id-governance/access-reviews-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "A guest who has not signed in for months still holds whatever was shared with them, under an identity another organisation controls. Inactive guests are the longest-lived access in most tenants and the least looked at.",
@@ -398,6 +446,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Partner users outside the allowed organisations can no longer be invited; existing guests are not affected."
+      },
       "learn": "https://learn.microsoft.com/entra/external-id/cross-tenant-access-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/CrossTenantAccessSettings",
       "narrative": "The default cross-tenant settings allow any external user to be invited to any application. That is fine for an organisation that has decided it, and a gap for one that never looked. The check fails on the untouched default so the decision gets made.",
@@ -426,6 +478,10 @@
       "remediation": "Add a diagnostic setting on Entra ID that sends SignInLogs, AuditLogs, NonInteractiveUserSignInLogs and RiskyUsers to a Log Analytics workspace or your SIEM, with retention beyond the 30 days the portal keeps.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "An admin setting users never see."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/howto-integrate-activity-logs-with-azure-monitor-logs",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/DiagnosticSettings",
       "narrative": "Entra keeps sign-in logs for seven to thirty days depending on license. An incident discovered later than that has no evidence to investigate. Exporting the logs is a one-time setting and the difference between knowing what happened and guessing.",
@@ -461,6 +517,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The users listed reset their password and sign in again."
+      },
       "learn": "https://learn.microsoft.com/entra/id-protection/howto-identity-protection-investigate-risk",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers",
       "narrative": "A user flagged high risk has leaked credentials or attacker-pattern sign-ins. A week without action means either nobody is watching the report or the user-risk policy is missing. Either way the account is still usable by whoever triggered the detection.",
@@ -494,6 +554,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "high",
+        "text": "Anyone still on IMAP, POP or basic SMTP AUTH stops connecting until their app or device moves to modern sign-in."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-block-legacy-authentication",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/SignInLogsList.ReactView",
       "narrative": "Legacy protocols send a password with every request and cannot ask for MFA, so a guessed or leaked password is enough. Password spraying aims at them for that reason. The sign-in log shows who still depends on them, which is the list to fix before blocking.",

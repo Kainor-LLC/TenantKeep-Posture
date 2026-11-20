@@ -41,7 +41,7 @@ Describe 'Import-PostureCheckCatalog' {
         $dir = Join-Path $script:Root 'shapes'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $base = '"domain": "x", "title": "t", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [], "thresholds": {}, "evidence": [], "pass": "true", "learn": "", "deepLink": null, "narrative": "", "frameworks": {}'
-        "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", $base, ""remediation"": ""Turn it on."" }, { ""id"": ""XX-002"", $base, ""remediation"": [""Open the policy."", "" Set it to On. ""], ""effort"": ""S"", ""category"": ""improve"", ""impact"": ""i"" } ] }" | Set-Content (Join-Path $dir 'x.json')
+        "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", $base, ""remediation"": ""Turn it on."" }, { ""id"": ""XX-002"", $base, ""remediation"": [""Open the policy."", "" Set it to On. ""], ""effort"": ""S"", ""category"": ""improve"", ""userImpact"": { ""level"": ""low"", ""text"": ""t"" } } ] }" | Set-Content (Join-Path $dir 'x.json')
         '{ "name": "not a domain file" }' | Set-Content (Join-Path $dir 'chains.json')
         InModuleScope TenantKeep.Posture -Parameters @{ P = $dir } {
             $c = @((Import-PostureCheckCatalog -Path $P).checks)
@@ -53,7 +53,7 @@ Describe 'Import-PostureCheckCatalog' {
             $c[1].effort | Should -Be 'S'
             $c[1].category | Should -Be 'improve'
         }
-        foreach ($case in @(@('"remediation": [], ', '*no remediation*'), @('"remediation": "r", "effort": "XL", ', "*effort 'XL'*"), @('"remediation": "r", "category": "nice", ', "*category 'nice'*"))) {
+        foreach ($case in @(@('"remediation": [], ', '*no remediation*'), @('"remediation": "r", "effort": "XL", ', "*effort 'XL'*"), @('"remediation": "r", "category": "nice", ', "*category 'nice'*"), @('"remediation": "r", "impact": "i", ', '*became userImpact*'), @('"remediation": "r", "userImpact": { "level": "some" }, ', '*userImpact needs a level*'))) {
             "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", $($case[0])$base } ] }" | Set-Content (Join-Path $dir 'x.json')
             InModuleScope TenantKeep.Posture -Parameters @{ P = $dir; E = $case[1] } { { Import-PostureCheckCatalog -Path $P } | Should -Throw $E }
         }

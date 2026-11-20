@@ -44,7 +44,8 @@ Describe 'Shipped check catalog' {
                 $c.narrative.Length | Should -BeGreaterThan 60 -Because "$($c.id) needs a real narrative"
                 (@($c.remediation) -join ' ').Length | Should -BeGreaterThan 30 -Because "$($c.id) needs real remediation"
                 if ($c.remediation -is [array]) { foreach ($s in $c.remediation) { ([string]$s).Length | Should -BeGreaterThan 10 -Because "$($c.id) steps are whole actions" } }
-                if ($c.Contains('impact')) { ([string]$c.impact).Length | Should -BeGreaterThan 40 -Because "$($c.id) impact is a sentence or two" }
+                $c.userImpact.level | Should -BeIn @('none', 'low', 'medium', 'high') -Because "$($c.id) says what users notice when it is fixed"
+                ([string]$c.userImpact.text).Length | Should -BeGreaterThan 20 -Because "$($c.id) user impact is a sentence"
                 $c.learn | Should -Match '^https://learn\.microsoft\.com/'
                 foreach ($k in $c.frameworks.Keys) { ([string]$c.frameworks[$k]).Length | Should -BeLessThan 40 -Because 'framework fields hold identifiers, never benchmark text' }
                 $c.deepLink | Should -Match '^https://' -Because 'every check links to the portal page where the setting lives'

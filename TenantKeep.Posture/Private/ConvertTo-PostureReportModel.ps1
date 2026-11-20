@@ -207,13 +207,16 @@ function ConvertTo-PostureReportModel {
             id = $r.id; title = $r.title; severity = $r.severity; domain = $r.domain; affectedCount = $r.affectedCount
             reason = [string]$r.reason; affected = @(@($r.affected) | Select-Object -First 25)
             observed = $(if ($r.Contains('observed') -and $r.observed) { $r.observed } else { [ordered]@{} }); thresholds = $r.thresholds
-            why = $(if ($c.Contains('impact') -and $c['impact']) { [string]$c['impact'] } else { [string]$c['narrative'] })
+            why = [string]$c['narrative']
+            userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null })
             steps = @($c['steps']); remediation = [string]$c['remediation']
             effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']
             learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license'])
             frameworks = $(if ($c['frameworks']) { $c['frameworks'] } else { [ordered]@{} })
         }
     }
+    # Do today: failing quick fixes (effort S) that users will not notice or will barely notice.
+    $doToday = @($recommendations.Values | ForEach-Object { $_ } | Where-Object { $_.effort -eq 'S' -and $_.userImpact -and [string]$_.userImpact['level'] -in 'none', 'low' } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; userImpact = $_.userImpact } })
     $chains = @(Get-PostureControlChainResult -Chain @(Import-PostureControlChain -Catalog $Catalog) -Result @($results))
     $alreadyGood = [ordered]@{}
     foreach ($r in @($results | Where-Object { $_.status -eq 'pass' } | Sort-Object { $_.domain }, { $_.id })) {
@@ -279,7 +282,7 @@ function ConvertTo-PostureReportModel {
     }
 
     $catalogText = [ordered]@{}
-    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; impact = $(if ($c.Contains('impact')) { [string]$c['impact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
+    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
 
     $collection = & $load 'collection'
     $tenantId = $(if ($collection) { & $v $collection 'tenantId' } else { & $v (& $load 'metadata') 'tenantId' })
@@ -340,6 +343,7 @@ function ConvertTo-PostureReportModel {
         recommendations = $recommendations
         alreadyGood     = $alreadyGood
         chains          = $chains
+        doToday         = $doToday
         inventory       = @(Get-PostureInventory -Evidence $Evidence)
         admins       = $adminsTable
         ca           = $ca

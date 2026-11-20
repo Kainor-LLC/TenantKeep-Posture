@@ -12,7 +12,8 @@ function Import-PostureCheckCatalog {
 
         remediation is a string or an array of steps. Every check comes back with both: steps (one or more) and
         remediation as one string, so a reader that wants text (CSV, the CA document, the public catalog) never
-        sees an array. effort (S, M, L) is optional; category is fix or improve, fix when absent.
+        sees an array. effort (S, M, L) is optional; category is fix or improve, fix when absent; userImpact is
+        what users notice when the fix lands: a level (none, low, medium, high) and a sentence.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -33,6 +34,7 @@ function Import-PostureCheckCatalog {
     $severities = 'Critical', 'High', 'Medium', 'Low'
     $efforts = 'S', 'M', 'L'
     $categories = 'fix', 'improve'
+    $userImpacts = 'none', 'low', 'medium', 'high'
     $checks = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     $files = @()
@@ -56,6 +58,11 @@ function Import-PostureCheckCatalog {
                 $c['steps'] = $steps
                 $c['remediation'] = $steps -join ' '
                 if ($c.Contains('effort') -and [string]$c['effort'] -notin $efforts) { throw "$($file.Name): check '$($c['id'])' has effort '$($c['effort'])'; expected $($efforts -join ', ')" }
+                if ($c.Contains('impact')) { throw "$($file.Name): check '$($c['id'])' has impact, which became userImpact (level and text) on 2026-11-20" }
+                if ($c.Contains('userImpact')) {
+                    $ui = $c['userImpact']
+                    if (-not ($ui -is [System.Collections.IDictionary]) -or [string]$ui['level'] -notin $userImpacts -or [string]::IsNullOrWhiteSpace([string]$ui['text'])) { throw "$($file.Name): check '$($c['id'])' userImpact needs a level ($($userImpacts -join ', ')) and text" }
+                }
                 if (-not $c.Contains('category') -or -not $c['category']) { $c['category'] = 'fix' }
                 elseif ([string]$c['category'] -notin $categories) { throw "$($file.Name): check '$($c['id'])' has category '$($c['category'])'; expected $($categories -join ', ')" }
                 if ($seen.ContainsKey($c['id'])) { throw "Duplicate check id '$($c['id'])' in $($file.Name) and $($seen[$c['id']])" }

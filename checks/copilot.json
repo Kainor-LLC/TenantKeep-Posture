@@ -21,6 +21,10 @@
       "remediation": "Enable unified audit log ingestion; Copilot interactions are recorded as CopilotInteraction events once it is on.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Logging users never see."
+      },
       "learn": "https://learn.microsoft.com/purview/audit-copilot",
       "deepLink": "https://purview.microsoft.com/audit",
       "narrative": "Without the audit log there is no record of what Copilot read or who asked. It is the first hard gate because every later question about Copilot exposure needs it.",
@@ -51,6 +55,10 @@
       "remediation": "SharePoint Advanced Management comes with Microsoft 365 Copilot licences (verify current bundling) or as an add-on; it carries the oversharing reports and restricted access control.",
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "A licence decision users never see."
+      },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
       "deepLink": "https://admin.microsoft.com/#/catalog",
       "narrative": "The oversharing baseline, restricted access control and restricted content discovery all sit behind this licence. Without it the stopgaps are not available.",
@@ -88,6 +96,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "A report users never see."
+      },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
       "narrative": "The baseline is the list of sites Copilot would surface too widely. Everything after this gate works that list.",
@@ -125,6 +137,10 @@
       "remediation": "Set the default sharing link type to Specific people in the SharePoint sharing settings.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The share dialog starts at Specific people; users change it when they mean to."
+      },
       "learn": "https://learn.microsoft.com/sharepoint/change-default-sharing-link",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "Organisation-wide links are what Copilot grounds on: a file shared to everyone in the organisation by default is a file Copilot will quote to anyone who asks.",
@@ -157,6 +173,10 @@
       "remediation": "Disable Anyone links, or require them to expire within 30 days.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Anyone links stop working, or expire after 30 days."
+      },
       "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
       "narrative": "Anyone links are outside every identity control; Copilot does not surface them, but the same oversharing habit that creates them creates the internal exposure.",
@@ -197,6 +217,10 @@
       ],
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users see labels in Office; top-tier files are encrypted and open only for permitted people."
+      },
       "learn": "https://learn.microsoft.com/purview/sensitivity-labels",
       "deepLink": "https://purview.microsoft.com/informationprotection/labels",
       "narrative": "Copilot honours labels: an encrypted file it cannot read, it cannot quote. Labels are the end state the stopgaps buy time for.",
@@ -231,6 +255,10 @@
       "remediation": "Apply restricted access control to each listed site until its access review completes; it is a stopgap, not the end state.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People outside the named group lose access to the restricted sites."
+      },
       "learn": "https://learn.microsoft.com/sharepoint/restricted-access-control",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Restricted access control binds a site to a group regardless of how its content was shared. On the top tier it stops Copilot surfacing the site to anyone outside that group while owners clean up.",
@@ -263,6 +291,10 @@
       "remediation": "Turn on restricted content discovery for the sites the baseline flagged and nobody has reviewed yet.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Those sites stop appearing in Copilot and search for people who are not members; members see no change."
+      },
       "learn": "https://learn.microsoft.com/sharepoint/restricted-content-discovery",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Restricted content discovery hides a site from Copilot and organisation-wide search without changing permissions. (verify) PnP exposes the site flag.",
@@ -293,6 +325,10 @@
       "remediation": "Leave restricted SharePoint search off once the baseline is clean; while it is on, keep the allow list populated and a sunset date recorded.",
       "effort": "S",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Search and Copilot reach beyond the allow list once it is off; users find more of what they already have access to."
+      },
       "learn": "https://learn.microsoft.com/sharepoint/restricted-sharepoint-search",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=settings&modern=true",
       "narrative": "Restricted search is the bluntest stopgap: Copilot and search see only the allow list. On with an empty list means nobody finds anything.",
@@ -327,6 +363,10 @@
       "remediation": "Initiate a site access review for every site the baseline flagged and track completion.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Site owners get an email asking them to review who has access."
+      },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
       "narrative": "The review is where the site owner decides who should still have access. Completion percentage is the progress measure for the readiness page.",
@@ -366,6 +406,10 @@
       "remediation": "Create recurring access reviews for the privileged roles and for guests, quarterly or better.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Reviewers get a short quarterly task; people whose access is not confirmed lose it."
+      },
       "learn": "https://learn.microsoft.com/entra/id-governance/access-reviews-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/Controls",
       "narrative": "Copilot widens what a stale permission reaches. Recurring reviews are how permissions stay current after the clean-up.",
@@ -398,6 +442,10 @@
       "remediation": "Deliver the top shared resources through access packages with an approver and an expiry.",
       "effort": "L",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Users request access through a package with an approval, instead of asking IT."
+      },
       "learn": "https://learn.microsoft.com/entra/id-governance/entitlement-management-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ERM/DashboardBlade/~/elmEntitlement",
       "narrative": "Ad hoc sharing is the source of the oversharing baseline; packages replace it with requested, approved, time-bound access.",
@@ -434,6 +482,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Copilot skips or declines content with the excluded labels, and says so."
+      },
       "learn": "https://learn.microsoft.com/purview/dlp-microsoft365-copilot-location-learn-about",
       "deepLink": "https://purview.microsoft.com/dlp/policies",
       "narrative": "The Copilot DLP location stops Copilot summarising or quoting files that carry the excluded labels. (verify) how the policy exposes that location in PowerShell.",
@@ -472,6 +524,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "A review users never see."
+      },
       "learn": "https://learn.microsoft.com/purview/ai-microsoft-purview",
       "deepLink": "https://purview.microsoft.com/dspm-for-ai",
       "narrative": "DSPM for AI is Microsoft's own view of Copilot exposure. There is no read API; the review is recorded as portal evidence.",
@@ -513,6 +569,10 @@
       "remediation": "Record the web grounding decision, the Copilot Studio and agent governance stance, and the Graph connector review in the admin center evidence.",
       "effort": "S",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Depends on the decisions recorded; web grounding off means Copilot answers from work data only."
+      },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-page",
       "deepLink": "https://admin.microsoft.com/#/copilot",
       "narrative": "Web grounding, agents and connectors each widen what Copilot can reach. The decisions belong recorded; the API to read them is not there yet (verify).",
@@ -555,6 +615,10 @@
       "remediation": "Ask Copilot to summarise a file carrying the top-tier label and confirm the output inherits it; record the date in the profile's operations answers (copilotLabelInheritanceTestedUtc).",
       "effort": "S",
       "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "A test users never see."
+      },
       "learn": "https://learn.microsoft.com/purview/sensitivity-labels-office-apps#sensitivity-labels-and-microsoft-365-copilot",
       "deepLink": "https://purview.microsoft.com/informationprotection/labels",
       "narrative": "The test proves the taxonomy survives Copilot: output labeled as restrictively as the most restrictive source.",
@@ -590,6 +654,10 @@
       "remediation": "If Copilot is already deployed, run the baseline now and work the flagged sites first; this row is a status, not a grade.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "A status, not a change."
+      },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-blueprint-oversharing",
       "deepLink": "https://admin.microsoft.com/#/catalog",
       "narrative": "A tenant that licensed Copilot before baselining its sharing is exposed today; the row says so and dates it.",
@@ -630,6 +698,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Members of ownerless sites may be asked to take ownership."
+      },
       "learn": "https://learn.microsoft.com/microsoft-365/solutions/microsoft-365-groups-ownerless-groups-teams",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Site access reviews need a site owner to answer them. Ownerless sites are the ones the clean-up cannot reach.",

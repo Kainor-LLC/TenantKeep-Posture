@@ -21,6 +21,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Logging users never see."
+      },
       "learn": "https://learn.microsoft.com/purview/audit-log-retention-policies",
       "deepLink": "https://purview.microsoft.com/audit",
       "narrative": "The default retention is 180 days. An investigation that starts later than that has nothing to read. The licence decides what can be kept longer; the policy is what keeps it.",
@@ -56,6 +60,10 @@
       ],
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users see a label bar in Office and a default label on new files, and choose a higher label for sensitive ones."
+      },
       "learn": "https://learn.microsoft.com/purview/create-sensitivity-labels",
       "deepLink": "https://purview.microsoft.com/informationprotection/labels",
       "narrative": "Labels are what every other data control hangs off: DLP, auto-labeling, Copilot grounding, container access. Defined but published to a pilot group is the common half-done state.",
@@ -88,6 +96,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Some files get a label automatically, which can add encryption or a watermark."
+      },
       "learn": "https://learn.microsoft.com/purview/apply-sensitivity-label-automatically",
       "deepLink": "https://purview.microsoft.com/informationprotection/autolabeling",
       "narrative": "Users label a fraction of what they create. Auto-labeling is how the taxonomy reaches the files already there. A policy left in simulation protects nothing.",
@@ -123,6 +135,10 @@
       ],
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Owners pick a label when they create a team or site; labelled sites may restrict guests or sharing."
+      },
       "learn": "https://learn.microsoft.com/purview/sensitivity-labels-teams-groups-sites",
       "deepLink": "https://purview.microsoft.com/informationprotection/labels",
       "narrative": "A container label sets the site's privacy, external sharing and Conditional Access in one move, and it is what the Copilot oversharing controls key off. Enabled with no sites labeled is the finding.",
@@ -156,6 +172,10 @@
       "remediation": "Add an enforced DLP policy for each listed workload: Exchange, SharePoint, OneDrive, Teams, and Endpoint devices with E5.",
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users who send or share sensitive data get a policy tip, and some sends are blocked with a reason."
+      },
       "learn": "https://learn.microsoft.com/purview/dlp-learn-about-dlp",
       "deepLink": "https://purview.microsoft.com/dlp/policies",
       "narrative": "DLP in test mode reports and lets the message through. Each workload is a separate location in the policy; a tenant usually has Exchange covered and the rest not.",
@@ -188,6 +208,10 @@
       "remediation": "Enable retention policies that match the records schedule for mail and files, with Legal's sign-off recorded in the exceptions file if the schedule departs from the default.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Content past its retention period is deleted; content within it cannot be deleted for good."
+      },
       "learn": "https://learn.microsoft.com/purview/retention",
       "deepLink": "https://purview.microsoft.com/datalifecyclemanagement/retention",
       "narrative": "Retention is a decision either way: keep for the schedule, delete after it. No policy means the default of forever for some workloads and the deleted-items window for others.",
@@ -217,6 +241,10 @@
       "remediation": "Enable at least the data theft by departing users policy, connected to the HR system so a resignation date raises the signal.",
       "effort": "M",
       "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Monitoring users never see."
+      },
       "learn": "https://learn.microsoft.com/purview/insider-risk-management",
       "deepLink": "https://purview.microsoft.com/insiderriskmanagement/policies",
       "narrative": "The licence is present; the policy is what turns the signals into cases. Departing-user data theft is the one every organisation has.",
@@ -246,6 +274,10 @@
       "remediation": "Trim the Compliance Administrator and Organization Management role groups in Purview to the few who need standing access; use PIM-eligible role assignment for the rest.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People removed from the role groups lose standing access and request it when needed."
+      },
       "learn": "https://learn.microsoft.com/purview/microsoft-365-compliance-center-permissions",
       "deepLink": "https://purview.microsoft.com/roles",
       "narrative": "Purview has its own role groups outside Entra PIM. Standing compliance administrators can read eDiscovery results and change DLP, so the list belongs reviewed like the Global Administrators.",

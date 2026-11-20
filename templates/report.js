@@ -109,7 +109,8 @@
       '<p><span class="status ' + esc(r.status) + '">' + esc(statusLabel(r.status)) + '</span> <span class="sev ' + esc(r.severity) + '">' + esc(r.severity) + '</span> <span class="chip">' + esc(domainLabel(r.domain)) + '</span>' + ((c.license && c.license.length) ? '<span class="chip">Needs ' + esc(c.license.join(' or ')) + '</span>' : '') + '</p>' +
       (r.reason ? '<p>' + esc(r.reason) + '</p>' : '') +
       (r.observed && Object.keys(r.observed).length ? '<h4>What We Found</h4>' + kvRows(r.observed, factLabel, factValue) : '') +
-      '<h4>Why It Matters</h4><p>' + esc(c.impact || c.narrative) + '</p>' +
+      '<h4>Why It Matters</h4><p>' + esc(c.narrative) + '</p>' +
+      (c.userImpact ? '<h4>What Users Notice</h4><p><span class="chip ui-' + esc(c.userImpact.level) + '">User impact: ' + esc(c.userImpact.level) + '</span> ' + esc(c.userImpact.text) + '</p>' : '') +
       '<h4>Remediation</h4>' + (c.steps && c.steps.length > 1 ? '<ol class="steps">' + c.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' : '<p>' + esc(c.remediation) + '</p>') + '<p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
       (fw ? '<h4>Frameworks</h4><p class="chips">' + fw + '</p>' : '') +
       (affected ? '<h4>Affected (' + Math.max(list.length, r.affectedCount || 0).toLocaleString() + ')</h4>' + ((r.affectedCount || 0) > list.length ? '<p class="hint">Showing the first ' + list.length + '. Every one is in affected/' + esc(r.id) + '.csv in the run folder.</p>' : '') + '<ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +

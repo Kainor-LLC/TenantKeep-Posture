@@ -20,7 +20,7 @@ Every check carries, and the catalog test enforces:
 | `affected` | Optional: the fact that lists the affected objects, for example `facts.exclusionGroupsOverThreshold` |
 | `gate` | Optional, Copilot readiness only: `{ "code": "C1", "hard": true }`. Hard gates must all pass before the readiness page shows anything but Blocked (spec 4.7) |
 | `remediation` | What to do, in plain English: one string, or an array of steps in order when the fix is more than one action. The report numbers the steps; text outputs (CSV, CA document) join them |
-| `impact` | Optional: why it matters to this kind of tenant, when the narrative describes the threat. The finding card shows it under "Why it matters", else the narrative |
+| `userImpact` | What users notice when the fix lands: `level` (`none`, `low`, `medium`, `high`) and `text`, one sentence in the user's terms ("Users who sign in with SMS are asked to set up Authenticator"). Quick fixes (effort S) at none or low are the report's "Do today" list |
 | `effort` | Optional: `S` (a setting, under an hour), `M` (a policy rollout with a pilot, days), `L` (a project: new licences, user change, weeks). Orders recommendations within a severity |
 | `category` | Optional: `fix` (the default: a gap someone could exploit) or `improve` (hardening beyond the baseline). Improvements read as suggestions, not failures |
 | `learn` | Microsoft Learn link |

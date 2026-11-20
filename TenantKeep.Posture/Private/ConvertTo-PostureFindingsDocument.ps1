@@ -49,7 +49,8 @@ function ConvertTo-PostureFindingsDocument {
             affectedCount  = [int]$r.affectedCount
             affectedSample = @(@($r.affected) | Select-Object -First $SampleSize | ForEach-Object { [ordered]@{ name = (& $nameOf $_); detail = (& $detailOf $_) } })
             affectedFile   = $(if ([int]$r.affectedCount -gt 0) { "affected/$($r.id).csv" } else { $null })
-            whyItMatters   = $(if ($c['impact']) { [string]$c['impact'] } else { [string]$c['narrative'] })
+            whyItMatters   = [string]$c['narrative']
+            userImpact     = $(if ($c['userImpact']) { [ordered]@{ level = [string]$c['userImpact']['level']; whatUsersNotice = [string]$c['userImpact']['text'] } } else { $null })
             howToFix       = [string]$c['remediation']
             steps          = @($c['steps'] | Where-Object { $_ })
             portal         = [string]$c['deepLink']
@@ -60,7 +61,7 @@ function ConvertTo-PostureFindingsDocument {
     }
     $rh = $Report.runHealth
     return [ordered]@{
-        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "chains" are controls that protect only together: status pass, broken (brokenAt names the first failing link, the one to fix first) or notEvaluated. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
+        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). userImpact says what users notice when the fix lands (level none, low, medium, high); summary.doToday lists the quick fixes users will barely notice. Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "chains" are controls that protect only together: status pass, broken (brokenAt names the first failing link, the one to fix first) or notEvaluated. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
         schemaVersion  = 1
         tenant         = [ordered]@{ id = $Report.tenantId; name = $Report.tenantName }
         generatedUtc   = [string]$Report.generatedUtc
@@ -74,6 +75,7 @@ function ConvertTo-PostureFindingsDocument {
             counts              = $Report.counts
             domains             = @($Report.domains | ForEach-Object { [ordered]@{ domain = $_.label; score = $_.score; pass = $_.counts.pass; fail = $_.counts.fail; notEvaluated = $_.counts.notEvaluated } })
             domainsNotCollected = @($Report.domainsNotCollected | ForEach-Object { $_.label })
+            doToday             = @($(if ($Report.Contains('doToday')) { $Report.doToday | ForEach-Object { $_.id } }))
             runHealth           = @($(if ($rh) { $rh.failures | ForEach-Object { [ordered]@{ domain = $_.collector; step = $_.step; why = $_.causeLabel; whatToDo = $_.advice } } }))
         }
         findings       = @($findings)

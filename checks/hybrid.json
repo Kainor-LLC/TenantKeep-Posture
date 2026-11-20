@@ -23,6 +23,10 @@
       "remediation": "Enable password hash synchronization in Entra Connect, even alongside pass-through authentication or federation, for leaked credential detection and sign-in failover.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Password hashes sync in the background; users sign in as before."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/whatis-phs",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Without the hashes in Entra, leaked credential detection has nothing to compare and a federation outage is a sign-in outage.",
@@ -55,6 +59,10 @@
       "remediation": "Set BlockSoftMatch and BlockCloudObjectTakeoverThroughHardMatch on the directory synchronization features.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "A sync setting users never see."
+      },
       "learn": "https://learn.microsoft.com/graph/api/resources/onpremisesdirectorysynchronizationfeature",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "An on-premises account that matches a cloud admin by UPN or source anchor takes it over on the next sync. The two switches close that path.",
@@ -90,6 +98,10 @@
       ],
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Users sign in on the Microsoft page instead of the AD FS page, once the domain is converted."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/migrate-from-federation-to-cloud-authentication",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "ADFS is a Tier 0 server farm whose only purpose Entra now performs natively. Every federated domain keeps it alive.",
@@ -124,6 +136,10 @@
       "remediation": "Install the Connect Health agent on the sync server and work the open alerts.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Monitoring users never see."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/whatis-azure-ad-connect-health",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Sync errors, an aging sync server and a stale export show up in Connect Health first, long before users notice.",
@@ -159,6 +175,10 @@
       "remediation": "Reduce Domain Admins to five or fewer named, separate admin accounts; delegate everything else.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People removed from Domain Admins use a delegated role for their tasks."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Every Domain Admin is a path to every system. Service accounts and daily-use accounts in the group are the usual excess.",
@@ -192,6 +212,10 @@
       "remediation": "Empty both groups; add a member only for the forest change that needs it, then remove it.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nobody uses these groups day to day."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Neither group has a day-to-day purpose. Standing members are standing forest-wide control.",
@@ -225,6 +249,10 @@
       "remediation": "Remove members from Account, Server, Print and Backup Operators, DnsAdmins and Group Policy Creator Owners, or record each as an exception.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People removed from operator groups use a delegated role for their tasks."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "These groups grant quiet paths to domain control: a Backup Operator can read the AD database, a DnsAdmin can load a DLL on a DC.",
@@ -265,6 +293,10 @@
       ],
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Admin accounts lose cached sign-in on servers and must use Kerberos; some old tools may stop working for them."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "adminCount=1 marks the accounts AdminSDHolder protects. Each listed issue is a way an attacker turns one of them into domain control.",
@@ -303,6 +335,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Rotated twice ten hours apart, users notice nothing."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/manage/ad-forest-recovery-resetting-the-krbtgt-password",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "A krbtgt password from years ago means any golden ticket ever forged still works.",
@@ -335,6 +371,10 @@
       "remediation": "Disable the RID 500 account (keep its password in the break-glass safe) and the Guest account.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nobody signs in with these accounts."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "RID 500 cannot be locked out and is the first account any attacker tries.",
@@ -367,6 +407,10 @@
       "remediation": "Set ms-DS-MachineAccountQuota to 0 on the domain and let the provisioning process join computers.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Users can no longer join computers to the domain themselves; IT or Autopilot does it."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "The default lets any user create ten computer accounts, the first step of several Kerberos relay and delegation attacks.",
@@ -400,6 +444,10 @@
       "remediation": "Remove unconstrained delegation from the listed objects; use constrained or resource-based delegation where a service needs it.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A service that relied on unconstrained delegation may need constrained delegation configured."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "A server trusted for unconstrained delegation holds the tickets of everyone who connects to it, including Domain Admins.",
@@ -433,6 +481,10 @@
       "remediation": "Move services to group managed service accounts; for the rest set long random passwords, AES only, and no privileged membership.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Services moved to managed service accounts may need a restart; users notice nothing."
+      },
       "learn": "https://learn.microsoft.com/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Any domain user can request a ticket for an SPN and crack the password offline. A user account with an SPN and an old password is already lost.",
@@ -466,6 +518,10 @@
       "remediation": "Re-enable Kerberos pre-authentication on the listed accounts.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Users sign in as before."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Without pre-authentication an attacker gets crackable material for the account without a password.",
@@ -500,6 +556,10 @@
       "remediation": "Deploy Windows LAPS through Intune or GPO to every workstation and member server, and retire legacy LAPS.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "The local admin password rotates in the background."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/laps/laps-overview",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Without LAPS the local administrator password is shared across the fleet and one workstation compromise is every workstation.",
@@ -532,6 +592,10 @@
       "remediation": "Raise the functional levels once the last older domain controller is gone.",
       "effort": "S",
       "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Users notice nothing."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/active-directory-functional-levels",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Older levels keep older Kerberos and replication behaviours alive, and block Protected Users and the Recycle Bin features.",
@@ -565,6 +629,10 @@
       "remediation": "Replace the listed domain controllers with Windows Server 2016 or later and keep at least two per domain.",
       "effort": "L",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Done in a maintenance window, users notice nothing."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "An unsupported domain controller is an unpatched Tier 0 server. One domain controller is a single point of failure for every sign-in.",
@@ -597,6 +665,10 @@
       "remediation": "Enable the Active Directory Recycle Bin optional feature; it cannot be turned off again.",
       "effort": "S",
       "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Users notice nothing."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/get-started/adac/introduction-to-active-directory-administrative-center-enhancements--level-100-",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Deleted objects come back with their attributes and group membership instead of from backup.",
@@ -632,6 +704,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Accounts nobody has used are disabled; their owners, if any, ask to be re-enabled."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Stale enabled accounts are the leavers the process missed; each one is a valid credential nobody watches.",
@@ -670,6 +746,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Users set a longer password at their next change, and repeated wrong passwords lock the account for a while."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "The default domain policy is what every account without a fine-grained policy inherits.",
@@ -703,6 +783,10 @@
       "remediation": "Clear the flag on the listed accounts and move services to group managed service accounts.",
       "effort": "M",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The people listed are asked to change their password on the normal schedule."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "Password never expires on a human account is a password that will never be rotated after it leaks.",
@@ -737,6 +821,10 @@
       "remediation": "Enable SID filtering quarantine on the listed trusts, and selective authentication where the trust is external.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Users of the trusted domain sign in as before, unless they relied on SID history."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/manage/understand-security-identifiers",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "A trust without SID filtering lets the other forest inject your privileged SIDs into its tokens.",
@@ -771,6 +859,10 @@
       "remediation": "Roll the AZUREADSSOACC Kerberos decryption key every 30 days with the Entra Connect PowerShell module.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "A key rotation users never see."
+      },
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/connect/how-to-connect-sso-faq",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "The seamless SSO computer account's key signs Kerberos tickets for Entra; an old key is a long-lived forgery path.",
@@ -804,6 +896,10 @@
       "remediation": "On each listed template, remove Enrollee supplies subject or require manager approval, and restrict enrollment permissions.",
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People who request certificates from the template may need approval."
+      },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-cs/",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "A published template that lets the requester name the subject and issues client authentication certificates lets any enrollee become any user, including a Domain Admin.",
@@ -840,6 +936,10 @@
       ],
       "effort": "S",
       "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Users notice nothing; the old passwords stop working once rotated."
+      },
       "learn": "https://learn.microsoft.com/security-updates/securitybulletins/2014/ms14-025",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
       "narrative": "The cpassword encryption key has been public since 2012; any domain user can read SYSVOL.",

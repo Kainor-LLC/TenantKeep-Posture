@@ -121,6 +121,14 @@ function ConvertTo-PostureReportMarkdown {
 
     & $line '## Recommendations'
     & $line
+    if ($r.Contains('doToday') -and @($r.doToday).Count -gt 0) {
+        & $line '### Do today'
+        & $line
+        & $line 'Quick fixes that users will not notice or will barely notice.'
+        & $line
+        foreach ($d in $r.doToday) { & $line "- **$($d.id) $(& $esc $d.title)** ($($d.severity)): $(& $esc $d.userImpact['text'])" }
+        & $line
+    }
     if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {
         & $line '### Control chains'
         & $line
@@ -151,6 +159,7 @@ function ConvertTo-PostureReportMarkdown {
             if (@($x.steps).Count -gt 1) { $n = 0; foreach ($st in $x.steps) { $n++; & $line "$n. $(& $esc $st)" } }
             else { & $line (& $esc $x.remediation) }
             & $line
+            if ($x.userImpact) { & $line "What users notice ($($x.userImpact['level'])): $(& $esc $x.userImpact['text'])"; & $line }
             & $line "[Learn]($($x.learn))$(if ($x.deepLink) { " [Portal]($($x.deepLink))" })"
             & $line
         }

@@ -38,7 +38,7 @@ Describe 'Output for tools and AI' {
                 )
                 catalogText = @{
                     'XX-001' = @{ effort = 'L'; category = 'fix'; steps = @('Buy it.', 'Roll it out.'); remediation = 'Buy it. Roll it out.'; narrative = 'n' }
-                    'XX-002' = @{ effort = 'S'; category = 'improve'; steps = @('Turn it on.'); remediation = 'Turn it on.'; narrative = 'n'; impact = 'i' }
+                    'XX-002' = @{ effort = 'S'; category = 'improve'; steps = @('Turn it on.'); remediation = 'Turn it on.'; narrative = 'n'; userImpact = @{ level = 'none'; text = 'Nothing users see.' } }
                     'XX-003' = @{ category = 'fix'; steps = @('Fix.'); remediation = 'Fix.'; narrative = 'n' }
                 }
                 domains = @(); domainsNotCollected = @(); score = @{ value = 50; grade = 'C'; method = 'm' }; appendix = @{ moduleVersion = '0'; baseline = 'standard' }; counts = @{}; runHealth = $null; tenantId = 't'; tenantName = 'T'; generatedUtc = ''; collectedUtc = ''
@@ -46,7 +46,8 @@ Describe 'Output for tools and AI' {
             $f = @((ConvertTo-PostureFindingsDocument -Report $report).findings)
             @($f | ForEach-Object { $_.id }) | Should -Be @('XX-003', 'XX-002', 'XX-001') -Because 'severity first, then the quick fix before the project, whatever it affects'
             $f[1].category | Should -Be 'improve'
-            $f[1].whyItMatters | Should -Be 'i' -Because 'impact, when the catalog has it, over the narrative'
+            $f[1].userImpact.level | Should -Be 'none'
+            $f[1].userImpact.whatUsersNotice | Should -Be 'Nothing users see.'
             $f[1].observed.enabled | Should -BeFalse
             $f[2].steps | Should -Be @('Buy it.', 'Roll it out.')
             $f[2].thresholds.minPct | Should -Be 90
