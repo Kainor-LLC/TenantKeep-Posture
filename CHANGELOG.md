@@ -10,6 +10,11 @@ work landed on main.
   passed almost always; it now compares the tenant's percentage (verify the units against Graph). The sign-in read
   compared timestamps as culture text, which keyed days month first and could misorder a restart across a year end;
   it now uses ISO 8601.
+- More charts (2026-11-20): the Domains view adds privileged roles (permanent, activated, eligible), guests by last
+  sign-in, risky users, sign-ins by day, country and error (in words), Windows builds, disk encryption, last
+  check-in, attack surface reduction rules by mode, critical vulnerabilities, an email authentication grid per domain
+  (DKIM, SPF, DMARC, MTA-STS), sites by sharing level, DLP policies by mode and Secure Score against Microsoft's
+  averages. The Crosswalk opens with coverage per framework group. The Inventory's mail table gains MTA-STS.
 - The story of a run (2026-11-20): the overview opens with the score as a ring (change since the last run, the
   target, and where the top five fixes would take it), the score over time across earlier runs of the tenant, open
   findings by severity, the attack path from phishable members to phishable administrators, and accepted risks by

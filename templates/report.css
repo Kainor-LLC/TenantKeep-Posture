@@ -297,6 +297,7 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .rbar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rbar-track { height: 12px; }
 .rbar-track i { display: block; height: 100%; background: var(--tone); border-radius: 0 4px 4px 0; min-width: 2px; }
+.rbar-track i.zero { min-width: 0; }
 .rbar-value { font-variant-numeric: tabular-nums; color: var(--muted); }
 .linechart { max-width: 640px; }
 .linechart .grid { stroke: var(--line); stroke-width: 1; }
@@ -328,4 +329,6 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .lane ul { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
 .lane li { padding: 3px 0; }
 .lane li a { color: var(--fg); }
+.mailgrid td .cell { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.mailgrid td { white-space: nowrap; }
 

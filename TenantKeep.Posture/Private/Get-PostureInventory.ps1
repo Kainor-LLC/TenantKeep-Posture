@@ -59,10 +59,11 @@ function Get-PostureInventory {
                 DKIM   = $(if ($dk) { if ((& $v $dk 'Enabled') -eq $true) { 'on' } else { "off$(if (& $v $dk 'Status') { " ($(& $v $dk 'Status'))" })" } } elseif ($k -like '*.onmicrosoft.com') { 'Microsoft signs' } else { 'not read' })
                 SPF    = $(if ($dn) { & $spfOf ([string](& $v $dn 'SPF')) } else { $na })
                 DMARC  = $(if ($dn) { & $dmarcOf ([string](& $v $dn 'DMARC')) } else { $na })
+                'MTA-STS' = $(if ($dn) { if ([string](& $v $dn 'MTASTS')) { 'published' } else { 'missing' } } else { $na })
                 MX     = $(if ($dn) { $mx = [string](& $v $dn 'MX'); if (-not $mx) { 'none' } elseif ($mx -match '(?i)mail\.protection\.outlook\.com') { 'Exchange Online Protection' } else { $mx } } else { $na })
             }
         }
-        $out.Add((& $section 'mail-domains' 'Mail Domains' 'email' @('exo-02-accepted-domains.json', 'exo-02-dkim.json', 'dns-01-mail-records.json') @('Domain', 'Type', 'DKIM', 'SPF', 'DMARC', 'MX') $mail $null))
+        $out.Add((& $section 'mail-domains' 'Mail Domains' 'email' @('exo-02-accepted-domains.json', 'exo-02-dkim.json', 'dns-01-mail-records.json') @('Domain', 'Type', 'DKIM', 'SPF', 'DMARC', 'MTA-STS', 'MX') $mail $null))
     }
 
     # Transport rules and connectors.

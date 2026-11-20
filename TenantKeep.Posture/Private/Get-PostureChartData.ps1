@@ -14,7 +14,8 @@ function Get-PostureChartData {
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
     param(
         [Parameter(Mandatory)] [string] $Evidence,
-        [object[]] $Admin = @()
+        [object[]] $Admin = @(),
+        [System.Collections.IDictionary] $DomainFacts = @{}
     )
 
     $ErrorActionPreference = 'Stop'
@@ -145,6 +146,89 @@ function Get-PostureChartData {
             segment  = @(@{ label = 'Active'; value = $t.active; tone = 'ok' }, @{ label = 'Passive'; value = $t.passive; tone = 'warn' }, @{ label = 'Other or off'; value = $t.other; tone = 'err' })
             takeaway = "Defender Antivirus is active on $(& $pct $t.active $all)% of onboarded devices."
         }
+    }
+    # Detail charts for the Domains view: counts only, each left out when its evidence is missing.
+    $topOf = { param($map, [int] $n) @(@($map.Keys) | Sort-Object { - [double]$map[$_] } | Select-Object -First $n | ForEach-Object { [ordered]@{ label = [string]$_; value = [double]$map[$_] } }) }
+    $toDay = { param($k) $d = [datetime]::MinValue; foreach ($f in 'yyyy-MM-dd', 'M/d/yyyy', 'MM/dd/yyyy') { if ([datetime]::TryParseExact([string]$k, $f, [cultureinfo]::InvariantCulture, 'None', [ref]$d)) { return $d } }; $null }
+    if ($signins) {
+        $byDay = & $v $signins 'ByDay'
+        if ($byDay -and @($byDay.Keys).Count -ge 2) {
+            $seen = @{}; foreach ($k in @($byDay.Keys)) { $d = & $toDay $k; if ($d) { $seen[$d.ToString('yyyy-MM-dd')] = [double]$byDay[$k] } }
+            # Every day in the window, with zero where nobody signed in, so the line does not skip quiet days.
+            $days = @($seen.Keys | Sort-Object)
+            $pts = @(if ($days.Count) { for ($d = [datetime]::ParseExact($days[0], 'yyyy-MM-dd', [cultureinfo]::InvariantCulture); $d -le [datetime]::ParseExact($days[-1], 'yyyy-MM-dd', [cultureinfo]::InvariantCulture); $d = $d.AddDays(1)) { $key = $d.ToString('yyyy-MM-dd'); [ordered]@{ day = $d; label = $d.ToString('MM-dd'); value = $(if ($seen.ContainsKey($key)) { $seen[$key] } else { 0 }) } } })
+            $peak = @($pts | Sort-Object { - $_.value })[0]
+            $out.signInsByDay = [ordered]@{ point = @($pts | ForEach-Object { [ordered]@{ label = $_.label; value = $_.value } }); takeaway = "Busiest day $($peak.label) with $(& $fmt $peak.value) sign-ins." }
+        }
+        $byCountry = & $v $signins 'ByCountry'
+        if ($byCountry -and @($byCountry.Keys).Count) { $top = @(& $topOf $byCountry 10); $out.signInCountries = [ordered]@{ item = $top; takeaway = "$(@($byCountry.Keys).Count) countr$(if (@($byCountry.Keys).Count -eq 1) { 'y' } else { 'ies' }); most sign-ins from $($top[0].label)." } }
+        $codes = & $v $signins 'FailuresByErrorCode'
+        if ($codes -and @($codes.Keys).Count) {
+            # The codes people meet most, in words (Entra sign-in error codes).
+            $meaning = @{ '50126' = 'wrong password'; '50053' = 'account locked'; '50074' = 'MFA required'; '50076' = 'MFA required'; '500121' = 'MFA not completed'; '50140' = 'stay signed in prompt'; '65001' = 'consent needed'; '53003' = 'blocked by Conditional Access'; '50158' = 'external challenge'; '50057' = 'account disabled'; '50055' = 'password expired'; '530032' = 'blocked by security defaults' }
+            $out.signInFailures = [ordered]@{ item = @(& $topOf $codes 10 | ForEach-Object { [ordered]@{ label = "$($_.label)$(if ($meaning.ContainsKey($_.label)) { " $($meaning[$_.label])" })"; value = $_.value; tone = 'err' } }); takeaway = "$(& $fmt (& $num (& $v $signins 'Failures'))) failed sign-ins; the commonest error is $(@(& $topOf $codes 1)[0].label)." }
+        }
+    }
+    $builds = & $load '09-intune-summary-windows-builds'
+    if ($null -ne $builds -and @($builds | Where-Object { $_ }).Count) {
+        $bmap = @{}; foreach ($b in @($builds | Where-Object { $_ })) { $bmap[[string](& $v $b 'Name')] = [double](& $v $b 'Count') }
+        $out.windowsBuilds = [ordered]@{ item = @(& $topOf $bmap 8); takeaway = "$(@($bmap.Keys).Count) Windows build$(if (@($bmap.Keys).Count -ne 1) { 's' }) in the fleet." }
+    }
+    if ($managedRows.Count) {
+        $enc = @($managedRows | Where-Object { (& $v $_ 'IsEncrypted') -eq $true }).Count
+        $out.encryption = [ordered]@{ segment = @(@{ label = 'Encrypted'; value = $enc; tone = 'ok' }, @{ label = 'Not encrypted'; value = $managedRows.Count - $enc; tone = 'err' }); takeaway = "$(& $pct $enc $managedRows.Count)% of managed devices report encryption." }
+        $age = [ordered]@{ 'Last 7 days' = 0; '8 to 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0 }
+        foreach ($d in $managedRows) {
+            $ls = & $v $d 'LastSyncDateTime'; $t = $(if ($ls -is [datetime]) { $ls } else { $p = [datetime]::MinValue; if ([datetime]::TryParse([string]$ls, [cultureinfo]::InvariantCulture, 'AdjustToUniversal', [ref]$p)) { $p } else { $null } })
+            if (-not $t) { continue }
+            $days = ([datetime]::UtcNow - $t.ToUniversalTime()).TotalDays
+            $age[$(if ($days -le 7) { 'Last 7 days' } elseif ($days -le 30) { '8 to 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++
+        }
+        $out.checkIn = [ordered]@{ item = @($age.Keys | ForEach-Object { [ordered]@{ label = $_; value = $age[$_]; tone = $(if ($_ -eq 'Over 90 days') { 'err' } elseif ($_ -eq '31 to 90 days') { 'warn' } else { 'c1' }) } }); takeaway = "$($age['Over 90 days'] + $age['31 to 90 days']) managed device(s) have not checked in for a month or more." }
+    }
+    $ep = $(if ($DomainFacts.Contains('endpoint')) { $DomainFacts['endpoint'] } else { $null })
+    if ($ep -and $ep.Contains('asrRulesBlock')) {
+        $out.asr = [ordered]@{ segment = @(@{ label = 'Block'; value = [int]$ep['asrRulesBlock']; tone = 'ok' }, @{ label = 'Audit'; value = [int]$ep['asrRulesAudit']; tone = 'warn' }, @{ label = 'Off'; value = [int]$ep['asrRulesOff']; tone = 'err' }, @{ label = 'Not configured'; value = [int]$ep['asrRulesNotConfigured']; tone = 'na' }); takeaway = "$([int]$ep['asrRulesBlock']) attack surface reduction rules block; $([int]$ep['asrRulesAudit'] + [int]$ep['asrRulesOff'] + [int]$ep['asrRulesNotConfigured']) do not." }
+    }
+    $vul = & $load 'def-04-vulnerabilities-summary'
+    if ($vul) { $out.vulnerabilities = [ordered]@{ item = @([ordered]@{ label = 'Critical CVEs open'; value = (& $num (& $v $vul 'CriticalCves')); tone = 'err' }, [ordered]@{ label = 'Open over 30 days'; value = (& $num (& $v $vul 'CriticalCvesOver30d')); tone = 'err' }, [ordered]@{ label = 'Devices affected'; value = (& $num (& $v $vul 'DevicesWithCriticalCves')); tone = 'warn' }); takeaway = "$(& $fmt (& $num (& $v $vul 'CriticalCvesOver30d'))) critical vulnerabilities have been open for more than 30 days." } }
+    $ss = & $load 'def-06-secure-score'
+    if ($ss -and (& $num (& $v $ss 'MaxScore')) -gt 0) {
+        $mine = [Math]::Round(100 * (& $num (& $v $ss 'CurrentScore')) / (& $num (& $v $ss 'MaxScore')))
+        $items = @([ordered]@{ label = 'This tenant'; value = $mine; tone = 'c1' })
+        foreach ($a in @(& $v $ss 'AverageComparativeScores' | Where-Object { $_ })) { $items += [ordered]@{ label = $(switch ([string](& $v $a 'Basis')) { 'AllTenants' { 'All tenants (average)' } 'TotalSeats' { 'Tenants of a similar size' } default { [string](& $v $a 'Basis') } }); value = [Math]::Round((& $num (& $v $a 'AverageScore'))); tone = 'na' } }
+        $out.secureScore = [ordered]@{ item = $items; takeaway = "Microsoft Secure Score $mine% (verify: Microsoft's averages read as percentages)." }
+    }
+    $guests = & $load '06-users-guests'
+    if ($null -ne $guests -and @($guests | Where-Object { $_ }).Count) {
+        $g = [ordered]@{ 'Last 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0; 'Never signed in' = 0 }
+        foreach ($u in @($guests | Where-Object { $_ })) {
+            $ls = & $v $u 'LastInteractiveSignIn'
+            if (-not $ls) { $g['Never signed in']++; continue }
+            $t = $(if ($ls -is [datetime]) { $ls } else { $p = [datetime]::MinValue; if ([datetime]::TryParse([string]$ls, [cultureinfo]::InvariantCulture, 'AdjustToUniversal', [ref]$p)) { $p } else { $null } })
+            if (-not $t) { $g['Never signed in']++; continue }
+            $days = ([datetime]::UtcNow - $t.ToUniversalTime()).TotalDays
+            $g[$(if ($days -le 30) { 'Last 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++
+        }
+        $out.guestAge = [ordered]@{ item = @($g.Keys | ForEach-Object { [ordered]@{ label = $_; value = $g[$_]; tone = $(if ($_ -in 'Over 90 days', 'Never signed in') { 'warn' } else { 'c1' }) } }); takeaway = "$($g['Over 90 days'] + $g['Never signed in']) of $(@($guests | Where-Object { $_ }).Count) guests have not signed in for 90 days or ever." }
+    }
+    $risky = & $load '11-risky-users'
+    if ($null -ne $risky -and @($risky | Where-Object { $_ }).Count) {
+        $rl = @{}; foreach ($u in @($risky | Where-Object { $_ })) { $k = [string](& $v $u 'RiskLevel'); if (-not $k) { $k = 'unknown' }; $rl[$k] = 1 + $(if ($rl.ContainsKey($k)) { $rl[$k] } else { 0 }) }
+        $out.riskyUsers = [ordered]@{ item = @('high', 'medium', 'low', 'unknown' | Where-Object { $rl.ContainsKey($_) } | ForEach-Object { [ordered]@{ label = $_; value = $rl[$_]; tone = @{ high = 'err'; medium = 'warn'; low = 'c1'; unknown = 'na' }[$_] } }); takeaway = "$(if ($rl.ContainsKey('high')) { $rl['high'] } else { 0 }) user(s) at high risk in Identity Protection." }
+    }
+    $sites = & $load 'spo-sites'
+    if ($null -ne $sites -and @($sites | Where-Object { $_ }).Count) {
+        $sharingLabel = @{ Disabled = 'Only people in the organisation'; ExistingExternalUserSharingOnly = 'Existing guests'; ExternalUserSharingOnly = 'New and existing guests'; ExternalUserAndGuestSharing = 'Anyone' }
+        $sc = @{}; foreach ($st in @($sites | Where-Object { $_ -and (& $v $_ 'IsOneDrive') -ne $true })) { $k = [string](& $v $st 'SharingCapability'); $k = $(if ($sharingLabel.ContainsKey($k)) { $sharingLabel[$k] } elseif ($k) { $k } else { 'Not reported' }); $sc[$k] = 1 + $(if ($sc.ContainsKey($k)) { $sc[$k] } else { 0 }) }
+        $order = @('Anyone', 'New and existing guests', 'Existing guests', 'Only people in the organisation')
+        $out.siteSharing = [ordered]@{ item = @(@($order | Where-Object { $sc.ContainsKey($_) }) + @($sc.Keys | Where-Object { $_ -notin $order }) | ForEach-Object { [ordered]@{ label = $_; value = $sc[$_]; tone = $(if ($_ -eq 'Anyone') { 'err' } elseif ($_ -eq 'New and existing guests') { 'warn' } else { 'c1' }) } }); takeaway = "$(if ($sc.ContainsKey('Anyone')) { $sc['Anyone'] } else { 0 }) site(s) allow Anyone links." }
+    }
+    $dlp = & $load 'pv-02-dlp-policies'
+    if ($null -ne $dlp -and @($dlp | Where-Object { $_ }).Count) {
+        $modeLabel = @{ Enable = 'Enforced'; TestWithNotifications = 'Simulation with tips'; TestWithoutNotifications = 'Simulation'; Disable = 'Off' }
+        $dm = [ordered]@{}; foreach ($pol in @($dlp | Where-Object { $_ })) { $k = [string](& $v $pol 'Mode'); $k = $(if ($modeLabel.ContainsKey($k)) { $modeLabel[$k] } else { $k }); $dm[$k] = 1 + $(if ($dm.Contains($k)) { $dm[$k] } else { 0 }) }
+        $out.dlpModes = [ordered]@{ item = @($dm.Keys | ForEach-Object { [ordered]@{ label = $_; value = $dm[$_]; tone = $(if ($_ -eq 'Enforced') { 'ok' } elseif ($_ -eq 'Off') { 'na' } else { 'warn' }) } }); takeaway = "$(if ($dm.Contains('Enforced')) { $dm['Enforced'] } else { 0 }) of $(@($dlp | Where-Object { $_ }).Count) DLP policies are enforced." }
     }
     return $out
 }

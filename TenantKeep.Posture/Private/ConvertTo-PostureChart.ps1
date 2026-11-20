@@ -254,7 +254,7 @@ function ConvertTo-PostureRankedBarChart {
     $body = @($rows | ForEach-Object {
             $w = $(if ($max -gt 0) { 100 * [double]$_.value / $max } else { 0 })
             $tone = $(if ($_ -is [System.Collections.IDictionary] -and $_.Contains('tone') -and $_['tone']) { [string]$_['tone'] } else { 'c1' })
-            '<div class="rbar"><span class="rbar-label">' + (& $h $_.label) + '</span><span class="rbar-track"><i class="t-' + (& $h $tone) + '" style="width:' + ('{0:0.##}' -f $w) + '%" title="' + (& $h "$($_.label): $([double]$_.value)$ValueSuffix") + '"></i></span><span class="rbar-value">' + (& $h ((Format-PostureChartNumber ([double]$_.value)) + $ValueSuffix)) + '</span></div>'
+            '<div class="rbar"><span class="rbar-label">' + (& $h $_.label) + '</span><span class="rbar-track"><i class="t-' + (& $h $tone) + $(if ([double]$_.value -le 0) { ' zero' }) + '" style="width:' + ('{0:0.##}' -f $w) + '%" title="' + (& $h "$($_.label): $([double]$_.value)$ValueSuffix") + '"></i></span><span class="rbar-value">' + (& $h ((Format-PostureChartNumber ([double]$_.value)) + $ValueSuffix)) + '</span></div>'
         }) -join ''
     $aria = (& $h ("$Name. " + (@($rows | ForEach-Object { "$($_.label) $([double]$_.value)" }) -join ', ') + '.'))
     $table = ConvertTo-PostureChartTable -Header @('Item', 'Value') -Row @($rows | ForEach-Object { , @($_.label, "$([double]$_.value)$ValueSuffix") })

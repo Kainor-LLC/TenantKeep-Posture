@@ -167,7 +167,7 @@ function ConvertTo-PostureReportHtml {
 
     # Domains
     & $w '<section class="view" id="domains"><h2>Domain Scorecards</h2>'
-    $areas = [ordered]@{ Identity = @(); Access = @(); Devices = @() }
+    $areas = [ordered]@{ Identity = @(); Access = @(); Devices = @(); Endpoint = @(); Email = @(); 'Collaboration and Data' = @(); Operations = @() }
     if ($ch.Contains('authUsers')) { $areas.Identity += ConvertTo-PostureChartCard -Class 'wide' -Title 'Members by Sign-in Method' -Takeaway $ch.authUsers.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureSankeyChart -Name 'Members by strongest sign-in method' -Column $ch.authUsers.column -Flow $ch.authUsers.flow) }
     if ($ch.Contains('authAdmins')) { $areas.Identity += ConvertTo-PostureChartCard -Title 'Administrators by Sign-in Strength' -Takeaway $ch.authAdmins.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureDonutChart -Name 'Administrators by strongest method' -CenterLabel 'admins' -Segment $ch.authAdmins.segment) }
     if ($ch.Contains('signInCa')) { $areas.Access += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins Through Conditional Access' -Takeaway $ch.signInCa.takeaway -ViewAllDomain 'ca' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by Conditional Access and MFA' -Height 200 -Column $ch.signInCa.column -Flow $ch.signInCa.flow) }
@@ -176,6 +176,36 @@ function ConvertTo-PostureReportHtml {
     if ($ch.Contains('compliance')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Device Compliance' -Takeaway $ch.compliance.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device compliance' -CenterLabel 'devices' -Segment $ch.compliance.segment) }
     if ($ch.Contains('ownership')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Device Ownership' -Takeaway $ch.ownership.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device ownership' -CenterLabel 'devices' -Segment $ch.ownership.segment) }
     if ($ch.Contains('antivirus')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Defender Antivirus Mode' -Takeaway $ch.antivirus.takeaway -ViewAllDomain 'endpoint' -Body (ConvertTo-PostureDonutChart -Name 'Defender Antivirus mode' -CenterLabel 'devices' -Segment $ch.antivirus.segment) }
+    $rank = { param([string] $Title, [string] $Key, [string] $Domain, [switch] $Keep) if ($ch.Contains($Key)) { ConvertTo-PostureChartCard -Title $Title -Takeaway $ch[$Key].takeaway -ViewAllDomain $Domain -Body (ConvertTo-PostureRankedBarChart -Name $Title -KeepOrder:$Keep -Item @($ch[$Key].item)) } }
+    $roleSec = @($(if ($r.Contains('inventory')) { $r.inventory | Where-Object { $_.key -eq 'roles' -and $_.total -gt 0 } }))
+    if ($roleSec.Count) {
+        $rows = @($roleSec[0].rows | Select-Object -First 8)
+        $body = '<div class="seats">' + (@($rows | ForEach-Object { '<div class="seat-row"><span class="seat-name">' + (& $h $_.Role) + '</span><span class="seat-frac">' + $_.Permanent + ' permanent, ' + $_.Eligible + ' eligible</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.Role -Segment @(@{ label = 'Permanent'; value = [int]$_.Permanent; tone = 'err' }, @{ label = 'Activated now'; value = [int]$_.'Activated now'; tone = 'warn' }, @{ label = 'Eligible'; value = [int]$_.Eligible; tone = 'ok' })) + '</div>' }) -join '') + '</div>' + (ConvertTo-PostureChartLegend -Item @(@{ label = 'Permanent'; tone = 'err' }, @{ label = 'Activated now'; tone = 'warn' }, @{ label = 'Eligible through PIM'; tone = 'ok' }))
+        $perm = [int](@($roleSec[0].rows | ForEach-Object { [int]$_.Permanent }) | Measure-Object -Sum).Sum
+        $areas.Identity += ConvertTo-PostureChartCard -Title 'Privileged Roles' -Takeaway "$perm permanent privileged assignment(s); eligible ones are activated when needed." -ViewAllDomain 'identity' -Body $body
+    }
+    $areas.Identity += & $rank 'Guests by Last Sign-in' 'guestAge' 'identity' -Keep
+    $areas.Identity += & $rank 'Risky Users' 'riskyUsers' 'identity' -Keep
+    if ($ch.Contains('signInsByDay')) { $areas.Access += ConvertTo-PostureChartCard -Title 'Sign-ins by Day' -Takeaway $ch.signInsByDay.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureLineChart -Name 'Sign-ins by day' -Point @($ch.signInsByDay.point)) }
+    $areas.Access += & $rank 'Sign-ins by Country' 'signInCountries' 'ca'
+    $areas.Access += & $rank 'Failed Sign-ins by Error' 'signInFailures' 'identity'
+    $areas.Devices += & $rank 'Windows Builds' 'windowsBuilds' 'devices'
+    if ($ch.Contains('encryption')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Disk Encryption' -Takeaway $ch.encryption.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Disk encryption' -CenterLabel 'devices' -Segment $ch.encryption.segment) }
+    $areas.Devices += & $rank 'Last Check-in' 'checkIn' 'devices' -Keep
+    if ($ch.Contains('asr')) { $areas.Endpoint += ConvertTo-PostureChartCard -Title 'Attack Surface Reduction Rules' -Takeaway $ch.asr.takeaway -ViewAllDomain 'endpoint' -Body (ConvertTo-PostureBarChart -Name 'ASR rules by mode' -Segment $ch.asr.segment) }
+    $areas.Endpoint += & $rank 'Critical Vulnerabilities' 'vulnerabilities' 'endpoint' -Keep
+    $mailSec = @($(if ($r.Contains('inventory')) { $r.inventory | Where-Object { $_.key -eq 'mail-domains' -and $_.total -gt 0 } }))
+    if ($mailSec.Count) {
+        $toneOf = { param([string] $col, [string] $val) switch -Regex ($val) { '^(on|hard fail.*|reject|published|Microsoft.*)$' { 'ok' } '^(soft fail.*|quarantine)$' { 'warn' } '^(not read)$' { 'na' } default { 'err' } } }
+        $cols = @('DKIM', 'SPF', 'DMARC', 'MTA-STS')
+        $grid = '<div class="scroll"><table class="mailgrid"><thead><tr><th>Domain</th>' + (@($cols | ForEach-Object { '<th>' + $_ + '</th>' }) -join '') + '</tr></thead><tbody>' + (@($mailSec[0].rows | Where-Object { $_.Domain -notlike '*.onmicrosoft.com' } | ForEach-Object { $row = $_; '<tr><td>' + (& $h $row.Domain) + '</td>' + (@($cols | ForEach-Object { $t = & $toneOf $_ ([string]$row[$_]); '<td><span class="cell t-' + $t + '"><span class="status-dot t-' + $t + '" aria-hidden="true">' + $(switch ($t) { 'ok' { [string][char]0x2713 } 'warn' { '!' } 'na' { [string][char]0x2013 } default { [string][char]0x2715 } }) + '</span>' + (& $h $row[$_]) + '</span></td>' }) -join '') + '</tr>' }) -join '') + '</tbody></table></div>'
+        $gaps = @($mailSec[0].rows | Where-Object { $_.Domain -notlike '*.onmicrosoft.com' -and ($_.DMARC -notin 'reject', 'quarantine' -or $_.DKIM -ne 'on' -or $_.SPF -notlike 'hard fail*') }).Count
+        $areas.Email += ConvertTo-PostureChartCard -Class 'wide' -Title 'Email Authentication by Domain' -Takeaway "$gaps custom domain(s) short of DKIM on, SPF hard fail and DMARC at quarantine or reject." -ViewAllDomain 'email' -Body $grid
+    }
+    $areas.'Collaboration and Data' += & $rank 'Sites by Sharing Level' 'siteSharing' 'collaboration' -Keep
+    $areas.'Collaboration and Data' += & $rank 'DLP Policies by Mode' 'dlpModes' 'purview' -Keep
+    $areas.Operations += & $rank 'Secure Score Against Averages' 'secureScore' 'operations' -Keep
+    foreach ($a in @($areas.Keys)) { $areas[$a] = @($areas[$a] | Where-Object { $_ }) }
     foreach ($a in $areas.Keys) { if (@($areas[$a]).Count) { & $w ('<h3>' + (& $h $a) + '</h3><div class="charts">' + (@($areas[$a]) -join '') + '</div>') } }
     & $w '<h3>Scorecards</h3><div class="cards">'
     foreach ($d in $r.domains) {
@@ -397,6 +427,8 @@ function ConvertTo-PostureReportHtml {
     if ($r.crosswalk) {
         & $w "<section class=`"view`" id=`"crosswalk`"><h2>Framework Crosswalk: $(& $h $(if ($frameworkLabel.Contains([string]$r.crosswalk.framework)) { $frameworkLabel[[string]$r.crosswalk.framework] } else { $r.crosswalk.framework }))</h2>"
         & $w '<p class="muted">Reference numbers only; the framework text is not reproduced.</p>'
+        $cov = @($r.crosswalk.entries | Where-Object { ([int]$_.pass + [int]$_.fail) -gt 0 } | ForEach-Object { [ordered]@{ label = $_.name; value = [Math]::Round(100 * [int]$_.pass / ([int]$_.pass + [int]$_.fail)); tone = 'c1' } })
+        if ($cov.Count) { & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Coverage by Group' -Takeaway "Share of mapped checks that pass, per group." -Body (ConvertTo-PostureRankedBarChart -Name 'Framework coverage' -KeepOrder -Top 30 -ValueSuffix '%' -Item $cov)) + '</div>') }
         foreach ($e in $r.crosswalk.entries) {
             & $w "<h3>$(& $h $e.name) <span class=`"muted`">($($e.pass) pass, $($e.fail) fail)</span></h3>"
             if (@($e.checks).Count -eq 0) { & $w '<p class="muted">No check maps here yet.</p>'; continue }

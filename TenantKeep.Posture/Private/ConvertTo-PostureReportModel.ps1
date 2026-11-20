@@ -401,7 +401,7 @@ function ConvertTo-PostureReportModel {
         doToday         = $doToday
         story           = $story
         inventory       = @(Get-PostureInventory -Evidence $Evidence)
-        charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable))
+        charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable) -DomainFacts $(if ($Run.Contains('domains')) { $f = [ordered]@{}; foreach ($k in $Run.domains.Keys) { $f[$k] = $Run.domains[$k].facts }; $f } else { @{} }))
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot

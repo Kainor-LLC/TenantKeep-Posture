@@ -70,7 +70,7 @@ Describe 'Report charts' {
         try {
             '{ "Members": 1000, "Guests": 40 }' | Set-Content (Join-Path $ev '06-users-summary.json')
             '{ "StrongestMethod": { "PhishingResistant": 320, "Passwordless": 10, "Authenticator": 470, "PhoneOnly": 130, "None": 70 } }' | Set-Content (Join-Path $ev '05-auth-registration-summary.json')
-            '{ "SignIns": 1000, "Days": 30, "CaByMfa": { "caApplied|mfa": 700, "caApplied|singleFactor": 100, "noCa|singleFactor": 200 }, "DeviceTrust": { "managedCompliant": 600, "unmanaged": 400 } }' | Set-Content (Join-Path $ev '06-signins-summary.json')
+            '{ "SignIns": 1000, "Days": 30, "ByDay": { "11/15/2026": 9, "2026-11-18": 4 }, "ByCountry": { "US": 900, "GB": 100 }, "CaByMfa": { "caApplied|mfa": 700, "caApplied|singleFactor": 100, "noCa|singleFactor": 200 }, "DeviceTrust": { "managedCompliant": 600, "unmanaged": 400 } }' | Set-Content (Join-Path $ev '06-signins-summary.json')
             '[ { "OperatingSystem": "Windows", "JoinType": "azureADJoined", "ComplianceState": "compliant", "ManagedDeviceOwnerType": "company" }, { "OperatingSystem": "Windows", "JoinType": "hybridAzureADJoined", "ComplianceState": "noncompliant", "ManagedDeviceOwnerType": "company" }, { "OperatingSystem": "iOS", "JoinType": "unknown", "ComplianceState": "compliant", "ManagedDeviceOwnerType": "personal" } ]' | Set-Content (Join-Path $ev '09-intune-managed-devices.json')
             $d = InModuleScope TenantKeep.Posture -Parameters @{ Ev = $ev } {
                 param($Ev)
@@ -87,6 +87,9 @@ Describe 'Report charts' {
             @($d.devices.column[1]).label | Should -Contain 'Join type not reported'
             $d.ownership.takeaway | Should -Be '33% of managed devices are personally owned.'
             @($d.tiles).label | Should -Be @('Members', 'Managed devices', 'Sign-ins read')
+            @($d.signInsByDay.point.label) | Should -Be @('11-15', '11-16', '11-17', '11-18') -Because 'quiet days are zero, and both date shapes read'
+            @($d.signInsByDay.point.value) | Should -Be @(9, 0, 0, 4)
+            $d.signInCountries.item[0].label | Should -Be 'US'
             $d.Contains('compliance') | Should -BeFalse -Because 'the compliance summary was not collected'
             $d.Contains('antivirus') | Should -BeFalse
         }
