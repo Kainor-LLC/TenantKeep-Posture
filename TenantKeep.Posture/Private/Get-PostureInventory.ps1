@@ -117,6 +117,13 @@ function Get-PostureInventory {
         $out.Add((& $section 'endpoint-security' 'Endpoint Security Policies' 'endpoint' @('09-intune-config-profiles-settings-catalog.json') @('Name', 'Type', 'Template', 'Platforms', 'Assignments') $es $(if ($es.Count -eq 0) { 'No endpoint security policies.' })))
     }
 
+    # Group Policy analytics: each imported GPO and how much of it MDM can replace.
+    $gpa = & $load '09-intune-gpo-analytics'
+    if ($null -ne $gpa) {
+        $list = @(& $rows $gpa | Sort-Object { [double](& $v $_ 'SupportedPercent') } | ForEach-Object { [ordered]@{ GPO = [string](& $v $_ 'DisplayName'); 'Supported in MDM (%)' = [string](& $v $_ 'SupportedPercent'); Settings = [string](& $v $_ 'TotalSettings'); Readiness = (& $words ([string](& $v $_ 'MigrationReadiness'))); 'Linked in AD' = (& $yesNo (& $v $_ 'TargetedInActiveDirectory')) } })
+        $out.Add((& $section 'gpo-analytics' 'Group Policy Analytics' 'devices' @('09-intune-gpo-analytics.json') @('GPO', 'Supported in MDM (%)', 'Settings', 'Readiness', 'Linked in AD') $list $(if ($list.Count -eq 0) { 'No GPOs imported into Group Policy analytics.' })))
+    }
+
     # Privileged roles: who holds each role permanently, activated now, or eligible through PIM.
     $active = & $load '04-role-assignments-active'; $eligible = & $load '04-role-assignments-pim-eligible'
     if ($null -eq $active) { $out.Add((& $notCollected 'roles' 'Privileged Roles' 'identity' @('04-role-assignments-active.json', '04-role-assignments-pim-eligible.json') 'Entra')) }

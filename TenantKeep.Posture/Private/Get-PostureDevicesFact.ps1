@@ -155,6 +155,16 @@ function Get-PostureDevicesFact {
         $facts.personalPlatformsOpen = $open.Count
         $affected.personalPlatformsOpen = $open
     }
+    # DEV-018: Group Policy analysed for the move to Intune (hybrid tenants).
+    $gpa = & $load '09-intune-gpo-analytics'
+    if ($null -eq $gpa) { & $missing @('DEV-018') '09-intune-gpo-analytics' }
+    else {
+        $g = @($gpa | Where-Object { $_ })
+        $facts.gposAnalysed = $g.Count
+        $tot = [double](@($g | ForEach-Object { [double](& $v $_ 'TotalSettings') }) + 0 | Measure-Object -Sum).Sum
+        $sup = [double](@($g | ForEach-Object { [double](& $v $_ 'SupportedSettings') }) + 0 | Measure-Object -Sum).Sum
+        $facts.gpoSettingsSupportedPct = $(if ($tot -gt 0) { [Math]::Round(100 * $sup / $tot, 1) } else { $null })
+    }
     # DEV-017: a device with no compliance policy counts as noncompliant, so CA-005 cannot be passed by omission.
     $ims = & $load '09-intune-settings'
     if ($null -eq $ims) { & $missing @('DEV-017') '09-intune-settings' }

@@ -520,6 +520,18 @@
         "DeviceManagementConfiguration.Read.All"
       ],
       "licence": "Microsoft Intune Plan 1"
+    },
+    {
+      "collector": "Intune",
+      "match": "^Group Policy analytics$",
+      "roles": [
+        "Global Reader",
+        "Intune Administrator"
+      ],
+      "scopes": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "licence": "Microsoft Intune Plan 1"
     }
   ]
 }

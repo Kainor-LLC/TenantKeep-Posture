@@ -23,6 +23,7 @@ BeforeAll {
             '^admin/sharepoint/settings$' { @{ sharingCapability = 'externalUserSharingOnly'; isResharingByExternalUsersEnabled = $false }; break }
             '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
+            '^deviceManagement/groupPolicyMigrationReports' { & $u @(@{ displayName = 'Workstation baseline'; migrationReadiness = 'partial'; totalSettingsCount = 40; supportedSettingsCount = 30; supportedSettingsPercent = 75; targetedInActiveDirectory = $true }); break }
             '^deviceManagement\?' { @{ settings = @{ secureByDefault = $false; deviceComplianceCheckinThresholdDays = 30; isScheduledActionEnabled = $true } }; break }
             '^groupSettings' { & $u @(@{ displayName = 'Password Rule Settings'; templateId = '5cf42378-d67d-4f36-ba46-e8b86229381d'; values = @(@{ name = 'EnableBannedPasswordCheck'; value = 'True' }, @{ name = 'BannedPasswordList'; value = "contoso`tcontosoltd`tseattle" }, @{ name = 'BannedPasswordCheckOnPremisesMode'; value = 'Audit' }) }); break }
             '^organization/[^/?]+/branding' { @{ backgroundImageRelativeUrl = 'bg.png'; bannerLogoRelativeUrl = 'logo.png'; signInPageText = 'Contoso staff only' }; break }
@@ -459,7 +460,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 32
+            $r.results.Count | Should -Be 33
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'

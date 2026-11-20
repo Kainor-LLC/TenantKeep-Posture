@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- Group Policy analytics (2026-11-20): the Intune collector reads the GPOs imported into Group Policy analytics
+  (counts and percentages only); DEV-018 asks hybrid tenants to analyse Group Policy for the move to Intune, and
+  the Inventory lists each GPO with the share of its settings MDM supports.
 - Gap checks (2026-11-20): EM-022 a mailbox sending spam is stopped, EM-023 the common attachment filter on in every
   anti-malware policy, EM-024 partner connectors restricted to the partner, CL-016 OneDrive without Anyone links,
   DEV-016 personal phones and Macs enrol only when the BYOD stance allows it, DEV-017 devices with no compliance

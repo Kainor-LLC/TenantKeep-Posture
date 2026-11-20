@@ -668,6 +668,45 @@
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-018",
+      "domain": "devices",
+      "title": "Group Policy analysed for the move to Intune",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-gpo-analytics.json"
+      ],
+      "pass": "facts.gposAnalysed > 0",
+      "remediation": [
+        "Export the GPOs that apply to workstations from Group Policy Management as XML (Save Report).",
+        "In Intune, Devices, Group Policy analytics, import them and read which settings have an MDM equivalent.",
+        "Migrate the supported settings into settings catalog profiles, starting with the GPOs closest to 100 percent, and retire each GPO once its devices are covered."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Analysis only; nothing changes for people until settings move to Intune."
+      },
+      "learn": "https://learn.microsoft.com/intune/intune-service/configuration/group-policy-analytics",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/groupPolicyAnalytics",
+      "narrative": "Moving devices from hybrid join to Entra join depends on replacing Group Policy with Intune. Group Policy analytics shows, GPO by GPO, which settings have an MDM equivalent, so the move can be planned rather than discovered when a setting goes missing.",
+      "frameworks": {}
     }
   ]
 }

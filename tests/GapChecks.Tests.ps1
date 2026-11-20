@@ -44,4 +44,15 @@ Describe 'Gap checks from existing evidence' {
         $mdm = & $script:Checks $d 'devices' '{ "version": 1, "byod": "mdm", "platforms": ["windows", "iOS", "android"] }'
         $mdm['DEV-016'].status | Should -Be 'pass' -Because 'a full-management stance means personal enrollment is intended'
     }
+
+    It 'passes DEV-018 for a hybrid tenant once GPOs are analysed, and lists them in the inventory lowest support first' {
+        $d = Join-Path $script:Root 'gpo'
+        & $script:Write $d '09-intune-gpo-analytics' @(@{ DisplayName = 'Browser'; MigrationReadiness = 'complete'; TotalSettings = 10; SupportedSettings = 10; SupportedPercent = 100; TargetedInActiveDirectory = $true }, @{ DisplayName = 'Legacy drive maps'; MigrationReadiness = 'none'; TotalSettings = 8; SupportedSettings = 0; SupportedPercent = 0; TargetedInActiveDirectory = $true })
+        $by = & $script:Checks $d 'devices' '{ "version": 1, "identityModel": "hybrid-connect" }'
+        $by['DEV-018'].status | Should -Be 'pass'
+        $inv = InModuleScope TenantKeep.Posture -Parameters @{ D = $d } { param($D) Clear-PostureEvidenceCache; @(Get-PostureInventory -Evidence $D) | Where-Object key -EQ 'gpo-analytics' }
+        $inv.rows[0].GPO | Should -Be 'Legacy drive maps'
+        $inv.rows[0].Readiness | Should -Be 'None'
+    }
 }
+

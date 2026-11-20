@@ -65,6 +65,12 @@ function Invoke-PostureIntuneCollection {
         & $save (& $rows $byWindowsBuild) '09-intune-summary-windows-builds' $true
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Group Policy analytics' -Folder $Folder -Script {
+        # GPOs an admin imported into Intune Group Policy analytics, with how many of their settings MDM supports:
+        # the view of Group Policy from the Intune side, without reading Active Directory. Counts only.
+        $rows = & $get 'deviceManagement/groupPolicyMigrationReports' 'beta'
+        & $save @($rows | ForEach-Object { [ordered]@{ DisplayName = (& $v $_ 'displayName'); MigrationReadiness = (& $v $_ 'migrationReadiness'); TotalSettings = (& $v $_ 'totalSettingsCount'); SupportedSettings = (& $v $_ 'supportedSettingsCount'); SupportedPercent = (& $v $_ 'supportedSettingsPercent'); TargetedInActiveDirectory = (& $v $_ 'targetedInActiveDirectory'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) '09-intune-gpo-analytics' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Intune tenant settings' -Folder $Folder -Script {
         # Compliance defaults: whether a device with no compliance policy counts as compliant (secureByDefault).
         $dm = Invoke-PostureGraphRequest -Uri 'deviceManagement?$select=settings' -ApiVersion 'v1.0' -Single

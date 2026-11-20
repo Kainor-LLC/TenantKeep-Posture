@@ -119,6 +119,7 @@
     "firewallPublic": "Firewall on, public profile",
     "functionalLevelsAtLeast2016": "Functional levels 2016 or higher",
     "globalAdmins": "Global Administrators",
+    "gposAnalysed": "GPOs analysed in Group Policy analytics",
     "gposWithCpassword": "Group Policy items holding passwords",
     "groupExpirationPolicy": "Group expiration policy on",
     "guestAccessAsMembers": "Guests have member-level directory access",
