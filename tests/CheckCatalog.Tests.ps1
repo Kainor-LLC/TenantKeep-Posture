@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeDiscovery {
-    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -ne 'catalog.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
+    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
     $script:BaselineFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'baselines') -Filter '*.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
 }
 
@@ -31,7 +31,9 @@ Describe 'Shipped check catalog' {
         It 'every check has non-empty narrative, remediation and a Learn link, and only reference numbers for frameworks' {
             foreach ($c in $script:Doc.checks) {
                 $c.narrative.Length | Should -BeGreaterThan 60 -Because "$($c.id) needs a real narrative"
-                $c.remediation.Length | Should -BeGreaterThan 30 -Because "$($c.id) needs real remediation"
+                (@($c.remediation) -join ' ').Length | Should -BeGreaterThan 30 -Because "$($c.id) needs real remediation"
+                if ($c.remediation -is [array]) { foreach ($s in $c.remediation) { ([string]$s).Length | Should -BeGreaterThan 10 -Because "$($c.id) steps are whole actions" } }
+                if ($c.Contains('impact')) { ([string]$c.impact).Length | Should -BeGreaterThan 40 -Because "$($c.id) impact is a sentence or two" }
                 $c.learn | Should -Match '^https://learn\.microsoft\.com/'
                 foreach ($k in $c.frameworks.Keys) { ([string]$c.frameworks[$k]).Length | Should -BeLessThan 40 -Because 'framework fields hold identifiers, never benchmark text' }
                 $c.deepLink | Should -Match '^https://' -Because 'every check links to the portal page where the setting lives'

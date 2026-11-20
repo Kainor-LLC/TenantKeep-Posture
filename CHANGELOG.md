@@ -6,6 +6,8 @@ work landed on main.
 
 ## Unreleased
 
+- Catalog fields (2026-11-20): a check's remediation can be a list of steps; optional `impact`, `effort` (S, M, L)
+  and `category` (fix, improve). `Get-PostureCheckCatalog` shows effort and category, and with `-Full` the steps.
 - Output for tools and AI (2026-11-20): findings.json beside the report, a summary then every failing check ranked
   with why, how to fix, links, licence and affected samples, explained in its own "about" field; report.md opens with
   the ranked list; report.html embeds the same JSON. `-Redact` writes share/ copies with people, addresses and

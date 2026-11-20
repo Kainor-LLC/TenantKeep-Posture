@@ -165,7 +165,7 @@ function Invoke-Catalog {
     $labels = @{ identity = 'Identity and privileged access'; auth = 'Authentication methods'; ca = 'Conditional Access'; devices = 'Devices'; endpoint = 'Endpoint security'; email = 'Email security'; purview = 'Data protection'; collaboration = 'Collaboration and oversharing'; copilot = 'Copilot readiness'; governance = 'Governance and lifecycle'; operations = 'Operations and monitoring'; azure = 'Azure'; hybrid = 'Hybrid identity and on-premises AD' }
     $order = @('identity', 'auth', 'ca', 'devices', 'endpoint', 'email', 'purview', 'collaboration', 'copilot', 'governance', 'operations', 'azure', 'hybrid')
     $version = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).version
-    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -ne 'catalog.json' }
+    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json' }
     $byDomain = @{}
     foreach ($f in $files) { $d = Get-Content -Raw $f.FullName | ConvertFrom-Json; $byDomain[[string]$d.domain] = @($d.checks) }
     $md = [System.Collections.Generic.List[string]]::new()

@@ -36,6 +36,28 @@ Describe 'Import-PostureCheckCatalog' {
         Copy-Item (Join-Path $script:Fx.Checks 'test.json') (Join-Path $bad 'y.json') -Force
         InModuleScope TenantKeep.Posture -Parameters @{ P = $bad } { { Import-PostureCheckCatalog -Path $P } | Should -Throw '*Duplicate check id*' }
     }
+
+    It 'takes remediation as a string or as steps, and checks effort and category' {
+        $dir = Join-Path $script:Root 'shapes'
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        $base = '"domain": "x", "title": "t", "severityDefault": "High", "license": [], "applicableWhen": {}, "coveredBy": [], "thresholds": {}, "evidence": [], "pass": "true", "learn": "", "deepLink": null, "narrative": "", "frameworks": {}'
+        "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", $base, ""remediation"": ""Turn it on."" }, { ""id"": ""XX-002"", $base, ""remediation"": [""Open the policy."", "" Set it to On. ""], ""effort"": ""S"", ""category"": ""improve"", ""impact"": ""i"" } ] }" | Set-Content (Join-Path $dir 'x.json')
+        '{ "name": "not a domain file" }' | Set-Content (Join-Path $dir 'chains.json')
+        InModuleScope TenantKeep.Posture -Parameters @{ P = $dir } {
+            $c = @((Import-PostureCheckCatalog -Path $P).checks)
+            $c.Count | Should -Be 2 -Because 'chains.json is not a domain file'
+            $c[0].steps | Should -Be @('Turn it on.')
+            $c[0].category | Should -Be 'fix'
+            $c[1].steps | Should -Be @('Open the policy.', 'Set it to On.')
+            $c[1].remediation | Should -Be 'Open the policy. Set it to On.' -Because 'text readers get one string'
+            $c[1].effort | Should -Be 'S'
+            $c[1].category | Should -Be 'improve'
+        }
+        foreach ($case in @(@('"remediation": [], ', '*no remediation*'), @('"remediation": "r", "effort": "XL", ', "*effort 'XL'*"), @('"remediation": "r", "category": "nice", ', "*category 'nice'*"))) {
+            "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", $($case[0])$base } ] }" | Set-Content (Join-Path $dir 'x.json')
+            InModuleScope TenantKeep.Posture -Parameters @{ P = $dir; E = $case[1] } { { Import-PostureCheckCatalog -Path $P } | Should -Throw $E }
+        }
+    }
 }
 
 Describe 'Invoke-PostureCheckEvaluation' {

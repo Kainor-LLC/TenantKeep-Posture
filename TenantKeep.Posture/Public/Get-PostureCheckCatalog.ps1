@@ -2,16 +2,17 @@
 function Get-PostureCheckCatalog {
     <#
     .SYNOPSIS
-        Lists the checks in the catalog with their ids, domains, severities, licenses, evidence sources and framework tags.
+        Lists the checks in the catalog with their ids, domains, severities, effort, category, licenses, evidence
+        sources and framework tags.
     .DESCRIPTION
         The same list is published on the website by a build step; this is the in-module view. Add -Full for the
-        narrative, remediation and pass expression as well.
+        narrative, impact, remediation steps and pass expression as well.
     .PARAMETER Domain
         Only checks in these domains.
     .PARAMETER Id
         Only these check ids.
     .PARAMETER Full
-        Include narrative, remediation, learn link, pass expression and thresholds.
+        Include narrative, impact, remediation and its steps, learn link, pass expression and thresholds.
     .PARAMETER CustomChecks
         Extra folders with org-specific checks.
     .EXAMPLE
@@ -44,6 +45,8 @@ function Get-PostureCheckCatalog {
             Domain         = [string]$c['domain']
             Title          = [string]$c['title']
             Severity       = [string]$c['severityDefault']
+            Effort         = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null })
+            Category       = [string]$c['category']
             License        = @($c['license'])
             Evidence       = @($c['evidence'])
             Frameworks     = $c['frameworks']
@@ -52,7 +55,9 @@ function Get-PostureCheckCatalog {
         }
         if ($Full) {
             $o.Narrative = [string]$c['narrative']
+            $o.Impact = $(if ($c.Contains('impact')) { [string]$c['impact'] } else { $null })
             $o.Remediation = [string]$c['remediation']
+            $o.Steps = @($c['steps'])
             $o.Learn = [string]$c['learn']
             $o.DeepLink = $c['deepLink']
             $o.Pass = [string]$c['pass']

@@ -6,7 +6,12 @@ function Import-PostureCheckCatalog {
     .DESCRIPTION
         Each file holds { "domain": "ca", "checks": [ ... ] }. Every check must carry the fields CLAUDE.md lists;
         a bad check fails the load with the file, id and missing field named, so a broken catalog never ships.
-        catalog.json in the folder gives the catalog version. Custom checks are tagged custom = true.
+        catalog.json in the folder gives the catalog version, and chains.json the control chains
+        (Import-PostureControlChain); neither is a domain file. Custom checks are tagged custom = true.
+
+        remediation is a string or an array of steps. Every check comes back with both: steps (one or more) and
+        remediation as one string, so a reader that wants text (CSV, the CA document, the public catalog) never
+        sees an array. effort (S, M, L) is optional; category is fix or improve, fix when absent.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -25,13 +30,15 @@ function Import-PostureCheckCatalog {
 
     $required = 'id', 'domain', 'title', 'severityDefault', 'license', 'applicableWhen', 'coveredBy', 'thresholds', 'evidence', 'pass', 'remediation', 'learn', 'deepLink', 'narrative', 'frameworks'
     $severities = 'Critical', 'High', 'Medium', 'Low'
+    $efforts = 'S', 'M', 'L'
+    $categories = 'fix', 'improve'
     $checks = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     $files = @()
 
     $load = {
         param([string] $Folder, [bool] $Custom)
-        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -ne 'catalog.json' })) {
+        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json' })) {
             $doc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json -AsHashtable -Depth 20
             $domain = [string](Get-PostureValue $doc 'domain')
             $list = if ($doc -is [System.Collections.IDictionary]) { @($doc['checks']) } else { @($doc) }
@@ -43,6 +50,13 @@ function Import-PostureCheckCatalog {
                 if ([string]$c['severityDefault'] -notin $severities) { throw "$($file.Name): check '$($c['id'])' has severityDefault '$($c['severityDefault'])'; expected $($severities -join ', ')" }
                 if ([string]::IsNullOrWhiteSpace([string]$c['pass'])) { throw "$($file.Name): check '$($c['id'])' has an empty pass expression" }
                 if ($c['id'] -notmatch '^[A-Z]{2,6}-\d{3}$') { throw "$($file.Name): check id '$($c['id'])' must look like CA-001" }
+                $steps = @($c['remediation'] | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ })
+                if ($steps.Count -eq 0) { throw "$($file.Name): check '$($c['id'])' has no remediation" }
+                $c['steps'] = $steps
+                $c['remediation'] = $steps -join ' '
+                if ($c.Contains('effort') -and [string]$c['effort'] -notin $efforts) { throw "$($file.Name): check '$($c['id'])' has effort '$($c['effort'])'; expected $($efforts -join ', ')" }
+                if (-not $c.Contains('category') -or -not $c['category']) { $c['category'] = 'fix' }
+                elseif ([string]$c['category'] -notin $categories) { throw "$($file.Name): check '$($c['id'])' has category '$($c['category'])'; expected $($categories -join ', ')" }
                 if ($seen.ContainsKey($c['id'])) { throw "Duplicate check id '$($c['id'])' in $($file.Name) and $($seen[$c['id']])" }
                 $seen[$c['id']] = $file.Name
                 $c['custom'] = $Custom

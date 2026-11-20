@@ -19,10 +19,14 @@ Every check carries, and the catalog test enforces:
 | `pass` | Expression over `facts.*` and `thresholds.*`: comparisons, `&&`, `\|\|`, `!`, parentheses |
 | `affected` | Optional: the fact that lists the affected objects, for example `facts.exclusionGroupsOverThreshold` |
 | `gate` | Optional, Copilot readiness only: `{ "code": "C1", "hard": true }`. Hard gates must all pass before the readiness page shows anything but Blocked (spec 4.7) |
-| `remediation` | What to do, in plain English |
+| `remediation` | What to do, in plain English: one string, or an array of steps in order when the fix is more than one action. The report numbers the steps; text outputs (CSV, CA document) join them |
+| `impact` | Optional: why it matters to this kind of tenant, when the narrative describes the threat. The finding card shows it under "Why it matters", else the narrative |
+| `effort` | Optional: `S` (a setting, under an hour), `M` (a policy rollout with a pilot, days), `L` (a project: new licences, user change, weeks). Orders recommendations within a severity |
+| `category` | Optional: `fix` (the default: a gap someone could exploit) or `improve` (hardening beyond the baseline). Improvements read as suggestions, not failures |
 | `learn` | Microsoft Learn link |
 | `deepLink` | Portal deep link, or null |
 | `narrative` | Why it matters: two to four factual sentences |
 | `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
 
-`catalog.json` holds the catalog version recorded in every run (spec 12.7).
+`catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
+(below); neither is a domain file.
