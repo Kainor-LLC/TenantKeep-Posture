@@ -80,6 +80,7 @@ Describe 'Invoke-PostureCheckEvaluation' {
             $script:ById['TS-001'].status | Should -Be 'fail'   # count 3 > max 2
             $script:ById['TS-001'].affectedCount | Should -Be 3
             $script:ById['TS-001'].evidence | Should -Contain 'provider.json'
+            $script:ById['TS-001'].observed['count'] | Should -Be 3 -Because 'the report says what was found, not only that it failed'
             $script:ById['TS-002'].status | Should -Be 'pass'   # no profile, no license gate
             $script:ById['TS-006'].status | Should -Be 'fail'
             $script:ById['TS-006'].severity | Should -Be 'Critical'

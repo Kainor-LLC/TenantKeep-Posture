@@ -194,16 +194,30 @@ function ConvertTo-PostureReportModel {
             [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; domain = $_.domain; affectedCount = $_.affectedCount; narrative = [string]$byId[$_.id]['narrative'] }
         })
 
-    # Recommendations in the audit plan's buckets (section 5): severity maps to urgency until effort and license data exist per check.
+    # Recommendations in the audit plan's buckets (section 5), a card each: within a bucket the quick fixes first
+    # (effort S, M, L, then unrated), then the one that affects most. Passing checks are listed per domain.
     $bucketOf = @{ Critical = 'Stop the bleeding'; High = 'Foundations'; Medium = 'Program workstreams'; Low = 'Later' }
+    $effortRank = @{ S = 1; M = 2; L = 3 }
     $recommendations = [ordered]@{}
     foreach ($b in 'Stop the bleeding', 'Foundations', 'Program workstreams', 'Later') { $recommendations[$b] = @() }
-    foreach ($r in @($results | Where-Object { $_.status -eq 'fail' } | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })) {
+    $failed = @($results | Where-Object { $_.status -eq 'fail' } | Sort-Object { -$weight[[string]$_.severity] }, { $e = [string]$byId[$_.id]['effort']; if ($effortRank.ContainsKey($e)) { $effortRank[$e] } else { 4 } }, { - [int]$_.affectedCount }, { $_.id })
+    foreach ($r in $failed) {
         $c = $byId[$r.id]
         $recommendations[$bucketOf[[string]$r.severity]] += , [ordered]@{
             id = $r.id; title = $r.title; severity = $r.severity; domain = $r.domain; affectedCount = $r.affectedCount
-            remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license'])
+            reason = [string]$r.reason; affected = @(@($r.affected) | Select-Object -First 25)
+            observed = $(if ($r.Contains('observed') -and $r.observed) { $r.observed } else { [ordered]@{} }); thresholds = $r.thresholds
+            why = $(if ($c.Contains('impact') -and $c['impact']) { [string]$c['impact'] } else { [string]$c['narrative'] })
+            steps = @($c['steps']); remediation = [string]$c['remediation']
+            effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']
+            learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license'])
+            frameworks = $(if ($c['frameworks']) { $c['frameworks'] } else { [ordered]@{} })
         }
+    }
+    $alreadyGood = [ordered]@{}
+    foreach ($r in @($results | Where-Object { $_.status -eq 'pass' } | Sort-Object { $_.domain }, { $_.id })) {
+        if (-not $alreadyGood.Contains([string]$r.domain)) { $alreadyGood[[string]$r.domain] = @() }
+        $alreadyGood[[string]$r.domain] += , [ordered]@{ id = $r.id; title = $r.title }
     }
 
     # Who are your admins (spec 7.2): roles joined to registration and users.
@@ -264,7 +278,7 @@ function ConvertTo-PostureReportModel {
     }
 
     $catalogText = [ordered]@{}
-    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
+    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; impact = $(if ($c.Contains('impact')) { [string]$c['impact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
 
     $collection = & $load 'collection'
     $tenantId = $(if ($collection) { & $v $collection 'tenantId' } else { & $v (& $load 'metadata') 'tenantId' })
@@ -323,6 +337,7 @@ function ConvertTo-PostureReportModel {
         domains      = @($domains)
         domainsNotCollected = $domainsNotCollected
         recommendations = $recommendations
+        alreadyGood     = $alreadyGood
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot

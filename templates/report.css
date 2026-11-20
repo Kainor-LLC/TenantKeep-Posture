@@ -113,8 +113,35 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 .badge.enabledForReportingButNotEnforced { background: var(--warn-bg); color: var(--warn); }
 .policy { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .bucket { margin-bottom: 22px; }
-.rec { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); margin-bottom: 10px; }
-.rec .title { font-weight: 600; margin-bottom: 4px; }
+/* Recommendations: a finding card per failed check; improvements carry a dashed edge so they read as suggestions. */
+.lede { color: var(--muted); max-width: 820px; }
+.bucket h3 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.count { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+.finding { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.finding.sev-Critical { border-left-color: var(--err); }
+.finding.sev-High { border-left-color: var(--warn); }
+.finding.sev-Medium { border-left-color: var(--info); }
+.finding.improve { border-left-style: dashed; }
+.finding header .chips { margin: 0; }
+.finding-title { font-size: 1.05rem; text-transform: none; letter-spacing: 0; color: var(--fg); margin: 4px 0 8px; }
+.finding-title code { font-size: 0.8em; color: var(--muted); margin-right: 4px; }
+.finding h5 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 10px 0 4px; }
+.finding p { margin: 4px 0; }
+.finding-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 24px; }
+.finding .observed { margin: 4px 0; padding-left: 18px; font-size: 14px; }
+.finding .steps { margin: 4px 0 8px; padding-left: 22px; }
+.finding .steps li { margin: 3px 0; }
+.finding .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.finding .links .btn { text-decoration: none; }
+.chip.improve { background: var(--info-bg); color: var(--info); }
+.chip.effort-S { background: var(--ok-bg); color: var(--ok); }
+.chip.effort-M { background: var(--warn-bg); color: var(--warn); }
+.chip.effort-L { background: var(--err-bg); color: var(--err); }
+details.affected-list summary { cursor: pointer; color: var(--info); font-size: 14px; margin-top: 6px; }
+details.affected-list ul { margin: 6px 0; padding-left: 18px; max-height: 260px; overflow: auto; font-size: 14px; }
+.good-list details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 8px; }
+.good-list summary { cursor: pointer; font-weight: 600; }
+.good-list ul { margin: 6px 0; padding-left: 18px; font-size: 14px; }
 .na-panel { color: var(--muted); padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
 
 /* Filters and forms */
@@ -161,12 +188,11 @@ body.executive .tech, body.executive #checks, body.executive #appendix { display
 .buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin: 8px 0 18px; }
 .bucket-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
 .bucket-card h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1rem; }
-.bucket-card .count { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
 .bucket-card .hint { margin: 2px 0 8px; }
 .rec-list { list-style: none; margin: 0; padding: 0; }
 .rec-list li { padding: 5px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .rec-list li:first-child { border-top: none; }
 .rec-list code { font-size: 12px; color: var(--muted); margin-right: 4px; }
 .bucket-card .more { margin: 6px 0 0; font-size: 13px; }
-@media print { .buckets { display: block; } .bucket-card { break-inside: avoid; margin-bottom: 10px; } }
+@media print { .buckets { display: block; } .bucket-card, .finding { break-inside: avoid; margin-bottom: 10px; } .finding .links { display: none; } details.affected-list ul { max-height: none; } }
 

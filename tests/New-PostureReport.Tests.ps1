@@ -67,7 +67,7 @@ Describe 'New-PostureReport' {
             $script:Rep.recommendations['Stop the bleeding'].id | Should -Contain 'CA-002'
             $script:Rep.recommendations['Later'].id | Should -Contain 'CA-014'
             $script:Md | Should -Match '### Stop the bleeding'
-            $script:Md | Should -Match '\*\*CA-002 MFA required for all users\*\* \(Critical, ca, needs P1\)'
+            $script:Md | Should -Match '#### CA-002 MFA required for all users\s+Critical, ca, needs P1'
         }
 
         It 'applies the client folder: brand, profile and exceptions' {
@@ -134,6 +134,16 @@ Describe 'New-PostureReport' {
             foreach ($gone in 'id="register"', 'id="settings"', 'data-register', 'data-profile', 'data-save', 'savedock', 'showDirectoryPicker', 'createWritable') { $script:Html | Should -Not -Match ([regex]::Escape($gone)) -Because 'the page writes no files (risk register retired 2026-11-20)' }
             $script:Html | Should -Match 'Microsoft Security Posture Report'
             $script:Html | Should -Not -CMatch '>Checks explorer<' -Because 'view names are Title Case'
+        }
+
+        It 'shows a finding card per failed check, with what was found, and what already passes' {
+            $fails = @($script:Rep.results | Where-Object status -eq 'fail').Count
+            ([regex]::Matches($script:Html, '<article class="finding')).Count | Should -Be $fails
+            $script:Html | Should -Match 'id="rec-CA-002"'
+            foreach ($part in 'What We Found', 'Why It Matters', 'How To Fix', 'Details and Accept Risk') { $script:Html | Should -Match $part }
+            $script:Html | Should -Match '<ul class="observed"><li>' -Because 'the values the check judged are on the card'
+            $script:Html | Should -Match "What's Already Good"
+            @($script:Rep.alreadyGood.Keys).Count | Should -BeGreaterThan 0
         }
 
         It 'encodes brand text and keeps the executive template flag on the body' {

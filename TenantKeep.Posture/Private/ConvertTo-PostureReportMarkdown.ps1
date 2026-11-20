@@ -14,6 +14,7 @@ function ConvertTo-PostureReportMarkdown {
     $sb = [System.Text.StringBuilder]::new()
     $line = { param([string] $Text = '') $null = $sb.AppendLine($Text) }
     $esc = { param([object] $Text) ([string]$Text).Replace('|', '\|').Replace("`r", '').Replace("`n", ' ') }
+    $effortWord = @{ S = 'quick fix'; M = 'planned change'; L = 'project' }
     $fmtDate = { param($Value) $u = ConvertTo-PostureUtcDateTime $Value; if ($u) { $u.ToString('yyyy-MM-dd HH:mm') + ' UTC' } else { 'unknown' } }
     $table = {
         param([string[]] $Headers, [object[]] $Rows)
@@ -40,10 +41,10 @@ function ConvertTo-PostureReportMarkdown {
     if ($r.Contains('findings') -and $r.findings -and @($r.findings.findings).Count -gt 0) {
         & $line '## What to fix first'
         & $line
-        & $line 'Every failing check, most important first: severity, then how many objects it affects. The full detail is in findings.json beside this file.'
+        & $line 'Every failing check, most important first: severity, then effort (quick fixes first), then how many objects it affects. The full detail is in findings.json beside this file.'
         & $line
         foreach ($f in @($r.findings.findings)) {
-            & $line "$($f.rank). **$($f.id) $(& $esc $f.title)** ($($f.severity)$(if ($f.affectedCount -gt 0) { ", $($f.affectedCount) affected" })). $(& $esc $f.howToFix)"
+            & $line "$($f.rank). **$($f.id) $(& $esc $f.title)** ($($f.severity)$(if ($f.effort) { ", $($effortWord[[string]$f.effort])" })$(if ($f.category -eq 'improve') { ', improvement' })$(if ($f.affectedCount -gt 0) { ", $($f.affectedCount) affected" })). $(& $esc $f.howToFix)"
         }
         & $line
     }
@@ -126,9 +127,19 @@ function ConvertTo-PostureReportMarkdown {
         & $line
         if ($items.Count -eq 0) { & $line 'Nothing in this bucket.'; & $line; continue }
         foreach ($x in $items) {
-            & $line "**$($x.id) $(& $esc $x.title)** ($($x.severity), $($x.domain)$(if ($x.license.Count -gt 0) { ", needs $($x.license -join ' or ')" }))"
+            & $line "#### $($x.id) $(& $esc $x.title)"
             & $line
-            & $line "$(& $esc $x.remediation) [Learn]($($x.learn))$(if ($x.deepLink) { " [Portal]($($x.deepLink))" })"
+            & $line "$($x.severity)$(if ($x.effort) { ", $($effortWord[[string]$x.effort])" })$(if ($x.category -eq 'improve') { ', improvement' }), $($x.domain)$(if ($x.license.Count -gt 0) { ", needs $($x.license -join ' or ')" })$(if ($x.affectedCount -gt 0) { ", $($x.affectedCount) affected" })."
+            & $line
+            $found = @(@($x.observed.Keys | ForEach-Object { "$_ = $($x.observed[$_])" }) + @($(if ($x.thresholds) { $x.thresholds.Keys | ForEach-Object { "threshold $_ = $($x.thresholds[$_])" } })))
+            if ($x.reason) { & $line "Found: $(& $esc $x.reason)"; & $line }
+            if ($found.Count) { & $line "Values: $(& $esc ($found -join '; '))"; & $line }
+            & $line "Why it matters: $(& $esc $x.why)"
+            & $line
+            if (@($x.steps).Count -gt 1) { $n = 0; foreach ($st in $x.steps) { $n++; & $line "$n. $(& $esc $st)" } }
+            else { & $line (& $esc $x.remediation) }
+            & $line
+            & $line "[Learn]($($x.learn))$(if ($x.deepLink) { " [Portal]($($x.deepLink))" })"
             & $line
         }
     }

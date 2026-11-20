@@ -28,6 +28,31 @@ Describe 'Output for tools and AI' {
         $script:Doc.summary.counts.fail | Should -Be $f.Count
     }
 
+    It 'puts the quick fix first within a severity, and carries steps, effort, category and what was found' {
+        InModuleScope TenantKeep.Posture {
+            $report = @{
+                results     = @(
+                    [ordered]@{ id = 'XX-001'; title = 'Project'; domain = 'x'; severity = 'High'; status = 'fail'; reason = $null; affected = @(); affectedCount = 10; observed = [ordered]@{ coveragePct = 40 }; thresholds = @{ minPct = 90 } }
+                    [ordered]@{ id = 'XX-002'; title = 'Quick'; domain = 'x'; severity = 'High'; status = 'fail'; reason = $null; affected = @(); affectedCount = 1; observed = [ordered]@{ enabled = $false }; thresholds = @{} }
+                    [ordered]@{ id = 'XX-003'; title = 'Worse'; domain = 'x'; severity = 'Critical'; status = 'fail'; reason = $null; affected = @(); affectedCount = 0 }
+                )
+                catalogText = @{
+                    'XX-001' = @{ effort = 'L'; category = 'fix'; steps = @('Buy it.', 'Roll it out.'); remediation = 'Buy it. Roll it out.'; narrative = 'n' }
+                    'XX-002' = @{ effort = 'S'; category = 'improve'; steps = @('Turn it on.'); remediation = 'Turn it on.'; narrative = 'n'; impact = 'i' }
+                    'XX-003' = @{ category = 'fix'; steps = @('Fix.'); remediation = 'Fix.'; narrative = 'n' }
+                }
+                domains = @(); domainsNotCollected = @(); score = @{ value = 50; grade = 'C'; method = 'm' }; appendix = @{ moduleVersion = '0'; baseline = 'standard' }; counts = @{}; runHealth = $null; tenantId = 't'; tenantName = 'T'; generatedUtc = ''; collectedUtc = ''
+            }
+            $f = @((ConvertTo-PostureFindingsDocument -Report $report).findings)
+            @($f | ForEach-Object { $_.id }) | Should -Be @('XX-003', 'XX-002', 'XX-001') -Because 'severity first, then the quick fix before the project, whatever it affects'
+            $f[1].category | Should -Be 'improve'
+            $f[1].whyItMatters | Should -Be 'i' -Because 'impact, when the catalog has it, over the narrative'
+            $f[1].observed.enabled | Should -BeFalse
+            $f[2].steps | Should -Be @('Buy it.', 'Roll it out.')
+            $f[2].thresholds.minPct | Should -Be 90
+        }
+    }
+
     It 'embeds the same findings in report.html and leads report.md with the ranked list' {
         $html = Get-Content -Raw (Join-Path $script:Ev 'report.html')
         $html | Should -Match '<script type="application/json" id="tenantkeep-findings">'

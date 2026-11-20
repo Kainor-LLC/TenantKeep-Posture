@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Recommendations as finding cards (2026-11-20): one card per failed check with what was found in this tenant (the
+  values the check judged, beside its thresholds), why it matters, the affected objects, numbered steps, portal and
+  Learn links and frameworks; quick fixes first within a priority; improvements marked as such; what already
+  passes listed per domain. checks.json records each check's observed values; findings.json and report.md carry
+  steps, effort, category and the values, in the same order.
 - Catalog fields (2026-11-20): a check's remediation can be a list of steps; optional `impact`, `effort` (S, M, L)
   and `category` (fix, improve). `Get-PostureCheckCatalog` shows effort and category, and with `-Full` the steps.
 - Output for tools and AI (2026-11-20): findings.json beside the report, a summary then every failing check ranked

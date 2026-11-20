@@ -7,8 +7,8 @@ function ConvertTo-PostureFindingsDocument {
         needs and a sample of what it affects; then accepted risks and what could not be evaluated.
     .DESCRIPTION
         The shape is stable (schemaVersion) and explained in the document itself (about), so a model given only this
-        file knows how to read it. Ranking: severity (Critical, High, Medium, Low), then the number of objects
-        affected, then the check id. The full affected lists are in affected/<id>.csv beside the report.
+        file knows how to read it. Ranking: severity (Critical, High, Medium, Low), then effort (quick fixes
+        first), then the number of objects affected, then the check id: the order of the report's Recommendations. The full affected lists are in affected/<id>.csv beside the report.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -25,7 +25,9 @@ function ConvertTo-PostureFindingsDocument {
     $detailOf = { param($a) if ($a -is [System.Collections.IDictionary] -and $a.Contains('detail')) { [string]$a['detail'] } else { '' } }
     $labelOf = @{}; foreach ($d in @($Report.domains) + @($Report.domainsNotCollected)) { if ($d) { $labelOf[[string]$d.key] = [string]$d.label } }
 
-    $failing = @($Report.results | Where-Object { $_.status -eq 'fail' } | Sort-Object { - $weight[[string]$_.severity] }, { - [int]$_.affectedCount }, { $_.id })
+    $effortRank = @{ S = 1; M = 2; L = 3 }
+    $effortOf = { param($id) if ($text.Contains($id) -and $text[$id]['effort'] -and $effortRank.ContainsKey([string]$text[$id]['effort'])) { $effortRank[[string]$text[$id]['effort']] } else { 4 } }
+    $failing = @($Report.results | Where-Object { $_.status -eq 'fail' } | Sort-Object { - $weight[[string]$_.severity] }, { & $effortOf $_.id }, { - [int]$_.affectedCount }, { $_.id })
     $rank = 0
     $findings = foreach ($r in $failing) {
         $rank++
@@ -37,12 +39,17 @@ function ConvertTo-PostureFindingsDocument {
             domain         = $(if ($labelOf.ContainsKey([string]$r.domain)) { $labelOf[[string]$r.domain] } else { [string]$r.domain })
             severity       = $r.severity
             priority       = $priority[[string]$r.severity]
+            category       = $(if ($c['category']) { [string]$c['category'] } else { 'fix' })
+            effort         = $(if ($c['effort']) { [string]$c['effort'] } else { $null })
             finding        = [string]$r.reason
+            observed       = $(if ($r.Contains('observed') -and $r.observed) { $r.observed } else { [ordered]@{} })
+            thresholds     = $(if ($r.Contains('thresholds') -and $r.thresholds) { $r.thresholds } else { [ordered]@{} })
             affectedCount  = [int]$r.affectedCount
             affectedSample = @(@($r.affected) | Select-Object -First $SampleSize | ForEach-Object { [ordered]@{ name = (& $nameOf $_); detail = (& $detailOf $_) } })
             affectedFile   = $(if ([int]$r.affectedCount -gt 0) { "affected/$($r.id).csv" } else { $null })
-            whyItMatters   = [string]$c['narrative']
+            whyItMatters   = $(if ($c['impact']) { [string]$c['impact'] } else { [string]$c['narrative'] })
             howToFix       = [string]$c['remediation']
+            steps          = @($c['steps'] | Where-Object { $_ })
             portal         = [string]$c['deepLink']
             learn          = [string]$c['learn']
             licenceNeeded  = @($c['license'] | Where-Object { $_ })
@@ -51,7 +58,7 @@ function ConvertTo-PostureFindingsDocument {
     }
     $rh = $Report.runHealth
     return [ordered]@{
-        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then how many objects it affects. Each has what was found, why it matters, how to fix it with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
+        about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, and up to 25 affected objects; affectedFile names the CSV with all of them. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
         schemaVersion  = 1
         tenant         = [ordered]@{ id = $Report.tenantId; name = $Report.tenantName }
         generatedUtc   = [string]$Report.generatedUtc

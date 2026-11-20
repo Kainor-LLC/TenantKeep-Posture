@@ -89,7 +89,7 @@ function Invoke-PostureCheckEvaluation {
         $severity = if ($Baseline.severity -and $Baseline.severity[$id]) { [string]$Baseline.severity[$id] } else { [string]$c['severityDefault'] }
         $result = [ordered]@{
             id = $id; domain = $d; title = [string]$c['title']; status = $null; severity = $severity; reason = $null
-            thresholds = $thresholds; affected = @(); affectedCount = 0; evidence = @($c['evidence']); exception = $null
+            thresholds = $thresholds; observed = $null; affected = @(); affectedCount = 0; evidence = @($c['evidence']); exception = $null
             coveredBy = $null; custom = [bool]$c['custom']; checkedUtc = $AsOf.ToString('o')
         }
 
@@ -139,6 +139,17 @@ function Invoke-PostureCheckEvaluation {
             if ($df['affected'].Contains($key)) { $result.affected = @($df['affected'][$key]) }
         }
         $result.status = if ($passed) { 'pass' } else { 'fail' }
+        # The values the pass expression judged, so the report says what was found in this tenant: scalars as they
+        # are, a list as its count.
+        $observed = [ordered]@{}
+        foreach ($m in [regex]::Matches([string]$c['pass'], 'facts\.([A-Za-z0-9_]+)')) {
+            $k = $m.Groups[1].Value
+            if ($observed.Contains($k) -or -not $df['facts'].Contains($k)) { continue }
+            $val = $df['facts'][$k]
+            if ($null -eq $val -or $val -is [string] -or $val -is [bool] -or $val -is [ValueType]) { $observed[$k] = $val }
+            elseif ($val -is [System.Collections.IEnumerable] -and $val -isnot [System.Collections.IDictionary]) { $observed[$k] = @($val).Count }
+        }
+        $result.observed = $observed
 
         # Exceptions.
         $mine = @($Exception | Where-Object { $_.check -eq $id })

@@ -92,7 +92,11 @@
 
   // ---------- drawer ----------
   var drawer = $('drawer');
-  function kvRows(obj, labelFn) { var keys = Object.keys(obj || {}); if (!keys.length) { return ''; } return '<dl class="kv">' + keys.map(function (k) { return '<dt>' + esc(labelFn(k)) + '</dt><dd>' + esc(typeof obj[k] === 'object' ? JSON.stringify(obj[k]) : obj[k]) + '</dd>'; }).join('') + '</dl>'; }
+  function kvRows(obj, labelFn, valueFn) { var keys = Object.keys(obj || {}); if (!keys.length) { return ''; } return '<dl class="kv">' + keys.map(function (k) { var v = obj[k]; return '<dt>' + esc(labelFn(k)) + '</dt><dd>' + esc(valueFn ? valueFn(v) : (typeof v === 'object' ? JSON.stringify(v) : v)) + '</dd>'; }).join('') + '</dl>'; }
+  // A fact name as words (anonymousLinkDays: Anonymous link days), the same rule the report's cards use.
+  var ACRONYMS = /\b(mfa|ca|spo|dlp|pim|sspr|tap|dkim|dmarc|spf|mde|edr|av|os|ip|id|url|api|smtp|imap|pop|ews|tls|ssl)\b/gi;
+  function factLabel(k) { var t = words(String(k).replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')); t = t.charAt(0) + t.slice(1).toLowerCase(); return t.replace(ACRONYMS, function (m) { return m.toUpperCase(); }).replace(/\bpct\b/i, '(%)'); }
+  function factValue(v) { if (v === true) { return 'yes'; } if (v === false) { return 'no'; } if (v === null || v === undefined || v === '') { return 'none'; } return typeof v === 'number' ? v.toLocaleString() : String(v); }
   function openDrawer(id) {
     var r = byId[id], c = data.catalog[id] || {}; if (!r || !drawer) { return; }
     var list = r.affected || [];
@@ -104,8 +108,9 @@
       '<h2>' + esc(r.id) + ' ' + esc(r.title) + '</h2>' +
       '<p><span class="status ' + esc(r.status) + '">' + esc(statusLabel(r.status)) + '</span> <span class="sev ' + esc(r.severity) + '">' + esc(r.severity) + '</span> <span class="chip">' + esc(domainLabel(r.domain)) + '</span>' + ((c.license && c.license.length) ? '<span class="chip">Needs ' + esc(c.license.join(' or ')) + '</span>' : '') + '</p>' +
       (r.reason ? '<p>' + esc(r.reason) + '</p>' : '') +
-      '<h4>Why It Matters</h4><p>' + esc(c.narrative) + '</p>' +
-      '<h4>Remediation</h4><p>' + esc(c.remediation) + '</p><p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
+      (r.observed && Object.keys(r.observed).length ? '<h4>What We Found</h4>' + kvRows(r.observed, factLabel, factValue) : '') +
+      '<h4>Why It Matters</h4><p>' + esc(c.impact || c.narrative) + '</p>' +
+      '<h4>Remediation</h4>' + (c.steps && c.steps.length > 1 ? '<ol class="steps">' + c.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' : '<p>' + esc(c.remediation) + '</p>') + '<p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
       (fw ? '<h4>Frameworks</h4><p class="chips">' + fw + '</p>' : '') +
       (affected ? '<h4>Affected (' + Math.max(list.length, r.affectedCount || 0).toLocaleString() + ')</h4>' + ((r.affectedCount || 0) > list.length ? '<p class="hint">Showing the first ' + list.length + '. Every one is in affected/' + esc(r.id) + '.csv in the run folder.</p>' : '') + '<ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +
       (exList ? '<h4>Accepted Risks</h4><p class="hint">To withdraw one, copy its command. ' + esc(RERUN_HINT) + '</p><ul class="exception-list">' + exList + '</ul>' : '') +

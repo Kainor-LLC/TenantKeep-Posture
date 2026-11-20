@@ -230,13 +230,57 @@ function ConvertTo-PostureReportHtml {
     }
     & $w '</section>'
 
-    # Recommendations
+    # Recommendations: a card per failed check, what was found in this tenant, why it matters, what it affects and
+    # the steps to fix it; improvements read as suggestions. Then what already passes, per domain.
+    $effortLabel = @{ S = 'Quick fix'; M = 'Planned change'; L = 'Project' }
+    $factLabel = { param([string] $k) $t = ($k -creplace '([a-z0-9])([A-Z])', '$1 $2') -creplace '([A-Z]+)([A-Z][a-z])', '$1 $2'; $t.Substring(0, 1).ToUpperInvariant() + $t.Substring(1).ToLowerInvariant() -replace '\b(mfa|ca|spo|dlp|pim|sspr|tap|dkim|dmarc|spf|mde|edr|av|os|ip|id|url|api|smtp|imap|pop|ews|tls|ssl)\b', { $_.Value.ToUpperInvariant() } -replace '\bpct\b', '(%)' }
+    $factValue = { param($v) if ($v -is [bool]) { if ($v) { 'yes' } else { 'no' } } elseif ($null -eq $v -or "$v" -eq '') { 'none' } elseif ($v -is [ValueType]) { & $num $v } else { [string]$v } }
+    $allRecs = @($r.recommendations.Values | ForEach-Object { $_ })
+    $fixes = @($allRecs | Where-Object { $_.category -ne 'improve' }).Count
     & $w '<section class="view" id="recommendations"><h2>Recommendations</h2>'
+    & $w "<p class=`"lede`">$fixes finding(s) to fix and $($allRecs.Count - $fixes) improvement(s), most urgent first. Within each priority the quick fixes come first, then what affects the most. Each card has the steps, the portal page and the Microsoft Learn article.</p>"
     foreach ($bucket in $r.recommendations.Keys) {
         $items = @($r.recommendations[$bucket])
-        & $w "<div class=`"bucket`"><h3>$(& $h $bucket) <span class=`"tech`">($($items.Count))</span></h3>"
-        if ($items.Count -eq 0) { & $w '<p>Nothing in this bucket.</p>' }
-        foreach ($x in $items) { $portal = $(if ($x.deepLink) { ' <a href="' + (& $h $x.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' } else { '' }); & $w "<div class=`"rec`"><div class=`"title`"><a href=`"#checks`" data-check=`"$(& $h $x.id)`">$(& $h $x.id) $(& $h $x.title)</a> <span class=`"sev $(& $h $x.severity)`">$(& $h $x.severity)</span> <span class=`"tech`">$(& $h (& $dl $x.domain))$(if ($x.license.Count -gt 0) { ", needs $(& $h ($x.license -join ' or '))" })$(if ($x.affectedCount -gt 0) { ", $($x.affectedCount) affected" })</span></div><div>$(& $h $x.remediation) <a href=`"$(& $h $x.learn)`" target=`"_blank`" rel=`"noopener`">Microsoft Learn</a>$portal</div></div>" }
+        & $w "<div class=`"bucket`"><h3>$(& $h $bucket) <span class=`"count`">$($items.Count)</span> <span class=`"hint`">$(& $h $when[$bucket])</span></h3>"
+        if ($items.Count -eq 0) { & $w '<p class="muted">Nothing in this bucket.</p>' }
+        foreach ($x in $items) {
+            $chips = '<span class="sev ' + (& $h $x.severity) + '">' + (& $h $x.severity) + '</span>'
+            if ($x.effort) { $chips += '<span class="chip effort-' + (& $h $x.effort) + '">' + (& $h $effortLabel[[string]$x.effort]) + '</span>' }
+            if ($x.category -eq 'improve') { $chips += '<span class="chip improve">Improvement</span>' }
+            $chips += '<span class="chip">' + (& $h (& $dl $x.domain)) + '</span>'
+            if (@($x.license).Count -gt 0) { $chips += '<span class="chip">Needs ' + (& $h (@($x.license) -join ' or ')) + '</span>' }
+            $found = @()
+            if ($x.reason) { $found += '<p>' + (& $h $x.reason) + '</p>' }
+            $obs = @($x.observed.Keys | ForEach-Object { '<li>' + (& $h (& $factLabel $_)) + ': <strong>' + (& $h (& $factValue $x.observed[$_])) + '</strong></li>' })
+            $thr = @(@($(if ($x.thresholds) { $x.thresholds.Keys })) | ForEach-Object { '<li class="muted">' + (& $h $(if ($thresholdLabel.Contains($_)) { $thresholdLabel[$_] } else { & $factLabel $_ })) + ': ' + (& $h (& $factValue $x.thresholds[$_])) + '</li>' })
+            if ($obs.Count -or $thr.Count) { $found += '<ul class="observed">' + ($obs -join '') + ($thr -join '') + '</ul>' }
+            if ($x.affectedCount -gt 0) { $found += '<p>' + (& $num $x.affectedCount) + ' affected.</p>' }
+            if (-not $found.Count) { $found += '<p>The setting does not meet the check. The steps below say what it should be.</p>' }
+            $affected = ''
+            if ($x.affectedCount -gt 0) {
+                $li = @($x.affected | ForEach-Object { $n = $(if ($_ -is [System.Collections.IDictionary]) { [string]$_['name'] } else { [string]$_ }); $dt = $(if ($_ -is [System.Collections.IDictionary] -and $_.Contains('detail')) { [string]$_['detail'] } else { '' }); '<li>' + (& $h $n) + $(if ($dt) { ' <span class="muted">(' + (& $h (& $humanize $dt)) + ')</span>' }) + '</li>' }) -join ''
+                $rest = $(if ($x.affectedCount -gt @($x.affected).Count) { '<p class="hint">The first ' + @($x.affected).Count + ' of ' + (& $num $x.affectedCount) + '. All of them are in affected/' + (& $h $x.id) + '.csv.</p>' } else { '' })
+                $affected = '<details class="affected-list"><summary>Affected (' + (& $num $x.affectedCount) + ')</summary><ul>' + $li + '</ul>' + $rest + '</details>'
+            }
+            $fix = $(if (@($x.steps).Count -gt 1) { '<ol class="steps">' + (@($x.steps | ForEach-Object { '<li>' + (& $h $_) + '</li>' }) -join '') + '</ol>' } else { '<p>' + (& $h $x.remediation) + '</p>' })
+            $links = @()
+            if ($x.deepLink) { $links += '<a class="btn" href="' + (& $h $x.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' }
+            if ($x.learn) { $links += '<a class="btn" href="' + (& $h $x.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a>' }
+            $links += '<a class="btn" href="#checks" data-check="' + (& $h $x.id) + '">Details and Accept Risk</a>'
+            $fw = @($x.frameworks.Keys | Where-Object { $x.frameworks[$_] } | ForEach-Object { '<span class="chip">' + (& $h $(if ($frameworkLabel.Contains($_)) { $frameworkLabel[$_] } else { $_ })) + ' ' + (& $h $x.frameworks[$_]) + '</span>' }) -join ''
+            & $w ('<article class="finding' + $(if ($x.category -eq 'improve') { ' improve' }) + ' sev-' + (& $h $x.severity) + '" id="rec-' + (& $h $x.id) + '"><header><p class="chips">' + $chips + '</p><h4 class="finding-title"><code>' + (& $h $x.id) + '</code> ' + (& $h $x.title) + '</h4></header>' +
+                '<div class="finding-grid"><div><h5>What We Found</h5>' + ($found -join '') + $affected + '</div><div><h5>Why It Matters</h5><p>' + (& $h $x.why) + '</p></div></div>' +
+                '<h5>How To Fix</h5>' + $fix + '<p class="links">' + ($links -join ' ') + '</p>' + $(if ($fw) { '<p class="chips tech">' + $fw + '</p>' }) + '</article>')
+        }
+        & $w '</div>'
+    }
+    if ($r.alreadyGood -and @($r.alreadyGood.Keys).Count -gt 0) {
+        $goodCount = @($r.alreadyGood.Values | ForEach-Object { $_ }).Count
+        & $w "<h3>What's Already Good <span class=`"count`">$goodCount</span></h3><div class=`"good-list`">"
+        foreach ($d in $r.alreadyGood.Keys) {
+            $li = @($r.alreadyGood[$d] | ForEach-Object { '<li><a href="#checks" data-check="' + (& $h $_.id) + '"><code>' + (& $h $_.id) + '</code> ' + (& $h $_.title) + '</a></li>' }) -join ''
+            & $w ('<details><summary>' + (& $h (& $dl $d)) + ' <span class="count">' + @($r.alreadyGood[$d]).Count + '</span></summary><ul>' + $li + '</ul></details>')
+        }
         & $w '</div>'
     }
     & $w '</section>'
@@ -317,7 +361,7 @@ function ConvertTo-PostureReportHtml {
 
     # Embedded data, then the behaviour.
     # At most 500 affected objects per check in the page; affected/<id>.csv beside the report has them all.
-    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected | Select-Object -First 500); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds } }))
+    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected | Select-Object -First 500); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds; observed = $(if ($_.Contains('observed')) { $_.observed } else { $null }) } }))
     & $w (& $jsonBlock 'data-catalog' $r.catalogText)
     & $w (& $jsonBlock 'data-exceptions' @($r.exceptions))
     & $w (& $jsonBlock 'data-attestations' $r.attestations)
