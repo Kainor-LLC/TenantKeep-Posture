@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Licensing data, wider (2026-11-20): Power BI Pro, Teams Phone, Audio Conferencing and Windows Enterprise are known as
+  value a bundle brings (never a goal); the suites carry their current names (Microsoft Purview Suite, was E5
+  Compliance; Microsoft Defender Suite, was E5 Security); the Purview Suite for Business and the Defender and Purview
+  Suites for Business join the advisor (SKU ids verify). The profile's third-party controls gain swg and ztna.
 - Fixes (2026-11-20): OP-005 compared Secure Score points with Microsoft's averages, which are percentages, so it
   passed almost always; it now compares the tenant's percentage (verify the units against Graph). The sign-in read
   compared timestamps as culture text, which keyed days month first and could misorder a restart across a year end;

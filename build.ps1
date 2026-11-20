@@ -178,8 +178,10 @@ function Invoke-LicensingData {
     }
     $out = foreach ($s in $list.skus) {
         $id = [string]$s.sku
-        $plans = $(if ($plansOf.ContainsKey($id)) { @($plansOf[$id]) } elseif ($s.Contains('plans')) { @($s.plans) } else { throw "bundle-list.json: $id is not in the CSV and names no plans" })
+        $plans = $(if ($plansOf.ContainsKey($id)) { @($plansOf[$id]) } elseif ($s.Contains('plans')) { @($s.plans) } elseif ($s.Contains('features')) { @() } else { throw "bundle-list.json: $id is not in the CSV and names no plans or features" })
         $have = [System.Collections.Generic.HashSet[string]]::new()
+        # A SKU Microsoft's list does not have yet can name its features directly (marked verify).
+        if (-not $plansOf.ContainsKey($id) -and $s.Contains('features')) { foreach ($x in @($s.features)) { $null = $have.Add([string]$x) } }
         foreach ($f in $features) { if (@($f.plans | Where-Object { $_ -in $plans }).Count) { $null = $have.Add($f.id) } }
         # Included and implied features (Plan 2 includes Plan 1; Copilot implies SharePoint Advanced Management).
         do {

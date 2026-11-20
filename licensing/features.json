@@ -1,5 +1,5 @@
 {
-  "description": "Licensed features: the token the check catalog gates on, the service plans that grant it, and what it unlocks. Detection (Get-PostureLicenseToken) and the licensing advisor read this file; nothing else holds plan names.",
+  "description": "Licensed features: the token the check catalog gates on, the service plans that grant it, and what it unlocks. kind security features count towards goals; kind value features (Power BI, Teams Phone) never do but show what a bundle also brings. coveredBy names the profile's thirdParty category that can stand in for a feature. Detection and the advisor read this file; nothing else holds plan names.",
   "reviewed": "2026-11-20",
   "sources": [
     "https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference",
@@ -14,7 +14,8 @@
         "AAD_PREMIUM"
       ],
       "includes": [],
-      "what": "Conditional Access, group-based licensing, dynamic groups, sign-in logs beyond 7 days."
+      "what": "Conditional Access, group-based licensing, dynamic groups, sign-in logs beyond 7 days.",
+      "kind": "security"
     },
     {
       "id": "entraP2",
@@ -26,7 +27,8 @@
       "includes": [
         "entraP1"
       ],
-      "what": "Risk-based Conditional Access, Identity Protection, Privileged Identity Management, access reviews."
+      "what": "Risk-based Conditional Access, Identity Protection, Privileged Identity Management, access reviews.",
+      "kind": "security"
     },
     {
       "id": "governance",
@@ -39,7 +41,8 @@
       "what": "Lifecycle workflows, entitlement management at scale, advanced access reviews.",
       "requires": [
         "entraP1"
-      ]
+      ],
+      "kind": "security"
     },
     {
       "id": "internetAccess",
@@ -49,7 +52,9 @@
         "Entra_Premium_Internet_Access"
       ],
       "includes": [],
-      "what": "Secure web gateway: web filtering and Conditional Access on internet traffic."
+      "what": "Secure web gateway: web filtering and Conditional Access on internet traffic.",
+      "kind": "security",
+      "coveredBy": "swg"
     },
     {
       "id": "privateAccess",
@@ -59,7 +64,9 @@
         "Entra_Premium_Private_Access"
       ],
       "includes": [],
-      "what": "Zero trust access to private apps without a VPN."
+      "what": "Zero trust access to private apps without a VPN.",
+      "kind": "security",
+      "coveredBy": "ztna"
     },
     {
       "id": "workloadId",
@@ -70,7 +77,8 @@
         "AAD_WRKLDID_P2"
       ],
       "includes": [],
-      "what": "Conditional Access and risk detection for service principals."
+      "what": "Conditional Access and risk detection for service principals.",
+      "kind": "security"
     },
     {
       "id": "intune",
@@ -83,7 +91,9 @@
         "INTUNE_SMBIZ"
       ],
       "includes": [],
-      "what": "Device enrollment, compliance, configuration, app protection."
+      "what": "Device enrollment, compliance, configuration, app protection.",
+      "kind": "security",
+      "coveredBy": "mdm"
     },
     {
       "id": "intuneSuite",
@@ -100,7 +110,8 @@
       "note": "The Intune Suite SKU carries these plans; each add-on sold alone carries one of them. Intune Plan 1 is a prerequisite, not part of the suite.",
       "requires": [
         "intune"
-      ]
+      ],
+      "kind": "security"
     },
     {
       "id": "mde1",
@@ -110,7 +121,9 @@
         "MDE_LITE"
       ],
       "includes": [],
-      "what": "Next-generation antivirus, attack surface reduction, device control."
+      "what": "Next-generation antivirus, attack surface reduction, device control.",
+      "kind": "security",
+      "coveredBy": "edr"
     },
     {
       "id": "mde2",
@@ -122,7 +135,9 @@
       "includes": [
         "mde1"
       ],
-      "what": "EDR, automated investigation, vulnerability management, advanced hunting."
+      "what": "EDR, automated investigation, vulnerability management, advanced hunting.",
+      "kind": "security",
+      "coveredBy": "edr"
     },
     {
       "id": "mdeBusiness",
@@ -134,7 +149,9 @@
       "includes": [
         "mde1"
       ],
-      "what": "EDR and automated investigation for up to 300 users."
+      "what": "EDR and automated investigation for up to 300 users.",
+      "kind": "security",
+      "coveredBy": "edr"
     },
     {
       "id": "mdo1",
@@ -144,7 +161,9 @@
         "ATP_ENTERPRISE"
       ],
       "includes": [],
-      "what": "Safe Links, Safe Attachments, anti-phishing impersonation protection."
+      "what": "Safe Links, Safe Attachments, anti-phishing impersonation protection.",
+      "kind": "security",
+      "coveredBy": "email"
     },
     {
       "id": "mdo2",
@@ -156,7 +175,9 @@
       "includes": [
         "mdo1"
       ],
-      "what": "Threat Explorer, automated investigation, attack simulation training."
+      "what": "Threat Explorer, automated investigation, attack simulation training.",
+      "kind": "security",
+      "coveredBy": "email"
     },
     {
       "id": "mdi",
@@ -166,7 +187,9 @@
         "ATA"
       ],
       "includes": [],
-      "what": "Detects attacks on on-premises Active Directory."
+      "what": "Detects attacks on on-premises Active Directory.",
+      "kind": "security",
+      "coveredBy": "edr"
     },
     {
       "id": "mdca",
@@ -176,7 +199,8 @@
         "ADALLOM_S_STANDALONE"
       ],
       "includes": [],
-      "what": "Shadow IT discovery, session controls, app governance."
+      "what": "Shadow IT discovery, session controls, app governance.",
+      "kind": "security"
     },
     {
       "id": "labels",
@@ -187,7 +211,8 @@
         "RMS_S_PREMIUM"
       ],
       "includes": [],
-      "what": "Manual sensitivity labels with encryption."
+      "what": "Manual sensitivity labels with encryption.",
+      "kind": "security"
     },
     {
       "id": "purviewIp",
@@ -200,7 +225,8 @@
       "includes": [
         "labels"
       ],
-      "what": "Automatic labelling, labelling at scale, content explorer."
+      "what": "Automatic labelling, labelling at scale, content explorer.",
+      "kind": "security"
     },
     {
       "id": "endpointDlp",
@@ -210,7 +236,8 @@
         "MICROSOFTENDPOINTDLP"
       ],
       "includes": [],
-      "what": "Data loss prevention on Windows and macOS devices."
+      "what": "Data loss prevention on Windows and macOS devices.",
+      "kind": "security"
     },
     {
       "id": "teamsDlp",
@@ -220,7 +247,8 @@
         "COMMUNICATIONS_DLP"
       ],
       "includes": [],
-      "what": "Data loss prevention in Teams chats and channels."
+      "what": "Data loss prevention in Teams chats and channels.",
+      "kind": "security"
     },
     {
       "id": "auditPremium",
@@ -230,7 +258,8 @@
         "M365_ADVANCED_AUDITING"
       ],
       "includes": [],
-      "what": "One-year audit retention and the high-value events investigations need."
+      "what": "One-year audit retention and the high-value events investigations need.",
+      "kind": "security"
     },
     {
       "id": "insiderRisk",
@@ -240,7 +269,8 @@
         "INSIDER_RISK"
       ],
       "includes": [],
-      "what": "Policies for data theft by departing users and similar risks."
+      "what": "Policies for data theft by departing users and similar risks.",
+      "kind": "security"
     },
     {
       "id": "ediscoveryPremium",
@@ -250,7 +280,8 @@
         "EQUIVIO_ANALYTICS"
       ],
       "includes": [],
-      "what": "Review sets, analytics and holds at scale."
+      "what": "Review sets, analytics and holds at scale.",
+      "kind": "security"
     },
     {
       "id": "commsCompliance",
@@ -260,7 +291,8 @@
         "MICROSOFT_COMMUNICATION_COMPLIANCE"
       ],
       "includes": [],
-      "what": "Policies over messages for regulatory and conduct risks."
+      "what": "Policies over messages for regulatory and conduct risks.",
+      "kind": "security"
     },
     {
       "id": "infoBarriers",
@@ -270,7 +302,8 @@
         "INFORMATION_BARRIERS"
       ],
       "includes": [],
-      "what": "Stops groups of users communicating where rules require it."
+      "what": "Stops groups of users communicating where rules require it.",
+      "kind": "security"
     },
     {
       "id": "copilot",
@@ -282,7 +315,8 @@
         "M365_COPILOT_TEAMS"
       ],
       "includes": [],
-      "what": "Copilot in the Microsoft 365 apps and grounded on work data."
+      "what": "Copilot in the Microsoft 365 apps and grounded on work data.",
+      "kind": "security"
     },
     {
       "id": "sam",
@@ -294,7 +328,53 @@
       "impliedBy": [
         "copilot"
       ],
-      "note": "(verify) No SharePoint Advanced Management service plan appears in Microsoft's list as of 2026-11-20; Microsoft 365 Copilot licences include it, so Copilot implies it. Add the plan name here once seen on a live tenant."
+      "note": "(verify) No SharePoint Advanced Management service plan appears in Microsoft's list as of 2026-11-20; Microsoft 365 Copilot licences include it, so Copilot implies it. Add the plan name here once seen on a live tenant.",
+      "kind": "security"
+    },
+    {
+      "id": "powerBiPro",
+      "name": "Power BI Pro",
+      "token": null,
+      "plans": [
+        "BI_AZURE_P2"
+      ],
+      "includes": [],
+      "what": "Publish and share Power BI reports.",
+      "kind": "value"
+    },
+    {
+      "id": "teamsPhone",
+      "name": "Teams Phone",
+      "token": null,
+      "plans": [
+        "MCOEV"
+      ],
+      "includes": [],
+      "what": "Phone numbers and calling in Teams (calling plans are separate).",
+      "kind": "value"
+    },
+    {
+      "id": "audioConferencing",
+      "name": "Teams Audio Conferencing",
+      "token": null,
+      "plans": [
+        "MCOMEETADV"
+      ],
+      "includes": [],
+      "what": "Dial-in numbers for Teams meetings.",
+      "kind": "value"
+    },
+    {
+      "id": "windowsEnterprise",
+      "name": "Windows Enterprise",
+      "token": null,
+      "plans": [
+        "WIN10_PRO_ENT_SUB",
+        "Virtualization Rights for Windows 10 (E3/E5+VDA)"
+      ],
+      "includes": [],
+      "what": "Windows 10/11 Enterprise rights, including virtual desktops.",
+      "kind": "value"
     }
   ]
 }

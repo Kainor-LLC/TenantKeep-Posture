@@ -103,7 +103,7 @@ function New-PostureProfile {
         externalCollaboration = 'governed'
         copilot               = 'none'
         azure                 = 'none'
-        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; siem = 'none'; backup = 'none' }
+        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; siem = 'none'; backup = 'none'; swg = 'none'; ztna = 'none' }
         frameworks            = @()
         goals                 = @()
         thresholds            = [ordered]@{ maxPermanentGlobalAdmins = 2; staleDeviceDays = 90; maxExclusionGroupMembers = 25; inactiveGuestDays = 90; reportOnlyMaxDays = 90; disabledMaxDays = 90; criticalCveMaxAgeDays = 14; namePattern = $null }

@@ -184,7 +184,7 @@ Describe 'New-PostureProfile' {
             $p.thresholds.staleDeviceDays | Should -Be 90
             $p.breakGlass | Should -Be @('bg@fabrikam.example')
             $p.outputRoot | Should -Be '~/Clients/Fabrikam/Runs'
-            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 30 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, goals, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence, run folder'
+            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 32 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, eight third-party categories, goals, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence, run folder'
         }
 
         It 'keeps keys it does not own, such as attestations, when it rewrites the file' {

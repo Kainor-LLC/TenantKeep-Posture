@@ -74,7 +74,7 @@ measured and what was answered.
 | `externalCollaboration` | locked, governed, open | Guest and sharing targets |
 | `copilot` | none, pilot, deployed | Whether the readiness domain renders |
 | `azure` | none, platform, workloads | Whether the Azure domain renders |
-| `thirdParty` | category to vendor name, or none | Checks listing the category in `coveredBy` render "Covered by vendor" |
+| `thirdParty` | email, edr, mfa, mdm, siem, backup, swg, ztna: vendor name, or none | Checks listing the category in `coveredBy` render "Covered by vendor"; the licensing advisor treats the matching Microsoft features (Defender for EDR, Global Secure Access for swg and ztna) as covered and redundant in a bundle |
 | `frameworks` | hipaa, pci, cmmc, soc2, iso27001, nist-800-171, cisa-scuba | Crosswalk appendix and severity lifts |
 | `thresholds` | numbers, and `namePattern` | Override the catalog default by key; the appendix prints both |
 | `breakGlass` | UPNs or display names | Exclusion checks know which accounts belong in exclusions; CA-012 fails when none are named or found |

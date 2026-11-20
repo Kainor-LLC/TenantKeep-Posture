@@ -52,11 +52,13 @@
     },
     {
       "sku": "IDENTITY_THREAT_PROTECTION",
-      "kind": "addon"
+      "kind": "addon",
+      "name": "Microsoft Defender Suite (was Microsoft 365 E5 Security)"
     },
     {
       "sku": "INFORMATION_PROTECTION_COMPLIANCE",
-      "kind": "addon"
+      "kind": "addon",
+      "name": "Microsoft Purview Suite (was Microsoft 365 E5 Compliance)"
     },
     {
       "sku": "DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW",
@@ -72,6 +74,48 @@
         "ADALLOM_S_STANDALONE"
       ],
       "verify": "Not in Microsoft's CSV as of 2026-11-20; plans read from a live subscription. Sold to Business Premium customers."
+    },
+    {
+      "sku": "PURVIEW_SUITE_FOR_BUSINESS",
+      "kind": "addon",
+      "seatCap": 300,
+      "name": "Microsoft Purview Suite for Business",
+      "features": [
+        "labels",
+        "purviewIp",
+        "endpointDlp",
+        "teamsDlp",
+        "auditPremium",
+        "insiderRisk",
+        "ediscoveryPremium",
+        "commsCompliance"
+      ],
+      "verify": "SKU id and plans not in Microsoft's CSV as of 2026-11-20; features from Microsoft's product page. Needs Business Premium."
+    },
+    {
+      "sku": "DEFENDER_PURVIEW_SUITES_FOR_BUSINESS",
+      "kind": "addon",
+      "seatCap": 300,
+      "name": "Microsoft Defender and Purview Suites for Business",
+      "features": [
+        "entraP1",
+        "entraP2",
+        "mde1",
+        "mde2",
+        "mdo1",
+        "mdo2",
+        "mdi",
+        "mdca",
+        "labels",
+        "purviewIp",
+        "endpointDlp",
+        "teamsDlp",
+        "auditPremium",
+        "insiderRisk",
+        "ediscoveryPremium",
+        "commsCompliance"
+      ],
+      "verify": "Sold as a bundle of the two business suites; SKU id not in Microsoft's CSV as of 2026-11-20. Needs Business Premium."
     },
     {
       "sku": "AAD_PREMIUM",
