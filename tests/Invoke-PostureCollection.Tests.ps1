@@ -24,7 +24,7 @@ BeforeAll {
             '^auditLogs/signIns' { & $u @(@{ id = 's1'; createdDateTime = '2026-10-14T09:00:00Z'; userPrincipalName = 'user1@contoso.example'; clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; location = @{ countryOrRegion = 'US' } }); break }
             '^organization\?' { & $u @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $false; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }); break }
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
-            '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; provisioningStatus = 'Success' }) }); break }
+            '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; servicePlanId = 'p-aad'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; servicePlanId = 'p-intune'; provisioningStatus = 'Success' }) }); break }
             '^directory/onPremisesSynchronization$' { & $u @(); break }
             '^policies/(authorizationPolicy|identitySecurityDefaultsEnforcementPolicy|authenticationMethodsPolicy|adminConsentRequestPolicy|crossTenantAccessPolicy/default)$' { @{ id = ($path -split '/')[-1]; isEnabled = $false }; break }
             '^policies/authenticationStrengthPolicies$' { & $u @(@{ id = 's-phish'; displayName = 'Phishing-resistant MFA'; allowedCombinations = @('fido2') }); break }
@@ -81,7 +81,7 @@ BeforeAll {
             '^users\?.*signInActivity' { throw 'Authorization_RequestDenied: Insufficient privileges'; break }
             '^users\?' {
                 & $u @(
-                    @{ id = 'u1'; userPrincipalName = 'admin1@contoso.example'; displayName = 'Admin One'; accountEnabled = $true; userType = 'Member'; onPremisesSyncEnabled = $false; assignedLicenses = @(@{ skuId = 's1' }) }
+                    @{ id = 'u1'; userPrincipalName = 'admin1@contoso.example'; displayName = 'Admin One'; accountEnabled = $true; userType = 'Member'; onPremisesSyncEnabled = $false; assignedLicenses = @(@{ skuId = 's1'; disabledPlans = @('p-intune') }) }
                     @{ id = 'u2'; userPrincipalName = 'admin2@contoso.example'; displayName = 'Admin Two'; accountEnabled = $true; userType = 'Member'; onPremisesSyncEnabled = $true; assignedLicenses = @() }
                     @{ id = 'u4'; userPrincipalName = 'old@contoso.example'; displayName = 'Old'; accountEnabled = $false; userType = 'Member'; assignedLicenses = @(@{ skuId = 's1' }) }
                     @{ id = 'g1'; userPrincipalName = 'guest_x#EXT#@contoso.example'; displayName = 'Guest'; accountEnabled = $true; userType = 'Guest'; externalUserState = 'PendingAcceptance'; assignedLicenses = @() }
@@ -397,6 +397,10 @@ Describe 'Invoke-PostureCollection' {
             $s.DisabledWithLicenses | Should -Be 1
             $s.PendingGuestInvites | Should -Be 1
             $s.SignInActivityAvailable | Should -BeFalse
+            $lp = & $script:Read '06-users-license-plans'
+            $lp.LicensedEnabledUsers | Should -Be 1 -Because 'the disabled user does not count'
+            $lp.UsersByServicePlan.AAD_PREMIUM | Should -Be 1
+            $lp.UsersByServicePlan.PSObject.Properties.Name | Should -Not -Contain 'INTUNE_A' -Because 'Intune is switched off on that licence'
             $s.EnabledNeverSignedIn | Should -Be 2 -Because 'without sign-in data every enabled member looks never signed in'
         }
 

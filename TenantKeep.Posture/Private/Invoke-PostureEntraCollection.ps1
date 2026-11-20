@@ -218,6 +218,14 @@ function Invoke-PostureEntraCollection {
     Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
         $base = 'id,userPrincipalName,displayName,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
         $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
+        # Which service plans each enabled user actually has: a licence's plans minus the ones switched off for that
+        # user, so a feature bought but disabled for most people shows as partial. Counts only, from the SKU file.
+        $skuPlans = @{}
+        foreach ($s in @(& $load '01-subscribed-skus' | Where-Object { $_ })) {
+            $skuPlans[[string](& $v $s 'skuId')] = @(& $v $s 'servicePlans' | Where-Object { $_ -and (& $v $_ 'provisioningStatus') -ne 'Disabled' } | ForEach-Object { @{ id = [string](& $v $_ 'servicePlanId'); name = [string](& $v $_ 'servicePlanName') } })
+        }
+        # A hashtable, like $c: the page handler runs in a child scope, where a plain counter would not stick.
+        $planUse = @{}; $licensing = @{ enabled = 0 }
         $read = {
             param([string] $Select)
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users' -Csv -Confirm:$false
@@ -237,6 +245,15 @@ function Invoke-PostureEntraCollection {
                             LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
                         }
                         Add-PostureEvidenceRow -Stream $stream -Row $row
+                        if ($licences -gt 0 -and $row.AccountEnabled) {
+                            $licensing.enabled++
+                            $userPlans = [System.Collections.Generic.HashSet[string]]::new()
+                            foreach ($al in @($u['assignedLicenses'])) {
+                                $off = @($al['disabledPlans'] | ForEach-Object { [string]$_ })
+                                foreach ($sp in @($skuPlans[[string]$al['skuId']])) { if ($sp -and $sp.id -notin $off) { $null = $userPlans.Add($sp.name) } }
+                            }
+                            foreach ($n in $userPlans) { $planUse[$n] = 1 + $(if ($planUse.ContainsKey($n)) { $planUse[$n] } else { 0 }) }
+                        }
                         $isAdmin = $adminUpns.Contains([string]$row.UserPrincipalName)
                         if ($isAdmin) { $adminUsers.Add($row) }
                         if ($isAdmin -or [string]$row.UserPrincipalName -match '(?i)break.?glass|emergency' -or [string]$row.DisplayName -match '(?i)break.?glass|emergency') { $breakGlass.Add($row) }
@@ -263,6 +280,7 @@ function Invoke-PostureEntraCollection {
         catch {
             Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
             foreach ($k in @($c.Keys)) { $c[$k] = 0 }
+            $planUse.Clear(); $licensing.enabled = 0
             $memberIds.Clear(); $adminUsers.Clear(); $breakGlass.Clear()
             & $read $base
         }
@@ -273,6 +291,8 @@ function Invoke-PostureEntraCollection {
         $summary.SignInActivityAvailable = $c.WithSignIn -gt 0
         $summary.StaleDays = $StaleDays
         & $saveOne $summary '06-users-summary'
+        $planRows = [ordered]@{}; foreach ($k in @($planUse.Keys | Sort-Object)) { $planRows[$k] = $planUse[$k] }
+        & $saveOne ([ordered]@{ LicensedEnabledUsers = $licensing.enabled; UsersByServicePlan = $planRows }) '06-users-license-plans'
     } | Out-Null
 
     # ---------- 6b. Legacy per-user MFA state (AU-009) ----------
