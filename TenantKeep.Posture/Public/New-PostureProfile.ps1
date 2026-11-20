@@ -10,6 +10,10 @@ function New-PostureProfile {
         already exists. Every answer is also a parameter, and -NonInteractive writes the profile from parameters and
         defaults without asking. Licenses are detected rather than typed: from 01-subscribed-skus.json in an
         evidence folder (-Evidence) or live from Graph (-FromGraph, read-only), then shown for confirmation.
+    .PARAMETER Goal
+        Security goals for the licensing advisor (licensing/goals.json ids, tab-completed), for example
+        phishing-resistant-mfa, device-risk, copilot-data. The report's Licensing view says what the tenant's licences
+        cover for them and the smallest addition that would. None: the advisor uses the core goals.
     .PARAMETER Path
         Where to write. Default: ./profile.json. An existing file is read first and its answers become the defaults.
     .PARAMETER Evidence
@@ -62,6 +66,8 @@ function New-PostureProfile {
         [switch] $AskAll,
         [ValidateSet('E3', 'E5', 'BusinessPremium', 'P1', 'P2', 'Governance', 'EntraSuite', 'InternetAccess', 'PrivateAccess', 'WorkloadID', 'Intune', 'IntuneSuite', 'MDO1', 'MDO2', 'MDE1', 'MDE2', 'MDEBusiness', 'MDI', 'MDCA', 'IP1', 'Purview', 'EndpointDLP', 'TeamsDLP', 'AuditPremium', 'InsiderRisk', 'eDiscoveryPremium', 'CommsCompliance', 'InfoBarriers', 'Copilot', 'SAM')]
         [string[]] $Licenses,
+        [ArgumentCompleter({ param($c, $p, $word) $f = @((Join-Path $PSScriptRoot '..' 'licensing' 'goals.json'), (Join-Path $PSScriptRoot '..' '..' 'licensing' 'goals.json')) | Where-Object { Test-Path $_ } | Select-Object -First 1; foreach ($g in @($(if ($f) { (Get-Content -Raw $f | ConvertFrom-Json).goals }))) { if ($g.id -like "$word*") { [System.Management.Automation.CompletionResult]::new($g.id, $g.id, 'ParameterValue', $g.name) } } })]
+        [string[]] $Goal,
         [ValidateSet('windows', 'macOS', 'linux', 'iOS', 'android')] [string[]] $Platforms,
         [ValidateSet('cloud-only', 'hybrid-connect', 'hybrid-cloud-sync', 'hybrid-adfs')] [string] $IdentityModel,
         [ValidateSet('none', 'mam', 'mdm')] [string] $Byod,
@@ -99,6 +105,7 @@ function New-PostureProfile {
         azure                 = 'none'
         thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; siem = 'none'; backup = 'none' }
         frameworks            = @()
+        goals                 = @()
         thresholds            = [ordered]@{ maxPermanentGlobalAdmins = 2; staleDeviceDays = 90; maxExclusionGroupMembers = 25; inactiveGuestDays = 90; reportOnlyMaxDays = 90; disabledMaxDays = 90; criticalCveMaxAgeDays = 14; namePattern = $null }
         audience              = 'technical'
         cadence               = 'quarterly'
@@ -131,6 +138,12 @@ function New-PostureProfile {
     if ($Copilot) { $defaults.copilot = $Copilot }
     if ($Azure) { $defaults.azure = $Azure }
     if ($ThirdParty) { foreach ($k in $ThirdParty.Keys) { $defaults.thirdParty[[string]$k] = [string]$ThirdParty[$k] } }
+    if ($PSBoundParameters.ContainsKey('Goal')) {
+        $known = @((Get-PostureLicensingData).goals | ForEach-Object { $_.id })
+        $bad = @($Goal | Where-Object { $_ -notin $known })
+        if ($bad.Count) { throw "-Goal: $($bad -join ', ') is not a goal. Goals: $($known -join ', ')." }
+        $defaults.goals = @($Goal)
+    }
     if ($PSBoundParameters.ContainsKey('Frameworks')) { $defaults.frameworks = @($Frameworks | Where-Object { $_ -ne 'none' }) }
     if ($Thresholds) { foreach ($k in $Thresholds.Keys) { $defaults.thresholds[[string]$k] = $Thresholds[$k] } }
     if ($PSBoundParameters.ContainsKey('BreakGlass')) { $defaults.breakGlass = @($BreakGlass) }
@@ -184,6 +197,8 @@ function New-PostureProfile {
         foreach ($cat in @($answers.thirdParty.Keys)) {
             $answers.thirdParty[$cat] = & $ask "Third-party $cat control? (vendor name, or none)" 'Checks it covers render as "Covered by <vendor>" instead of failing.' @() $answers.thirdParty[$cat] $false
         }
+        $goalIds = @((Get-PostureLicensingData).goals | ForEach-Object { $_.id })
+        $answers.goals = @(& $ask 'Security goals for the licensing advisor?' 'The report says what your licences cover for these and the smallest addition that would. Blank uses the core goals.' $goalIds $answers.goals $true | Where-Object { $_ })
         $answers.frameworks = @(& $ask 'Regulated frameworks?' 'Adds the crosswalk appendix and severity lifts on mapped checks.' @('none', 'hipaa', 'pci', 'cmmc', 'soc2', 'iso27001', 'nist-800-171', 'cisa-scuba') $(if (@($answers.frameworks).Count -eq 0) { @('none') } else { $answers.frameworks }) $true | Where-Object { $_ -ne 'none' })
         foreach ($t in @($answers.thresholds.Keys)) {
             $v = & $ask "Threshold ${t}?" 'Product default shown; the appendix prints your override next to it.' @() $answers.thresholds[$t] $false

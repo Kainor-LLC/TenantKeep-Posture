@@ -16,7 +16,7 @@ New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence $fo
 
 | Discovered | From | Rule |
 |---|---|---|
-| `licenses` | 01-subscribed-skus | service plans and SKUs; Copilot implies SAM (verify) |
+| `licenses` | 01-subscribed-skus | service plans and SKUs, mapped by licensing/features.json and bundles.json; suspended subscriptions do not count; Copilot implies SAM (verify) |
 | `platforms` | 09-intune-managed-devices, 08-entra-devices | a platform with 5 or more devices, or 2% of the fleet (verify the floor) |
 | `identityModel` | 01-organization, 01-domains | sync on means hybrid; a federated domain means hybrid-adfs; Cloud Sync reads as hybrid-connect (verify) |
 | `byod` | 09-intune-managed-devices, 09-intune-app-protection-policies | 5 or more personal devices means mdm; an assigned app protection policy means mam; else none |
@@ -66,7 +66,8 @@ measured and what was answered.
 
 | Field | Values | Drives |
 |---|---|---|
-| `licenses` | E3, E5, BusinessPremium, P1, P2, Intune, IntuneSuite, EntraSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, Purview, Copilot, SAM | A check whose `license` list has no overlap is "Not evaluated (requires X)". Detected from service plans, bundles expand to what they contain |
+| `licenses` | E3, E5, BusinessPremium, P1, P2, Governance, EntraSuite, Intune, IntuneSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, MDI, MDCA, IP1, Purview, the Purview add-ons, Copilot, SAM (licensing/features.json lists every token) | A check whose `license` list has no overlap is "Not evaluated (requires X)". Detected from service plans; a bundle expands to what it contains and Plan 2 includes Plan 1 |
+| `goals` | licensing/goals.json ids, for example phishing-resistant-mfa, device-risk, copilot-data | The Licensing view's advisor: what the licences cover for these goals and the smallest addition that would. Empty: the core goals |
 | `platforms` | windows, macOS, linux, iOS, android | `applicableWhen.platforms` on device and endpoint checks; CA-005 requires compliance per desktop platform in scope |
 | `identityModel` | cloud-only, hybrid-connect, hybrid-cloud-sync, hybrid-adfs | Whether the hybrid domain renders |
 | `byod` | none, mam, mdm | Mobile checks and targets |

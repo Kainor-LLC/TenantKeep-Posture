@@ -64,7 +64,9 @@ Describe 'New-PostureProfile' {
         It 'edits an existing file: unspecified answers survive, createdUtc is kept' {
             $path = Join-Path $script:Root 'a' 'profile.json'
             $before = (Get-Content -Raw $path | ConvertFrom-Json).createdUtc
-            $null = New-PostureProfile -Path $path -NonInteractive -Copilot pilot
+            $null = New-PostureProfile -Path $path -NonInteractive -Copilot pilot -Goal 'device-risk', 'copilot-data'
+            (Get-Content -Raw $path | ConvertFrom-Json).goals | Should -Be @('device-risk', 'copilot-data') -Because 'the licensing advisor reads them'
+            { New-PostureProfile -Path $path -NonInteractive -Goal 'world-peace' } | Should -Throw '*world-peace is not a goal*'
             $j = Get-Content -Raw $path | ConvertFrom-Json
             $j.copilot | Should -Be 'pilot'
             $j.licenses | Should -Be @('P1', 'Intune')
@@ -182,7 +184,7 @@ Describe 'New-PostureProfile' {
             $p.thresholds.staleDeviceDays | Should -Be 90
             $p.breakGlass | Should -Be @('bg@fabrikam.example')
             $p.outputRoot | Should -Be '~/Clients/Fabrikam/Runs'
-            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 29 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence, run folder'
+            Should -Invoke -ModuleName TenantKeep.Posture Read-PostureAnswer -Times 30 -Exactly -Because 'client, licenses, platforms, identity, byod, external, copilot, azure, six third-party categories, goals, frameworks, eight thresholds, break-glass, break-glass test date, Message Center owner, audience, cadence, run folder'
         }
 
         It 'keeps keys it does not own, such as attestations, when it rewrites the file' {

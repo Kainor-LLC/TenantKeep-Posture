@@ -6,6 +6,8 @@ work landed on main.
 
 ## Unreleased
 
+- Goals in the profile (2026-11-20): `New-PostureProfile -Goal` (tab-completed from licensing/goals.json) and a question
+  in the questionnaire; the licensing advisor works from them, else from the core goals.
 - Licensing view and advisor (2026-11-20): the Licensing view opens with What To Add: for the profile's goals, or
   the core goals, whether the licences held cover them, else the fewest add-ons and the one bundle that would, for
   the licensed seat count, with no prices. Then seats assigned per SKU, every feature owned, partly assigned (bought
