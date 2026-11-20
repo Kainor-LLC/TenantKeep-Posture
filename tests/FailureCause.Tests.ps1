@@ -15,7 +15,7 @@ Describe 'Why a step failed' {
         @{ Text = 'Response status code does not indicate success: Forbidden (Forbidden). [GET https://graph.microsoft.com/v1.0/directory/onPremisesSynchronization] Insufficient privileges to complete the operation.'; Cause = 'permission' }
         @{ Text = 'Attempted to perform an unauthorized operation.'; Cause = 'permission' }
         @{ Text = 'Get-InformationBarrierPolicy is not available; import ExchangeOnlineManagement and connect first.'; Cause = 'permission' }
-        @{ Text = "Get-AutoSensitivityLabelPolicy is not in this session: the signed-in roles or the tenant's licences do not expose it."; Cause = 'permission' }
+        @{ Text = "Get-AutoSensitivityLabelPolicy is not in this session: the signed-in roles or the tenant's licences do not expose it."; Cause = 'unavailable' }
         @{ Text = 'You do not have the required license to perform this operation.'; Cause = 'licence' }
         @{ Text = 'Response status code does not indicate success: Forbidden (Forbidden). AadPremiumLicenseRequired'; Cause = 'licence' }
         @{ Text = 'Response status code does not indicate success: NotFound (Not Found). [GET https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate]'; Cause = 'notProvisioned' }

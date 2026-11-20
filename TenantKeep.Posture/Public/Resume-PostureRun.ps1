@@ -16,7 +16,11 @@ function Resume-PostureRun {
         shows only what is still wrong. Then it signs in once (the run's tenant is pinned), collects, refreshes the
         profile and rebuilds report.html and findings.csv in the same folder.
     .PARAMETER Path
-        The run folder (the report's Run Health view and the end of Start-PostureRun print the exact command).
+        A run folder, to resume one that is not the newest. Usually left out.
+    .PARAMETER Client
+        Resume the newest run of this client: a client folder, or its name under ~/tenantkeep/clients (kainor).
+    .PARAMETER TenantId
+        Resume the newest run of the client whose profile names this tenant.
     .PARAMETER Collector
         Collect these again instead of working it out, for example a domain that was skipped because its module was
         not installed.
@@ -29,15 +33,21 @@ function Resume-PostureRun {
     .PARAMETER PassThru
         Return the Start-PostureRun summary, with the collectors that were collected again.
     .EXAMPLE
-        Resume-PostureRun -Path ~/tenantkeep/evidence/20261120-0930
+        Resume-PostureRun
+        The newest run, whichever client it was for.
     .EXAMPLE
-        Resume-PostureRun -Path ~/tenantkeep/evidence/20261120-0930 -Collector SharePoint
+        Resume-PostureRun -Client kainor
+    .EXAMPLE
+        Resume-PostureRun -Client kainor -Collector Purview
+        Purview again, for example after granting a role it lacked.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string], [pscustomobject])]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Tells the admin what will be collected again and why.')]
     param(
-        [Parameter(Mandatory, Position = 0)] [string] $Path,
+        [Parameter(Position = 0)] [string] $Path,
+        [string] $Client,
+        [ValidatePattern('^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$')] [string] $TenantId,
         [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
@@ -48,16 +58,22 @@ function Resume-PostureRun {
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
 
-    $folder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    if ($Path) { $folder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) }
+    else {
+        $folder = Find-PostureLatestRun -Client $Client -TenantId $TenantId
+        if (-not $folder) { throw "No run to resume$(if ($Client) { " for $Client" } elseif ($TenantId) { " for tenant $TenantId" }). Start one with Start-PostureRun." }
+    }
     if (-not (Test-Path -LiteralPath $folder -PathType Container)) { throw "Run folder not found: $folder" }
     $read = { param([string] $Name) $f = Join-Path $folder $Name; if (Test-Path -LiteralPath $f) { try { Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null } } }
     $plan = & $read 'run.json'
     $manifest = & $read 'collection.json'
-    $tenantId = [string]$(if ($plan -and $plan['tenantId']) { $plan['tenantId'] } elseif ($manifest -and $manifest['tenantId']) { $manifest['tenantId'] })
-    if (-not $tenantId) { throw "$folder has neither run.json nor collection.json with a tenant id; it is not a run folder Start-PostureRun made." }
-    $client = [string]$(if ($plan -and $plan['client'] -and (Test-Path -LiteralPath $plan['client'])) { $plan['client'] } else { Resolve-PostureClientFolder -TenantId $tenantId })
+    $runTenant = [string]$(if ($plan -and $plan['tenantId']) { $plan['tenantId'] } elseif ($manifest -and $manifest['tenantId']) { $manifest['tenantId'] })
+    if (-not $runTenant) { throw "$folder has neither run.json nor collection.json with a tenant id; it is not a run folder Start-PostureRun made." }
+    $clientFolder = [string]$(if ($plan -and $plan['client'] -and (Test-Path -LiteralPath $plan['client'])) { $plan['client'] } else { Resolve-PostureClientFolder -TenantId $runTenant })
+    Write-Host "Resuming $(Split-Path $folder -Leaf) for $(Split-Path $clientFolder -Leaf) ($folder)"
 
-    $failures = @(Read-PostureRunFailure -Folder $folder)
+    # The reason is worked out again from each message, so runs recorded by older versions get today's handling.
+    $failures = @(Read-PostureRunFailure -Folder $folder | ForEach-Object { $_['cause'] = Get-PostureFailureCause -Message ([string]$_['message']); $_ })
     $retryable = @('permission', 'token', 'throttled', 'network', 'module', 'unknown')
     if ($Collector) { $again = @($Collector); $why = @{}; foreach ($c in $again) { $why[$c] = 'asked for' } }
     else {
@@ -79,7 +95,7 @@ function Resume-PostureRun {
     }
     if ($again.Count -eq 0) {
         $left = @($failures | Where-Object { [string]$_['cause'] -notin $retryable })
-        Write-Host "Nothing to collect again in $folder$(if ($left.Count) { ": the $($left.Count) remaining failure(s) are facts about the tenant (not licensed or not set up), which a second attempt would not change" })."
+        Write-Host "Nothing to collect again in $(Split-Path $folder -Leaf)$(if ($left.Count) { ": the $($left.Count) remaining failure(s) need a licence or role the tenant does not have, or are not set up there, which a second attempt would not change. After granting one, name its domain with -Collector" })."
         return
     }
     foreach ($c in $again) { Write-Host "Collecting $c again: $($why[$c])" }
@@ -97,7 +113,7 @@ function Resume-PostureRun {
         if (Test-Path -LiteralPath $txt) { Set-Content -LiteralPath $txt -Value @(Get-Content -LiteralPath $txt | Where-Object { $_.Trim() -and -not $keys.Contains($_.Trim()) }) }
     }
 
-    $runArgs = @{ TenantId = $tenantId; Client = $client; Folder = $folder; Collector = $again; PassThru = $true; Confirm = $false }
+    $runArgs = @{ TenantId = $runTenant; Client = $clientFolder; Folder = $folder; Collector = $again; PassThru = $true; Confirm = $false }
     foreach ($s in 'DeviceCode', 'NoBrowser', 'AllowSleep') { if ($PSBoundParameters.ContainsKey($s)) { $runArgs[$s] = $PSBoundParameters[$s] } }
     $result = Start-PostureRun @runArgs
     if ($PassThru) { $result | Add-Member -NotePropertyName Recollected -NotePropertyValue $again -PassThru; return }

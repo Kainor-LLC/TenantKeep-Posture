@@ -133,3 +133,45 @@ function Update-PostureRunReport {
     $null = Export-PostureFindings -Path $Run -OutputPath (Join-Path $Run 'findings.csv')
     return @($report.Files | Where-Object { $_ -like '*.html' })[0]
 }
+
+function Find-PostureLatestRun {
+    <#
+    .SYNOPSIS
+        The newest run Start-PostureRun made (a dated folder with run.json), for one client (-Client, a folder or the
+        name of one under ~/tenantkeep/clients; or -TenantId) or across every client. Looks in each client's output
+        root and in ~/tenantkeep/evidence. Returns $null when there is none.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [string] $Client,
+        [string] $TenantId,
+        [string] $ClientsRoot = (Join-Path $HOME 'tenantkeep' 'clients')
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $clients = @()
+    if ($Client) {
+        $path = $(if (Test-Path -LiteralPath $Client -PathType Container) { $Client } else { Join-Path $ClientsRoot $Client })
+        if (-not (Test-Path -LiteralPath $path -PathType Container)) { throw "No client folder named $Client (looked for $path)." }
+        $clients = @((Resolve-Path -LiteralPath $path).Path)
+    }
+    elseif ($TenantId) { $clients = @(Resolve-PostureClientFolder -TenantId $TenantId -ClientsRoot $ClientsRoot) }
+    elseif (Test-Path -LiteralPath $ClientsRoot -PathType Container) { $clients = @(Get-ChildItem -LiteralPath $ClientsRoot -Directory | ForEach-Object { $_.FullName }) }
+
+    $roots = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($c in $clients) { $null = $roots.Add((Get-PostureOutputRoot -Client $c)) }
+    if (-not $Client -and -not $TenantId) { $null = $roots.Add((Get-PostureOutputRoot)) }
+    $best = $null
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+        foreach ($run in Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'run.json')) }) {
+            if ($clients.Count -gt 0 -and ($Client -or $TenantId)) {
+                $plan = $(try { Get-Content -Raw -LiteralPath (Join-Path $run.FullName 'run.json') | ConvertFrom-Json -AsHashtable } catch { $null })
+                if (-not $plan -or ([string]$plan['client'] -ne $clients[0] -and -not ($TenantId -and [string]$plan['tenantId'] -eq $TenantId))) { continue }
+            }
+            if (-not $best -or $run.Name -gt $best.Name) { $best = $run }
+        }
+    }
+    return $(if ($best) { $best.FullName } else { $null })
+}

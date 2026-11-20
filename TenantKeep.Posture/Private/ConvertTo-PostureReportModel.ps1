@@ -274,8 +274,8 @@ function ConvertTo-PostureReportModel {
 
     # Run health: every failed step with its cause and what to grant, worst cause first (errors.jsonl, or errors.txt
     # for runs made before it existed).
-    $causeOrder = @{ permission = 0; licence = 1; token = 2; module = 3; throttled = 4; network = 5; notProvisioned = 6; unknown = 7 }
-    $causeLabel = @{ permission = 'Needs a role'; licence = 'Needs a licence'; token = 'Sign-in ran out'; module = 'Module missing'; throttled = 'Throttled'; network = 'Network or service error'; notProvisioned = 'Not set up in this tenant'; unknown = 'Not recognised' }
+    $causeOrder = @{ permission = 0; unavailable = 1; licence = 2; token = 3; module = 4; throttled = 5; network = 6; notProvisioned = 7; unknown = 8 }
+    $causeLabel = @{ permission = 'Needs a role'; unavailable = 'Needs a role or licence'; licence = 'Needs a licence'; token = 'Sign-in ran out'; module = 'Module missing'; throttled = 'Throttled'; network = 'Network or service error'; notProvisioned = 'Not set up in this tenant'; unknown = 'Not recognised' }
     $failures = @($(try { Read-PostureRunFailure -Folder $Evidence } catch { @() }))
     $runHealth = [ordered]@{
         failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {

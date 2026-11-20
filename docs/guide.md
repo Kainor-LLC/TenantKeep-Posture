@@ -188,14 +188,16 @@ evaluated, never pass or fail.
 After granting what was missing, collect only what failed, into the same run:
 
 ```powershell
-Resume-PostureRun -Path ~/tenantkeep/evidence/20261120-0930
+Resume-PostureRun                      # the newest run
+Resume-PostureRun -Client contoso      # the newest run of one client, when there are several
 ```
 
 It reads the run's plan (run.json), collects again each domain that did not finish or had a failure a second attempt
 can fix, leaves the facts about the tenant (not licensed, not set up) alone, and rebuilds the report in the same
 folder. A domain is collected again whole, since later steps use what earlier ones read; every other file stays.
-`-Collector SharePoint` names one yourself, for example after installing its module. The Run Health view copies the
-exact command.
+A failure that needs a licence or role the tenant does not have (a Purview feature Business Premium leaves out,
+for example) is left alone, since collecting again would say the same; after granting it, `-Collector Purview`
+names that domain. `-Path <run folder>` resumes an older run. The Run Health view copies the exact command.
 
 ## 9. Next run, and the trend
 

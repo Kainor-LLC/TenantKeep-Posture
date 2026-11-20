@@ -45,12 +45,13 @@ function Resolve-PostureStepRequirement {
 function Get-PostureFailureCause {
     <#
     .SYNOPSIS
-        Classifies an error message: licence, token, module, permission, throttled, notProvisioned, network or unknown.
+        Classifies an error message: licence, token, module, unavailable, permission, throttled, notProvisioned, network or unknown.
     .DESCRIPTION
         Licence comes before permission because Graph answers a missing licence with 403 too. The patterns are the
         error texts Graph, Exchange Online, Security & Compliance, PnP and Azure return (the ones seen on live runs
         are in the tests); an unknown text stays unknown rather than guessed. Security & Compliance hides a cmdlet
-        from an account without the role, which the collectors report as "<cmdlet> is not available": a permission.
+        from an account without the role or a tenant without the licence, which the collectors report as "<cmdlet> is not
+        in this session": unavailable, since the text cannot tell which.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -60,7 +61,8 @@ function Get-PostureFailureCause {
     if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant|premium licen[cs]e)') { return 'licence' }
     if ($m -match '(?i)(token.*(expired|lifetime)|InvalidAuthenticationToken|AADSTS700082|AADSTS50173|refresh token.*(expired|revoked)|CompactToken)') { return 'token' }
     if ($m -match '(?i)(module (is )?not (available|installed)|Install-Module |Add-WindowsCapability)') { return 'module' }
-    if ($m -match '(?i)(\b403\b|Forbidden|Authorization_RequestDenied|Insufficient privileges|AccessDenied|Access (is )?denied|does not have (the )?(required )?permission|is not authorized|isn''t authorized|not within your (current )?(write |management )?scope|UnauthorizedAccess|\b401\b|Unauthorized|missing scope|RoleNotAssigned|-[A-Za-z]+ is not available; import|-[A-Za-z]+ is not in this session|The term ''[A-Za-z]+-[A-Za-z]+'' is not recognized)') { return 'permission' }
+    if ($m -match '(?i)-[A-Za-z]+ is not in this session') { return 'unavailable' }
+    if ($m -match '(?i)(\b403\b|Forbidden|Authorization_RequestDenied|Insufficient privileges|AccessDenied|Access (is )?denied|does not have (the )?(required )?permission|is not authorized|isn''t authorized|not within your (current )?(write |management )?scope|UnauthorizedAccess|\b401\b|Unauthorized|missing scope|RoleNotAssigned|-[A-Za-z]+ is not available; import|The term ''[A-Za-z]+-[A-Za-z]+'' is not recognized)') { return 'permission' }
     if ($m -match '(?i)(\b429\b|TooManyRequests|throttl|rate limit)') { return 'throttled' }
     if ($m -match '(?i)(\b404\b|ResourceNotFound|Request_ResourceNotFound|not (yet )?provisioned|NotFound\b|could not be found|couldn''t be found|does not exist)') { return 'notProvisioned' }
     if ($m -match '(?i)(timed out|timeout|No such host|Name or service not known|nodename nor servname|connection (was )?(refused|reset|closed)|SSL|network is unreachable|\b50[234]\b|ServiceUnavailable|Bad Gateway)') { return 'network' }
@@ -143,6 +145,12 @@ function Get-PostureFailureAdvice {
             if ($scopes.Count) { $t += " The TenantKeep Posture app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
             if ($licence) { $t += " It also needs $licence." }
             return $t
+        }
+        'unavailable' {
+            $t = 'Not available to this account or this tenant: '
+            $t += $(if ($licence) { "it needs $licence" } else { 'the tenant may not be licensed for it' })
+            $t += $(if ($roles.Count) { ", and one of these roles: $($roles -join ', ')." } else { '.' })
+            return "$t After granting either, Resume-PostureRun -Collector names it to collect it again."
         }
         'licence' { return $(if ($licence) { "Needs $licence. Without it the checks that read this stay not applicable; nothing to grant." } else { 'The tenant is not licensed for this; nothing to grant.' }) }
         'notProvisioned' { return 'Not set up in this tenant, so there was nothing to read. Nothing to grant.' }

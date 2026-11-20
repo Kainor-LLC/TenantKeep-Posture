@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Simpler resume (2026-11-20): `Resume-PostureRun` with no arguments resumes the newest run, `-Client <name>` the
+  newest of one client; the domains to collect again come from the run's own plan. A cmdlet the account's roles or
+  the tenant's licences do not expose is a new cause, unavailable, which a resume leaves alone.
+- Fixes from the first Kainor run: a failed collector no longer stops the others; the sign-in log reads Graph beta
+  (authenticationRequirement is beta-only); a query Graph rejects outright is not retried.
 - Exchange signs in like Purview (2026-11-20): through the Exchange module's own Microsoft app, so the TenantKeep
   Posture app no longer asks for Exchange.Manage ("Manage Exchange configuration" on the consent screen). One
   sign-in in the Exchange module covers Exchange and Purview, at the start of the run, and the module renews its own

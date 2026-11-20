@@ -56,6 +56,31 @@ Describe 'Resume-PostureRun' {
         Should -Invoke Start-PostureRun -ModuleName TenantKeep.Posture -Times 0 -Exactly -ParameterFilter { $Folder -eq $done }
     }
 
+    It 'leaves a domain whose only failures are not available to the account or licence, however an older version recorded them' {
+        $f = Join-Path $script:Root 'evidence' '20261120-1200'; New-Item -ItemType Directory -Path $f | Out-Null
+        @{ tenantId = $script:Tid; client = $script:Client; planned = @('Purview'); skipped = @{} } | ConvertTo-Json | Set-Content (Join-Path $f 'run.json')
+        @{ tenantId = $script:Tid; collectors = @('Purview') } | ConvertTo-Json | Set-Content (Join-Path $f 'collection.json')
+        Set-Content (Join-Path $f 'errors.jsonl') -Value (@{ collector = 'Purview'; step = 'Auto-labeling policies'; cause = 'unknown'; message = "Get-AutoSensitivityLabelPolicy is not in this session: the signed-in roles or the tenant's licences do not expose it." } | ConvertTo-Json -Compress)
+        Resume-PostureRun -Path $f -Confirm:$false | Should -BeNullOrEmpty
+        Should -Invoke Start-PostureRun -ModuleName TenantKeep.Posture -Times 0 -Exactly -ParameterFilter { $Folder -eq $f }
+    }
+
+    It 'finds the newest run without a path, for every client or for one by name' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root; client = $script:Client } {
+            param($root, $client)
+            $clients = Split-Path $client -Parent
+            $other = Join-Path $clients 'fabrikam'; New-Item -ItemType Directory -Path $other -Force | Out-Null
+            $otherRoot = Join-Path $root 'fabrikam-runs'
+            @{ tenantId = '66666666-6666-6666-6666-666666666666'; outputRoot = $otherRoot } | ConvertTo-Json | Set-Content (Join-Path $other 'profile.json')
+            $p = Join-Path $client 'profile.json'; $d = Get-Content -Raw $p | ConvertFrom-Json -AsHashtable; $d.outputRoot = (Join-Path $root 'evidence'); $d | ConvertTo-Json | Set-Content $p
+            $newest = Join-Path $otherRoot '20261121-0800'; New-Item -ItemType Directory -Path $newest -Force | Out-Null
+            @{ tenantId = '66666666-6666-6666-6666-666666666666'; client = $other; planned = @('Entra') } | ConvertTo-Json | Set-Content (Join-Path $newest 'run.json')
+            Find-PostureLatestRun -ClientsRoot $clients | Should -Be $newest -Because 'the newest run of any client'
+            Find-PostureLatestRun -Client 'contoso' -ClientsRoot $clients | Should -Be (Join-Path $root 'evidence' '20261120-1200') -Because 'the newest of that client, found by name'
+            { Find-PostureLatestRun -Client 'nobody' -ClientsRoot $clients } | Should -Throw '*No client folder named nobody*'
+        }
+    }
+
     It 'refuses a folder that is not a run' {
         $empty = Join-Path $script:Root 'not-a-run'; New-Item -ItemType Directory -Path $empty | Out-Null
         { Resume-PostureRun -Path $empty -Confirm:$false } | Should -Throw '*not a run folder*'

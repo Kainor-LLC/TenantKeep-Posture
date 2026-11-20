@@ -294,7 +294,9 @@ function Start-PostureRun {
             Write-Host "  $($steps -join '; ')" -ForegroundColor Yellow
             foreach ($advice in @($group.Group | ForEach-Object { Get-PostureFailureAdvice -Failure $_ } | Select-Object -Unique)) { Write-Host "    $advice" }
         }
-        Write-Host "  Then collect only what failed, into this run: Resume-PostureRun -Path '$($folder -replace "'", "''")'" -ForegroundColor Cyan
+        $defaultClients = Join-Path $HOME 'tenantkeep' 'clients'
+        $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($folder -replace "'", "''")'" })
+        Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
     }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
     # No network call here or anywhere: the trial is requested in the browser, by the admin, if they choose to.
