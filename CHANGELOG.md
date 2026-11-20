@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Output for tools and AI (2026-11-20): findings.json beside the report, a summary then every failing check ranked
+  with why, how to fix, links, licence and affected samples, explained in its own "about" field; report.md opens with
+  the ranked list; report.html embeds the same JSON. `-Redact` writes share/ copies with people, addresses and
+  affected names replaced by placeholders, the key in logs/redaction-key.csv.
 - Run folders (2026-11-20): `Start-PostureRun -Name "<name>"` names the run (default: date and time). report.html,
   report.md, findings.csv and README.txt sit at the top; evidence/, affected/, errors/ and logs/ hold the rest.
   Runs are found by their run.json, so any name works; older one-folder runs keep working everywhere.

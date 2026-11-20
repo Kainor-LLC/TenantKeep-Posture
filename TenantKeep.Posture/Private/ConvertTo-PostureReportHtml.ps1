@@ -52,6 +52,7 @@ function ConvertTo-PostureReportHtml {
     $override = ":root { --primary: $(& $safeColor ([string]$b.colors.primary) '#1F3A5F'); --accent: $(& $safeColor ([string]$b.colors.accent) '#E8A33D'); --font: $(& $h ($font -replace '[^A-Za-z0-9 ,\-]', '')); }"
 
     & $w '<!DOCTYPE html>'
+    & $w '<!-- For tools and AI: the ranked findings are the JSON in <script id="tenantkeep-findings"> at the end of this page (the same as findings.json beside it). Read its "about" field first. -->'
     & $w '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
     & $w "<meta http-equiv=`"Content-Security-Policy`" content=`"default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'`">"
     & $w "<title>$(& $h $r.title)</title>"
@@ -321,6 +322,7 @@ function ConvertTo-PostureReportHtml {
     & $w (& $jsonBlock 'data-exceptions' @($r.exceptions))
     & $w (& $jsonBlock 'data-attestations' $r.attestations)
     & $w (& $jsonBlock 'data-meta' ([ordered]@{ tenantId = $r.tenantId; clientName = $r.clientName; generatedUtc = $r.generatedUtc; licenceId = $(if ($r.licence) { $r.licence.licenceId } else { $null }) }))
+    if ($r.Contains('findings') -and $r.findings) { & $w (& $jsonBlock 'tenantkeep-findings' $r.findings) }
     & $w (& $jsonBlock 'data-labels' ([ordered]@{ status = $statusLabel; domains = $domainLabel; frameworks = $frameworkLabel; methods = $methodLabel; thresholds = $thresholdLabel }))
     & $w "<script>`n$js`n</script>"
     & $w '</body></html>'

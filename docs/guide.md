@@ -211,6 +211,20 @@ A failure that needs a licence or role the tenant does not have (a Purview featu
 for example) is left alone, since collecting again would say the same; after granting it, `-Collector Purview`
 names that domain. `-Path <run folder>` resumes an older run. The Run Health view copies the exact command.
 
+## 8d. For tools and AI
+
+findings.json at the top of the run is the assessment as one document: a summary, then every failing check ranked
+(severity, then how many objects it affects) with what was found, why it matters, how to fix it, the portal and Learn
+links, the licence it needs and up to 25 affected objects, plus accepted risks and what could not be evaluated. Its
+"about" field explains the shape to whoever reads it. report.md starts with the same ranked list, and report.html
+carries the same JSON, so any of the three can be handed to an AI model.
+
+Before handing a report to an AI service or anyone outside, run with `-Redact` (on Start-PostureRun or
+New-PostureReport): share/ gets copies with email addresses, sign-in names, SharePoint addresses, IP addresses and the
+names of affected accounts, devices and sites replaced by placeholders (user-003, site-014), the same placeholder for
+the same value throughout. logs/redaction-key.csv maps them back; keep it. Replacement is by pattern and by the names
+the report lists, so read the copy before sending it.
+
 ## 9. Next run, and the trend
 
 ```powershell

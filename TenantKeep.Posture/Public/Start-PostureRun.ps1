@@ -60,6 +60,9 @@ function Start-PostureRun {
     .PARAMETER FullPerUserMfa
         Read every member's per-user MFA state. Default: all of them up to 5,000 members; above that every admin and
         1,000 at random, and everyone only when one of those has it.
+    .PARAMETER Redact
+        Also write share/ with the report, report.md and findings.json with the tenant's people and places replaced
+        by placeholders, for a report that goes to an AI service or a third party (New-PostureReport -Redact).
     .PARAMETER AllowSleep
         Let the machine sleep during the run. Default: it is kept awake until the run ends.
     .PARAMETER SkipReport
@@ -90,6 +93,7 @@ function Start-PostureRun {
         [switch] $AllowSleep,
         [ValidateRange(1, 30)] [int] $SignInDays = 7,
         [switch] $FullPerUserMfa,
+        [switch] $Redact,
         [switch] $SkipReport,
         [switch] $PassThru
     )
@@ -269,7 +273,7 @@ function Start-PostureRun {
             # 7. Report, with the trend against the newest earlier run that has checks.json.
             Set-PostureProgressPhase -Name 'Report' -Label 'report' -Confirm:$false
             $previous = Get-PosturePreviousRun -Run $runLayout.root
-            $reportArgs = @{ Evidence = $folder; Client = $Client; PassThru = $true }
+            $reportArgs = @{ Evidence = $folder; Client = $Client; PassThru = $true; Redact = [bool]$Redact }
             if ($previous) { $reportArgs.Previous = $previous }
             $report = New-PostureReport @reportArgs
             $reportFile = @($report.Files | Where-Object { $_ -like '*.html' })[0]

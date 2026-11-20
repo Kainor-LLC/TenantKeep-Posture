@@ -31,7 +31,7 @@ Describe 'New-PostureReport' {
         }
 
         It 'writes checks.json, report.html and report.md' {
-            @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'report.html', 'report.md')
+            @($script:R.Files | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object) | Should -Be @('checks.json', 'findings.json', 'report.html', 'report.md')
             (Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json).results.Count | Should -Be @(Get-PostureCheckCatalog).Count -Because 'every catalog check has a result'
         }
 
@@ -153,7 +153,7 @@ Describe 'New-PostureReport' {
                 [pscustomobject]@{ ExitCode = 0 }
             }
             $r = New-PostureReport -Evidence $script:Ev -Format Pdf -OutputPath (Join-Path $script:Root 'pdf') -PassThru
-            @($r.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.json', '.pdf')
+            @($r.Files | ForEach-Object { [System.IO.Path]::GetExtension($_) } | Sort-Object) | Should -Be @('.html', '.json', '.json', '.pdf')
         }
     }
 

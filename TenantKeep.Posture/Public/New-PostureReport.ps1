@@ -31,6 +31,10 @@ function New-PostureReport {
         Folder for report.<ext>, checks.json and affected/. Default: for a run Start-PostureRun made, the reports
         at the top of the run folder, checks.json in logs/ and affected/ beside the reports; for a one-folder run,
         that folder.
+    .PARAMETER Redact
+        Also write share/report.html, share/report.md and share/findings.json with the tenant's people and places
+        replaced by placeholders (user-001, site-014, ip-002), for a report that goes to an AI service or a third
+        party. The key that maps them back is logs/redaction-key.csv: keep it private. Best effort: read it first.
     .PARAMETER PassThru
         Return the report model and the written file paths.
     .EXAMPLE
@@ -57,6 +61,7 @@ function New-PostureReport {
         [string] $Previous,
         [string] $OutputPath,
         [string] $LicensePath,
+        [switch] $Redact,
         [switch] $PassThru
     )
 
@@ -94,6 +99,8 @@ function New-PostureReport {
         $previousRun = Get-Content -Raw -LiteralPath $prevPath | ConvertFrom-Json -AsHashtable -Depth 20
     }
     $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement
+    # The ranked findings for tools and AI: findings.json, embedded in the HTML, and the top of the Markdown.
+    $report.findings = ConvertTo-PostureFindingsDocument -Report $report
 
     if ($OutputPath) { $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath); $checksFolder = $outFolder; $affectedFolder = Join-Path $outFolder 'affected' }   # expands ~ too
     else { $outFolder = $layout.root; $checksFolder = $layout.logs; $affectedFolder = $layout.affected }
@@ -118,18 +125,34 @@ function New-PostureReport {
     }
     $formats = [System.Collections.Generic.List[string]]::new([string[]]$Format)
     if ($formats -contains 'Pdf' -and $formats -notcontains 'Html') { $formats.Insert(0, 'Html') }
-    $htmlPath = $null
-    foreach ($f in @('Html', 'Markdown')) {
-        if ($formats -notcontains $f) { continue }
-        $ext, $content = switch ($f) {
-            'Html' { 'html', (ConvertTo-PostureReportHtml -Report $report) }
-            'Markdown' { 'md', (ConvertTo-PostureReportMarkdown -Report $report) }
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    $render = {
+        param([System.Collections.IDictionary] $Model, [string] $Folder)
+        $paths = @{}
+        foreach ($f in @('Html', 'Markdown')) {
+            if ($formats -notcontains $f) { continue }
+            $ext, $content = switch ($f) {
+                'Html' { 'html', (ConvertTo-PostureReportHtml -Report $Model) }
+                'Markdown' { 'md', (ConvertTo-PostureReportMarkdown -Report $Model) }
+            }
+            $path = Join-Path $Folder "report.$ext"
+            if ($PSCmdlet.ShouldProcess($path, "Write $f report")) { [System.IO.File]::WriteAllText($path, $content, $utf8); $written.Add($path); $paths[$f] = $path }
         }
-        $path = Join-Path $outFolder "report.$ext"
-        if ($PSCmdlet.ShouldProcess($path, "Write $f report")) {
-            [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
-            $written.Add($path)
-            if ($f -eq 'Html') { $htmlPath = $path }
+        $fj = Join-Path $Folder 'findings.json'
+        if ($PSCmdlet.ShouldProcess($fj, 'Write findings.json')) { [System.IO.File]::WriteAllText($fj, (ConvertTo-Json -InputObject $Model.findings -Depth 20), $utf8); $written.Add($fj) }
+        $paths
+    }
+    $paths = & $render $report $outFolder
+    $htmlPath = $(if ($paths.ContainsKey('Html')) { $paths['Html'] } else { $null })
+    if ($Redact) {
+        $redacted = ConvertTo-PostureRedactedReport -Report $report
+        $shareFolder = Join-Path $outFolder 'share'
+        if ($PSCmdlet.ShouldProcess($shareFolder, 'Write the redacted copies')) {
+            New-Item -ItemType Directory -Path $shareFolder -Force | Out-Null
+            $null = & $render $redacted.report $shareFolder
+            $keyPath = Join-Path $checksFolder 'redaction-key.csv'
+            $redacted.key | Export-Csv -LiteralPath $keyPath -NoTypeInformation -Encoding utf8
+            $written.Add($keyPath)
         }
     }
     if ($formats -contains 'Pdf' -and $htmlPath) {

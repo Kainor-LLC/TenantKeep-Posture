@@ -36,6 +36,17 @@ function ConvertTo-PostureReportMarkdown {
     if ($b.confidentiality) { & $line; & $line "*$($b.confidentiality)*" }
     & $line
 
+    # The ranked list first: a person or a model reading only the top of the file gets what to do, in order.
+    if ($r.Contains('findings') -and $r.findings -and @($r.findings.findings).Count -gt 0) {
+        & $line '## What to fix first'
+        & $line
+        & $line 'Every failing check, most important first: severity, then how many objects it affects. The full detail is in findings.json beside this file.'
+        & $line
+        foreach ($f in @($r.findings.findings)) {
+            & $line "$($f.rank). **$($f.id) $(& $esc $f.title)** ($($f.severity)$(if ($f.affectedCount -gt 0) { ", $($f.affectedCount) affected" })). $(& $esc $f.howToFix)"
+        }
+        & $line
+    }
     & $line '## Executive summary'
     & $line
     & $line "**Posture score $(& $num $r.score.value) ($($r.score.grade)).** $($r.score.method) $($r.score.evaluated) checks scored."

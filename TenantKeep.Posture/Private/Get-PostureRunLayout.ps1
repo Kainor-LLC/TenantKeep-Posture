@@ -110,6 +110,9 @@ TenantKeep Posture run
                   teams- Teams, def- Defender, az- Azure, ad- on-premises AD, policies.json and its neighbours
                   the Conditional Access snapshot, 06-signins- the sign-in log.
   affected/       Every affected account, device, site or app per check, one CSV per check id.
+  share/          Only with -Redact: report.html, report.md and findings.json with people and places replaced by
+                  placeholders, for an AI service or a third party. The key is logs/redaction-key.csv: keep it private.
+                  Read a redacted report before sending it; the replacement is by pattern and can miss free text.
   errors/         What could not be read and why. The report's Run Health page explains it in plain words.
   logs/           The console transcript, the run plan (run.json), the check results (checks.json).
 
