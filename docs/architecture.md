@@ -23,8 +23,9 @@ decisions; `(verify)` marks what has not been proven live yet.
 1. **Sign in.** Locally, once: `Start-PostureRun` opens the browser for the admin's sign-in to the TenantKeep Posture
    app, then gets a delegated token per service (Graph, Exchange, SharePoint, Teams, Azure) from the refresh token it
    holds in memory. `Connect-PostureService` is the only file in the module that opens a session, always with one of
-   those tokens, except Purview: Security and Compliance PowerShell issues no delegated token to a third-party app, so
-   the Exchange module signs the same admin in a second time with its own app. Exchange and Purview run in a second
+   those tokens, except Exchange and Purview: Security and Compliance PowerShell issues no delegated token to a
+   third-party app, and Exchange Online's only delegated scope reads "Manage" on a consent screen, so both sign the same
+   admin in through the Exchange module's own app, which renews its own tokens. Exchange and Purview run in a second
    process that receives access tokens over standard input and never the refresh token. It starts first and signs in
    to Purview first, so that prompt comes in the first minute, then collects alongside the main process; both write
    into one run folder, and `errors.txt` and the `collection.json` merge are serialised on a lock file in it. In

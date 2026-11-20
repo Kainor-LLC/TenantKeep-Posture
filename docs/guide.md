@@ -36,11 +36,13 @@ What you need:
 - Consent, once per tenant. TenantKeep Posture is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
-- Purview is the one service with a second sign-in. Security and Compliance PowerShell issues no token to a
-  third-party app, so the Exchange module may open its own window for the same admin (a device code with
-  `-DeviceCode` or `-NoBrowser`); often it reuses its own earlier sign-in and asks nothing. The run starts Purview
-  first, so that prompt comes within a minute of your sign-in; after it the run needs nothing from you.
-  Everything else comes from the one sign-in.
+- Exchange and Purview sign in through the Exchange module's own Microsoft app, not the TenantKeep Posture app.
+  Exchange Online's only delegated permission reads "Manage Exchange configuration" on a consent screen and Security
+  and Compliance PowerShell issues no token to a third-party app at all, so the app asks for neither. The Exchange
+  module may open one window for the same admin (a device code with `-DeviceCode` or `-NoBrowser`); it often reuses
+  its own earlier sign-in and asks nothing, and one sign-in covers both. The run starts them first, so that prompt
+  comes within a minute of your sign-in; after it the run needs nothing from you. The module renews its own tokens
+  however long Exchange takes. Everything else comes from the one sign-in.
 - While it runs: a progress bar shows the domain and step under way, the time so far and the time left (estimated
   from this tenant's last run; rough on the first), with a second bar for Exchange and Purview. The computer is kept
   from idle sleep until the run ends (`caffeinate` on macOS, `systemd-inhibit` on Linux, the Windows power request

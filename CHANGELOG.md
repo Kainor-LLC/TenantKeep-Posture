@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Exchange signs in like Purview (2026-11-20): through the Exchange module's own Microsoft app, so the TenantKeep
+  Posture app no longer asks for Exchange.Manage ("Manage Exchange configuration" on the consent screen). One
+  sign-in in the Exchange module covers Exchange and Purview, at the start of the run, and the module renews its own
+  tokens on long runs. Rerun deploy/setup/New-PostureClientApp.ps1 to take the permission off the registration;
+  existing consents keep it until the enterprise application's permission is removed or consent is given again.
 - Graph read of the SharePoint tenant settings (2026-11-20), written beside the PnP one as
   spo-tenant-settings-graph.json to see whether Global Reader is enough. Adds the delegated scope
   SharePointTenantSettings.Read.All to the TenantKeep Posture app: tenants consent again to pick it up, and until

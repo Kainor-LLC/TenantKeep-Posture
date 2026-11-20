@@ -11,7 +11,7 @@ function Start-PostureChildCollection {
         otherwise quiet: its progress goes to a file the parent draws. The exit code says whether every named
         collector ran.
     .PARAMETER Request
-        tokens (graph, exchange), account, tenantId, tenantName, folder, profilePath, collectors, purviewSignIn
+        tokens (graph), account, tenantId, tenantName, folder, profilePath, collectors, purviewSignIn
         (browser or device), progressFile and estimates (optional).
     .PARAMETER Command
         The command the child runs. Default: import this module and run Invoke-PostureChildCollection in it.
@@ -117,9 +117,6 @@ function Invoke-PostureChildCollection {
         foreach ($collector in $order) {
             try {
                 Set-PostureProgressPhase -Name $collector -Label $(if ($collector -eq 'Purview') { 'waiting for the Purview sign-in' } else { 'connecting' }) -Confirm:$false
-                if ($collector -eq 'Exchange' -and -not $script:PostureSession['tokenPipe'] -and $tokens.ContainsKey('exchange') -and $tokens['exchange']['expiresUtc'] -le [datetime]::UtcNow.AddMinutes(5)) {
-                    throw 'The Exchange token from the sign-in expires before Exchange could start; run Start-PostureRun -Collector Exchange to collect it.'
-                }
                 Connect-PostureService -Name $collector.ToLowerInvariant()
                 Invoke-PostureCollection -Collector $collector -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null
             }

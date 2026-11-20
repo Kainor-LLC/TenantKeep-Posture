@@ -34,10 +34,14 @@ function Connect-PostureService {
             Connect-MgGraph -AccessToken $token -NoWelcome
         }
         'exchange' {
-            # ExchangeOnlineManagement 3.1+. A delegated token for https://outlook.office365.com with Exchange.Manage pairs
-            # with -UserPrincipalName (Michev, 2023; verify on the first live run).
-            $token = Get-PostureToken -Resource exchange
-            Connect-ExchangeOnline -AccessToken $token -UserPrincipalName $account -ShowBanner:$false
+            # Since 2026-11-20 Exchange signs in like Purview, through the Exchange module's own first-party app, so the
+            # TenantKeep Posture app asks for no Exchange permission: the only delegated one, Exchange.Manage, reads
+            # "Manage Exchange configuration" on the consent screen. Same admin, delegated, bounded by that admin's roles;
+            # the module renews its own tokens through a long run, and Purview has usually signed the same admin in
+            # through the same module just before, so there is no second prompt (verify on the first live run).
+            $exo = @{ UserPrincipalName = $account; ShowBanner = $false }
+            if ($session.ContainsKey('purviewSignIn') -and [string]$session['purviewSignIn'] -eq 'device') { $exo['Device'] = $true }
+            Connect-ExchangeOnline @exo
         }
         'purview' {
             # Seen live in Kainor, 2026-10-23: the Exchange Online Protection principal (00000007-0000-0ff1-ce00-000000000000)
@@ -64,7 +68,8 @@ function Connect-PostureService {
             Connect-AzAccount -AccessToken $token -AccountId $account -Tenant $tenantId -SkipContextPopulation | Out-Null
         }
     }
-    if ($Name -ne 'purview') { $script:PostureConnected[$Name] = $true }
+    # Exchange and Purview sign in through the Exchange module, which renews its own tokens.
+    if ($Name -notin 'purview', 'exchange') { $script:PostureConnected[$Name] = $true }
     Write-Verbose "$Name session opened for $account in $tenantId."
 }
 
@@ -72,11 +77,12 @@ function Update-PostureServiceSession {
     <#
     .SYNOPSIS
         Before a call to a service the broker connected: when its access token has under ten minutes left, renew it
-        and connect again, so a collection that runs for hours does not fail on an expired token. Exchange, PnP,
-        Teams and Azure cannot renew a token they were handed; Graph renews on a 401 in its wrapper.
+        and connect again, so a collection that runs for hours does not fail on an expired token. PnP, Teams and
+        Azure cannot renew a token they were handed; Graph renews on a 401 in its wrapper; Exchange and Purview sign
+        in through the Exchange module, which renews its own.
     #>
     [CmdletBinding(SupportsShouldProcess)]
-    param([Parameter(Mandatory)] [ValidateSet('exchange', 'sharepoint', 'teams', 'azure')] [string] $Name)
+    param([Parameter(Mandatory)] [ValidateSet('sharepoint', 'teams', 'azure')] [string] $Name)
 
     $ErrorActionPreference = 'Stop'
     $session = $script:PostureSession

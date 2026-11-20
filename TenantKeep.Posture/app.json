@@ -48,15 +48,6 @@
       ]
     },
     {
-      "name": "exchange",
-      "label": "Office 365 Exchange Online",
-      "appId": "00000002-0000-0ff1-ce00-000000000000",
-      "audience": "https://outlook.office365.com",
-      "scopes": [
-        "Exchange.Manage"
-      ]
-    },
-    {
       "name": "sharepoint",
       "label": "Office 365 SharePoint Online",
       "appId": "00000003-0000-0ff1-ce00-000000000000",

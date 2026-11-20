@@ -67,7 +67,7 @@ Describe 'Start-PostureRun' {
             @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
             $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder '.progress-child.json')
-            $script:ChildRequest['tokens'].Keys | Sort-Object | Should -Be @('exchange', 'graph')
+            @($script:ChildRequest['tokens'].Keys) | Should -Be @('graph') -Because 'Exchange and Purview sign in through the Exchange module in that process'
             $script:ChildRequest['purviewSignIn'] | Should -Be 'browser'
             $script:ChildRequest['tokens']['graph']['accessToken'] | Should -Be 'g'
             $script:ChildRequest.Keys | Should -Not -Contain 'refreshToken'

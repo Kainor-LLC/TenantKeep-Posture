@@ -138,7 +138,7 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
     }
 
-    It 'connects only inside Connect-PostureService, with a token from the broker (Purview: the admin UPN, no token exists), and never registers apps' {
+    It 'connects only inside Connect-PostureService, with a token from the broker (Exchange and Purview: the admin UPN through the Exchange module), and never registers apps' {
         # A call at statement position. Error text that tells the user how to reconnect is fine.
         $hits = Find-Code '(^|[;{|(&])\s*(Connect-(Mg|ExchangeOnline|IPPSSession|PnPOnline|MicrosoftTeams|AzAccount)|Register-PnP)' 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
@@ -148,10 +148,13 @@ Describe 'Read-only guard' {
             # Security & Compliance PowerShell issues no delegated token to a third-party app (live, 2026-10-23), so the one
             # Connect-IPPSSession signs the same admin in by UPN through the Exchange module's own app, via a splat.
             if ($c.Code -match 'Connect-IPPSSession') { $c.Code | Should -Match 'Connect-IPPSSession @ipps' }
+            # Exchange too since 2026-11-20: the only delegated Exchange scope reads "Manage" on the consent screen.
+            elseif ($c.Code -match 'Connect-ExchangeOnline') { $c.Code | Should -Match 'Connect-ExchangeOnline @exo' }
             else { $c.Code | Should -Match '-AccessTokens?\s' }
         }
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Connect-PostureService.ps1')
         $src | Should -Match '\$ipps = @\{ UserPrincipalName = \$account'
+        $src | Should -Match '\$exo = @\{ UserPrincipalName = \$account'
         $src | Should -Not -Match '-(ClientSecret|Certificate|CertificateThumbprint|Credential|ApplicationId|AppId|ClientSecretCredential)\b'
         $src | Should -Not -Match 'Register-PnP'
     }

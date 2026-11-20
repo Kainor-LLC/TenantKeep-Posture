@@ -62,12 +62,12 @@ Describe 'Connect-PostureSession in the browser flow' {
 
     It 'hands out a token per resource from the refresh token, caches it, and rotates the refresh token' {
         InModuleScope TenantKeep.Posture {
-            $exo = Get-PostureToken -Resource exchange
-            $exo | Should -Be 'token-for-https://outlook.office365.com/.default'
+            $spo = Get-PostureToken -Resource sharepoint
+            $spo | Should -Be 'token-for-https://contoso-admin.sharepoint.com/.default'
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-2'
-            Get-PostureToken -Resource exchange | Should -Be $exo
-            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -ParameterFilter { $Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://outlook.office365.com/.default' }
-            Get-PostureToken -Resource sharepoint | Should -Be 'token-for-https://contoso-admin.sharepoint.com/.default'
+            Get-PostureToken -Resource sharepoint | Should -Be $spo
+            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -ParameterFilter { $Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://contoso-admin.sharepoint.com/.default' }
+            { Get-PostureToken -Resource exchange } | Should -Throw '*names no resource*' -Because 'Exchange signs in through its own module; the app asks for no Exchange permission'
             Get-PostureToken -Resource azure | Should -Be 'token-for-https://management.core.windows.net//.default'
             Get-PostureToken -Resource teams | Should -Be 'token-for-48ac35b8-9aa8-4d74-927d-1f4a14a0b239/.default'
             (Get-PostureToken -Resource graph -AsSecureString) | Should -BeOfType [securestring]

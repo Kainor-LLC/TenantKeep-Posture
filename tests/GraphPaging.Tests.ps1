@@ -215,14 +215,14 @@ Describe 'Fresh tokens for the second process' {
         InModuleScope TenantKeep.Posture {
             $saved = $script:PostureSession; $savedConnected = $script:PostureConnected
             try {
-                $script:PostureSession = @{ refreshToken = 'r'; tokens = @{ exchange = @{ accessToken = 'old'; expiresUtc = [datetime]::UtcNow.AddMinutes(4) }; sharepoint = @{ accessToken = 'fresh'; expiresUtc = [datetime]::UtcNow.AddHours(1) } } }
-                $script:PostureConnected = @{ exchange = $true; sharepoint = $true }
+                $script:PostureSession = @{ refreshToken = 'r'; tokens = @{ azure = @{ accessToken = 'old'; expiresUtc = [datetime]::UtcNow.AddMinutes(4) }; sharepoint = @{ accessToken = 'fresh'; expiresUtc = [datetime]::UtcNow.AddHours(1) } } }
+                $script:PostureConnected = @{ azure = $true; sharepoint = $true }
                 Mock Get-PostureToken { 'new' }
                 Mock Connect-PostureService { }
-                Update-PostureServiceSession -Name exchange
+                Update-PostureServiceSession -Name azure
                 Update-PostureServiceSession -Name sharepoint
-                Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'exchange' }
-                Should -Invoke Get-PostureToken -Times 1 -Exactly -ParameterFilter { $Resource -eq 'exchange' -and $Force }
+                Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'azure' }
+                Should -Invoke Get-PostureToken -Times 1 -Exactly -ParameterFilter { $Resource -eq 'azure' -and $Force }
             }
             finally { $script:PostureSession = $saved; $script:PostureConnected = $savedConnected }
         }

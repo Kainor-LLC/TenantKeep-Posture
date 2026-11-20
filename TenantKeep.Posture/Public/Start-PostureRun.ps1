@@ -207,7 +207,8 @@ function Start-PostureRun {
         $childProcess = $null
         if ($child.Count -gt 0) {
             $tokens = @{}
-            foreach ($name in @('graph') + @($child | Where-Object { $_ -eq 'Exchange' } | ForEach-Object { 'exchange' })) {
+            # Graph only: Exchange and Purview sign in through the Exchange module's own app in that process.
+            foreach ($name in @('graph')) {
                 $null = Get-PostureToken -Resource $name -Force
                 $tokens[$name] = @{ accessToken = $script:PostureSession['tokens'][$name]['accessToken']; expiresUtc = $script:PostureSession['tokens'][$name]['expiresUtc'].ToString('o') }
             }
@@ -218,7 +219,7 @@ function Start-PostureRun {
                 profilePath = $(if ($profileParam.Count -gt 0) { $profilePath } else { '' }); collectors = $child; tokens = $tokens
                 purviewSignIn = $(if ($DeviceCode -or $NoBrowser) { 'device' } else { 'browser' }); progressFile = $childFile; estimates = $childEstimates
             }
-            # Fresh tokens for the second process on request, so a long Exchange collection never meets an expired one.
+            # A fresh Graph token for the second process on request, so it never meets an expired one.
             $tokenServer = Start-PostureTokenServer -Resource @($tokens.Keys) -Confirm:$false
             if ($tokenServer) { $request.tokenPipe = $tokenServer.pipe; $request.tokenSecret = $tokenServer.secret }
             $childProcess = Start-PostureChildCollection -Request $request -NoWait

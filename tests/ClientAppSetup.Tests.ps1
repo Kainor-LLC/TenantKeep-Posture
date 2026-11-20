@@ -101,7 +101,7 @@ Describe 'New-PostureClientApp.ps1' {
         $domain[0].Body.publisherDomain | Should -Be 'kainor.com'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
-        @($create[0].Body.requiredResourceAccess).Count | Should -Be 5
+        @($create[0].Body.requiredResourceAccess).Count | Should -Be 4 -Because 'Graph, SharePoint, Teams and Azure; Exchange signs in through its own module'
         @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Not -Contain '00000007-0000-0ff1-ce00-000000000000'
         foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
