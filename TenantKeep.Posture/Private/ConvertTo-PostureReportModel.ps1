@@ -237,8 +237,10 @@ function ConvertTo-PostureReportModel {
     $strongest = {
         param([string] $methods)
         $m = @($methods -split ';' | Where-Object { $_ })
-        if ($m | Where-Object { $_ -match 'fido2|passKey|x509' }) { return 'Phishing-resistant' }
-        if ($m -contains 'windowsHelloForBusiness') { return 'Windows Hello for Business' }
+        # The same device-bound list AU-008 uses, so the table, the chart and the check agree.
+        if ($m -contains 'windowsHelloForBusiness' -and @($m | Where-Object { $_ -in $script:PostureDeviceBoundMethods -and $_ -ne 'windowsHelloForBusiness' }).Count -eq 0) { return 'Windows Hello for Business' }
+        if ($m | Where-Object { $_ -in $script:PostureDeviceBoundMethods }) { return 'Phishing-resistant' }
+        if ($m -contains 'passKeySynced') { return 'Synced passkey' }
         if ($m | Where-Object { $_ -match 'microsoftAuthenticator' }) { return 'Authenticator' }
         if ($m | Where-Object { $_ -match 'softwareOath|hardwareOath' }) { return 'OATH token' }
         if ($m -contains 'mobilePhone' -or $m -contains 'alternateMobilePhone' -or $m -contains 'officePhone') { return 'Phone' }
@@ -345,6 +347,7 @@ function ConvertTo-PostureReportModel {
         chains          = $chains
         doToday         = $doToday
         inventory       = @(Get-PostureInventory -Evidence $Evidence)
+        charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable))
         admins       = $adminsTable
         ca           = $ca
         copilot      = $copilot

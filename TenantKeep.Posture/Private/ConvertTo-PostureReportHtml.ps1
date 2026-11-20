@@ -95,6 +95,21 @@ function ConvertTo-PostureReportHtml {
         & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
     }
     & $w "<div class=`"score`"><div class=`"grade`" id=`"score-grade`">$(& $h $r.score.grade)</div><div><div class=`"value`" id=`"score-value`">Posture score $(& $num $r.score.value)</div><div class=`"method`">$(& $h $r.score.method) $($r.score.evaluated) checks scored.</div></div></div>"
+    # Header tiles and a passed-of-evaluated row per domain, each a link into its checks.
+    $ch = $(if ($r.Contains('charts') -and $r.charts) { $r.charts } else { [ordered]@{} })
+    if ($ch.Contains('tiles') -and @($ch.tiles).Count) {
+        & $w ('<div class="tiles">' + (@($ch.tiles | ForEach-Object { '<div class="tile"><div class="n">' + (& $h (Format-PostureChartNumber $_.value)) + '</div><div class="l">' + (& $h $_.label) + '</div>' + $(if ($_.sub) { '<div class="s">' + (& $h $_.sub) + '</div>' }) + '</div>' }) -join '') + '</div>')
+    }
+    if (@($r.domains).Count) {
+        & $w '<div class="pillars">'
+        foreach ($d in $r.domains) {
+            $ev = [int]$d.counts.pass + [int]$d.counts.fail + [int]$d.counts.acceptedRisk + [int]$d.counts.coveredBy
+            $held = [int]$d.counts.pass + [int]$d.counts.acceptedRisk + [int]$d.counts.coveredBy
+            $bar = ConvertTo-PostureBarChart -Thin -Name $d.label -Segment @(@{ label = 'Pass, accepted or covered'; value = $held; tone = 'ok' }, @{ label = 'Fail'; value = [int]$d.counts.fail; tone = 'err' })
+            & $w ('<a class="pillar" href="#checks" data-filter-domain="' + (& $h $d.key) + '"><span class="name">' + (& $h $d.label) + '</span><span class="frac">' + $held + ' of ' + $ev + '</span>' + $bar + '</a>')
+        }
+        & $w '</div>'
+    }
     $hl = $r.headline
     & $w '<div class="stats">'
     foreach ($pair in @(@('MFA Registered', (& $num $hl.mfaRegisteredPct '%')), @('Administrators on Phishing-Resistant MFA', (& $num $hl.adminsPhishingResistantPct '%')), @('Permanent Global Administrators', (& $num $hl.permanentGlobalAdmins)), @('Intune Compliance', (& $num $hl.intuneCompliancePct '%')), @('External Sharing Exposure', (& $num $hl.externalExposure)), @('Copilot Readiness', $(if ($hl.copilotBlocked) { 'Blocked' } else { & $num $hl.copilotReadinessPct '%' })))) {
@@ -102,9 +117,14 @@ function ConvertTo-PostureReportHtml {
         & $w ('<div class="stat' + $naClass + '"><div class="n">' + (& $h $pair[1]) + '</div><div class="l">' + (& $h $pair[0]) + '</div></div>')
     }
     & $w '</div>'
-    $c = $r.counts
-    $countStats = @(@('Pass', $c.pass, 'pass'), @('Fail', $c.fail, 'fail'), @('Accepted Risk', $c.acceptedRisk, 'acceptedRisk'), @('Covered by a Third Party', $c.coveredBy, 'coveredBy'), @('Not Evaluated', $c.notEvaluated, 'notEvaluated'), @('Not Applicable', $c.notApplicable, 'notApplicable')) | ForEach-Object { '<div class="stat"><div class="n" id="count-' + $_[2] + '">' + $_[1] + '</div><div class="l">' + $_[0] + '</div></div>' }
-    & $w ('<div class="stats">' + ($countStats -join '') + '</div>')
+    $overviewCharts = @()
+    if ($ch.Contains('authUsers')) { $overviewCharts += ConvertTo-PostureChartCard -Class 'wide' -Title 'How Members Sign In' -Takeaway $ch.authUsers.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureSankeyChart -Name 'Members by strongest sign-in method' -Column $ch.authUsers.column -Flow $ch.authUsers.flow) }
+    if ($ch.Contains('signInCa')) { $overviewCharts += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins Through Conditional Access' -Takeaway $ch.signInCa.takeaway -ViewAllDomain 'ca' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by Conditional Access and MFA' -Height 200 -Column $ch.signInCa.column -Flow $ch.signInCa.flow) }
+    if ($ch.Contains('compliance')) { $overviewCharts += ConvertTo-PostureChartCard -Title 'Device Compliance' -Takeaway $ch.compliance.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device compliance' -CenterLabel 'devices' -Segment $ch.compliance.segment) }
+    if ($ch.Contains('authAdmins')) { $overviewCharts += ConvertTo-PostureChartCard -Title 'Administrators by Sign-in Strength' -Takeaway $ch.authAdmins.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureBarChart -Name 'Administrators by strongest method' -Segment $ch.authAdmins.segment) }
+    $c0 = $r.counts
+    $overviewCharts += ConvertTo-PostureChartCard -Title 'Check Results' -Takeaway "$($c0.pass) of $([int]$c0.pass + [int]$c0.fail + [int]$c0.acceptedRisk + [int]$c0.coveredBy) evaluated checks pass; $($c0.notEvaluated) could not be evaluated." -Body (ConvertTo-PostureBarChart -Name 'Check results' -Segment @(@{ label = 'Pass'; value = $c0.pass; tone = 'ok' }, @{ label = 'Fail'; value = $c0.fail; tone = 'err' }, @{ label = 'Accepted or covered'; value = ([int]$c0.acceptedRisk + [int]$c0.coveredBy); tone = 'c1' }, @{ label = 'Not evaluated'; value = $c0.notEvaluated; tone = 'na' }))
+    & $w ('<div class="charts">' + ($overviewCharts -join '') + '</div>')
     & $w '<h3>Top Risks</h3>'
     if (@($r.topRisks).Count -eq 0) { & $w '<p>No failed checks.</p>' }
     else {
@@ -129,7 +149,18 @@ function ConvertTo-PostureReportHtml {
     & $w '</section>'
 
     # Domains
-    & $w '<section class="view" id="domains"><h2>Domain Scorecards</h2><div class="cards">'
+    & $w '<section class="view" id="domains"><h2>Domain Scorecards</h2>'
+    $areas = [ordered]@{ Identity = @(); Access = @(); Devices = @() }
+    if ($ch.Contains('authUsers')) { $areas.Identity += ConvertTo-PostureChartCard -Class 'wide' -Title 'Members by Sign-in Method' -Takeaway $ch.authUsers.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureSankeyChart -Name 'Members by strongest sign-in method' -Column $ch.authUsers.column -Flow $ch.authUsers.flow) }
+    if ($ch.Contains('authAdmins')) { $areas.Identity += ConvertTo-PostureChartCard -Title 'Administrators by Sign-in Strength' -Takeaway $ch.authAdmins.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureDonutChart -Name 'Administrators by strongest method' -CenterLabel 'admins' -Segment $ch.authAdmins.segment) }
+    if ($ch.Contains('signInCa')) { $areas.Access += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins Through Conditional Access' -Takeaway $ch.signInCa.takeaway -ViewAllDomain 'ca' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by Conditional Access and MFA' -Height 200 -Column $ch.signInCa.column -Flow $ch.signInCa.flow) }
+    if ($ch.Contains('signInDevice')) { $areas.Access += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins by Device Trust' -Takeaway $ch.signInDevice.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by device' -Height 200 -Column $ch.signInDevice.column -Flow $ch.signInDevice.flow) }
+    if ($ch.Contains('devices')) { $areas.Devices += ConvertTo-PostureChartCard -Class 'wide' -Title 'Managed Devices by Platform, Join Type and Compliance' -Takeaway $ch.devices.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureSankeyChart -Name 'Managed devices' -Column $ch.devices.column -Flow $ch.devices.flow) }
+    if ($ch.Contains('compliance')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Device Compliance' -Takeaway $ch.compliance.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device compliance' -CenterLabel 'devices' -Segment $ch.compliance.segment) }
+    if ($ch.Contains('ownership')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Device Ownership' -Takeaway $ch.ownership.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device ownership' -CenterLabel 'devices' -Segment $ch.ownership.segment) }
+    if ($ch.Contains('antivirus')) { $areas.Devices += ConvertTo-PostureChartCard -Title 'Defender Antivirus Mode' -Takeaway $ch.antivirus.takeaway -ViewAllDomain 'endpoint' -Body (ConvertTo-PostureDonutChart -Name 'Defender Antivirus mode' -CenterLabel 'devices' -Segment $ch.antivirus.segment) }
+    foreach ($a in $areas.Keys) { if (@($areas[$a]).Count) { & $w ('<h3>' + (& $h $a) + '</h3><div class="charts">' + (@($areas[$a]) -join '') + '</div>') } }
+    & $w '<h3>Scorecards</h3><div class="cards">'
     foreach ($d in $r.domains) {
         & $w "<div class=`"card`"><h3>$(& $h $d.label)</h3><div><strong data-domain-score=`"$(& $h $d.key)`">$(& $num $d.score)</strong> <span class=`"tech`">$($d.counts.pass) pass, $($d.counts.fail) fail, $($d.counts.acceptedRisk) accepted, $($d.counts.coveredBy) covered, $($d.counts.notEvaluated) not evaluated</span></div><div class=`"bar`"><i style=`"width:$(if ($null -ne $d.score) { $d.score } else { 0 })%`"></i></div><p>$(& $h $d.narrative)</p></div>"
     }

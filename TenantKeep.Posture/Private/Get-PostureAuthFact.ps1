@@ -1,4 +1,9 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# Device-bound phishing-resistant methods: what AU-008 asks of every administrator and what the report's admin
+# table and chart count as phishing-resistant. A synced passkey resists phishing too but lives in a consumer
+# account's keychain, so for privileged accounts it is shown on its own, not counted here.
+$script:PostureDeviceBoundMethods = @('fido2', 'passKeyDeviceBound', 'passKeyDeviceBoundAuthenticator', 'passKeyDeviceBoundWindowsHello', 'windowsHelloForBusiness', 'x509Certificate', 'x509CertificateMultiFactor')
+
 function Get-PostureAuthFact {
     <#
     .SYNOPSIS
@@ -87,7 +92,7 @@ function Get-PostureAuthFact {
         $adminUpns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
         foreach ($r in @($reg | Where-Object { $_.IsAdmin -eq $true })) { $null = $adminUpns.Add([string]$r.UserPrincipalName) }
         foreach ($a in @($active | Where-Object { $_.PrincipalType -eq 'user' -and $_.PrincipalUpn })) { $null = $adminUpns.Add([string]$a.PrincipalUpn) }
-        $phishing = 'fido2', 'passKeyDeviceBound', 'passKeyDeviceBoundAuthenticator', 'passKeyDeviceBoundWindowsHello', 'windowsHelloForBusiness', 'x509Certificate', 'x509CertificateMultiFactor'
+        $phishing = $script:PostureDeviceBoundMethods
         $without = @($reg | Where-Object { $adminUpns.Contains([string]$_.UserPrincipalName) } | Where-Object {
                 $methods = @(([string]$_.MethodsRegistered) -split ';' | Where-Object { $_ })
                 @($methods | Where-Object { $_ -in $phishing }).Count -eq 0

@@ -63,4 +63,33 @@ Describe 'Report charts' {
             Format-PostureChartNumber 1284 | Should -Be '1,284'
         }
     }
+
+    It 'builds the chart numbers from summaries, with takeaways in words, and leaves out what was not collected' {
+        $ev = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-chartdata-$([guid]::NewGuid().ToString('n'))"
+        New-Item -ItemType Directory -Path $ev | Out-Null
+        try {
+            '{ "Members": 1000, "Guests": 40 }' | Set-Content (Join-Path $ev '06-users-summary.json')
+            '{ "StrongestMethod": { "PhishingResistant": 320, "Passwordless": 10, "Authenticator": 470, "PhoneOnly": 130, "None": 70 } }' | Set-Content (Join-Path $ev '05-auth-registration-summary.json')
+            '{ "SignIns": 1000, "Days": 30, "CaByMfa": { "caApplied|mfa": 700, "caApplied|singleFactor": 100, "noCa|singleFactor": 200 }, "DeviceTrust": { "managedCompliant": 600, "unmanaged": 400 } }' | Set-Content (Join-Path $ev '06-signins-summary.json')
+            '[ { "OperatingSystem": "Windows", "JoinType": "azureADJoined", "ComplianceState": "compliant", "ManagedDeviceOwnerType": "company" }, { "OperatingSystem": "Windows", "JoinType": "hybridAzureADJoined", "ComplianceState": "noncompliant", "ManagedDeviceOwnerType": "company" }, { "OperatingSystem": "iOS", "JoinType": "unknown", "ComplianceState": "compliant", "ManagedDeviceOwnerType": "personal" } ]' | Set-Content (Join-Path $ev '09-intune-managed-devices.json')
+            $d = InModuleScope TenantKeep.Posture -Parameters @{ Ev = $ev } {
+                param($Ev)
+                Clear-PostureEvidenceCache
+                Get-PostureChartData -Evidence $Ev -Admin @(@{ type = 'user'; strongestMethod = 'Phishing-resistant' }, @{ type = 'user'; strongestMethod = 'Windows Hello for Business' }, @{ type = 'user'; strongestMethod = 'Phone' }, @{ type = 'servicePrincipal'; strongestMethod = 'n/a' })
+            }
+            $d.authUsers.takeaway | Should -Be '32% of the 1,000 members in the registration report have a phishing-resistant method; 7% have no MFA method at all.'
+            ($d.authUsers.flow | Where-Object { $_.from -eq 'all' -and $_.to -eq 'ph' }).value | Should -Be 610
+            $d.authAdmins.takeaway | Should -Be '2 of 3 administrators have a device-bound phishing-resistant method.' -Because 'Windows Hello counts, and a service principal is not a person'
+            $d.signInCa.takeaway | Should -Be 'Over the last 30 days, 70% of successful sign-ins went through Conditional Access with MFA; 20% had neither.'
+            $d.signInDevice.takeaway | Should -Match '^60% of successful sign-ins came from a managed, compliant device; 40%'
+            $d.devices.takeaway | Should -Be '67% of 3 managed devices are compliant.'
+            ($d.devices.column[0] | Where-Object { $_.label -eq 'iOS' }).tone | Should -Be 'c3' -Because 'a platform keeps its slot whatever its rank'
+            @($d.devices.column[1]).label | Should -Contain 'Join type not reported'
+            $d.ownership.takeaway | Should -Be '33% of managed devices are personally owned.'
+            @($d.tiles).label | Should -Be @('Members', 'Managed devices', 'Sign-ins read')
+            $d.Contains('compliance') | Should -BeFalse -Because 'the compliance summary was not collected'
+            $d.Contains('antivirus') | Should -BeFalse
+        }
+        finally { Remove-Item -LiteralPath $ev -Recurse -Force }
+    }
 }

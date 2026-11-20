@@ -88,6 +88,10 @@
     var count = $('checks-count'); if (count) { count.textContent = shown + ' of ' + rows.length; }
   }
   [search, fStatus, fDomain, fSev].forEach(function (el) { if (el) { el.addEventListener('input', applyFilters); el.addEventListener('change', applyFilters); } });
+  // A chart's View the checks link, or a domain tile: open the explorer filtered to that domain.
+  Array.prototype.slice.call(document.querySelectorAll('[data-filter-domain]')).forEach(function (a) {
+    a.addEventListener('click', function () { if (fDomain) { fDomain.value = a.getAttribute('data-filter-domain'); } if (fStatus) { fStatus.value = ''; } applyFilters(); });
+  });
   applyFilters();
 
   // ---------- drawer ----------

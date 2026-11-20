@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Charts (2026-11-20): the overview opens with header tiles (members, groups, apps, devices, managed, sign-ins), a
+  passed-of-evaluated bar per domain that opens its checks, and charts: how members sign in (a flow from members to
+  phishing-resistant, phishable or no MFA, to method), sign-ins through Conditional Access to MFA, device
+  compliance, administrators by sign-in strength, check results. The Domains view adds sign-ins by device trust,
+  managed devices by platform, join type and compliance, ownership and Defender Antivirus mode. Each chart has a
+  one-line takeaway, a table and a link into its checks. Administrators count as phishing-resistant on the same
+  device-bound methods AU-008 asks for; a synced passkey is shown on its own.
 - Sign-in flows (2026-11-20): the sign-in read also tallies successful sign-ins by Conditional Access applied and MFA
   (CaByMfa) and by device trust, managed and compliant, managed only or unmanaged (DeviceTrust, from deviceDetail),
   in 06-signins-summary.json. No new permission.
