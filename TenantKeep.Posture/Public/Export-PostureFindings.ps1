@@ -39,13 +39,14 @@ function Export-PostureFindings {
     Set-StrictMode -Version Latest
 
     $checksPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-    if (Test-Path -LiteralPath $checksPath -PathType Container) { $checksPath = Join-Path $checksPath 'checks.json' }
+    $outDefault = $null
+    if (Test-Path -LiteralPath $checksPath -PathType Container) { $layout = Get-PostureRunLayout -Folder $checksPath; $checksPath = Join-Path $layout.logs 'checks.json'; $outDefault = Join-Path $layout.root 'findings.csv' }
     if (-not (Test-Path -LiteralPath $checksPath -PathType Leaf)) { throw "checks.json not found: $checksPath (run Invoke-PostureChecks or New-PostureReport first)" }
     $run = Get-Content -Raw -LiteralPath $checksPath | ConvertFrom-Json -AsHashtable -Depth 20
     $catalog = Import-PostureCheckCatalog
     $byId = @{}; foreach ($c in $catalog.checks) { $byId[[string]$c['id']] = $c }
     # The licence is verified here too, not read back from checks.json (docs/licensing.md, Hardening).
-    $entitlement = Confirm-PostureEntitlement -Entitlement (Get-PostureEntitlement -Evidence (Split-Path $checksPath -Parent) -LicensePath $LicensePath)
+    $entitlement = Confirm-PostureEntitlement -Entitlement (Get-PostureEntitlement -Evidence (Get-PostureRunLayout -Folder (Split-Path $checksPath -Parent)).evidence -LicensePath $LicensePath)
     $run.results = Limit-PostureResultsToEntitlement -Results @($run.results) -Entitlement $entitlement
     $licenceLabel = $(if ($entitlement.licensed -and $entitlement.licence) { [string]$entitlement.licence.licenceId } elseif ($entitlement.licensed) { [string]$entitlement.source } else { 'unlicensed' })
 
@@ -82,7 +83,7 @@ function Export-PostureFindings {
     $order = @{ 'Fail' = 0; 'Accepted risk' = 1 }
     $rows = @($rows | Sort-Object { if ($order.ContainsKey($_.Status)) { $order[$_.Status] } else { 2 } }, { - $(if ($weight.ContainsKey($_.Severity)) { $weight[$_.Severity] } else { 0 }) }, { $_.ID })
 
-    $out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } else { Join-Path (Split-Path $checksPath -Parent) 'findings.csv' }))
+    $out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } elseif ($outDefault) { $outDefault } else { Join-Path (Split-Path $checksPath -Parent) 'findings.csv' }))
     if (Test-Path -LiteralPath $out -PathType Container) { $out = Join-Path $out 'findings.csv' }
     if ($PSCmdlet.ShouldProcess($out, 'Write findings.csv')) {
         $dir = Split-Path $out -Parent

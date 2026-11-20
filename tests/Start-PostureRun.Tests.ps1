@@ -27,11 +27,11 @@ Describe 'Start-PostureRun' {
             Mock Get-Module { $true } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }   # nothing loaded: the run manifest records the installed version
             $script:NextStamp = '20261022-1200'
-            Mock New-PostureEvidenceFolder { $f = Join-Path $script:TestOutRoot $script:NextStamp; New-Item -ItemType Directory -Path $f -Force | Out-Null; $f }
+            Mock New-PostureRunFolder { $f = Join-Path $script:TestOutRoot $script:NextStamp; foreach ($p in 'evidence', 'errors', 'logs') { New-Item -ItemType Directory -Path (Join-Path $f $p) -Force | Out-Null }; Get-PostureRunLayout -Folder $f }
             Mock Invoke-PostureCollection {
                 $script:Calls.Add("collect:$($Collector -join '+')")
                 # Three lines in errors.txt from the processes that wrote into the folder. The count reported is the file's.
-                if ($Collector -contains 'Entra' -and $script:NextStamp -eq '20261022-1200') { Add-Content -LiteralPath (Join-Path $OutputFolder 'errors.txt') -Value 'A :: one', 'B :: two', 'C :: three' }
+                if ($Collector -contains 'Entra' -and $script:NextStamp -eq '20261022-1200') { Add-Content -LiteralPath (Join-Path (Get-PostureRunLayout -Folder $OutputFolder).errors 'errors.txt') -Value 'A :: one', 'B :: two', 'C :: three' }
                 [pscustomobject]@{ Folder = $OutputFolder; Errors = @('one'); Files = @() }
             }
             Mock Get-PostureToken { 'tok' }
@@ -43,9 +43,11 @@ Describe 'Start-PostureRun' {
             Mock Test-PostureRoleCoverage { @() }
             Mock New-PostureProfile { $script:Calls.Add('profile'); Set-Content -LiteralPath $Path -Value (@{ tenantId = $script:TestTid; clientName = $ClientName } | ConvertTo-Json) }
             Mock New-PostureReport {
-                $script:Calls.Add("report:$(if ($Previous) { Split-Path $Previous -Leaf } else { 'none' })")
-                $html = Join-Path $Evidence 'report.html'; Set-Content -LiteralPath $html -Value '<html>'
-                Set-Content -LiteralPath (Join-Path $Evidence 'checks.json') -Value '[]'
+                # Previous is the earlier run's logs/checks.json: report the run's folder name.
+                $script:Calls.Add("report:$(if ($Previous) { Split-Path (Split-Path (Split-Path $Previous -Parent) -Parent) -Leaf } else { 'none' })")
+                $l = Get-PostureRunLayout -Folder $Evidence
+                $html = Join-Path $l.root 'report.html'; Set-Content -LiteralPath $html -Value '<html>'
+                Set-Content -LiteralPath (Join-Path $l.logs 'checks.json') -Value '[]'
                 [pscustomobject]@{ Files = @($html); Report = @{} }
             }
             Mock Export-PostureFindings { $script:Calls.Add('findings') }
@@ -61,12 +63,15 @@ Describe 'Start-PostureRun' {
             $script:Calls.Clear()
             $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -PassThru 6>$null
             $result.Folder | Should -Be (Join-Path $script:TestOutRoot '20261022-1200')
+            $result.Evidence | Should -Be (Join-Path $script:TestOutRoot '20261022-1200' 'evidence')
+            Join-Path $result.Folder 'README.txt' | Should -Exist
+            Join-Path $result.Folder 'logs' 'run.json' | Should -Exist
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
             @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
-            $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder '.progress-child.json')
+            $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder 'logs' '.progress-child.json')
             @($script:ChildRequest['tokens'].Keys) | Should -Be @('graph') -Because 'Exchange and Purview sign in through the Exchange module in that process'
             $script:ChildRequest['purviewSignIn'] | Should -Be 'browser'
             $script:ChildRequest['tokens']['graph']['accessToken'] | Should -Be 'g'
@@ -87,7 +92,7 @@ Describe 'Start-PostureRun' {
             $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, Azure, Exchange -NoBrowser -AllowSleep -PassThru 6>$null
             @($script:Calls) | Should -Be @('signin', 'child:Exchange', 'collect:Entra', 'wait', 'profile', 'report:20261022-1200', 'findings', 'sleep-ok') -Because '-AllowSleep never asks the system to stay awake'
             $result.Skipped['Azure'] | Should -Match 'azure: none'
-            Test-Path (Join-Path $result.Folder 'ad-01-forest.json') | Should -BeTrue
+            Test-Path (Join-Path $result.Evidence 'ad-01-forest.json') | Should -BeTrue
             Should -Invoke New-PostureProfile -Times 1 -Exactly -ParameterFilter { $ProfilePath -eq $null -and -not $PSBoundParameters.ContainsKey('ClientName') }
             Should -Invoke Start-Process -Times 0 -Exactly
         }
@@ -97,12 +102,12 @@ Describe 'Start-PostureRun' {
         InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             $existing = Join-Path $script:TestOutRoot '20261022-1200'
-            Set-Content -LiteralPath (Join-Path $existing 'policies.json') -Value '[]'
+            Set-Content -LiteralPath (Join-Path $existing 'evidence' 'policies.json') -Value '[]'
             $result = Start-PostureRun -Client $client -Folder $existing -Collector Entra -NoBrowser -AllowSleep -PassThru 6>$null
             $result.Folder | Should -Be $existing
-            Should -Invoke New-PostureEvidenceFolder -Times 0 -Exactly -Scope It
-            Should -Invoke Invoke-PostureCollection -Times 1 -Exactly -Scope It -ParameterFilter { $SkipCaSnapshot -and $OutputFolder -eq $existing }
-            $plan = Get-Content -Raw (Join-Path $existing 'run.json') | ConvertFrom-Json -AsHashtable
+            Should -Invoke New-PostureRunFolder -Times 0 -Exactly -Scope It
+            Should -Invoke Invoke-PostureCollection -Times 1 -Exactly -Scope It -ParameterFilter { $SkipCaSnapshot -and $OutputFolder -eq (Join-Path $existing 'evidence') }
+            $plan = Get-Content -Raw (Join-Path $existing 'logs' 'run.json') | ConvertFrom-Json -AsHashtable
             @($plan.resumes).Count | Should -BeGreaterOrEqual 1
             @($plan.resumes)[-1].collectors | Should -Be @('Entra')
         }
@@ -159,7 +164,7 @@ Describe 'Start-PostureRun and the trial' {
             Mock Assert-PostureGraphScope { @{ TenantId = $tid; Scopes = @('Policy.Read.All') } }
             Mock Get-Module { $false } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }
-            Mock New-PostureEvidenceFolder { $f = Join-Path $outRoot '20261027-0900'; New-Item -ItemType Directory -Path $f -Force | Out-Null; $f }
+            Mock New-PostureRunFolder { $f = Join-Path $outRoot '20261027-0900'; foreach ($p in 'evidence', 'errors', 'logs') { New-Item -ItemType Directory -Path (Join-Path $f $p) -Force | Out-Null }; Get-PostureRunLayout -Folder $f }
             Mock Invoke-PostureCollection { [pscustomobject]@{ Folder = $OutputFolder; Errors = @(); Files = @() } }
             Mock Enable-PostureKeepAwake { $null }
             Mock Write-Progress { }

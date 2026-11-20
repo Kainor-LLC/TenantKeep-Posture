@@ -282,7 +282,9 @@ function ConvertTo-PostureReportModel {
             } | Sort-Object { - $_.purchased }, { $_.sku })
     }
     # Who ran it, with which roles, from run.json (Start-PostureRun records them after the sign-in).
-    $plan = & $load 'run'
+    $runLayout = Get-PostureRunLayout -Folder $Evidence
+    $planFile = Join-Path $runLayout.logs 'run.json'
+    $plan = $(if (Test-Path -LiteralPath $planFile) { try { Get-Content -Raw -LiteralPath $planFile | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null } } else { $null })
     $runAs = $(if ($plan -and (Get-PostureValue $plan 'runAs')) { Get-PostureValue $plan 'runAs' } else { $null })
 
     # Run health: every failed step with its cause and what to grant, worst cause first (errors.jsonl, or errors.txt
@@ -295,7 +297,7 @@ function ConvertTo-PostureReportModel {
                 [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message'] }
             })
         byCause  = [ordered]@{}
-        resume   = "Resume-PostureRun -Path '$($Evidence -replace "'", "''")'"
+        resume   = "Resume-PostureRun -Path '$((Get-PostureRunLayout -Folder $Evidence).root -replace "'", "''")'"
     }
     foreach ($f in $runHealth.failures) { $runHealth.byCause[$f.causeLabel] = 1 + $(if ($runHealth.byCause.Contains($f.causeLabel)) { $runHealth.byCause[$f.causeLabel] } else { 0 }) }
     $runHealth.retryable = @($runHealth.failures | Where-Object { $_.cause -in 'permission', 'token', 'throttled', 'network', 'unknown', 'module' }).Count

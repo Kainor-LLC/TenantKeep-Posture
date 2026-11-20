@@ -88,9 +88,9 @@ function Write-PostureStepFailure {
         timeUtc = [datetime]::UtcNow.ToString('o'); collector = $Collector; step = $Label; cause = (Get-PostureFailureCause -Message $Message)
         roles = @($need.roles); scopes = @($need.scopes); licence = $need.licence; note = $need.note; message = $Message
     }
-    if (-not $PSCmdlet.ShouldProcess((Join-Path $Folder 'errors.jsonl'), "Record the $Label failure")) { return }
+    if (-not $PSCmdlet.ShouldProcess((Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.jsonl'), "Record the $Label failure")) { return }
     $line = $entry | ConvertTo-Json -Compress -Depth 5
-    Invoke-PostureFolderLock -Folder $Folder -Script { Add-Content -Path (Join-Path $Folder 'errors.jsonl') -Value $line }
+    Invoke-PostureFolderLock -Folder $Folder -Script { Add-Content -Path (Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.jsonl') -Value $line }
 }
 
 function Read-PostureRunFailure {
@@ -105,7 +105,7 @@ function Read-PostureRunFailure {
 
     $ErrorActionPreference = 'Stop'
     $out = [System.Collections.Generic.List[System.Collections.IDictionary]]::new()
-    $jsonl = Join-Path $Folder 'errors.jsonl'
+    $jsonl = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.jsonl'
     $covered = [System.Collections.Generic.HashSet[string]]::new()
     if (Test-Path -LiteralPath $jsonl) {
         foreach ($line in Get-Content -LiteralPath $jsonl) {
@@ -116,7 +116,7 @@ function Read-PostureRunFailure {
             $out.Add($e); $null = $covered.Add("$($e['step']) :: $($e['message'])")
         }
     }
-    $txt = Join-Path $Folder 'errors.txt'
+    $txt = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
     if (Test-Path -LiteralPath $txt) {
         foreach ($line in Get-Content -LiteralPath $txt) {
             if (-not $line.Trim() -or $covered.Contains($line.Trim())) { continue }

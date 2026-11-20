@@ -28,7 +28,9 @@ function New-PostureReport {
         An earlier run's checks.json, or the folder holding one, for the Trend view: score and domain deltas, checks
         that started or stopped failing, affected counts that moved.
     .PARAMETER OutputPath
-        Folder for report.<ext> and checks.json. Default: the evidence folder.
+        Folder for report.<ext>, checks.json and affected/. Default: for a run Start-PostureRun made, the reports
+        at the top of the run folder, checks.json in logs/ and affected/ beside the reports; for a one-folder run,
+        that folder.
     .PARAMETER PassThru
         Return the report model and the written file paths.
     .EXAMPLE
@@ -62,7 +64,9 @@ function New-PostureReport {
     Set-StrictMode -Version Latest
 
     if (-not (Test-Path -LiteralPath $Evidence -PathType Container)) { throw "Evidence folder not found: $Evidence" }
-    $evidencePath = (Resolve-Path -LiteralPath $Evidence).Path
+    # The run folder or its evidence/ folder; a one-folder run is both.
+    $layout = Get-PostureRunLayout -Folder (Resolve-Path -LiteralPath $Evidence).Path
+    $evidencePath = $layout.evidence
 
     if ($Client) {
         if (-not (Test-Path -LiteralPath $Client -PathType Container)) { throw "Client folder not found: $Client" }
@@ -85,25 +89,25 @@ function New-PostureReport {
     $previousRun = $null
     if ($Previous) {
         $prevPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Previous)
-        if (Test-Path -LiteralPath $prevPath -PathType Container) { $prevPath = Join-Path $prevPath 'checks.json' }
+        if (Test-Path -LiteralPath $prevPath -PathType Container) { $prevPath = Join-Path (Get-PostureRunLayout -Folder $prevPath).logs 'checks.json' }
         if (-not (Test-Path -LiteralPath $prevPath -PathType Leaf)) { throw "Previous checks.json not found: $prevPath" }
         $previousRun = Get-Content -Raw -LiteralPath $prevPath | ConvertFrom-Json -AsHashtable -Depth 20
     }
     $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement
 
-    $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($(if ($OutputPath) { $OutputPath } else { $evidencePath }))   # expands ~ too
+    if ($OutputPath) { $outFolder = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath); $checksFolder = $outFolder; $affectedFolder = Join-Path $outFolder 'affected' }   # expands ~ too
+    else { $outFolder = $layout.root; $checksFolder = $layout.logs; $affectedFolder = $layout.affected }
 
     $written = [System.Collections.Generic.List[string]]::new()
-    $checksPath = Join-Path $outFolder 'checks.json'
+    $checksPath = Join-Path $checksFolder 'checks.json'
     if ($PSCmdlet.ShouldProcess($checksPath, 'Write checks.json')) {
-        if (-not (Test-Path -LiteralPath $outFolder)) { New-Item -ItemType Directory -Path $outFolder -Force -WhatIf:$false | Out-Null }
+        foreach ($d in $outFolder, $checksFolder) { if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force -WhatIf:$false | Out-Null } }
         [System.IO.File]::WriteAllText($checksPath, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
         $written.Add($checksPath)
     }
     # Every affected list in full as a CSV per check; the page carries the first 500 of each, so a check with tens
     # of thousands of objects does not make the report too heavy to open.
     $withAffected = @($run.results | Where-Object { $_.affectedCount -gt 0 })
-    $affectedFolder = Join-Path $outFolder 'affected'
     if ($withAffected.Count -gt 0 -and $PSCmdlet.ShouldProcess($affectedFolder, 'Write the affected objects per check')) {
         New-Item -ItemType Directory -Path $affectedFolder -Force | Out-Null
         Get-ChildItem -LiteralPath $affectedFolder -Filter '*.csv' -File | Remove-Item -Force

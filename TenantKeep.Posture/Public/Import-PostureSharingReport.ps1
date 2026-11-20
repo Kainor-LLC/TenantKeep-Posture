@@ -80,7 +80,7 @@ function Import-PostureSharingReport {
     $run = Find-PostureRunFolder -Client $folder -TenantId $tenant -OutRoot $OutRoot
     $summary = $null
     if ($run) {
-        $summary = Write-PostureSharingSummary -Client $folder -Folder $run -Confirm:$false
+        $summary = Write-PostureSharingSummary -Client $folder -Folder (Get-PostureRunLayout -Folder $run).evidence -Confirm:$false
         if (-not $NoReport) {
             $report = Update-PostureRunReport -Run $run -Client $folder -Confirm:$false
             Write-Host "Report rebuilt: $report (refresh the page)"

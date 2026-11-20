@@ -471,7 +471,7 @@ function Invoke-PostureEntraCollection {
         & $save $flat "11-risk-detections-$($RiskDetectionDays)d" $true
     } | Out-Null
 
-    $errorsPath = Join-Path $Folder 'errors.txt'
+    $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
     # ---------- Governance (spec 4.8): identity governance reads, each behind its own optional scope ----------
     Invoke-PostureStep -Label 'Access review definitions' -Folder $Folder -Script {
         # AccessReview.Read.All. The scope query says what is reviewed: a role assignment path, a guest filter, a group.

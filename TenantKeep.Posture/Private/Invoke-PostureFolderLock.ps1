@@ -5,7 +5,7 @@ function Invoke-PostureFolderLock {
         Runs a script block while holding the run folder's lock file, so the two collection processes that write
         into one folder at the same time (errors.txt, the collection.json merge) never interleave.
     .DESCRIPTION
-        The lock is an exclusive handle on .tenantkeep.lock in the folder; the other process waits for it, up to
+        The lock is an exclusive handle on .tenantkeep.lock in the run's logs folder; the other process waits for it, up to
         -TimeoutSeconds, then runs anyway rather than lose its write.
     #>
     [CmdletBinding()]
@@ -16,7 +16,10 @@ function Invoke-PostureFolderLock {
     )
 
     $ErrorActionPreference = 'Stop'
-    $path = Join-Path $Folder '.tenantkeep.lock'
+    # In the run's logs folder, so the processes collecting into evidence/ and the ones writing errors/ share it.
+    $logs = (Get-PostureRunLayout -Folder $Folder).logs
+    if (-not (Test-Path -LiteralPath $logs)) { New-Item -ItemType Directory -Path $logs -Force | Out-Null }
+    $path = Join-Path $logs '.tenantkeep.lock'
     $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
     $handle = $null
     while (-not $handle) {

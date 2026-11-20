@@ -216,7 +216,8 @@ function Get-PostureRunEstimate {
     $ErrorActionPreference = 'Stop'
     $out = @{}
     if (-not (Test-Path -LiteralPath $OutRoot -PathType Container)) { return $out }
-    foreach ($run in @(Get-ChildItem -LiteralPath $OutRoot -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' } | Sort-Object Name -Descending)) {
+    foreach ($info in Get-PostureRunInfo -Root $OutRoot) {
+        $run = Get-Item -LiteralPath $info.layout.evidence
         $m = Join-Path $run.FullName 'collection.json'
         if (-not (Test-Path -LiteralPath $m)) { continue }
         try { $doc = Get-Content -Raw -LiteralPath $m | ConvertFrom-Json -AsHashtable -Depth 10 } catch { continue }

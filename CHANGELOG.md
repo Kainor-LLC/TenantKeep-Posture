@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- Run folders (2026-11-20): `Start-PostureRun -Name "<name>"` names the run (default: date and time). report.html,
+  report.md, findings.csv and README.txt sit at the top; evidence/, affected/, errors/ and logs/ hold the rest.
+  Runs are found by their run.json, so any name works; older one-folder runs keep working everywhere.
 - Report (2026-11-20): the overview's recommendations are a card per priority with one finding per line; a
   Licensing view lists every licence the tenant holds with purchased, assigned and free seats; the Crosswalk link
   explains how to get one instead of falling back to the overview; the appendix says who ran the assessment, with

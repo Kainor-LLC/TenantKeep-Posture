@@ -215,7 +215,7 @@ function Invoke-PostureCollection {
         if ($run.Azure) { & $timed 'Azure' { Invoke-PostureAzureCollection -Folder $folder } }
         if ($run.Defender) { & $timed 'Defender' { Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc } }
 
-        $errorsPath = Join-Path $folder 'errors.txt'
+        $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
         # Collectors may run in separate processes into one folder, at the same time (Start-PostureRun runs Exchange
         # and Purview alongside the rest): the manifest is read, merged and written under the folder's lock, and
         # keeps what the other process recorded (collectors, start time, API versions, scopes, timings).

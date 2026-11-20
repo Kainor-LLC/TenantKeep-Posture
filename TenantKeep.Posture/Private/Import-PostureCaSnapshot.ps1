@@ -39,7 +39,7 @@ function Import-PostureCaSnapshot {
     $groupScope = @{}
     foreach ($g in @(& $read 'group-scope')) { if ($g) { $groupScope[[string]$g.groupId] = $g } }
 
-    $errorsPath = Join-Path $folder 'errors.txt'
+    $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
     $errors = if (Test-Path -LiteralPath $errorsPath) { @(Get-Content -LiteralPath $errorsPath) } else { @() }
 
     $resolved = & $read 'resolved-names'

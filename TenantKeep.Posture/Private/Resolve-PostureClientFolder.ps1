@@ -37,7 +37,7 @@ function Resolve-PostureClientFolder {
 function Find-PostureRunFolder {
     <#
     .SYNOPSIS
-        The newest run folder (yyyyMMdd-HHmm, with checks.json) for a tenant under the output root: -OutRoot, else the
+        The newest run folder with results (checks.json) for a tenant under the output root: -OutRoot, else the
         profile's outputRoot, else ~/tenantkeep/evidence. Returns $null when there is none.
     #>
     [CmdletBinding()]
@@ -50,14 +50,9 @@ function Find-PostureRunFolder {
 
     $ErrorActionPreference = 'Stop'
     $root = Get-PostureOutputRoot -Client $Client -OutRoot $OutRoot
-    if (-not (Test-Path -LiteralPath $root -PathType Container)) { return $null }
-    $runs = @(Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'checks.json')) } | Sort-Object Name -Descending)
-    foreach ($run in $runs) {
-        if (-not $TenantId) { return $run.FullName }
-        $collection = Join-Path $run.FullName 'collection.json'
-        if (-not (Test-Path -LiteralPath $collection)) { continue }
-        try { $c = Get-Content -Raw -LiteralPath $collection | ConvertFrom-Json -AsHashtable -Depth 5 } catch { continue }
-        if ([string]$c['tenantId'] -eq $TenantId) { return $run.FullName }
+    foreach ($run in Get-PostureRunInfo -Root $root) {
+        if (-not $run.checks) { continue }
+        if (-not $TenantId -or $run.tenantId -eq $TenantId) { return $run.path }
     }
     return $null
 }
@@ -125,12 +120,12 @@ function Update-PostureRunReport {
 
     $ErrorActionPreference = 'Stop'
     if (-not $PSCmdlet.ShouldProcess($Run, 'Rebuild the report')) { return $null }
-    $parent = Split-Path $Run -Parent; $name = Split-Path $Run -Leaf
-    $previous = @(Get-ChildItem -LiteralPath $parent -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' -and $_.Name -lt $name -and (Test-Path -LiteralPath (Join-Path $_.FullName 'checks.json')) } | Sort-Object Name | Select-Object -Last 1)
-    $reportArgs = @{ Evidence = $Run; Client = $Client; PassThru = $true }
-    if ($previous.Count -gt 0) { $reportArgs.Previous = $previous[0].FullName }
+    $layout = Get-PostureRunLayout -Folder $Run
+    $previous = Get-PosturePreviousRun -Run $layout.root
+    $reportArgs = @{ Evidence = $layout.evidence; Client = $Client; PassThru = $true }
+    if ($previous) { $reportArgs.Previous = $previous }
     $report = New-PostureReport @reportArgs
-    $null = Export-PostureFindings -Path $Run -OutputPath (Join-Path $Run 'findings.csv')
+    $null = Export-PostureFindings -Path $layout.root -OutputPath (Join-Path $layout.root 'findings.csv')
     return @($report.Files | Where-Object { $_ -like '*.html' })[0]
 }
 
@@ -164,14 +159,34 @@ function Find-PostureLatestRun {
     if (-not $Client -and -not $TenantId) { $null = $roots.Add((Get-PostureOutputRoot)) }
     $best = $null
     foreach ($root in $roots) {
-        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
-        foreach ($run in Get-ChildItem -LiteralPath $root -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'run.json')) }) {
-            if ($clients.Count -gt 0 -and ($Client -or $TenantId)) {
-                $plan = $(try { Get-Content -Raw -LiteralPath (Join-Path $run.FullName 'run.json') | ConvertFrom-Json -AsHashtable } catch { $null })
-                if (-not $plan -or ([string]$plan['client'] -ne $clients[0] -and -not ($TenantId -and [string]$plan['tenantId'] -eq $TenantId))) { continue }
-            }
-            if (-not $best -or $run.Name -gt $best.Name) { $best = $run }
+        foreach ($run in Get-PostureRunInfo -Root $root) {
+            if (-not $run.plan) { continue }
+            if ($clients.Count -gt 0 -and ($Client -or $TenantId) -and $run.client -ne $clients[0] -and -not ($TenantId -and $run.tenantId -eq $TenantId)) { continue }
+            if (-not $best -or $run.started -gt $best.started) { $best = $run }
         }
     }
-    return $(if ($best) { $best.FullName } else { $null })
+    return $(if ($best) { $best.path } else { $null })
+}
+
+function Get-PosturePreviousRun {
+    <#
+    .SYNOPSIS
+        The checks.json of the newest run before -Run in the same output folder, of the same tenant when both say,
+        for the report's trend. $null when there is none.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [string] $Run)
+
+    $ErrorActionPreference = 'Stop'
+    $root = (Get-PostureRunLayout -Folder $Run).root
+    $all = @(Get-PostureRunInfo -Root (Split-Path $root -Parent))
+    $me = @($all | Where-Object { $_.path -eq $root })[0]
+    foreach ($r in $all) {
+        if ($r.path -eq $root -or -not $r.checks) { continue }
+        if ($me -and $r.started -ge $me.started) { continue }
+        if ($me -and $me.tenantId -and $r.tenantId -and $r.tenantId -ne $me.tenantId) { continue }
+        return $r.checks
+    }
+    return $null
 }

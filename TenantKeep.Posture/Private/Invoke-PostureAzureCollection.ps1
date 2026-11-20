@@ -157,6 +157,6 @@ function Invoke-PostureAzureCollection {
         & $save @($settings | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); WorkspaceId = (& $v $_ 'properties.workspaceId'); EventHub = (& $v $_ 'properties.eventHubAuthorizationRuleId'); StorageAccountId = (& $v $_ 'properties.storageAccountId'); Categories = @(@(& $v $_ 'properties.logs') | Where-Object { (& $v $_ 'enabled') -eq $true } | ForEach-Object { [string](& $v $_ 'category') }) } }) 'az-09-entra-diagnostic-settings' $true
     } | Out-Null
 
-    $errorsPath = Join-Path $Folder 'errors.txt'
+    $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
     return @{ files = $files.ToArray(); errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath }); subscriptions = $subIds.Count }
 }

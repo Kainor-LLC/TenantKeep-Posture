@@ -72,7 +72,19 @@ produces the Conditional Access domain and says what the full tier adds.
 
 ## 3. What the run leaves behind
 
-- `~/tenantkeep/evidence/<yyyyMMdd-HHmm>/`: the evidence files, checks.json, report.html, report.md, findings.csv.
+- `~/tenantkeep/evidence/<run name>/`, one folder per run: name it with `Start-PostureRun -Name "Contoso Q4 2026"`
+  (default: the date and time, 2026-11-20-0957). What people open sits at the top, the rest in folders:
+
+  ```
+  report.html  report.md  findings.csv  findings.json  README.txt
+  evidence/    everything collected, one file per area (prefixes: exo- Exchange, pv- Purview, spo- SharePoint, ...)
+  affected/    every affected object per check, one CSV each
+  errors/      what could not be read and why
+  logs/        transcript, run plan, check results
+  ```
+
+  README.txt in each run says the same. Runs made before this layout keep everything in one folder and still work
+  with every command.
 - `~/tenantkeep/clients/<tenant name>/`: profile.json (discovered on the first run, yours to change with
   New-PostureProfile, section 6), exceptions.json once you accept a risk (section 8a), tenantkeep.lic, imports/ for
   the reports you provide (section 8b), hybrid/ for the Windows AD collector's files.

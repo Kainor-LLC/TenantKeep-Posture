@@ -64,9 +64,11 @@ function Resume-PostureRun {
         if (-not $folder) { throw "No run to resume$(if ($Client) { " for $Client" } elseif ($TenantId) { " for tenant $TenantId" }). Start one with Start-PostureRun." }
     }
     if (-not (Test-Path -LiteralPath $folder -PathType Container)) { throw "Run folder not found: $folder" }
-    $read = { param([string] $Name) $f = Join-Path $folder $Name; if (Test-Path -LiteralPath $f) { try { Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null } } }
-    $plan = & $read 'run.json'
-    $manifest = & $read 'collection.json'
+    $layout = Get-PostureRunLayout -Folder $folder
+    $folder = $layout.root
+    $read = { param([string] $Path) if (Test-Path -LiteralPath $Path) { try { Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null } } }
+    $plan = & $read (Join-Path $layout.logs 'run.json')
+    $manifest = & $read (Join-Path $layout.evidence 'collection.json')
     $runTenant = [string]$(if ($plan -and $plan['tenantId']) { $plan['tenantId'] } elseif ($manifest -and $manifest['tenantId']) { $manifest['tenantId'] })
     if (-not $runTenant) { throw "$folder has neither run.json nor collection.json with a tenant id; it is not a run folder Start-PostureRun made." }
     $clientFolder = [string]$(if ($plan -and $plan['client'] -and (Test-Path -LiteralPath $plan['client'])) { $plan['client'] } else { Resolve-PostureClientFolder -TenantId $runTenant })
@@ -103,11 +105,11 @@ function Resume-PostureRun {
 
     # The failures being retried leave the live files, so the report shows only what is still wrong.
     Invoke-PostureFolderLock -Folder $folder -Script {
-        $jsonl = Join-Path $folder 'errors.jsonl'; $txt = Join-Path $folder 'errors.txt'
+        $jsonl = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.jsonl'; $txt = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
         $retry = @($failures | Where-Object { [string]$_['collector'] -in $again })
         $keys = [System.Collections.Generic.HashSet[string]]::new()
         foreach ($f in $retry) { $null = $keys.Add("$($f['step']) :: $($f['message'])") }
-        if ($retry.Count -gt 0) { Add-Content -LiteralPath (Join-Path $folder 'errors-previous.jsonl') -Value @($retry | ForEach-Object { $_['retriedUtc'] = [datetime]::UtcNow.ToString('o'); $_ | ConvertTo-Json -Compress -Depth 5 }) }
+        if ($retry.Count -gt 0) { Add-Content -LiteralPath (Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors-previous.jsonl') -Value @($retry | ForEach-Object { $_['retriedUtc'] = [datetime]::UtcNow.ToString('o'); $_ | ConvertTo-Json -Compress -Depth 5 }) }
         $keepJson = @($failures | Where-Object { [string]$_['collector'] -notin $again } | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 })
         if (Test-Path -LiteralPath $jsonl) { Set-Content -LiteralPath $jsonl -Value $keepJson }
         if (Test-Path -LiteralPath $txt) { Set-Content -LiteralPath $txt -Value @(Get-Content -LiteralPath $txt | Where-Object { $_.Trim() -and -not $keys.Contains($_.Trim()) }) }

@@ -61,7 +61,7 @@ function Add-PostureException {
     $folder = Resolve-PostureClientFolder -Client $Client -TenantId $TenantId
     $run = Find-PostureRunFolder -Client $folder -TenantId $TenantId -OutRoot $OutRoot
     $results = @()
-    if ($run) { $results = @((Get-Content -Raw -LiteralPath (Join-Path $run 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20).results) }
+    if ($run) { $results = @((Get-Content -Raw -LiteralPath (Join-Path (Get-PostureRunLayout -Folder $run).logs 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20).results) }
     $nameOf = { param($a) if ($a -is [System.Collections.IDictionary]) { [string]$a['name'] } else { [string]$a } }
 
     if (-not $Check) {

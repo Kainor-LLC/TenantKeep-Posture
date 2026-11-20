@@ -80,6 +80,6 @@ function Invoke-PostureSharePointCollection {
         } | Out-Null
     }
 
-    $errorsPath = Join-Path $Folder 'errors.txt'
+    $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
     return @{ files = $files.ToArray(); errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath }) }
 }

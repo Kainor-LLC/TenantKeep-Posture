@@ -116,7 +116,7 @@ function Export-PostureCaSnapshot {
         $files.Add((Write-PostureEvidence -Folder $folder -Name 'group-scope' -InputObject @($groupScope) -AsArray))
 
         # 4. Metadata.
-        $errorsPath = Join-Path $folder 'errors.txt'
+        $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
         $errorCount = if (Test-Path $errorsPath) { @(Get-Content -Path $errorsPath).Count } else { 0 }
         $metadata = [ordered]@{
             product         = 'TenantKeep.Posture'

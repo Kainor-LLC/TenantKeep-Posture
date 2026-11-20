@@ -35,6 +35,10 @@ function Start-PostureRun {
         Pin the run to one tenant, by id or by a verified domain such as contoso.onmicrosoft.com: a sign-in to any
         other is refused before anything is read. Optional: without it you pick the account in the browser and the
         tenant comes from that sign-in.
+    .PARAMETER Name
+        What to call this run's folder, for example "Contoso Q4 2026". Default: the date and time (2026-11-20-0957).
+        Inside it, report.html, report.md, findings.csv and findings.json sit at the top and evidence/, affected/,
+        errors/ and logs/ hold the rest.
     .PARAMETER Client
         The client folder (profile.json, exceptions.json, tenantkeep.lic, imports/, hybrid/). Default:
         ~/tenantkeep/clients/<tenant display name, lower case, spaces to dashes>/, created on first run.
@@ -68,12 +72,15 @@ function Start-PostureRun {
         Start-PostureRun -TenantId contoso.onmicrosoft.com -Collector Entra, Intune, Exchange
     .EXAMPLE
         Start-PostureRun -OutRoot ~/Clients/Contoso/Assessments
+    .EXAMPLE
+        Start-PostureRun -Name "Contoso Q4 2026"
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([string], [pscustomobject])]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Progress lines for the admin at the console.')]
     param(
         [ValidatePattern('^([0-9a-fA-F-]{36}|[A-Za-z0-9.-]+\.[A-Za-z]{2,})$')] [string] $TenantId,
+        [string] $Name,
         [string] $Client,
         [string] $OutRoot,
         [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
@@ -136,6 +143,7 @@ function Start-PostureRun {
     if ($into) {
         $into = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($into)
         if (-not (Test-Path -LiteralPath $into -PathType Container)) { throw "Run folder not found: $into" }
+        $into = (Get-PostureRunLayout -Folder $into).root
         $OutRoot = Split-Path $into -Parent
     }
     else { $OutRoot = Get-PostureOutputRoot -Client $Client -OutRoot $OutRoot }
@@ -158,7 +166,7 @@ function Start-PostureRun {
     }
     if ($main.Count -eq 0 -and -not $into) { $main = @('Entra') }
     # Into an existing run, the Conditional Access snapshot is kept when it is there.
-    $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath $into -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
+    $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath (Get-PostureRunLayout -Folder $into).evidence -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
     $need = @{ SharePoint = 'PnP.PowerShell'; Teams = 'MicrosoftTeams' }
     $localPlan = [System.Collections.Generic.List[string]]::new()
     foreach ($name in 'SharePoint', 'Teams') {
@@ -187,21 +195,21 @@ function Start-PostureRun {
     $awake = $(if ($AllowSleep) { $null } else { Enable-PostureKeepAwake })
     if ($awake) { Write-Host "Keeping this computer awake until the run ends ($($awake['method'])); a closed lid still sleeps." }
     $folder = $null
+    $runLayout = $null
     $tokenServer = $null
     $reportFile = $null
     $adFiles = @()
     try {
-        if ($into) {
-            $folder = $into
-            try { Start-Transcript -Path (Join-Path $folder 'transcript.txt') -Append | Out-Null } catch { Write-Verbose "Transcript not started: $($_.Exception.Message)" }
-        }
-        else { $folder = New-PostureEvidenceFolder -OutRoot $OutRoot }
-        Write-Host "Run folder:    $folder"
+        # $folder is where evidence goes (what the collectors and the report read); $runLayout has the rest.
+        $runLayout = $(if ($into) { Get-PostureRunLayout -Folder $into } else { New-PostureRunFolder -OutRoot $OutRoot -Name $Name -Confirm:$false })
+        $folder = $runLayout.evidence
+        try { Start-Transcript -Path (Join-Path $runLayout.logs 'transcript.txt') -Append | Out-Null } catch { Write-Verbose "Transcript not started: $($_.Exception.Message)" }
+        Write-Host "Run folder:    $($runLayout.root)"
         $runAs = [ordered]@{ account = [string]$session.account; roles = @($heldRoles); checkedUtc = [datetime]::UtcNow.ToString('o'); coverage = @($coverage | ForEach-Object { [ordered]@{ collector = $_.Collector; status = $_.Status; detail = $_.Detail } }) }
-        Write-PostureRunPlan -Folder $folder -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -RunAs $runAs -Resume:([bool]$into) -Confirm:$false
+        Write-PostureRunPlan -Folder $runLayout.root -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -RunAs $runAs -Resume:([bool]$into) -Confirm:$false
         $estimates = Get-PostureRunEstimate -OutRoot $OutRoot -TenantId ([string]$session.tenantId)
         $phases = @(@($(if (-not $caDone -and ($main.Count -gt 0 -or -not $into)) { 'ConditionalAccess' })) + $main + @($localPlan) + @($(if ($child.Count -gt 0) { 'Second' })) + @($(if (-not $SkipReport) { 'Report' })) | Where-Object { $_ })
-        $childFile = $(if ($child.Count -gt 0) { Join-Path $folder '.progress-child.json' } else { $null })
+        $childFile = $(if ($child.Count -gt 0) { Join-Path $runLayout.logs '.progress-child.json' } else { $null })
         Start-PostureProgress -Phase $phases -Estimate $estimates -ChildFile $childFile -Activity "TenantKeep Posture: $(if ($session.tenantDisplayName) { $session.tenantDisplayName } else { $session.tenantId })" -Confirm:$false
 
         # 3. Exchange and Purview first, in their own process, tokens over standard input.
@@ -260,12 +268,13 @@ function Start-PostureRun {
         if (-not $SkipReport) {
             # 7. Report, with the trend against the newest earlier run that has checks.json.
             Set-PostureProgressPhase -Name 'Report' -Label 'report' -Confirm:$false
-            $previous = @(Get-ChildItem -LiteralPath $OutRoot -Directory | Where-Object { $_.Name -match '^\d{8}-\d{4}$' -and $_.FullName -ne $folder -and (Test-Path (Join-Path $_.FullName 'checks.json')) } | Sort-Object Name | Select-Object -Last 1)
+            $previous = Get-PosturePreviousRun -Run $runLayout.root
             $reportArgs = @{ Evidence = $folder; Client = $Client; PassThru = $true }
-            if ($previous.Count -gt 0) { $reportArgs.Previous = $previous[0].FullName }
+            if ($previous) { $reportArgs.Previous = $previous }
             $report = New-PostureReport @reportArgs
             $reportFile = @($report.Files | Where-Object { $_ -like '*.html' })[0]
-            $null = Export-PostureFindings -Path $folder -OutputPath (Join-Path $folder 'findings.csv')
+            $null = Export-PostureFindings -Path $runLayout.root -OutputPath (Join-Path $runLayout.root 'findings.csv')
+            Write-PostureRunReadme -Layout $runLayout -Confirm:$false
         }
     }
     finally {
@@ -278,12 +287,12 @@ function Start-PostureRun {
 
     # errors.txt is appended by every process that wrote into the folder, so it is the count to report.
     $errorCount = 0
-    $errorsFile = Join-Path $folder 'errors.txt'
+    $errorsFile = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
     if (Test-Path -LiteralPath $errorsFile) { $errorCount = @(Get-Content -LiteralPath $errorsFile | Where-Object { $_.Trim() }).Count }
     Write-Host ''
     Write-Host "Finished in $(Format-PostureDuration $clock.Elapsed.TotalSeconds)." -ForegroundColor Green
     if ($adFiles.Count -gt 0) { Write-Host "Hybrid: $($adFiles.Count) ad-* files copied in" }
-    Write-Host "Run folder: $folder"
+    Write-Host "Run folder: $($runLayout.root)"
     $versions = Get-PostureModuleVersionUsed
     Write-Host "PowerShell $($PSVersionTable.PSVersion); modules: $(@($versions.Keys | ForEach-Object { "$_ $(if ($versions[$_]) { $versions[$_] } else { 'not installed' })" }) -join ', ')"
     if ($reportFile) { Write-Host "Report: $reportFile" }
@@ -296,7 +305,7 @@ function Start-PostureRun {
             foreach ($advice in @($group.Group | ForEach-Object { Get-PostureFailureAdvice -Failure $_ } | Select-Object -Unique)) { Write-Host "    $advice" }
         }
         $defaultClients = Join-Path $HOME 'tenantkeep' 'clients'
-        $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($folder -replace "'", "''")'" })
+        $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($runLayout.root -replace "'", "''")'" })
         Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
     }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
@@ -309,6 +318,6 @@ function Start-PostureRun {
         Write-Host "Conditional Access only: no Full licence for this tenant. Every domain free for 30 days: https://tenantkeep.app/trial/?tenant=$($session.tenantId)" -ForegroundColor Cyan
     }
 
-    if ($PassThru) { return [pscustomobject]@{ Folder = $folder; Client = $Client; Report = $reportFile; Skipped = $skipped; Errors = $errorCount; Duration = $clock.Elapsed } }
-    return $folder
+    if ($PassThru) { return [pscustomobject]@{ Folder = $runLayout.root; Evidence = $folder; Client = $Client; Report = $reportFile; Skipped = $skipped; Errors = $errorCount; Duration = $clock.Elapsed } }
+    return $runLayout.root
 }

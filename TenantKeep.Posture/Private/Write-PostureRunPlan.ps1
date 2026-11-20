@@ -19,7 +19,7 @@ function Write-PostureRunPlan {
     )
 
     $ErrorActionPreference = 'Stop'
-    $path = Join-Path $Folder 'run.json'
+    $path = Join-Path (Get-PostureRunLayout -Folder $Folder).logs 'run.json'
     $now = [datetime]::UtcNow.ToString('o')
     $doc = $null
     if ($Resume -and (Test-Path -LiteralPath $path)) { try { $doc = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $doc = $null } }
