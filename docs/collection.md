@@ -57,6 +57,13 @@ run continues.
 Scopes: DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All,
 DeviceManagementServiceConfig.Read.All, DeviceManagementApps.Read.All, BitLockerKey.ReadBasic.All.
 
+The managed device list (`09-intune-managed-devices`) carries `IntuneWorkloads` for co-managed Windows devices: the
+co-management workloads Intune holds (compliance policies, device configuration, Windows Update policies, endpoint
+protection, resource access, client apps, Office Click-to-Run, inventory), from Graph's
+configurationManagerClientEnabledFeatures (verify on a co-managed tenant). `09-intune-comanagement` counts them across
+the co-managed devices. With the Entra device list, the devices checks tell Intune alone, co-managed, Configuration
+Manager alone (tenant attach) and hybrid-joined devices that nothing in the cloud manages (DEV-019 to DEV-021).
+
 ## What the Exchange collector writes
 
 Needs a connected Exchange Online PowerShell session (ExchangeOnlineManagement 3.x, `Connect-ExchangeOnline`), with

@@ -37,10 +37,13 @@ function Invoke-PostureIntuneCollection {
     $managed = @{ Count = 0 }
     Invoke-PostureStep -Label 'Intune managed devices' -Folder $Folder -Script {
         $byOsAgentJoin = @{}; $byOsCompliance = @{}; $byWindowsBuild = @{}
+        # Co-management: for each device Configuration Manager and Intune share, which workloads Intune has taken over.
+        $workloadNames = @('compliancePolicy', 'deviceConfiguration', 'windowsUpdateForBusiness', 'endpointProtection', 'resourceAccess', 'modernApps', 'officeApps', 'inventory')
+        $co = @{ devices = 0 }; foreach ($w in $workloadNames) { $co[$w] = 0 }
         $tally = { param([hashtable] $Map, [string] $Key) $Map[$Key] = 1 + $(if ($Map.ContainsKey($Key)) { $Map[$Key] } else { 0 }) }
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name '09-intune-managed-devices' -Csv -Confirm:$false
         try {
-            $null = Invoke-PostureGraphRequest -Uri 'deviceManagement/managedDevices?$select=id,deviceName,userPrincipalName,operatingSystem,osVersion,skuFamily,complianceState,managementAgent,joinType,deviceEnrollmentType,managedDeviceOwnerType,autopilotEnrolled,isEncrypted,isSupervised,lastSyncDateTime,enrolledDateTime,manufacturer,model,serialNumber,azureADDeviceId&$top=999' -ApiVersion 'beta' -Label 'Intune devices' -OnPage {
+            $null = Invoke-PostureGraphRequest -Uri 'deviceManagement/managedDevices?$select=id,deviceName,configurationManagerClientEnabledFeatures,userPrincipalName,operatingSystem,osVersion,skuFamily,complianceState,managementAgent,joinType,deviceEnrollmentType,managedDeviceOwnerType,autopilotEnrolled,isEncrypted,isSupervised,lastSyncDateTime,enrolledDateTime,manufacturer,model,serialNumber,azureADDeviceId&$top=999' -ApiVersion 'beta' -Label 'Intune devices' -OnPage {
                 param($page)
                 foreach ($d in $page) {
                     $row = [ordered]@{
@@ -48,6 +51,13 @@ function Invoke-PostureIntuneCollection {
                         ComplianceState = $d['complianceState']; ManagementAgent = $d['managementAgent']; JoinType = $d['joinType']; DeviceEnrollmentType = $d['deviceEnrollmentType']; ManagedDeviceOwnerType = $d['managedDeviceOwnerType']
                         AutopilotEnrolled = [bool]$d['autopilotEnrolled']; IsEncrypted = [bool]$d['isEncrypted']; IsSupervised = [bool]$d['isSupervised']; LastSyncDateTime = $d['lastSyncDateTime']; EnrolledDateTime = $d['enrolledDateTime']
                         Manufacturer = $d['manufacturer']; Model = $d['model']; SerialNumber = $d['serialNumber']; AzureAdDeviceId = $d['azureADDeviceId']
+                        IntuneWorkloads = ''
+                    }
+                    if ([string]$row.ManagementAgent -like 'configurationManagerClientMdm*') {
+                        $features = $d['configurationManagerClientEnabledFeatures']
+                        $on = @($workloadNames | Where-Object { $features -and $features[$_] -eq $true })
+                        $row.IntuneWorkloads = $on -join ';'
+                        $co.devices++; foreach ($w in $on) { $co[$w]++ }
                     }
                     Add-PostureEvidenceRow -Stream $stream -Row $row
                     $managed.Count++
@@ -63,6 +73,7 @@ function Invoke-PostureIntuneCollection {
         & $save (& $rows $byOsAgentJoin) '09-intune-summary-os-agent-join' $true
         & $save (& $rows $byOsCompliance) '09-intune-summary-compliance' $true
         & $save (& $rows $byWindowsBuild) '09-intune-summary-windows-builds' $true
+        & $saveOne ([ordered]@{ CoManagedDevices = $co.devices; Workloads = @($workloadNames | ForEach-Object { [ordered]@{ Name = $_; OnIntune = $co[$_] } }) }) '09-intune-comanagement'
     } | Out-Null
 
     Invoke-PostureStep -Label 'Group Policy analytics' -Folder $Folder -Script {

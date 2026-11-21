@@ -186,6 +186,32 @@ function Get-PostureChartData {
         }
         $out.checkIn = [ordered]@{ item = @($age.Keys | ForEach-Object { [ordered]@{ label = $_; value = $age[$_]; tone = $(if ($_ -eq 'Over 90 days') { 'err' } elseif ($_ -eq '31 to 90 days') { 'warn' } else { 'c1' }) } }); takeaway = "$($age['Over 90 days'] + $age['31 to 90 days']) managed device(s) have not checked in for a month or more." }
     }
+    # Who manages the Windows fleet, and how far co-management has gone (DEV-019 to DEV-021).
+    $dv = $(if ($DomainFacts.Contains('devices')) { $DomainFacts['devices'] } else { $null })
+    if ($dv -and $dv.Contains('windowsIntuneOnly')) {
+        $adOnly = $(if ($dv.Contains('adOnlyWindowsDevices')) { [int]$dv['adOnlyWindowsDevices'] } else { 0 })
+        $seg = @(
+            @{ label = 'Intune alone'; value = [int]$dv['windowsIntuneOnly']; tone = 'c1' }
+            @{ label = 'Co-managed with Configuration Manager'; value = [int]$dv['windowsCoManaged']; tone = 'c2' }
+            @{ label = 'Configuration Manager alone'; value = [int]$dv['windowsConfigMgrOnly']; tone = 'c3' }
+            @{ label = 'Group Policy only (no cloud management)'; value = $adOnly; tone = 'c4' }
+            @{ label = 'Defender security settings only'; value = [int]$dv['windowsSecuritySettingsOnly']; tone = 'c5' }
+        )
+        $total = [int](($seg | ForEach-Object { $_.value } | Measure-Object -Sum).Sum)
+        if ($total -gt 0) {
+            $cloud = [int]$dv['windowsIntuneOnly'] + [int]$dv['windowsCoManaged']
+            $out.deviceManagement = [ordered]@{ segment = $seg; takeaway = "$(& $pct $cloud $total)% of $(& $fmt $total) Windows devices are managed by Intune, alone or with Configuration Manager." }
+        }
+        if ($dv.Contains('coManagementWorkloads') -and [int]$(if ($dv.Contains('coManagedDevices')) { $dv['coManagedDevices'] } else { 0 }) -gt 0) {
+            $n = [int]$dv['coManagedDevices']
+            $label = @{ compliancePolicy = 'Compliance policies'; deviceConfiguration = 'Device configuration'; windowsUpdateForBusiness = 'Windows Update policies'; endpointProtection = 'Endpoint protection'; resourceAccess = 'Resource access'; modernApps = 'Client apps'; officeApps = 'Office Click-to-Run'; inventory = 'Inventory' }
+            $out.coManagement = [ordered]@{
+                devices  = $n
+                rows     = @(@($dv['coManagementWorkloads']) | Where-Object { $label.ContainsKey([string]$_['name']) } | ForEach-Object { [ordered]@{ label = $label[[string]$_['name']]; onIntune = [int]$_['onIntune']; onConfigMgr = [Math]::Max(0, $n - [int]$_['onIntune']) } })
+                takeaway = "Workloads moved to Intune across $(& $fmt $n) co-managed devices."
+            }
+        }
+    }
     $ep = $(if ($DomainFacts.Contains('endpoint')) { $DomainFacts['endpoint'] } else { $null })
     if ($ep -and $ep.Contains('asrRulesBlock')) {
         $out.asr = [ordered]@{ segment = @(@{ label = 'Block'; value = [int]$ep['asrRulesBlock']; tone = 'ok' }, @{ label = 'Audit'; value = [int]$ep['asrRulesAudit']; tone = 'warn' }, @{ label = 'Off'; value = [int]$ep['asrRulesOff']; tone = 'err' }, @{ label = 'Not configured'; value = [int]$ep['asrRulesNotConfigured']; tone = 'na' }); takeaway = "$([int]$ep['asrRulesBlock']) attack surface reduction rules block; $([int]$ep['asrRulesAudit'] + [int]$ep['asrRulesOff'] + [int]$ep['asrRulesNotConfigured']) do not." }

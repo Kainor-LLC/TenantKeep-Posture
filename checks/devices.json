@@ -727,6 +727,144 @@
       "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/groupPolicyAnalytics",
       "narrative": "Moving devices from hybrid join to Entra join depends on replacing Group Policy with Intune. Group Policy analytics shows, GPO by GPO, which settings have an MDM equivalent, so the move can be planned rather than discovered when a setting goes missing.",
       "frameworks": {}
+    },
+    {
+      "id": "DEV-019",
+      "domain": "devices",
+      "title": "No Windows devices managed by Configuration Manager alone",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "facts.windowsConfigMgrOnly == 0",
+      "affected": "facts.windowsConfigMgrOnly",
+      "remediation": [
+        "Turn on co-management in Configuration Manager (Cloud Attach) for these devices, with automatic enrollment in Intune.",
+        "Move the compliance policies workload to Intune first, so Conditional Access gets a compliance signal, then device configuration, Windows Update policies and endpoint protection (DEV-021).",
+        "Build new and reset devices with Autopilot and Entra join, so they start in Intune and never need Configuration Manager."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Devices enrol in Intune in the background; people see the Company Portal app and, later, Intune prompts such as Windows Hello set-up."
+      },
+      "learn": "https://learn.microsoft.com/mem/configmgr/comanage/overview",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/allDevices",
+      "narrative": "A Windows device that Configuration Manager manages and Intune only sees through tenant attach has no Intune compliance state, so a Conditional Access policy that requires a compliant device cannot trust it. Intune's security baselines, Windows Hello cloud trust, remote actions over the internet and Autopilot reset do not reach it either. Co-management is the step between: Configuration Manager keeps what it does while Intune adds compliance and, workload by workload, takes over.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-020",
+      "domain": "devices",
+      "title": "Hybrid-joined Windows devices managed by Intune, not by Group Policy alone",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ],
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "maxAdOnlyWindowsPct": 5
+      },
+      "evidence": [
+        "08-entra-devices.json",
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "facts.adOnlyWindowsPct <= thresholds.maxAdOnlyWindowsPct",
+      "affected": "facts.adOnlyWindowsDevices",
+      "remediation": [
+        "Enrol hybrid-joined devices in Intune automatically: the Group Policy setting Enable automatic MDM enrollment using default Microsoft Entra credentials, or co-management where Configuration Manager is in use.",
+        "Check Group Policy analytics (DEV-018) for the settings Intune has to take over before any GPO is unlinked.",
+        "Plan the move to Entra join: new devices through Autopilot, existing ones at refresh, so the device no longer depends on a domain controller for policy."
+      ],
+      "effort": "L",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Devices enrol in the background and pick up Intune policies; people may see a restart, Windows Hello set-up and new apps arriving from the Company Portal."
+      },
+      "learn": "https://learn.microsoft.com/windows/client-management/enroll-a-windows-10-device-automatically-using-group-policy",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
+      "narrative": "These Windows devices are joined to Active Directory and registered in Entra, but nothing in the cloud manages them: Group Policy, or Configuration Manager without tenant attach, is all they get. They report no compliance, so Conditional Access either blocks them or, more often, a policy leaves them out. Patching, encryption and Defender settings depend on the device reaching a domain controller over the office network or a VPN, and a lost laptop cannot be wiped from the cloud. Managed by Intune, people also gain self-service apps, updates wherever they work and Windows Hello sign-in.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-021",
+      "domain": "devices",
+      "title": "Co-management workloads moved to Intune",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-managed-devices.json",
+        "09-intune-comanagement.json"
+      ],
+      "pass": "facts.coManagedWorkloadsOnConfigMgr == 0",
+      "affected": "facts.coManagedWorkloadsOnConfigMgr",
+      "remediation": [
+        "In Configuration Manager, Cloud Attach, Workloads, move Compliance policies to Intune: Pilot Intune for a test collection first, then Intune.",
+        "Then move Device configuration, Windows Update policies and Endpoint Protection the same way, each through the pilot collection.",
+        "Keep Client apps and Office Click-to-Run on Configuration Manager only while packages are still deployed from it, and plan their move too."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Little changes for people: the same settings arrive from Intune instead of Configuration Manager, and update deadlines and restart notices follow the Intune update rings."
+      },
+      "learn": "https://learn.microsoft.com/mem/configmgr/comanage/workloads",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/allDevices",
+      "narrative": "Co-management only helps once workloads move. With compliance policies on Intune, Conditional Access gets a device signal; with device configuration, Windows Update policies and endpoint protection on Intune, settings and updates reach devices over the internet without a line of sight to a site server. Each workload moved is one less thing that needs the on-premises infrastructure.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.9",
+        "cmmc": "CM.L2-3.4.2",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

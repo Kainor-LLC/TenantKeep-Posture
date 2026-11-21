@@ -306,7 +306,17 @@
     "windowsHelloEnabled": "Windows Hello for Business on",
     "windowsPersonalEnrollmentBlocked": "Personal Windows enrollment blocked",
     "windowsRestoreOn": "Windows settings restore on",
-    "zapGaps": "Policies without zero-hour auto purge"
+    "zapGaps": "Policies without zero-hour auto purge",
+    "windowsConfigMgrOnly": "Windows devices managed by Configuration Manager alone",
+    "adOnlyWindowsPct": "Hybrid-joined Windows devices in use that nothing in the cloud manages (%)",
+    "adOnlyWindowsDevices": "Hybrid-joined Windows devices in use that nothing in the cloud manages",
+    "hybridWindowsInUse": "Hybrid-joined Windows devices signed in recently",
+    "coManagedWorkloadsOnConfigMgr": "Co-managed devices with key workloads still on Configuration Manager",
+    "windowsIntuneOnly": "Windows devices managed by Intune alone",
+    "windowsCoManaged": "Windows devices co-managed with Configuration Manager",
+    "windowsSecuritySettingsOnly": "Windows devices with only Defender security settings management",
+    "coManagedDevices": "Co-managed devices",
+    "coManagementWorkloads": "Co-management workloads on Intune"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -360,6 +370,7 @@
     "reportOnlyMaxDays": "Report-only policy, maximum age (days)",
     "riskyUserMaxAgeDays": "Risky user, maximum age (days)",
     "samlCertWarningDays": "SAML certificate warning (days)",
-    "spfRequireHardFail": "SPF must end in -all"
+    "spfRequireHardFail": "SPF must end in -all",
+    "maxAdOnlyWindowsPct": "Maximum hybrid-joined Windows devices with no cloud management (%)"
   }
 }

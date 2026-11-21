@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Who manages the Windows fleet (2026-11-20): DEV-019 no Windows devices on Configuration Manager alone, DEV-020
+  hybrid-joined Windows devices in use managed by Intune and not by Group Policy alone (5% allowed by default),
+  DEV-021 co-management workloads moved to Intune. Each says what people notice and how to move. The Intune collector
+  reads which workloads Intune holds on co-managed devices; the Devices view gains Windows Devices by Who Manages Them
+  and Co-management Workloads.
 - Logs to send for support (2026-11-20): each failed step now records the request it was making, where in the module
   it stopped, and the module, PowerShell and OS versions. Run Health has a Copy for Support button per failure and
   for all of them, with names, addresses and ids taken out. Export-PostureDiagnostics zips a run's logs, redacted the

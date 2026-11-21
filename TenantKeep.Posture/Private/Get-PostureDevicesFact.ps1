@@ -19,7 +19,7 @@ function Get-PostureDevicesFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0 }
+    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0; maxAdOnlyWindowsPct = 5 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -40,6 +40,9 @@ function Get-PostureDevicesFact {
     $withKey = @{}; foreach ($k in @($keys | Where-Object { $_ })) { $withKey[[string]$k.DeviceId] = [int]$k.Keys }
     $e = @{ enabled = 0; entraJoined = 0; hybridJoined = 0; registered = 0; windows = 0; escrowed = 0 }
     $staleList = [System.Collections.Generic.List[object]]::new(); $noKey = [System.Collections.Generic.List[object]]::new()
+    # Hybrid-joined Windows devices in use that nothing in the cloud manages (DEV-020); the Intune pass below takes out
+    # the ones Configuration Manager reports through tenant attach.
+    $hybridActive = @{ count = 0 }; $unmanagedHybrid = [System.Collections.Generic.List[object]]::new()
     $haveEntra = Read-PostureEvidenceRow -Folder $Evidence -Name '08-entra-devices' -OnRow {
         param($_row)
         $row = $_row
@@ -47,6 +50,10 @@ function Get-PostureDevicesFact {
         $e.enabled++
         switch ([string]$row.JoinType) { 'EntraJoined' { $e.entraJoined++ } 'HybridJoined' { $e.hybridJoined++ } 'Registered' { $e.registered++ } }
         if (Test-PostureTrue $row.Stale) { $staleList.Add([ordered]@{ name = $row.DisplayName; detail = "$($row.JoinType), $($row.OperatingSystem), last sign-in $(if ($row.ApproximateLastSignInDateTime) { (ConvertTo-PostureUtcDateTime $row.ApproximateLastSignInDateTime).ToString('yyyy-MM-dd') } else { 'never' })" }) }
+        if ([string]$row.OperatingSystem -eq 'Windows' -and [string]$row.JoinType -eq 'HybridJoined' -and -not (Test-PostureTrue $row.Stale)) {
+            $hybridActive.count++
+            if (-not (Test-PostureTrue (& $v $row 'IsManaged'))) { $unmanagedHybrid.Add([ordered]@{ id = [string](& $v $row 'DeviceId'); name = [string]$row.DisplayName }) }
+        }
         if ([string]$row.OperatingSystem -eq 'Windows' -and [string]$row.JoinType -in @('EntraJoined', 'HybridJoined')) {
             $e.windows++
             if ($withKey.ContainsKey([string]$row.DeviceId)) { $e.escrowed++ } else { $noKey.Add([ordered]@{ name = $row.DisplayName; detail = 'no BitLocker recovery key in Entra' }) }
@@ -72,6 +79,13 @@ function Get-PostureDevicesFact {
     $plat = @{}
     $noncompliant = [System.Collections.Generic.List[object]]::new(); $macsOpen = [System.Collections.Generic.List[object]]::new(); $win10 = [System.Collections.Generic.List[object]]::new()
     $states = @('compliant', 'noncompliant', 'inGracePeriod', 'conflict', 'error')
+    # Who manages each Windows device, from its management agent: Intune alone, co-managed with Configuration Manager,
+    # Configuration Manager alone (seen through tenant attach), or only Defender's security settings management.
+    $agents = @{ intune = 0; coManaged = 0; configMgr = 0; securityOnly = 0; other = 0 }
+    $configMgrOnly = [System.Collections.Generic.List[object]]::new(); $inIntune = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $keyWorkloads = @('compliancePolicy', 'deviceConfiguration', 'windowsUpdateForBusiness', 'endpointProtection')
+    $workloadLabel = @{ compliancePolicy = 'compliance policies'; deviceConfiguration = 'device configuration'; windowsUpdateForBusiness = 'Windows Update policies'; endpointProtection = 'endpoint protection' }
+    $co = @{ known = $false; behind = 0 }; $coBehind = [System.Collections.Generic.List[object]]::new()
     $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow {
         param($_row)
         $row = $_row
@@ -85,6 +99,19 @@ function Get-PostureDevicesFact {
             else { $noncompliant.Add([ordered]@{ name = $row.DeviceName; detail = "$($row.OperatingSystem) $($row.OSVersion), $($row.ComplianceState), user $($row.UserPrincipalName)" }) }
         }
         if ($os -eq 'Windows') {
+            $agent = [string](& $v $row 'ManagementAgent')
+            $group = switch -Regex ($agent) { '^configurationManagerClient$' { 'configMgr' } '^configurationManagerClientMdm' { 'coManaged' } '^msSense$' { 'securityOnly' } '^(mdm|easMdm|intuneClient|microsoft365ManagedMdm)$' { 'intune' } default { 'other' } }
+            $agents[$group]++
+            $aadId = [string](& $v $row 'AzureAdDeviceId'); if ($aadId) { $null = $inIntune.Add($aadId) }
+            if ($group -eq 'configMgr') { $configMgrOnly.Add([ordered]@{ name = $row.DeviceName; detail = "Configuration Manager only, user $($row.UserPrincipalName)" }) }
+            # Rows collected before the workloads were read have no IntuneWorkloads column at all.
+            $hasWorkloads = $(if ($row -is [System.Collections.IDictionary]) { $row.Contains('IntuneWorkloads') } else { $null -ne $row.PSObject.Properties['IntuneWorkloads'] })
+            if ($group -eq 'coManaged' -and $hasWorkloads) {
+                $co.known = $true
+                $onIntune = @(([string]$row.IntuneWorkloads) -split ';' | Where-Object { $_ })
+                $left = @($keyWorkloads | Where-Object { $_ -notin $onIntune })
+                if ($left.Count) { $co.behind++; if ($coBehind.Count -lt 500) { $coBehind.Add([ordered]@{ name = $row.DeviceName; detail = "on Configuration Manager: $(@($left | ForEach-Object { $workloadLabel[$_] }) -join ', ')" }) } }
+            }
             $i.windows++
             if (Test-PostureTrue $row.AutopilotEnrolled) { $i.autopilot++ }
             if ([string]$row.OSVersion -match '^10\.0\.1\d{4}') { $win10.Add([ordered]@{ name = $row.DeviceName; detail = "Windows build $($row.OSVersion)" }) }
@@ -92,7 +119,7 @@ function Get-PostureDevicesFact {
         if ($os -eq 'macOS') { $i.macs++; if (Test-PostureTrue $row.IsEncrypted) { $i.macsEncrypted++ } else { $macsOpen.Add([ordered]@{ name = $row.DeviceName; detail = 'FileVault not reported as enabled' }) } }
         if ($os -match '(?i)linux|ubuntu') { $i.linux++ }
     }
-    if (-not $haveManaged) { & $missing @('DEV-001', 'DEV-004', 'DEV-006', 'DEV-007', 'DEV-014') '09-intune-managed-devices' }
+    if (-not $haveManaged) { & $missing @('DEV-001', 'DEV-004', 'DEV-006', 'DEV-007', 'DEV-014', 'DEV-019', 'DEV-021') '09-intune-managed-devices' }
     else {
         $facts.managedDevices = $i.total
         $facts.intuneCompliancePct = $(if ($i.known -gt 0) { & $pct $i.compliant $i.known } else { $null })
@@ -119,6 +146,26 @@ function Get-PostureDevicesFact {
         $facts.windows10Devices = $win10.Count
         $affected.windows10Devices = @($win10)
         $facts.linuxManagedDevices = $i.linux
+
+        # DEV-019 and DEV-021: Configuration Manager alone, and co-managed devices with workloads still on it.
+        $facts.windowsIntuneOnly = $agents.intune; $facts.windowsCoManaged = $agents.coManaged; $facts.windowsConfigMgrOnly = $agents.configMgr; $facts.windowsSecuritySettingsOnly = $agents.securityOnly
+        $affected.windowsConfigMgrOnly = @($configMgrOnly | Select-Object -First 500)
+        if ($agents.coManaged -eq 0) { $facts.coManagedWorkloadsOnConfigMgr = 0 }
+        elseif (-not $co.known) { $notEvaluated['DEV-021'] = '09-intune-managed-devices was collected before TenantKeep read the co-management workloads. Collect Intune again (Resume-PostureRun -Collector Intune).' }
+        else { $facts.coManagedWorkloadsOnConfigMgr = $co.behind; $affected.coManagedWorkloadsOnConfigMgr = @($coBehind) }
+        $comgmt = & $load '09-intune-comanagement'
+        if ($comgmt) { $facts.coManagementWorkloads = @(@(& $v $comgmt 'Workloads') | Where-Object { $_ } | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); onIntune = [int](& $v $_ 'OnIntune') } }); $facts.coManagedDevices = [int](& $v $comgmt 'CoManagedDevices') }
+    }
+
+    # DEV-020: hybrid-joined Windows devices in use with no cloud management at all (Group Policy, or Configuration
+    # Manager without tenant attach). Needs both device lists.
+    if (-not $haveEntra -or -not $haveManaged) { $notEvaluated['DEV-020'] = 'It needs both device lists: 08-entra-devices (the Entra collector) and 09-intune-managed-devices (the Intune collector).' }
+    else {
+        $adOnly = @($unmanagedHybrid | Where-Object { -not ($_.id -and $inIntune.Contains($_.id)) })
+        $facts.hybridWindowsInUse = $hybridActive.count
+        $facts.adOnlyWindowsDevices = $adOnly.Count
+        $facts.adOnlyWindowsPct = $(if ($hybridActive.count -gt 0) { & $pct $adOnly.Count $hybridActive.count } else { 0 })
+        $affected.adOnlyWindowsDevices = @($adOnly | Select-Object -First 500 | ForEach-Object { [ordered]@{ name = $_.name; detail = 'hybrid joined, signed in recently, not managed by Intune' } })
     }
 
     # Apple certificates

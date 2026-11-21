@@ -138,7 +138,7 @@ BeforeAll {
             '^deviceManagement/managedDevices' {
                 & $u @(
                     @{ id = 'm1'; deviceName = 'LAPTOP-1'; userPrincipalName = 'admin1@contoso.example'; operatingSystem = 'Windows'; osVersion = '10.0.26100.1'; complianceState = 'compliant'; managementAgent = 'mdm'; joinType = 'azureADJoined'; autopilotEnrolled = $true; isEncrypted = $true; azureADDeviceId = 'dev-1' },
-                    @{ id = 'm2'; deviceName = 'OLD-PC'; userPrincipalName = 'user1@contoso.example'; operatingSystem = 'Windows'; osVersion = '10.0.19045.1'; complianceState = 'noncompliant'; managementAgent = 'mdm'; joinType = 'hybridAzureADJoined'; autopilotEnrolled = $false; isEncrypted = $false; azureADDeviceId = 'dev-2' },
+                    @{ id = 'm2'; deviceName = 'OLD-PC'; userPrincipalName = 'user1@contoso.example'; operatingSystem = 'Windows'; osVersion = '10.0.19045.1'; complianceState = 'noncompliant'; managementAgent = 'configurationManagerClientMdm'; configurationManagerClientEnabledFeatures = @{ compliancePolicy = $true; deviceConfiguration = $true; windowsUpdateForBusiness = $false; endpointProtection = $false; inventory = $false; modernApps = $false; officeApps = $false; resourceAccess = $true }; joinType = 'hybridAzureADJoined'; autopilotEnrolled = $false; isEncrypted = $false; azureADDeviceId = 'dev-2' },
                     @{ id = 'm3'; deviceName = 'MAC-1'; userPrincipalName = 'user1@contoso.example'; operatingSystem = 'macOS'; osVersion = '15.1'; complianceState = 'compliant'; managementAgent = 'mdm'; joinType = 'azureADRegistered'; autopilotEnrolled = $false; isEncrypted = $true; azureADDeviceId = 'dev-3' }
                 ); break
             }
@@ -237,6 +237,12 @@ Describe 'Invoke-PostureCollection' {
             (& $script:Read '09-intune-device-cleanup').DeviceInactivityBeforeRetirementInDays | Should -Be 90
             (& $script:Read '08-bitlocker-keys-summary').DevicesWithKeys | Should -Be 1
             (& $script:Read '08-bitlocker-keys-by-device')[0].Keys | Should -Be 2
+            ($m | Where-Object DeviceName -eq 'OLD-PC').IntuneWorkloads | Should -Be 'compliancePolicy;deviceConfiguration;resourceAccess' -Because 'a co-managed device records which workloads Intune holds'
+            ($m | Where-Object DeviceName -eq 'LAPTOP-1').IntuneWorkloads | Should -BeNullOrEmpty
+            $co = & $script:Read '09-intune-comanagement'
+            $co.CoManagedDevices | Should -Be 1
+            ($co.Workloads | Where-Object Name -eq 'compliancePolicy').OnIntune | Should -Be 1
+            ($co.Workloads | Where-Object Name -eq 'endpointProtection').OnIntune | Should -Be 0
         }
 
         It 'flattens settings catalog values through choice children and group collections, and the policy scalars' {
@@ -460,7 +466,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 33
+            $r.results.Count | Should -Be 36
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
