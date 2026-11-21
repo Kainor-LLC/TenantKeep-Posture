@@ -258,6 +258,7 @@ function Invoke-PostureCollection {
                 timings          = $allTimings
             }
             $files.Add((Write-PostureEvidence -Folder $folder -Name 'collection' -InputObject $doc))
+            $null = Save-PostureCallLedger -Folder $folder -Confirm:$false
             $doc
         }
         $errors = @($manifest['errors'])

@@ -569,6 +569,20 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</tbody></table>'
     }
+    if ($rh -and $rh.Contains('calls') -and $rh.calls) {
+        $cs = $rh.calls
+        & $w '<h3>What This Run Did</h3>'
+        if (@($cs.unexpected).Count) { & $w ('<p class="banner blocked"><strong>' + @($cs.unexpected).Count + ' call(s) were not reads.</strong> This should never happen; the module allows reads only. Listed below and in ' + (& $h $cs.file) + '.</p>') }
+        else { & $w ('<p class="banner ready"><strong>Every one of the ' + (& $num $cs.total) + ' requests was a read.</strong> GET requests, Get- commands and queries only; nothing was written to the tenant. Each is counted in ' + (& $h $cs.file) + ' in the run folder, with ids and accounts replaced by placeholders.</p>') }
+        & $w '<table><thead><tr><th>Service</th><th>Requests</th><th>Different Calls</th><th>Most Frequent</th></tr></thead><tbody>'
+        foreach ($s in $cs.services) { & $w ("<tr><td>$(& $h $s.label)</td><td>$(& $num $s.requests)</td><td>$($s.targets)</td><td class=`"tech`">" + (@($s.top | Select-Object -First 4 | ForEach-Object { (& $h "$($_.method) $($_.target)") + " ($(& $num $_.count))" }) -join '<br>') + '</td></tr>') }
+        & $w '</tbody></table>'
+        if (@($cs.unexpected).Count) {
+            & $w '<table><thead><tr><th>Service</th><th>Method</th><th>Target</th><th>Count</th></tr></thead><tbody>'
+            foreach ($u in $cs.unexpected) { & $w "<tr class=`"st-fail`"><td>$(& $h $u.service)</td><td>$(& $h $u.method)</td><td class=`"tech`">$(& $h $u.target)</td><td>$($u.count)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+    }
     if ($rh -and $rh.Contains('imports') -and @($rh.imports).Count) {
         & $w '<h3>Evidence Brought In From Another Machine</h3><table><thead><tr><th>What</th><th>Collector</th><th>Collected</th><th>By</th><th>Files</th><th>Checked</th></tr></thead><tbody>'
         foreach ($i in $rh.imports) { & $w "<tr><td>$(& $h $i.label)</td><td>$(& $h $i.collector)</td><td>$(& $h $i.collectedUtc)</td><td>$(& $h $i.account)</td><td>$($i.files)</td><td>$(& $h $(if ($i.checked -eq 'sha256') { 'Every file against its SHA-256' } else { 'File names only' }))</td></tr>" }

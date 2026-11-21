@@ -378,6 +378,8 @@ function ConvertTo-PostureReportModel {
             })
         byCause  = [ordered]@{}
         resume   = "Resume-PostureRun -Path '$((Get-PostureRunLayout -Folder $Evidence).root -replace "'", "''")'"
+        # Every request the run sent, counted (logs/calls.json), and anything that was not a read.
+        calls    = $(try { Get-PostureCallSummary -Folder $Evidence } catch { $null })
         # Evidence brought in from another machine (Import-PostureEvidence): what, from where, and how it was checked.
         imports  = @($(try { $il = Join-Path $runLayout.logs 'imports.json'; if (Test-Path -LiteralPath $il) { @(Get-Content -Raw -LiteralPath $il | ConvertFrom-Json -AsHashtable -Depth 6) } } catch { @() }) | Where-Object { $_ } | ForEach-Object {
                 [ordered]@{ label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count }
@@ -434,7 +436,7 @@ function ConvertTo-PostureReportModel {
             evidence = $Evidence
             scopes = @($(if ($collection) { & $v $collection 'scopes' } else { @() }))
             graphApiVersions = @($(if ($collection) { & $v $collection 'graphApiVersions' } else { @() }))
-            evidenceFiles = @(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in '.json', '.csv' -and $_.Name -ne 'run.json' } | ForEach-Object { $_.Name } | Sort-Object)
+            evidenceFiles = @(Get-ChildItem -LiteralPath $Evidence -File | Where-Object { $_.Extension -in '.json', '.csv' -and $_.Name -notin 'run.json', 'calls.json', 'imports.json' } | ForEach-Object { $_.Name } | Sort-Object)
             errors = @($(if ($collection) { & $v $collection 'errors' } else { @() }))
             notEvaluated = @($results | Where-Object { $_.status -in @('notEvaluated', 'notApplicable') } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; status = $_.status; reason = $_.reason } })
             moduleVersion = $script:ModuleVersion

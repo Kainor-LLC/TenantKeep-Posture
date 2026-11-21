@@ -50,6 +50,7 @@ function Invoke-PostureExoCommand {
         if ((Test-PostureExoSession) -or (Test-PosturePurviewSession)) { throw "$Name is not in this session: the signed-in roles or the tenant's licences do not expose it." }
         throw "$Name is not available; import ExchangeOnlineManagement and connect first."
     }
+    Add-PostureCallRecord -Service exchange -Method cmdlet -Target $Name
     if ($OnItem) { & $Name @Parameters | ForEach-Object { & $OnItem $_ }; return }
     return @(& $Name @Parameters)
 }

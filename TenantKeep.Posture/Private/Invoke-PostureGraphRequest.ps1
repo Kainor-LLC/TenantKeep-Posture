@@ -97,6 +97,9 @@ function Invoke-PostureGraphPage {
     $ErrorActionPreference = 'Stop'
     $policy = $script:PostureGraphRetry
     $attempt = 0; $renewals = 0
+    # The ledger counts the page once, however many retries it takes; a batch counts each request inside it too.
+    Add-PostureCallRecord -Service graph -Method $Method -Target $Url
+    if ($Body -and $Body.Contains('requests')) { foreach ($inner in @($Body['requests'])) { Add-PostureCallRecord -Service graph -Method ([string]$inner['method']) -Target "$(([uri]$Url).Segments[1])$(([string]$inner['url']).TrimStart('/'))" } }
     while ($true) {
         $attempt++
         $params = @{ Uri = $Url; Method = $Method; OutputType = 'HashTable'; ErrorAction = 'Stop' }

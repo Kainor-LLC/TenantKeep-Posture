@@ -276,6 +276,8 @@ function Start-PostureRun {
         if ($adFiles.Count -gt 0) { $adFiles | Copy-Item -Destination $folder -Force }
         # The newest SharePoint site permissions report filed with Import-PostureSharingReport, summarised into this run.
         $null = Write-PostureSharingSummary -Client $Client -Folder $folder -Confirm:$false
+        # The calls made outside a collector (the role check, the SharePoint grant check) join the ledger.
+        $null = Save-PostureCallLedger -Folder $folder -Confirm:$false
 
         # 6. Profile: discovered from the evidence; every other answer stays as the wizard or the cmdlets wrote it.
         Set-PostureProgressPhase -Name 'Report' -Label 'profile' -Confirm:$false

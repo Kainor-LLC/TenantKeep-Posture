@@ -32,6 +32,7 @@ function Invoke-PosturePnpCommand {
     $ErrorActionPreference = 'Stop'
     Update-PostureServiceSession -Name sharepoint
     if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) { throw "$Name is not available; import PnP.PowerShell and connect first." }
+    Add-PostureCallRecord -Service sharepoint -Method cmdlet -Target $Name
     if ($OnItem) { & $Name @Parameters | ForEach-Object { & $OnItem $_ }; return }
     return @(& $Name @Parameters)
 }
@@ -63,6 +64,7 @@ function Invoke-PostureTeamsCommand {
     )
 
     $ErrorActionPreference = 'Stop'
+    Add-PostureCallRecord -Service teams -Method cmdlet -Target $Name
     Update-PostureServiceSession -Name teams
     if (-not (Get-Command -Name $Name -ErrorAction SilentlyContinue)) { throw "$Name is not available; import MicrosoftTeams and connect first." }
     return @(& $Name @Parameters)
