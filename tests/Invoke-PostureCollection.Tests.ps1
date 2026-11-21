@@ -226,7 +226,9 @@ BeforeAll {
     }
     # The body by its bound parameter: a GET binds none, and under strict mode (another test file may leave it on)
     # reading $Body itself would throw.
-    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest { & $script:GraphRoute $Uri $PesterBoundParameters['Body'] }
+    # Every request is noted, so a test can say what a collection asked for and what it did not.
+    $script:GraphAsked = [System.Collections.Generic.List[string]]::new()
+    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest { $script:GraphAsked.Add([string]$Uri); & $script:GraphRoute $Uri $PesterBoundParameters['Body'] }
 }
 
 AfterAll {
@@ -670,6 +672,142 @@ Describe 'Invoke-PostureCollection' {
             $summary.Devices | Should -Be 5
             @(Import-Csv -LiteralPath (Join-Path $r.Folder 'def-01-devices.csv') | ForEach-Object { $_.DeviceId }) | Should -Be @('a11', 'a12', 'a13', 'a21', 'a22')
             (Get-Content -Raw (Join-Path $r.Folder 'def-02-av-state-summary.json') | ConvertFrom-Json).Truncated | Should -BeFalse
+        }
+    }
+
+    Context 'collected again into the same folder' {
+        BeforeAll {
+            $env:TKP_TEST_PIM = 'ok'
+            $script:Again = Join-Path $script:Root 'again'
+            $script:Collect = { $script:GraphAsked.Clear(); Invoke-PostureCollection -Collector Entra, Intune -SkipCaSnapshot -OutputFolder $script:Again -PassThru -WarningAction SilentlyContinue 6>$null }
+            $script:Long = '/users\?\$select|userRegistrationDetails|/groups\?\$select|/devices\?\$select|deviceManagement/managedDevices\?'
+            $script:First = & $script:Collect
+            $script:FirstAsked = @($script:GraphAsked)
+            $script:Hashes = @{}; foreach ($n in '06-users', '05-auth-registration', '07-groups', '08-entra-devices', '09-intune-managed-devices', '05-per-user-mfa') { $script:Hashes[$n] = (Get-FileHash (Join-Path $script:Again "$n.json")).Hash }
+            $script:Second = & $script:Collect
+            $script:SecondAsked = @($script:GraphAsked)
+        }
+
+        It 'reads the long lists once: the second collection keeps them and asks only for the rest' {
+            @($script:FirstAsked | Where-Object { $_ -match $script:Long }).Count | Should -BeGreaterOrEqual 5
+            @($script:SecondAsked | Where-Object { $_ -match $script:Long }) | Should -BeNullOrEmpty -Because 'users, registration, groups and both device lists finished in this run'
+            @($script:SecondAsked | Where-Object { $_ -match '/organization\?' }).Count | Should -Be 1 -Because 'the short steps run again'
+            foreach ($n in $script:Hashes.get_Keys()) { (Get-FileHash (Join-Path $script:Again "$n.json")).Hash | Should -Be $script:Hashes[$n] -Because "$n is the file the first collection wrote" }
+            @($script:Second.Files | Where-Object { $_ -match '06-users\.json$' }).Count | Should -Be 1 -Because 'a kept list is still one of the files the collection reports'
+        }
+
+        It 'says in the journal which steps were kept, and still counts them as done' {
+            $kept = @(Get-Content (Join-Path $script:Again 'journal.jsonl') | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.kind -eq 'step' -and $_.state -eq 'kept' } | ForEach-Object { $_.step })
+            foreach ($step in 'Auth method registration', 'Users', 'Per-user MFA state', 'Groups', 'Entra devices', 'Intune managed devices') { $kept | Should -Contain $step }
+            InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Again } {
+                param($F)
+                $state = Get-PostureJournalState -Folder $F
+                $state.steps['Entra|Users'].state | Should -Be 'done'
+                @(Get-PostureStaleEvidence -Folder $F) | Should -BeNullOrEmpty -Because 'a kept file is this run''s evidence'
+            }
+        }
+
+        It 'returns the device count of a kept Intune list, and reads PIM for Groups from the kept group list' {
+            InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Again } {
+                param($F)
+                $script:PostureJournalFolder = $F; $script:PostureCurrentCollector = 'Intune'
+                try { $r = Invoke-PostureIntuneCollection -Folder $F 6>$null 3>$null } finally { $script:PostureJournalFolder = $null; $script:PostureCurrentCollector = $null }
+                $r.managedDevices | Should -Be @(Get-Content -Raw (Join-Path $F '09-intune-managed-devices.json') | ConvertFrom-Json).Count
+                $r.managedDevices | Should -BeGreaterThan 0
+            }
+            (Get-Content -Raw (Join-Path $script:Again 'gov-04-pim-groups-summary.json') | ConvertFrom-Json).RoleAssignableGroups | Should -Be (Get-Content -Raw (Join-Path $script:Again '07-groups-summary.json') | ConvertFrom-Json).RoleAssignable
+        }
+
+        It 'reads the users and the registration again when the people who hold a role are not the same' {
+            # Without PIM the role read falls back to plain assignments: fewer holders, so another key.
+            $env:TKP_TEST_PIM = 'none'
+            try { $null = & $script:Collect } finally { $env:TKP_TEST_PIM = 'ok' }
+            $asked = @($script:GraphAsked)
+            @($asked | Where-Object { $_ -match '/users\?\$select' }).Count | Should -BeGreaterOrEqual 1 -Because 'the admin files written with the user list depend on who holds a role'
+            @($asked | Where-Object { $_ -match 'userRegistrationDetails' }).Count | Should -Be 1
+            @($asked | Where-Object { $_ -match '/groups\?\$select|/devices\?\$select|deviceManagement/managedDevices\?' }) | Should -BeNullOrEmpty -Because 'the group and device lists do not depend on it'
+        }
+    }
+
+    Context 'the user list stops part way' {
+        BeforeAll {
+            $env:TKP_TEST_PIM = 'ok'
+            $script:Part = Join-Path $script:Root 'part'
+            # Fifteen users, one to a page; signInActivity is refused, as in the rest of this file, so the read is the
+            # one without it. The page in failAt answers that the sign-in has ended.
+            $script:UsersPaged = @{ failAt = 0; asked = [System.Collections.Generic.List[string]]::new() }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/v1\.0/users\?' } {
+                $script:UsersPaged.asked.Add([string]$Uri)
+                if ($Uri -match 'signInActivity') { throw 'Authorization_RequestDenied: Insufficient privileges' }
+                $n = $(if ($Uri -match 'skiptoken=u(\d+)') { [int]$Matches[1] } else { 1 })
+                if ($script:UsersPaged.failAt -eq $n) { throw 'InvalidAuthenticationToken: Lifetime validation failed, the token is expired.' }
+                $page = @{ value = @(@{ id = "u$n"; userPrincipalName = $(if ($n -eq 1) { 'admin1@contoso.example' } else { "user$n@contoso.example" }); displayName = "User $n"; accountEnabled = $true; userType = $(if ($n % 4 -eq 0) { 'Guest' } else { 'Member' }); assignedLicenses = @(@{ skuId = 's1'; disabledPlans = @('p-intune') }); createdDateTime = '2025-01-01T00:00:00Z' }) }
+                if ($n -lt 15) { $page['@odata.nextLink'] = "https://graph.microsoft.com/v1.0/users?`$top=999&`$skiptoken=u$($n + 1)" }
+                $page
+            }
+            $script:CollectPart = { param([int] $FailAt) $script:UsersPaged.failAt = $FailAt; $script:UsersPaged.asked.Clear(); $script:GraphAsked.Clear(); Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -OutputFolder $script:Part -PassThru -WarningAction SilentlyContinue 6>$null }
+            $script:Stopped = & $script:CollectPart 12
+            $script:StoppedFiles = @(Get-ChildItem $script:Part -Name)
+            $script:Carried = & $script:CollectPart 0
+            $script:CarriedAsked = @($script:UsersPaged.asked)
+        }
+
+        It 'fails the step with its cause and keeps what it read, with a cursor, where no reader takes it for the list' {
+            @($script:Stopped.Errors) -join ' ' | Should -Match 'Users :: .*token is expired'
+            $script:StoppedFiles | Should -Contain '06-users.json.part'
+            $script:StoppedFiles | Should -Contain '06-users.csv.part'
+            $script:StoppedFiles | Should -Contain 'cursor-06-users.json'
+            $script:StoppedFiles | Should -Not -Contain '06-users.json'
+            $script:StoppedFiles | Should -Not -Contain '06-users-summary.json' -Because 'a summary of the part that was read would be read as the tenant'
+        }
+
+        It 'carries on from the page after the cursor, with the request it was making, and has every user once' {
+            $script:CarriedAsked[0] | Should -Match 'skiptoken=u11$' -Because 'ten pages were read and saved before it stopped'
+            @($script:CarriedAsked | Where-Object { $_ -match 'signInActivity' }) | Should -BeNullOrEmpty -Because 'the request that was refused the first time is not tried again part way through'
+            $script:CarriedAsked.Count | Should -Be 5
+            $users = @(Get-Content -Raw (Join-Path $script:Part '06-users.json') | ConvertFrom-Json)
+            @($users.Id) | Should -Be @(1..15 | ForEach-Object { "u$_" })
+            @(Import-Csv (Join-Path $script:Part '06-users.csv')).Count | Should -Be 15
+            @(Get-Content -Raw (Join-Path $script:Part '06-users-guests.json') | ConvertFrom-Json).Count | Should -Be 3
+            Get-ChildItem $script:Part -Name | Should -Not -Contain 'cursor-06-users.json'
+            @(Get-ChildItem $script:Part -Filter '*.part').Count | Should -Be 0
+        }
+
+        It 'counts the whole list in the summaries, not only the pages read after it carried on' {
+            $s = Get-Content -Raw (Join-Path $script:Part '06-users-summary.json') | ConvertFrom-Json
+            $s.Total | Should -Be 15
+            $s.Guests | Should -Be 3
+            $s.Members | Should -Be 12
+            $lp = Get-Content -Raw (Join-Path $script:Part '06-users-license-plans.json') | ConvertFrom-Json
+            $lp.LicensedEnabledUsers | Should -Be 15
+            $lp.UsersByServicePlan.AAD_PREMIUM | Should -Be 15
+            # The administrator was on the first page, read before the cursor: the row came back from it.
+            $admins = @(Get-Content -Raw (Join-Path $script:Part '06-users-admins.json') | ConvertFrom-Json)
+            @($admins.UserPrincipalName) | Should -Be @('admin1@contoso.example')
+            $admins[0].CreatedDateTime | Should -Not -BeNullOrEmpty
+        }
+
+        It 'keeps the lists that finished the first time, and clears the failure' {
+            @($script:GraphAsked | Where-Object { $_ -match 'userRegistrationDetails|/groups\?\$select|/devices\?\$select' }) | Should -BeNullOrEmpty
+            $steps = @(Get-Content (Join-Path $script:Part 'journal.jsonl') | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.kind -eq 'list' })
+            @($steps | Where-Object { $_.state -eq 'resumed' -and $_.list -eq '06-users' }).Count | Should -Be 1
+            InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Part } { param($F) (Get-PostureJournalState -Folder $F).steps['Entra|Users'].state | Should -Be 'done' }
+        }
+    }
+
+    Context 'the long lists a later step reads from the folder' {
+        It 'fails the step, and writes no summary of zero, when the list was never collected' {
+            InModuleScope TenantKeep.Posture -Parameters @{ Root = $script:Root } {
+                param($Root)
+                $f = Join-Path $Root 'no-lists'; New-Item -ItemType Directory -Path $f | Out-Null
+                Mock Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/v1\.0/(users|groups)\?\$select' } { throw 'Authorization_RequestDenied: Insufficient privileges' }
+                $null = Invoke-PostureEntraCollection -Folder $f 6>$null 3>$null
+                $errors = Get-Content (Join-Path $f 'errors.txt')
+                $errors -join "`n" | Should -Match 'Per-user MFA state :: The user list \(06-users\) was not collected'
+                $errors -join "`n" | Should -Match 'PIM for Groups :: The group list \(07-groups\) was not collected'
+                Join-Path $f '05-per-user-mfa-summary.json' | Should -Not -Exist -Because 'no members read is not the same as no members with per-user MFA'
+                Join-Path $f 'gov-04-pim-groups-summary.json' | Should -Not -Exist -Because 'no groups read is not the same as no role-assignable groups'
+            }
         }
     }
 

@@ -85,7 +85,8 @@ produces the Conditional Access domain and says what the full tier adds.
   evidence/    everything collected, one file per area (prefixes: exo- Exchange, pv- Purview, spo- SharePoint, ...)
   affected/    every affected object per check, one CSV each
   errors/      what could not be read and why
-  logs/        transcript, run plan, journal of the collection, check results
+  logs/        transcript, run plan, journal of the collection, check results, and the cursor of a list that
+               stopped part way (it holds rows of the list, like the evidence, and goes when the list finishes)
   ```
 
   README.txt in each run says the same. Runs made before this layout keep everything in one folder and still work
@@ -241,6 +242,13 @@ A run that stopped part way (the machine slept, the window was closed, the proce
 way: the run's journal says which domains finished, and only the one it stopped in and the ones after it are
 collected. Run Health says where it stopped. A file left from an earlier attempt, whose step ran again and could
 not write it, is not read: the checks that need it say not evaluated.
+
+The long lists are not read twice. When a domain is collected again in the same run, a list that already finished
+(users, authentication registration, groups, devices, mailboxes, sites) is kept, and the console says so: "Users
+kept, read 2026-11-21 09:40 UTC". A list that stopped part way (the sign-in ended, the network dropped) carries on
+from the page it had reached. Both hold for a day; after that, or when what the list depends on has changed (who
+holds a role, the number of days that count as stale), the list is read again. To read everything again, start a
+new run.
 A failure that needs a licence or role the tenant does not have (a Purview feature Business Premium leaves out,
 for example) is left alone, since collecting again would say the same; after granting it, `-Collector Purview`
 names that domain. `-Path <run folder>` resumes an older run. The Run Health view copies the exact command.

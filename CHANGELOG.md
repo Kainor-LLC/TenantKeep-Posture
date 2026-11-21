@@ -6,6 +6,23 @@ work landed on main.
 
 ## Unreleased
 
+- The long lists are not read twice (2026-11-21). Collecting a domain again in the same run, after a failure or a
+  process that stopped, read every list again: the users, registration, groups and devices of a large tenant are
+  hours. A list that finished in this run less than a day ago is now kept (users, registration, per-user MFA,
+  groups, Entra devices, Intune devices, Defender devices and antivirus state, mailboxes, CAS mailboxes,
+  SharePoint sites), as long as every file it wrote is still there at the length it was and what it depends on
+  is unchanged (who holds a role, `-StaleDays`, `-IncludeOneDriveSites`). The console says "kept, read <time>".
+- A Graph list that stops part way carries on from where it stopped. Users, registration, groups, Entra devices
+  and Intune devices save a cursor every ten pages (`logs/cursor-<list>.json`: the next page link, how far each
+  file had got, the step's counts). When the read fails, what was read stays in the `.part` files, which no
+  reader opens; the next attempt cuts the files back to the cursor, puts the counts back and asks for the next
+  page. A cursor is used for a day, only for the same request and the same inputs; when Graph no longer accepts
+  the link, that list alone starts over. A sign-in that ends in page 2,400 of the users no longer costs 2,400
+  pages.
+- Per-user MFA and PIM for Groups read the members and the role-assignable groups from the lists on disk, not
+  from memory. When the list was never collected, the step now fails and says so; it used to write a summary of
+  zero members, or zero role-assignable groups, which read as an answer.
+
 - A run that stops part way is resumed where it stopped (2026-11-21). The record of what a run collected,
   collection.json, was written once, at the very end. A run whose process died in its last domain after hours of
   collection left no record, and `Resume-PostureRun` collected every domain again. The run now keeps a journal

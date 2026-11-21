@@ -65,8 +65,11 @@ function Invoke-PostureExchangeCollection {
     }
 
     if (-not $SkipMailboxEnumeration) {
+        # The two mailbox lists are the long reads here. Exchange has no page link to carry on from, so a list that
+        # stopped part way is read again whole; one that finished in this run is kept when the run is resumed.
+        $keepFiles = { param($kept) foreach ($f in @($kept.files)) { $files.Add((Join-Path $Folder "$([string]$f.name).json")) } }
         # Streamed as Exchange returns them: rows written one at a time, the summaries and the forwarding list kept.
-        Invoke-PostureStep -Label 'Mailboxes' -Folder $Folder -Script {
+        Invoke-PostureStep -Label 'Mailboxes' -Folder $Folder -KeepDone -WhenKept $keepFiles -Script {
             $byType = @{}; $forwarding = [System.Collections.Generic.List[object]]::new()
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-09-mailboxes' -Csv -Confirm:$false
             try {
@@ -87,7 +90,7 @@ function Invoke-PostureExchangeCollection {
             & $save @($byType.Keys | ForEach-Object { [ordered]@{ Name = $_; Count = $byType[$_] } }) 'exo-09-mailboxes-by-type' $true
             & $save @($forwarding) 'exo-09-mailboxes-with-forwarding' $true
         } | Out-Null
-        Invoke-PostureStep -Label 'CAS mailbox protocols' -Folder $Folder -Script {
+        Invoke-PostureStep -Label 'CAS mailbox protocols' -Folder $Folder -KeepDone -WhenKept $keepFiles -Script {
             $sum = [ordered]@{ Total = 0; ImapEnabled = 0; PopEnabled = 0; ActiveSyncEnabled = 0; SmtpAuthExplicitlyEnabled = 0 }
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-10-cas-mailboxes' -Csv -Confirm:$false
             try {

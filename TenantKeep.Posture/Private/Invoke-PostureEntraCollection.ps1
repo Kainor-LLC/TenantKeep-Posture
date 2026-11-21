@@ -288,55 +288,58 @@ function Invoke-PostureEntraCollection {
     # registration and users passes write admin-only files from the set, so the report and the facts never reload
     # the full lists to find admins.
     $adminUpns = (Get-PostureRoleHolder -Folder $Folder).upns
+    # The long lists below are hours of reading in a large tenant. Each carries on from a cursor when a read stopped
+    # part way (Invoke-PostureListRead), and each that finished in this run is kept when the run is resumed
+    # (Invoke-PostureStep -KeepDone). What a list's files depend on besides the tenant goes in its key: a list
+    # read under other inputs (other role holders, another -StaleDays) is read again.
+    $adminKey = "admins $(Get-PostureSetKey -Value $adminUpns)"
+    $keepFiles = { param($kept) foreach ($f in @($kept.files)) { $files.Add((Join-Path $Folder "$([string]$f.name).json")) } }
 
     # ---------- 5. Authentication method registration ----------
     # One streaming pass: rows written as they come, the summary and the strongest-method counts tallied, admin rows kept.
-    Invoke-PostureStep -Label 'Auth method registration' -Folder $Folder -Script {
+    Invoke-PostureStep -Label 'Auth method registration' -Folder $Folder -KeepDone -KeepKey $adminKey -WhenKept $keepFiles -Script {
         $c = @{ members = 0; mfa = 0; passwordless = 0; sspr = 0; admins = 0; adminsNotPasswordless = 0; adminsNoMfa = 0; sms = 0; fido = 0; whfb = 0 }
         $strength = [ordered]@{ PhishingResistant = 0; Passwordless = 0; Authenticator = 0; PhoneOnly = 0; None = 0 }
         # What the report reads from this list, counted here so the report never loads it (Add-PostureRegistrationTally).
         $tally = @{ Users = 0; SsprEnabled = 0; Phishable = 0; PhishableAdmins = 0 }
         $adminRows = [System.Collections.Generic.List[object]]::new()
-        $stream = Open-PostureEvidenceStream -Folder $Folder -Name '05-auth-registration' -Csv -Confirm:$false
-        try {
-            $null = Invoke-PostureGraphRequest -Uri 'reports/authenticationMethods/userRegistrationDetails?$top=999' -ApiVersion 'v1.0' -Label 'Registration' -OnPage {
-                param($page)
-                foreach ($r in $page) {
-                    $methods = @($r['methodsRegistered'] | Where-Object { $_ })
-                    $row = [ordered]@{
-                        UserPrincipalName = $r['userPrincipalName']; UserDisplayName = $r['userDisplayName']; UserType = $r['userType']; IsAdmin = $r['isAdmin']
-                        IsMfaRegistered = $r['isMfaRegistered']; IsMfaCapable = $r['isMfaCapable']; IsPasswordlessCapable = $r['isPasswordlessCapable']
-                        IsSsprRegistered = $r['isSsprRegistered']; IsSsprEnabled = $r['isSsprEnabled']; IsSsprCapable = $r['isSsprCapable']
-                        IsSystemPreferredAuthenticationMethodEnabled = $r['isSystemPreferredAuthenticationMethodEnabled']
-                        SystemPreferredAuthenticationMethods = (@($r['systemPreferredAuthenticationMethods']) -join ';')
-                        UserPreferredMethodForSecondaryAuthentication = $r['userPreferredMethodForSecondaryAuthentication']; LastUpdatedDateTime = $r['lastUpdatedDateTime']
-                        MethodsRegistered = ($methods -join ';')
-                    }
-                    Add-PostureEvidenceRow -Stream $stream -Row $row
-                    Add-PostureRegistrationTally -Tally $tally -Row $row -AdminUpns $adminUpns
-                    $isAdmin = [bool]$row.IsAdmin -or $adminUpns.Contains([string]$row.UserPrincipalName)
-                    if ($isAdmin) { $adminRows.Add($row) }
-                    if ($row.UserType -ne 'member') { continue }
-                    $c.members++
-                    if ($row.IsMfaRegistered) { $c.mfa++ }
-                    if ($row.IsPasswordlessCapable) { $c.passwordless++ }
-                    if ($row.IsSsprRegistered) { $c.sspr++ }
-                    if ($row.IsAdmin) { $c.admins++; if (-not $row.IsPasswordlessCapable) { $c.adminsNotPasswordless++ }; if (-not $row.IsMfaRegistered) { $c.adminsNoMfa++ } }
-                    if ($methods -contains 'mobilePhone') { $c.sms++ }
-                    $joined = $row.MethodsRegistered
-                    if ($joined -match 'fido2|passKey') { $c.fido++ }
-                    if ($methods -contains 'windowsHelloForBusiness') { $c.whfb++ }
-                    # Strongest method registered, the categories the report charts.
-                    if ($joined -match 'fido2|passKey|x509Certificate|windowsHelloForBusiness') { $strength.PhishingResistant++ }
-                    elseif ($joined -match 'microsoftAuthenticatorPasswordless|macOsSecureEnclaveKey') { $strength.Passwordless++ }
-                    elseif ($joined -match 'microsoftAuthenticator|softwareOneTimePasscode|hardwareOneTimePasscode') { $strength.Authenticator++ }
-                    elseif ($joined -match 'mobilePhone|alternateMobilePhone|officePhone|email') { $strength.PhoneOnly++ }
-                    else { $strength.None++ }
+        $read = Invoke-PostureListRead -Folder $Folder -ListName '05-auth-registration' -ListUri 'reports/authenticationMethods/userRegistrationDetails?$top=999' -ListApi 'v1.0' -ListLabel 'Registration' -ListStream '05-auth-registration' -ListKey $adminKey -ListState @{ c = $c; strength = $strength; tally = $tally; adminRows = $adminRows } -ListOnPage {
+            param($page, $info, $streams)
+            $stream = $streams['05-auth-registration']
+            foreach ($r in $page) {
+                $methods = @($r['methodsRegistered'] | Where-Object { $_ })
+                $row = [ordered]@{
+                    UserPrincipalName = $r['userPrincipalName']; UserDisplayName = $r['userDisplayName']; UserType = $r['userType']; IsAdmin = $r['isAdmin']
+                    IsMfaRegistered = $r['isMfaRegistered']; IsMfaCapable = $r['isMfaCapable']; IsPasswordlessCapable = $r['isPasswordlessCapable']
+                    IsSsprRegistered = $r['isSsprRegistered']; IsSsprEnabled = $r['isSsprEnabled']; IsSsprCapable = $r['isSsprCapable']
+                    IsSystemPreferredAuthenticationMethodEnabled = $r['isSystemPreferredAuthenticationMethodEnabled']
+                    SystemPreferredAuthenticationMethods = (@($r['systemPreferredAuthenticationMethods']) -join ';')
+                    UserPreferredMethodForSecondaryAuthentication = $r['userPreferredMethodForSecondaryAuthentication']; LastUpdatedDateTime = $r['lastUpdatedDateTime']
+                    MethodsRegistered = ($methods -join ';')
                 }
+                Add-PostureEvidenceRow -Stream $stream -Row $row
+                Add-PostureRegistrationTally -Tally $tally -Row $row -AdminUpns $adminUpns
+                $isAdmin = [bool]$row.IsAdmin -or $adminUpns.Contains([string]$row.UserPrincipalName)
+                if ($isAdmin) { $adminRows.Add($row) }
+                if ($row.UserType -ne 'member') { continue }
+                $c.members++
+                if ($row.IsMfaRegistered) { $c.mfa++ }
+                if ($row.IsPasswordlessCapable) { $c.passwordless++ }
+                if ($row.IsSsprRegistered) { $c.sspr++ }
+                if ($row.IsAdmin) { $c.admins++; if (-not $row.IsPasswordlessCapable) { $c.adminsNotPasswordless++ }; if (-not $row.IsMfaRegistered) { $c.adminsNoMfa++ } }
+                if ($methods -contains 'mobilePhone') { $c.sms++ }
+                $joined = $row.MethodsRegistered
+                if ($joined -match 'fido2|passKey') { $c.fido++ }
+                if ($methods -contains 'windowsHelloForBusiness') { $c.whfb++ }
+                # Strongest method registered, the categories the report charts.
+                if ($joined -match 'fido2|passKey|x509Certificate|windowsHelloForBusiness') { $strength.PhishingResistant++ }
+                elseif ($joined -match 'microsoftAuthenticatorPasswordless|macOsSecureEnclaveKey') { $strength.Passwordless++ }
+                elseif ($joined -match 'microsoftAuthenticator|softwareOneTimePasscode|hardwareOneTimePasscode') { $strength.Authenticator++ }
+                elseif ($joined -match 'mobilePhone|alternateMobilePhone|officePhone|email') { $strength.PhoneOnly++ }
+                else { $strength.None++ }
             }
-            $files.Add((Close-PostureEvidenceStream -Stream $stream))
         }
-        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        foreach ($f in $read.files) { $files.Add($f) }
         & $save @($adminRows) '05-auth-registration-admins'
         $n = [Math]::Max(1, $c.members)
         & $saveOne ([ordered]@{
@@ -356,14 +359,14 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
 
     # ---------- 6. Users ----------
-    # One streaming pass, at any size: each page is flattened, written and counted, and only the members' ids are
-    # kept, for the per-user MFA step. Nothing holds the whole user list.
-    $memberIds = [System.Collections.Generic.List[object]]::new()
+    # One streaming pass, at any size: each page is flattened, written and counted. Nothing holds the user list, and
+    # no later step takes anything from this one in memory: the per-user MFA step reads the members from the file.
+    $usersKey = "$adminKey, stale $StaleDays"
     $adminUsers = [System.Collections.Generic.List[object]]::new()
     # Break-glass candidates for ID-005: every role holder (a break-glass account holds Global Administrator) and any
     # account named like one. Small, so the check never needs the full user list.
     $breakGlass = [System.Collections.Generic.List[object]]::new()
-    Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
+    Invoke-PostureStep -Label 'Users' -Folder $Folder -KeepDone -KeepKey $usersKey -WhenKept $keepFiles -Script {
         $base = 'id,userPrincipalName,displayName,givenName,surname,mail,accountEnabled,userType,onPremisesSyncEnabled,onPremisesSecurityIdentifier,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
         $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; EntraManagedFromAd = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
         # Which service plans each enabled user actually has: a licence's plans minus the ones switched off for that
@@ -376,63 +379,65 @@ function Invoke-PostureEntraCollection {
         $planUse = @{}; $licensing = @{ enabled = 0 }
         $read = {
             param([string] $Select)
-            $stream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users' -Csv -Confirm:$false
-            # Guests only, the columns ID-012 reads: the inactive guest check reads this instead of every user.
-            $guestStream = Open-PostureEvidenceStream -Folder $Folder -Name '06-users-guests' -Csv -Confirm:$false
-            try {
-                $null = Invoke-PostureGraphRequest -Uri "users?`$select=$Select&`$top=999" -ApiVersion 'v1.0' -Label 'Users' -OnPage {
-                    param($page)
-                    foreach ($u in $page) {
-                        $sia = $(if ($u.ContainsKey('signInActivity')) { $u['signInActivity'] } else { $null })
-                        $last = $(if ($sia) { $sia['lastSignInDateTime'] } else { $null })
-                        $licences = $(if ($u.ContainsKey('assignedLicenses')) { @($u['assignedLicenses']).Count } else { 0 })
-                        $row = [ordered]@{
-                            Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; GivenName = $u['givenName']; Surname = $u['surname']; Mail = $u['mail']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
-                            OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $u); CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
-                            CompanyName = $u['companyName']; UsageLocation = $u['usageLocation']; CreationType = $u['creationType']; ExternalUserState = $u['externalUserState']
-                            LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
-                        }
-                        Add-PostureEvidenceRow -Stream $stream -Row $row
-                        if ($licences -gt 0 -and $row.AccountEnabled) {
-                            $licensing.enabled++
-                            $userPlans = [System.Collections.Generic.HashSet[string]]::new()
-                            foreach ($al in @($u['assignedLicenses'])) {
-                                $off = @($al['disabledPlans'] | ForEach-Object { [string]$_ })
-                                foreach ($sp in @($skuPlans[[string]$al['skuId']])) { if ($sp -and $sp.id -notin $off) { $null = $userPlans.Add($sp.name) } }
-                            }
-                            foreach ($n in $userPlans) { $planUse[$n] = 1 + $(if ($planUse.ContainsKey($n)) { $planUse[$n] } else { 0 }) }
-                        }
-                        $isAdmin = $adminUpns.Contains([string]$row.UserPrincipalName)
-                        if ($isAdmin) { $adminUsers.Add($row) }
-                        if ($isAdmin -or [string]$row.UserPrincipalName -match '(?i)break.?glass|emergency' -or [string]$row.DisplayName -match '(?i)break.?glass|emergency') { $breakGlass.Add($row) }
-                        if ($row.UserType -eq 'Guest') { Add-PostureEvidenceRow -Stream $guestStream -Row ([ordered]@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName; DisplayName = $row.DisplayName; AccountEnabled = $row.AccountEnabled; CreatedDateTime = $row.CreatedDateTime; ExternalUserState = $row.ExternalUserState; LastInteractiveSignIn = $row.LastInteractiveSignIn }) }
-                        $member = $row.UserType -eq 'Member'; $guest = $row.UserType -eq 'Guest'; $enabled = [bool]$row.AccountEnabled
-                        $old = $(if ($last) { (& $date $last) -lt $cutoff } else { $false })
-                        $c.Total++
-                        if ($member) { $c.Members++; $memberIds.Add(@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName }) }
-                        if ($guest) { $c.Guests++ }
-                        if ($row.OnPremisesSyncEnabled) { $c.Synced++ } elseif ($member) { $c.CloudOnlyMembers++ }
-                        if ($member -and $row.Source -eq 'EntraFromAD') { $c.EntraManagedFromAd++ }
-                        if (-not $enabled) { $c.Disabled++; if ($licences -gt 0) { $c.DisabledWithLicenses++ } }
-                        if ($enabled -and $member) { if (-not $last) { $c.EnabledNeverSignedIn++ } elseif ($old) { $c.EnabledInactiveMembers++ } }
-                        if ($guest -and (-not $last -or $old)) { $c.InactiveGuests++ }
-                        if ($row.ExternalUserState -eq 'PendingAcceptance') { $c.PendingGuestInvites++ }
-                        if ($last) { $c.WithSignIn++ }
+            # Two lists from one pass: every user, and the guests alone with the columns ID-012 reads, so the
+            # inactive guest check reads that instead of every user.
+            $got = Invoke-PostureListRead -Folder $Folder -ListName '06-users' -ListUri "users?`$select=$Select&`$top=999" -ListApi 'v1.0' -ListLabel 'Users' -ListStream '06-users', '06-users-guests' -ListKey $usersKey -ListState @{ c = $c; planUse = $planUse; licensing = $licensing; adminUsers = $adminUsers; breakGlass = $breakGlass } -ListOnPage {
+                param($page, $info, $streams)
+                $stream = $streams['06-users']; $guestStream = $streams['06-users-guests']
+                foreach ($u in $page) {
+                    $sia = $(if ($u.ContainsKey('signInActivity')) { $u['signInActivity'] } else { $null })
+                    $last = $(if ($sia) { $sia['lastSignInDateTime'] } else { $null })
+                    $licences = $(if ($u.ContainsKey('assignedLicenses')) { @($u['assignedLicenses']).Count } else { 0 })
+                    $row = [ordered]@{
+                        Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; GivenName = $u['givenName']; Surname = $u['surname']; Mail = $u['mail']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
+                        OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $u); CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
+                        CompanyName = $u['companyName']; UsageLocation = $u['usageLocation']; CreationType = $u['creationType']; ExternalUserState = $u['externalUserState']
+                        LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
                     }
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    if ($licences -gt 0 -and $row.AccountEnabled) {
+                        $licensing.enabled++
+                        $userPlans = [System.Collections.Generic.HashSet[string]]::new()
+                        foreach ($al in @($u['assignedLicenses'])) {
+                            $off = @($al['disabledPlans'] | ForEach-Object { [string]$_ })
+                            foreach ($sp in @($skuPlans[[string]$al['skuId']])) { if ($sp -and $sp.id -notin $off) { $null = $userPlans.Add($sp.name) } }
+                        }
+                        foreach ($n in $userPlans) { $planUse[$n] = 1 + $(if ($planUse.ContainsKey($n)) { $planUse[$n] } else { 0 }) }
+                    }
+                    $isAdmin = $adminUpns.Contains([string]$row.UserPrincipalName)
+                    if ($isAdmin) { $adminUsers.Add($row) }
+                    if ($isAdmin -or [string]$row.UserPrincipalName -match '(?i)break.?glass|emergency' -or [string]$row.DisplayName -match '(?i)break.?glass|emergency') { $breakGlass.Add($row) }
+                    if ($row.UserType -eq 'Guest') { Add-PostureEvidenceRow -Stream $guestStream -Row ([ordered]@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName; DisplayName = $row.DisplayName; AccountEnabled = $row.AccountEnabled; CreatedDateTime = $row.CreatedDateTime; ExternalUserState = $row.ExternalUserState; LastInteractiveSignIn = $row.LastInteractiveSignIn }) }
+                    $member = $row.UserType -eq 'Member'; $guest = $row.UserType -eq 'Guest'; $enabled = [bool]$row.AccountEnabled
+                    $old = $(if ($last) { (& $date $last) -lt $cutoff } else { $false })
+                    $c.Total++
+                    if ($member) { $c.Members++ }
+                    if ($guest) { $c.Guests++ }
+                    if ($row.OnPremisesSyncEnabled) { $c.Synced++ } elseif ($member) { $c.CloudOnlyMembers++ }
+                    if ($member -and $row.Source -eq 'EntraFromAD') { $c.EntraManagedFromAd++ }
+                    if (-not $enabled) { $c.Disabled++; if ($licences -gt 0) { $c.DisabledWithLicenses++ } }
+                    if ($enabled -and $member) { if (-not $last) { $c.EnabledNeverSignedIn++ } elseif ($old) { $c.EnabledInactiveMembers++ } }
+                    if ($guest -and (-not $last -or $old)) { $c.InactiveGuests++ }
+                    if ($row.ExternalUserState -eq 'PendingAcceptance') { $c.PendingGuestInvites++ }
+                    if ($last) { $c.WithSignIn++ }
                 }
-                $files.Add((Close-PostureEvidenceStream -Stream $stream))
-                $files.Add((Close-PostureEvidenceStream -Stream $guestStream))
             }
-            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; Stop-PostureEvidenceStream -Stream $guestStream -Confirm:$false; throw }
+            foreach ($f in $got.files) { $files.Add($f) }
         }
-        try { & $read "$base,signInActivity" }
-        catch {
-            if (-not (& $refusal $_)) { throw }
-            Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
-            foreach ($k in @($c.Keys)) { $c[$k] = 0 }
-            $planUse.Clear(); $licensing.enabled = 0
-            $memberIds.Clear(); $adminUsers.Clear(); $breakGlass.Clear()
-            & $read $base
+        # A read that stopped part way carries on with the request it was making: when that was the one without
+        # signInActivity (the first had been refused), the first is not tried again.
+        $usersCursor = Get-PostureListCursor -Folder $Folder -ListName '06-users'
+        if ($usersCursor -and [string]$usersCursor['uri'] -eq "users?`$select=$base&`$top=999" -and [string]$usersCursor['key'] -eq $usersKey) { & $read $base }
+        else {
+            try { & $read "$base,signInActivity" }
+            catch {
+                if (-not (& $refusal $_)) { throw }
+                Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
+                foreach ($k in @($c.get_Keys())) { $c[$k] = 0 }
+                $planUse.Clear(); $licensing.enabled = 0
+                $adminUsers.Clear(); $breakGlass.Clear()
+                & $read $base
+            }
         }
         & $save @($adminUsers) '06-users-admins'
         & $save @($breakGlass) '06-users-breakglass-candidates'
@@ -447,10 +452,14 @@ function Invoke-PostureEntraCollection {
 
     # ---------- 6b. Legacy per-user MFA state (AU-009) ----------
     if (-not $SkipPerUserMfa) {
-        Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -Script {
+        Invoke-PostureStep -Label 'Per-user MFA state' -Folder $Folder -KeepDone -KeepKey "$usersKey, full $([bool]$FullPerUserMfa)" -WhenKept $keepFiles -Script {
             # One read per user, batched 20 at a time through $batch. authentication/requirements is beta-only (confirmed 2026-10-14).
             # (verify) scope: UserAuthenticationMethod.Read.All
-            $members = $(if ($memberIds.Count -gt 0) { $memberIds } else { @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' }) })
+            # The members, from the user list on disk a row at a time: an id and a name each is all that is held.
+            # Without the list there is no one to ask about, and the step says so; it never writes a summary of zero.
+            $members = [System.Collections.Generic.List[object]]::new()
+            $haveUsers = Read-PostureEvidenceRow -Folder $Folder -Name '06-users' -OnRow { param($u) if ([string](& $v $u 'UserType') -eq 'Member') { $members.Add(@{ Id = [string](& $v $u 'Id'); UserPrincipalName = [string](& $v $u 'UserPrincipalName') }) } }
+            if (-not $haveUsers) { throw 'The user list (06-users) was not collected, so there is no one to read the per-user MFA state of.' }
             # Rows are written and counted as each batch answers; nothing is held for the whole tenant.
             $tally = @{ rows = 0; enforced = 0; enabled = 0; disabled = 0; errors = 0; firstError = $null }
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name '05-per-user-mfa' -Csv -Confirm:$false
@@ -538,64 +547,57 @@ function Invoke-PostureEntraCollection {
         & $saveOne ([ordered]@{ UnifiedGroups = $seen.unified; Ownerless = $ownerless }) '07-groups-ownerless-summary'
     } | Out-Null
 
-    # Streamed; only the role-assignable groups are kept, for the PIM for Groups step.
-    $groupRows = [System.Collections.Generic.List[object]]::new()
-    Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
+    # Streamed. The PIM for Groups step reads the role-assignable groups from the file.
+    Invoke-PostureStep -Label 'Groups' -Folder $Folder -KeepDone -WhenKept $keepFiles -Script {
         # Counted as the list is written, so the report reads a handful of numbers and never the list.
         $tally = @{ groups = 0; byKind = [ordered]@{}; roleAssignable = 0; synced = 0; licensed = 0; dynamic = 0 }
-        $stream = Open-PostureEvidenceStream -Folder $Folder -Name '07-groups' -Csv -Confirm:$false
-        try {
-            $null = Invoke-PostureGraphRequest -Uri 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,onPremisesSecurityIdentifier,assignedLicenses,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999' -ApiVersion 'v1.0' -Label 'Groups' -OnPage {
-                param($page)
-                foreach ($g in $page) {
-                    $types = @($g['groupTypes'])
-                    $kind = if ($types -contains 'Unified') { 'M365' } elseif ($types -contains 'DynamicMembership') { 'DynamicSecurity' } elseif ($g['mailEnabled'] -and $g['securityEnabled']) { 'MailEnabledSecurity' } elseif ($g['mailEnabled']) { 'Distribution' } else { 'Security' }
-                    $row = [ordered]@{
-                        Id = $g['id']; DisplayName = $g['displayName']; OnPremisesSyncEnabled = [bool]$g['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $g); Licensed = (@($g['assignedLicenses'] | Where-Object { $_ }).Count -gt 0); CreatedDateTime = $g['createdDateTime']
-                        Visibility = $g['visibility']; IsAssignableToRole = [bool]$g['isAssignableToRole']; ExpirationDateTime = $g['expirationDateTime']; MembershipRule = $g['membershipRule']
-                        Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
-                    }
-                    Add-PostureEvidenceRow -Stream $stream -Row $row
-                    if ($row.IsAssignableToRole) { $groupRows.Add($row); $tally.roleAssignable++ }
-                    $tally.groups++
-                    $tally.byKind[$kind] = 1 + $(if ($tally.byKind.Contains($kind)) { $tally.byKind[$kind] } else { 0 })
-                    if ($row.OnPremisesSyncEnabled) { $tally.synced++ }
-                    if ($row.Licensed) { $tally.licensed++ }
-                    if ($row.Dynamic) { $tally.dynamic++ }
+        $read = Invoke-PostureListRead -Folder $Folder -ListName '07-groups' -ListUri 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,onPremisesSecurityIdentifier,assignedLicenses,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999' -ListApi 'v1.0' -ListLabel 'Groups' -ListStream '07-groups' -ListState @{ tally = $tally } -ListOnPage {
+            param($page, $info, $streams)
+            $stream = $streams['07-groups']
+            foreach ($g in $page) {
+                $types = @($g['groupTypes'])
+                $kind = if ($types -contains 'Unified') { 'M365' } elseif ($types -contains 'DynamicMembership') { 'DynamicSecurity' } elseif ($g['mailEnabled'] -and $g['securityEnabled']) { 'MailEnabledSecurity' } elseif ($g['mailEnabled']) { 'Distribution' } else { 'Security' }
+                $row = [ordered]@{
+                    Id = $g['id']; DisplayName = $g['displayName']; OnPremisesSyncEnabled = [bool]$g['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $g); Licensed = (@($g['assignedLicenses'] | Where-Object { $_ }).Count -gt 0); CreatedDateTime = $g['createdDateTime']
+                    Visibility = $g['visibility']; IsAssignableToRole = [bool]$g['isAssignableToRole']; ExpirationDateTime = $g['expirationDateTime']; MembershipRule = $g['membershipRule']
+                    Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
                 }
+                Add-PostureEvidenceRow -Stream $stream -Row $row
+                if ($row.IsAssignableToRole) { $tally.roleAssignable++ }
+                $tally.groups++
+                $tally.byKind[$kind] = 1 + $(if ($tally.byKind.Contains($kind)) { $tally.byKind[$kind] } else { 0 })
+                if ($row.OnPremisesSyncEnabled) { $tally.synced++ }
+                if ($row.Licensed) { $tally.licensed++ }
+                if ($row.Dynamic) { $tally.dynamic++ }
             }
-            $files.Add((Close-PostureEvidenceStream -Stream $stream))
         }
-        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        foreach ($f in $read.files) { $files.Add($f) }
         & $saveOne ([ordered]@{ Groups = $tally.groups; ByKind = $tally.byKind; RoleAssignable = $tally.roleAssignable; Synced = $tally.synced; Licensed = $tally.licensed; Dynamic = $tally.dynamic }) '07-groups-summary'
     } | Out-Null
 
     # ---------- 8. Entra devices ----------
     # Streamed, with the join type and staleness counts tallied in the same pass.
-    Invoke-PostureStep -Label 'Entra devices' -Folder $Folder -Script {
+    Invoke-PostureStep -Label 'Entra devices' -Folder $Folder -KeepDone -KeepKey "stale $StaleDays" -WhenKept $keepFiles -Script {
         $byJoinOs = @{}; $byJoinStale = @{}
-        $stream = Open-PostureEvidenceStream -Folder $Folder -Name '08-entra-devices' -Csv -Confirm:$false
-        try {
-            $null = Invoke-PostureGraphRequest -Uri 'devices?$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,registrationDateTime,profileType,managementType,enrollmentType&$top=999' -ApiVersion 'v1.0' -Label 'Entra devices' -OnPage {
-                param($page)
-                foreach ($d in $page) {
-                    $last = & $date $d['approximateLastSignInDateTime']
-                    $join = switch ([string]$d['trustType']) { 'AzureAd' { 'EntraJoined' } 'ServerAd' { 'HybridJoined' } 'Workplace' { 'Registered' } default { [string]$d['trustType'] } }
-                    $stale = (-not $last -or $last -lt $cutoff)
-                    $row = [ordered]@{
-                        Id = $d['id']; DeviceId = $d['deviceId']; DisplayName = $d['displayName']; OperatingSystem = $d['operatingSystem']; OperatingSystemVersion = $d['operatingSystemVersion']
-                        AccountEnabled = $d['accountEnabled']; IsCompliant = $d['isCompliant']; IsManaged = $d['isManaged']; ApproximateLastSignInDateTime = $d['approximateLastSignInDateTime']
-                        RegistrationDateTime = $d['registrationDateTime']; ProfileType = $d['profileType']; ManagementType = $d['managementType']; EnrollmentType = $d['enrollmentType']; TrustType = $d['trustType']
-                        JoinType = $join; Stale = $stale
-                    }
-                    Add-PostureEvidenceRow -Stream $stream -Row $row
-                    $k1 = "$join, $($row.OperatingSystem)"; $byJoinOs[$k1] = 1 + $(if ($byJoinOs.ContainsKey($k1)) { $byJoinOs[$k1] } else { 0 })
-                    $k2 = "$join, $stale"; $byJoinStale[$k2] = 1 + $(if ($byJoinStale.ContainsKey($k2)) { $byJoinStale[$k2] } else { 0 })
+        $read = Invoke-PostureListRead -Folder $Folder -ListName '08-entra-devices' -ListUri 'devices?$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,registrationDateTime,profileType,managementType,enrollmentType&$top=999' -ListApi 'v1.0' -ListLabel 'Entra devices' -ListStream '08-entra-devices' -ListKey "stale $StaleDays" -ListState @{ byJoinOs = $byJoinOs; byJoinStale = $byJoinStale } -ListOnPage {
+            param($page, $info, $streams)
+            $stream = $streams['08-entra-devices']
+            foreach ($d in $page) {
+                $last = & $date $d['approximateLastSignInDateTime']
+                $join = switch ([string]$d['trustType']) { 'AzureAd' { 'EntraJoined' } 'ServerAd' { 'HybridJoined' } 'Workplace' { 'Registered' } default { [string]$d['trustType'] } }
+                $stale = (-not $last -or $last -lt $cutoff)
+                $row = [ordered]@{
+                    Id = $d['id']; DeviceId = $d['deviceId']; DisplayName = $d['displayName']; OperatingSystem = $d['operatingSystem']; OperatingSystemVersion = $d['operatingSystemVersion']
+                    AccountEnabled = $d['accountEnabled']; IsCompliant = $d['isCompliant']; IsManaged = $d['isManaged']; ApproximateLastSignInDateTime = $d['approximateLastSignInDateTime']
+                    RegistrationDateTime = $d['registrationDateTime']; ProfileType = $d['profileType']; ManagementType = $d['managementType']; EnrollmentType = $d['enrollmentType']; TrustType = $d['trustType']
+                    JoinType = $join; Stale = $stale
                 }
+                Add-PostureEvidenceRow -Stream $stream -Row $row
+                $k1 = "$join, $($row.OperatingSystem)"; $byJoinOs[$k1] = 1 + $(if ($byJoinOs.ContainsKey($k1)) { $byJoinOs[$k1] } else { 0 })
+                $k2 = "$join, $stale"; $byJoinStale[$k2] = 1 + $(if ($byJoinStale.ContainsKey($k2)) { $byJoinStale[$k2] } else { 0 })
             }
-            $files.Add((Close-PostureEvidenceStream -Stream $stream))
         }
-        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        foreach ($f in $read.files) { $files.Add($f) }
         # Same shape Group-Object gave: Name "JoinType, OperatingSystem" and Count, largest first.
         $rows = { param([hashtable] $Map) @($Map.Keys | ForEach-Object { [ordered]@{ Name = $_; Count = $Map[$_] } } | Sort-Object { - $_.Count }) }
         & $save (& $rows $byJoinOs) '08-entra-devices-by-join-os' $true
@@ -690,7 +692,11 @@ function Invoke-PostureEntraCollection {
         # so it is read once per role-assignable group; those are the groups that carry admin roles (the service
         # limit is 500 per tenant (verify)). Every one is read; the summary says how many, so a short read is never
         # taken for all.
-        $candidates = @($groupRows | Where-Object { $_ -and $_.IsAssignableToRole -eq $true })
+        # From the group list on disk. Without it the role-assignable groups are not known, and the step says so; it
+        # never writes "none".
+        $candidates = [System.Collections.Generic.List[object]]::new()
+        $haveGroups = Read-PostureEvidenceRow -Folder $Folder -Name '07-groups' -OnRow { param($g) if ([string](& $v $g 'IsAssignableToRole') -eq 'True') { $candidates.Add(@{ Id = [string](& $v $g 'Id') }) } }
+        if (-not $haveGroups) { throw 'The group list (07-groups) was not collected, so the role-assignable groups are not known.' }
         # Twenty groups to a request ($batch). A group whose read is refused counts as not read, and the step fails
         # after the others are written, so one group never costs the rest.
         $answers = @(Invoke-PostureGraphBatch -Url @($candidates | ForEach-Object { "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$($_.Id)'&`$select=id,groupId,accessId,principalId,status,memberType" }) -ApiVersion 'v1.0' -Label 'PIM for Groups')

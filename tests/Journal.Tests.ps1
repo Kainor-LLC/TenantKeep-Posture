@@ -135,6 +135,70 @@ Describe 'A file left from an earlier attempt' {
     }
 }
 
+Describe 'A long step that already finished in this run' {
+    BeforeEach {
+        $script:Keep = Join-Path $script:Root "keep-$([guid]::NewGuid().ToString('n'))"
+        New-Item -ItemType Directory -Path $script:Keep | Out-Null
+        # Runs the step inside a collection's journal; returns whether its script ran and what -WhenKept was handed.
+        $script:Step = {
+            param([string] $Key = 'k1', [switch] $Fail, [switch] $NoJournal, [switch] $RefuseKept)
+            InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Keep; Key = $Key; Fail = [bool]$Fail; NoJournal = [bool]$NoJournal; RefuseKept = [bool]$RefuseKept } {
+                param($F, $Key, $Fail, $NoJournal, $RefuseKept)
+                $seen = @{ ran = $false; kept = $null }
+                if (-not $NoJournal) { $script:PostureJournalFolder = $F }
+                $script:PostureCurrentCollector = 'Entra'
+                try {
+                    $null = Invoke-PostureStep -Label 'Users' -Folder $F -KeepDone -KeepKey $Key -WhenKept { param($kept) if ($RefuseKept) { throw 'cannot put it back' }; $seen.kept = $kept } -Script {
+                        $seen.ran = $true
+                        $null = Write-PostureEvidence -Folder $F -Name '06-users' -InputObject @(@{ Id = 'u1' }, @{ Id = 'u2' }) -AsArray -Csv -Quiet
+                        $null = Write-PostureEvidence -Folder $F -Name '06-users-summary' -InputObject @{ Total = 2 } -Quiet
+                        if ($Fail) { throw 'The operation has timed out.' }
+                    } -WarningAction SilentlyContinue
+                }
+                finally { $script:PostureJournalFolder = $null; $script:PostureCurrentCollector = $null }
+                $seen
+            }
+        }
+    }
+
+    It 'is kept: its script does not run, and what it wrote is handed over' {
+        (& $script:Step).ran | Should -BeTrue
+        $second = & $script:Step
+        $second.ran | Should -BeFalse
+        @($second.kept.files | ForEach-Object { [string]$_.name }) | Should -Be @('06-users', '06-users-summary')
+        @($second.kept.files)[0].rows | Should -Be 2
+        $third = & $script:Step
+        $third.ran | Should -BeFalse -Because 'a kept step is still done the next time'
+    }
+
+    It 'runs again when <Why>' -ForEach @(
+        @{ Why = 'it was recorded under another key'; Change = { }; Key = 'k2' }
+        @{ Why = 'a file it wrote is gone'; Change = { Remove-Item -LiteralPath (Join-Path $script:Keep '06-users-summary.json') }; Key = 'k1' }
+        @{ Why = 'a file it wrote is not the length it was'; Change = { Add-Content -LiteralPath (Join-Path $script:Keep '06-users.json') -Value ' ' }; Key = 'k1' }
+        @{ Why = 'it finished more than a day ago'; Change = { $p = Join-Path $script:Keep 'journal.jsonl'; Set-Content -LiteralPath $p -Value @(Get-Content -LiteralPath $p | ForEach-Object { $_ -replace '"timeUtc":"[^"]+"', ('"timeUtc":"' + [datetime]::UtcNow.AddHours(-25).ToString('o') + '"') }) }; Key = 'k1' }
+    ) {
+        (& $script:Step).ran | Should -BeTrue
+        & $Change
+        (& $script:Step -Key $Key).ran | Should -BeTrue
+    }
+
+    It 'runs again when its last attempt failed, even though its files are there' {
+        (& $script:Step -Fail).ran | Should -BeTrue
+        Join-Path $script:Keep '06-users.json' | Should -Exist
+        (& $script:Step).ran | Should -BeTrue
+    }
+
+    It 'runs when what later steps need from it cannot be put back' {
+        (& $script:Step).ran | Should -BeTrue
+        (& $script:Step -RefuseKept).ran | Should -BeTrue
+    }
+
+    It 'is never kept outside a collection' {
+        (& $script:Step).ran | Should -BeTrue
+        (& $script:Step -NoJournal).ran | Should -BeTrue -Because 'without a journal nothing says the files are from this run'
+    }
+}
+
 Describe 'Run Health for a collection that stopped' {
     It 'says which domain did not finish, the step it stopped in, the file left from an earlier attempt and the write that was cut short' {
         . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')

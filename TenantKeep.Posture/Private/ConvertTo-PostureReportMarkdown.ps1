@@ -263,7 +263,7 @@ function ConvertTo-PostureReportMarkdown {
         if (@($rh.notFinished).Count) { & $line "Did not finish: $(@($rh.notFinished) -join ', '). Collect only what is missing, into the same run: ``$($rh.resume)``"; & $line }
         if (@($rh.stoppedIn).Count) { & $table @('Domain', 'Step that started and never finished') @(foreach ($x in $rh.stoppedIn) { , @($x.collector, $x.step) }) }
         if (@($rh.stale).Count) { & $line 'Files left from an earlier attempt, not read:'; & $line; & $table @('File', 'Domain', 'Step') @(foreach ($x in $rh.stale) { , @($x.file, $x.collector, $x.step) }) }
-        if (@($rh.cutShort).Count) { $names = @($rh.cutShort | ForEach-Object { '`' + $_ + '`' }) -join ', '; & $line "Writes that were cut short, never read: $names"; & $line }
+        if (@($rh.cutShort).Count) { $names = @($rh.cutShort | ForEach-Object { '`' + $_ + '`' }) -join ', '; & $line "Files that were not finished, never read: $names"; & $line }
     }
     if ($rh -and $rh.Contains('judgedOnPart') -and @($rh.judgedOnPart).Count) {
         & $line '### Judged on part of the data'

@@ -629,7 +629,7 @@ function ConvertTo-PostureReportHtml {
             foreach ($x in $staleFiles) { & $w "<tr><td><code>$(& $h $x.file)</code></td><td>$(& $h $x.collector)</td><td>$(& $h $x.step)</td></tr>" }
             & $w '</tbody></table>'
         }
-        if ($cutShort.Count) { & $w "<p>$($cutShort.Count) write(s) were cut short and are never read: $(@($cutShort | ForEach-Object { '<code>' + (& $h $_) + '</code>' }) -join ', '). Collecting the domain again replaces them.</p>" }
+        if ($cutShort.Count) { & $w "<p>$($cutShort.Count) file(s) were not finished and are never read: $(@($cutShort | ForEach-Object { '<code>' + (& $h $_) + '</code>' }) -join ', '). Collecting the domain again within a day carries on a long list from where it stopped; otherwise the list is read again.</p>" }
     }
     if (-not $rh -or @($rh.failures).Count -eq 0) { if (-not $interrupted) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' } }
     else {

@@ -37,7 +37,10 @@ decisions; `(verify)` marks what has not been proven live yet.
    starts, finishes or fails, each file as it is written and each domain as it finishes, and the manifest is
    rewritten after every domain. `Resume-PostureRun` reads both, so a run whose process stopped is picked up at the
    domain it stopped in, and a file left from an earlier attempt, whose step ran again and did not write it, is
-   never read as this run's evidence.
+   never read as this run's evidence. Inside the domain being collected again, a long list (users, registration,
+   groups, devices, mailboxes, sites) that finished in this run less than a day ago is kept, and a Graph list that
+   stopped part way carries on from a cursor (`logs/cursor-<list>.json`: the next page link, how far each file had
+   got, and the step's counts, saved together every few pages and removed when the list finishes).
 3. **Profile.** `New-PostureProfile` discovers what evidence can tell (licences, platforms, identity model, BYOD,
    Copilot) and asks only what it cannot (third-party tools, thresholds, break-glass accounts, frameworks, audience).
    The result is `profile.json` in the client folder, beside `brand.json`, `exceptions.json` and `tenantkeep.lic`.

@@ -76,17 +76,66 @@ function Get-PostureJournalState {
         switch ([string]$e['kind']) {
             'step' {
                 $key = "$([string]$e['collector'])|$([string]$e['step'])"
-                if (-not $state.steps.ContainsKey($key)) { $state.steps[$key] = @{ collector = [string]$e['collector']; step = [string]$e['step']; state = $null; started = -1; cause = $null; message = $null } }
+                if (-not $state.steps.ContainsKey($key)) { $state.steps[$key] = @{ collector = [string]$e['collector']; step = [string]$e['step']; state = $null; started = -1; cause = $null; message = $null; doneUtc = $null; key = $null; files = [System.Collections.Generic.List[object]]::new() } }
                 $s = $state.steps[$key]
+                # A step that was kept (done in an earlier attempt, its files as it left them) is still done, when it was done.
+                if ([string]$e['state'] -eq 'kept') { continue }
                 $s.state = [string]$e['state']
-                if ($s.state -eq 'started') { $s.started = $i; $s.cause = $null; $s.message = $null }
+                if ($s.state -eq 'started') { $s.started = $i; $s.cause = $null; $s.message = $null; $s.doneUtc = $null; $s.key = $null; $s.files = [System.Collections.Generic.List[object]]::new() }
                 elseif ($s.state -eq 'failed') { $s.cause = [string]$e['cause']; $s.message = [string]$e['message'] }
+                elseif ($s.state -eq 'done') { $s.doneUtc = [string]$e['timeUtc']; $s.key = [string]$e['key'] }
             }
             'collector' { $state.collectors[[string]$e['collector']] = @{ state = [string]$e['state']; at = $i; timeUtc = [string]$e['timeUtc'] } }
-            'file' { $state.files[[string]$e['name']] = @{ step = [string]$e['step']; collector = [string]$e['collector']; at = $i; rows = $e['rows']; bytes = $e['bytes'] } }
+            'file' {
+                $state.files[[string]$e['name']] = @{ step = [string]$e['step']; collector = [string]$e['collector']; at = $i; rows = $e['rows']; bytes = $e['bytes'] }
+                # Under its step too, for the attempt that is running: what a done step wrote is what must still be there to keep it.
+                $owner = "$([string]$e['collector'])|$([string]$e['step'])"
+                if ($e['step'] -and $state.steps.ContainsKey($owner)) { $state.steps[$owner].files.Add(@{ name = [string]$e['name']; rows = $e['rows']; bytes = $e['bytes'] }) }
+            }
         }
     }
     return $state
+}
+
+function Get-PostureKeptStep {
+    <#
+    .SYNOPSIS
+        Whether a long step's earlier result in this run can be kept instead of reading it again: the record of
+        what it wrote (files, when it finished), or nothing.
+    .DESCRIPTION
+        A step is kept when all of this holds:
+          - a collection is running into this folder and its journal says the step's latest attempt finished;
+          - it finished under the same key (-Key: what the step's result depends on besides the tenant, such as
+            who holds a role or how many days count as stale);
+          - it finished less than a day ago ($script:PostureKeepHours), so a run never mixes last week's list
+            with today's;
+          - every file it wrote is still there, the length it was when written.
+        Otherwise the step runs again. A run with no journal keeps nothing.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)] [string] $Folder,
+        [Parameter(Mandatory)] [string] $Label,
+        [string] $Key = ''
+    )
+
+    if (-not $script:PostureJournalFolder) { return $null }
+    $layout = Get-PostureRunLayout -Folder $Folder
+    if ($layout.evidence -ne (Get-PostureRunLayout -Folder $script:PostureJournalFolder).evidence) { return $null }
+    $step = (Get-PostureJournalState -Folder $Folder).steps["$([string]$script:PostureCurrentCollector)|$Label"]
+    if (-not $step -or $step.state -ne 'done' -or [string]$step.key -ne $Key -or $step.files.Count -eq 0) { return $null }
+    $done = [datetime]::MinValue
+    if (-not [datetime]::TryParse([string]$step.doneUtc, [cultureinfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$done)) { return $null }
+    if (([datetime]::UtcNow - $done).TotalHours -gt $script:PostureKeepHours) { return $null }
+    # The last record of each name: a step may write a file twice.
+    $latest = [ordered]@{}
+    foreach ($f in $step.files) { $latest[[string]$f.name] = $f }
+    foreach ($f in $latest.get_Values()) {
+        $item = Get-Item -LiteralPath (Join-Path $layout.evidence "$([string]$f.name).json") -ErrorAction SilentlyContinue
+        if (-not $item -or $item.Length -ne [long]$f.bytes) { return $null }
+    }
+    return @{ step = $Label; doneUtc = $done; files = @($latest.get_Values()) }
 }
 
 function Get-PostureStaleEvidence {

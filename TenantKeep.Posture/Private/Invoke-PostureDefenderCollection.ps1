@@ -74,7 +74,9 @@ function Invoke-PostureDefenderCollection {
 
     # The two device lists have a row per device. Each row is written as its shard arrives and counted into the
     # summary in the same pass; the list is never held whole.
-    Invoke-PostureStep -Label 'Defender devices' -Folder $Folder -Script {
+    # Both are kept when they finished in this run and the run is resumed.
+    $keepFiles = { param($kept) foreach ($f in @($kept.files)) { $files.Add((Join-Path $Folder "$([string]$f.name).json")) } }
+    Invoke-PostureStep -Label 'Defender devices' -Folder $Folder -KeepDone -WhenKept $keepFiles -Script {
         $t = @{ n = 0; onboarded = 0; highExposure = 0; platform = @{}; sensor = @{} }
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'def-01-devices' -Csv -Confirm:$false
         try {
@@ -101,7 +103,7 @@ function Invoke-PostureDefenderCollection {
             }) 'def-01-devices-summary'
     } | Out-Null
 
-    Invoke-PostureStep -Label 'Defender antivirus state' -Folder $Folder -Script {
+    Invoke-PostureStep -Label 'Defender antivirus state' -Folder $Folder -KeepDone -WhenKept $keepFiles -Script {
         # DeviceTvmInfoGathering carries the antivirus mode and signature state as AdditionalFields. (verify) field names and AvMode values: 0 active, 1 passive, 2 disabled, 4 EDR block mode
         $t = @{ n = 0; signatureOld = 0; mode = @{} }
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'def-02-av-state' -Csv -Confirm:$false

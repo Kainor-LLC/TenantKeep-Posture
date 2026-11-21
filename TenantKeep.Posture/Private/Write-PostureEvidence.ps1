@@ -65,7 +65,7 @@ function Write-PostureEvidence {
 
     $count = if ($AsArray) { $items.Count } else { 1 }
     if (-not $Quiet) { Write-Host ('{0,-42} {1,7:N0}' -f "$Name.json", $count) }
-    Write-PostureJournal -Folder $Folder -Entry @{ kind = 'file'; name = $Name; rows = $count; bytes = [long]$json.Length; collector = [string]$script:PostureCurrentCollector; step = [string]$script:PostureCurrentStep }
+    Write-PostureJournal -Folder $Folder -Entry @{ kind = 'file'; name = $Name; rows = $count; bytes = [long][System.IO.FileInfo]::new($path).Length; collector = [string]$script:PostureCurrentCollector; step = [string]$script:PostureCurrentStep }
     return $path
 }
 
@@ -139,6 +139,80 @@ function Add-PostureEvidenceRow {
         $Stream.csv.WriteLine((@($Stream.columns | ForEach-Object { & $quote $Row[$_] }) -join ','))
     }
     $Stream.count++
+}
+
+function Get-PostureEvidenceStreamMark {
+    <#
+    .SYNOPSIS
+        Where an open evidence stream has got to: everything written so far is handed to the operating system, and
+        the answer is the length of each .part file, the rows written and the CSV columns. A cursor keeps it, and
+        Resume-PostureEvidenceStream reopens the files cut back to it.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
+    param([Parameter(Mandatory)] [hashtable] $Stream)
+
+    $Stream.json.Flush()
+    if ($Stream.csv) { $Stream.csv.Flush() }
+    return [ordered]@{
+        name = $Stream.name; count = [long]$Stream.count; columns = @($Stream.columns | Where-Object { $null -ne $_ })
+        jsonBytes = [long]$Stream.json.BaseStream.Length; csvBytes = $(if ($Stream.csv) { [long]$Stream.csv.BaseStream.Length } else { $null })
+    }
+}
+
+function Resume-PostureEvidenceStream {
+    <#
+    .SYNOPSIS
+        Reopens the .part files of an evidence stream at a mark (Get-PostureEvidenceStreamMark): each file is cut
+        back to the length the mark recorded, so rows written after it are gone, and rows are appended from there.
+        Throws when a file is missing or shorter than the mark, which means the mark cannot be trusted.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)] [string] $Folder,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Mark
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $name = [string]$Mark['name']
+    $path = Join-Path $Folder "$name.json"
+    $csvPath = Join-Path $Folder "$name.csv"
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    $reopen = {
+        param([string] $File, [long] $Length)
+        $handle = [System.IO.FileStream]::new($File, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::Read)
+        try {
+            if ($handle.Length -lt $Length) { throw "$File is shorter ($($handle.Length) bytes) than its cursor says ($Length)." }
+            $handle.SetLength($Length)
+            $null = $handle.Seek(0, [System.IO.SeekOrigin]::End)
+            return [System.IO.StreamWriter]::new($handle, $utf8, 1MB)
+        }
+        catch { $handle.Dispose(); throw }
+    }
+    $json = & $reopen "$path.part" ([long]$Mark['jsonBytes'])
+    $csvWriter = $null
+    if ($null -ne $Mark['csvBytes']) {
+        try { $csvWriter = & $reopen "$csvPath.part" ([long]$Mark['csvBytes']) } catch { $json.Dispose(); throw }
+    }
+    # A finished file under the same name is from an attempt before the one being carried on.
+    foreach ($p in $path, $csvPath) { if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force } }
+    $columns = @($Mark['columns'] | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ })
+    return @{ name = $name; path = $path; csvPath = $csvPath; json = $json; csv = $csvWriter; columns = $(if ($columns.Count -gt 0) { $columns } else { $null }); count = [long]$Mark['count'] }
+}
+
+function Suspend-PostureEvidenceStream {
+    <#
+    .SYNOPSIS
+        Closes an evidence stream's writers and leaves its .part files where they are, for a later attempt to carry
+        on from its cursor. No reader opens them: until the list is finished it reads as not collected.
+    #>
+    [CmdletBinding()]
+    param([hashtable] $Stream)
+
+    if (-not $Stream) { return }
+    try { $Stream.json.Dispose() } catch { Write-Verbose 'JSON writer already closed.' }
+    if ($Stream.csv) { try { $Stream.csv.Dispose() } catch { Write-Verbose 'CSV writer already closed.' } }
 }
 
 function Close-PostureEvidenceStream {

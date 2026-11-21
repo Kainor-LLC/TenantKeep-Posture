@@ -47,7 +47,9 @@ function Invoke-PostureSharePointCollection {
     if (-not $SkipSiteEnumeration) {
         # Streamed: rows written one at a time with the ownerless flag worked out per row and the summary tallied. PnP
         # still hands the whole list over at once (Get-PnPTenantSite has no paging), so this saves the copies, not that one.
-        Invoke-PostureStep -Label 'SharePoint sites' -Folder $Folder -Script {
+        # Kept when it finished in this run and the run is resumed, as long as the same sites were asked for.
+        $keepFiles = { param($kept) foreach ($f in @($kept.files)) { $files.Add((Join-Path $Folder "$([string]$f.name).json")) } }
+        Invoke-PostureStep -Label 'SharePoint sites' -Folder $Folder -KeepDone -KeepKey "onedrives $([bool]$IncludeOneDriveSites)" -WhenKept $keepFiles -Script {
             # OneDrives is a count only when they were listed; without them it is unknown, not zero.
             $sum = [ordered]@{ Total = 0; OneDrivesIncluded = [bool]$IncludeOneDriveSites; OneDrives = $(if ($IncludeOneDriveSites) { 0 } else { $null }); Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
             $byTemplate = @{}

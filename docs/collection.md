@@ -16,6 +16,12 @@ the report's memory about the same on a tenant of 300 users and one of 300,000. 
 8601 in UTC (`2026-11-15T02:03:22Z`), the same instant the JSON carries. CSV files written before 2026-11-21 carry
 dates with no zone (`11/15/2026 02:03:22`); those are UTC too, and are read as UTC.
 
+A list is written to `<name>.json.part` and `<name>.csv.part` and takes its name when it is finished, so nothing
+ever reads half a list. Collected again into the same run folder (`Resume-PostureRun`, or `-OutputFolder`), a long
+list that finished there less than a day ago is kept, and a Graph list that stopped part way carries on from its
+cursor in `logs/`. The run's journal, `logs/journal.jsonl`, records every step, file and domain as it happens; it is
+what says a list finished, and what says a file is left from an earlier attempt and must not be read.
+
 ## What the Entra collector writes
 
 | File | Source | Notes |
