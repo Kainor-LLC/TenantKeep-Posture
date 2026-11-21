@@ -94,7 +94,8 @@ function Resolve-PostureDnsRecord {
     <#
     .SYNOPSIS
         Returns the TXT or MX record strings for a name, through dig on macOS and Linux and Resolve-DnsName on Windows.
-        Empty array when nothing is published. Tests mock this function.
+        Empty array when DNS answers that nothing is published. Throws when the lookup itself failed (a timeout, a
+        server failure, no resolver reached): no answer is not the same as "no record". Tests mock this function.
     #>
     [CmdletBinding()]
     [OutputType([string[]])]
@@ -106,13 +107,53 @@ function Resolve-PostureDnsRecord {
     $ErrorActionPreference = 'Stop'
     if ($IsWindows) {
         # The answer can carry extra records of other types (CNAME, A); only the requested type has the fields read below.
-        $r = @(Resolve-DnsName -Name $Name -Type $Type -ErrorAction SilentlyContinue | Where-Object { [string]$_.Type -eq $Type })
+        try { $r = @(Resolve-DnsName -Name $Name -Type $Type -ErrorAction Stop | Where-Object { [string]$_.Type -eq $Type }) }
+        catch {
+            # "The name does not exist" and "no records of that type" are answers. Anything else is a failed lookup.
+            # (verify on Windows: 9003 DNS_ERROR_RCODE_NAME_ERROR, 9501 DNS_INFO_NO_RECORDS)
+            $code = $(if ($_.Exception.PSObject.Properties['NativeErrorCode']) { [int]$_.Exception.NativeErrorCode } else { 0 })
+            if ($code -in 9003, 9501 -or [string]$_.Exception.Message -match '(?i)DNS name does not exist|no records|DNS_INFO_NO_RECORDS|DNS_ERROR_RCODE_NAME_ERROR') { return @() }
+            throw "DNS lookup failed for $Type $($Name): $($_.Exception.Message)"
+        }
         if ($Type -eq 'TXT') { return @($r | ForEach-Object { (@($_.Strings) -join '') } | Where-Object { $_ }) }
         return @($r | ForEach-Object { "$($_.Preference) $($_.NameExchange)" } | Where-Object { $_ })
     }
     $dig = Get-Command -Name dig -ErrorAction SilentlyContinue
     if (-not $dig) { throw 'dig is not available; install bind tools or run the DNS step on Windows.' }
-    $lines = @(& $dig.Source +short +time=3 +tries=1 $Type $Name 2>$null | Where-Object { $_ })
-    if ($Type -eq 'TXT') { return @($lines | ForEach-Object { ($_ -replace '"\s+"', '') -replace '^"|"$', '' }) }
-    return @($lines | ForEach-Object { ($_ -replace '\.$', '').Trim() })
+    # The header says whether DNS answered: NOERROR and NXDOMAIN are answers, anything else (SERVFAIL, REFUSED) or no
+    # header at all (timed out, no servers could be reached) is a failed lookup.
+    $lines = @(& $dig.Source +time=3 +tries=2 +noall +comments +answer $Type $Name 2>$null)
+    return (ConvertFrom-PostureDigAnswer -Line $lines -Name $Name -Type $Type)
+}
+
+function ConvertFrom-PostureDigAnswer {
+    <#
+    .SYNOPSIS
+        Reads dig's "+noall +comments +answer" output: the record strings of the requested type, an empty array when
+        DNS answered that there are none, an error when there was no answer to read.
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [AllowEmptyCollection()] [AllowEmptyString()] [string[]] $Line = @(),
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [ValidateSet('TXT', 'MX')] [string] $Type
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $status = $null
+    foreach ($l in $Line) { if ([string]$l -match 'status:\s*([A-Z]+)') { $status = $Matches[1]; break } }
+    if ($status -notin 'NOERROR', 'NXDOMAIN') { throw "DNS lookup failed for $Type $($Name): $(if ($status) { "the server answered $status" } else { 'no answer (timed out, or no resolver reached)' })" }
+    $out = [System.Collections.Generic.List[string]]::new()
+    foreach ($l in $Line) {
+        $text = [string]$l
+        if (-not $text.Trim() -or $text.StartsWith(';')) { continue }
+        # name, time to live, class, type, then the record data.
+        $m = [regex]::Match($text, '^\S+\s+\d+\s+IN\s+(\S+)\s+(.+)$')
+        if (-not $m.Success -or $m.Groups[1].Value -ne $Type) { continue }
+        $data = $m.Groups[2].Value.Trim()
+        if ($Type -eq 'TXT') { $out.Add(((($data -replace '"\s+"', '') -replace '^"|"$', '') -replace '\\"', '"')) }
+        else { $out.Add(($data -replace '\.$', '').Trim()) }
+    }
+    return $out.ToArray()
 }

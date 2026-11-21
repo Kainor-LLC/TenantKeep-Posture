@@ -135,7 +135,9 @@ function Get-PostureCollaborationFact {
     if ($null -eq $client) { & $missing @('CL-012') 'teams-client-config' 'Teams' }
     else {
         $facts.teamsGuestAccess = (& $v $client 'AllowGuestUser') -eq $true
-        $facts.teamsGuestAccessGoverned = (-not $facts.teamsGuestAccess) -or [bool]($facts.Contains('guestExpirationOk') -and $facts.guestExpirationOk)
+        # Guests off needs nothing more. Guests on is governed by guest expiry, which only the SharePoint admin read
+        # reports: without it the answer is unknown, not "ungoverned".
+        $facts.teamsGuestAccessGoverned = $(if (-not $facts.teamsGuestAccess) { $true } elseif ($facts.Contains('guestExpirationOk')) { [bool]$facts.guestExpirationOk } else { $null })
     }
     $meeting = & $load 'teams-meeting-policy-global'
     if ($null -eq $meeting) { & $missing @('CL-013') 'teams-meeting-policy-global' 'Teams' }

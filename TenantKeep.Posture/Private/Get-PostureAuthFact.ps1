@@ -90,10 +90,10 @@ function Get-PostureAuthFact {
     if ($null -eq $reg) { $notEvaluated['AU-008'] = '05-auth-registration.json was not collected.' }
     else {
         $adminUpns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($r in @($reg | Where-Object { $_.IsAdmin -eq $true })) { $null = $adminUpns.Add([string]$r.UserPrincipalName) }
-        foreach ($a in @($active | Where-Object { $_.PrincipalType -eq 'user' -and $_.PrincipalUpn })) { $null = $adminUpns.Add([string]$a.PrincipalUpn) }
+        foreach ($r in @($reg | Where-Object { $_ -and $_.IsAdmin -eq $true })) { $null = $adminUpns.Add([string]$r.UserPrincipalName) }
+        foreach ($a in @($active | Where-Object { $_ -and $_.PrincipalType -eq 'user' -and $_.PrincipalUpn })) { $null = $adminUpns.Add([string]$a.PrincipalUpn) }
         $phishing = $script:PostureDeviceBoundMethods
-        $without = @($reg | Where-Object { $adminUpns.Contains([string]$_.UserPrincipalName) } | Where-Object {
+        $without = @($reg | Where-Object { $_ -and $adminUpns.Contains([string]$_.UserPrincipalName) } | Where-Object {
                 $methods = @(([string]$_.MethodsRegistered) -split ';' | Where-Object { $_ })
                 @($methods | Where-Object { $_ -in $phishing }).Count -eq 0
             })

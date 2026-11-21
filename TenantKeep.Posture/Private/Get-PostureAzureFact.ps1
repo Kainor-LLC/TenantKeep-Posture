@@ -157,7 +157,8 @@ function Get-PostureAzureFact {
             foreach ($o in $mine) { $u = $userById[[string]$o.PrincipalId]; if ($u -and $u.OnPremisesSyncEnabled -eq $true) { $syncedOwners += , [ordered]@{ name = [string]$u.UserPrincipalName; detail = "Owner on $($sub.Name), synced from on-premises AD" } } }
         }
         $facts.subscriptionsOverOwnerLimit = $overLimit.Count
-        $facts.syncedOwners = @($syncedOwners | ForEach-Object { $_.name } | Sort-Object -Unique).Count
+        # Unknown without the user list: an owner cannot be told synced from cloud-only.
+        $facts.syncedOwners = $(if ($null -eq $users) { $null } else { @($syncedOwners | ForEach-Object { $_.name } | Sort-Object -Unique).Count })
         $affected.ownerProblems = @($overLimit + $syncedOwners)
 
         # AZ-012 standing Owner or User Access Administrator at root or management group

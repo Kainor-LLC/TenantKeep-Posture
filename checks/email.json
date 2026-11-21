@@ -915,10 +915,12 @@
       "evidence": [
         "exo-12-remote-powershell-users.json",
         "10-service-principals.json",
-        "04-role-assignments-active.json"
+        "04-role-assignments-active.json",
+        "policies.json"
       ],
       "evidenceOptional": [
-        "04-role-assignments-active.json"
+        "04-role-assignments-active.json",
+        "policies.json"
       ],
       "evidenceAnyOf": [
         [

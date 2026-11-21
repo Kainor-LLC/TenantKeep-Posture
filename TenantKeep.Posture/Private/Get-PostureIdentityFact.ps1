@@ -72,7 +72,8 @@ function Get-PostureIdentityFact {
 
         $outside = @($permanent | Where-Object { $_.Role -in $privilegedRoles -and $_.PrincipalType -eq 'user' -and -not (& $isBreakGlassUser $_.PrincipalUpn $_.PrincipalName) })
         $facts.permanentPrivilegedOutsideBreakGlass = $outside.Count
-        $facts.eligiblePrivileged = @(@($eligible) | Where-Object { $_.Role -in $privilegedRoles }).Count
+        # Unknown, not zero, when the eligible assignments were not collected.
+        $facts.eligiblePrivileged = $(if ($null -eq $eligible) { $null } else { @($eligible | Where-Object { $_ -and $_.Role -in $privilegedRoles }).Count })
         $affected.permanentPrivilegedOutsideBreakGlass = @($outside | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = "permanent $($_.Role) for $($_.PrincipalUpn)" } })
 
         $synced = @($permanent | Where-Object { $_.PrincipalSynced -eq $true })
@@ -251,9 +252,16 @@ function Get-PostureIdentityFact {
     $tools = Get-PostureAdminToolRestriction -Evidence $Evidence
     if ($null -eq $tools) { $notEvaluated['ID-023'] = '10-service-principals.json was not collected (the Entra collector).' }
     else {
-        $open = @($tools | Where-Object { -not $_.restricted })
-        $facts.adminToolsOpenToEveryone = $open.Count
-        $affected.adminToolsOpenToEveryone = @($open | ForEach-Object { [ordered]@{ name = $_.name; detail = $_.detail } })
+        $open = @($tools | Where-Object { $_.restricted -eq $false })
+        $unknownTools = @($tools | Where-Object { $null -eq $_.restricted })
+        if ($unknownTools.Count -gt 0) {
+            $facts.adminToolsOpenToEveryone = $null
+            $notEvaluated['ID-023'] = "policies.json (the Conditional Access snapshot) was not collected, so whether a policy blocks $($unknownTools.Count) of the admin tools is unknown: $(@($unknownTools | ForEach-Object { $_.name }) -join ', ')."
+        }
+        else {
+            $facts.adminToolsOpenToEveryone = $open.Count
+            $affected.adminToolsOpenToEveryone = @($open | ForEach-Object { [ordered]@{ name = $_.name; detail = $_.detail } })
+        }
     }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }

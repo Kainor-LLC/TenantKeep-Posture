@@ -133,15 +133,20 @@ function Invoke-PostureExchangeCollection {
 
     Invoke-PostureStep -Label 'Mail DNS' -Folder $Folder -Script {
         $domains = @(& $exo 'Get-AcceptedDomain' | Where-Object { [string]$_.DomainType -eq 'Authoritative' -and [string]$_.DomainName -notmatch '(?i)\.onmicrosoft\.com$' } | ForEach-Object { [string]$_.DomainName })
+        # A lookup that fails (a timeout, a server failure) is recorded as failed, by record, in LookupFailed: the
+        # checks then read that record as unknown for the domain, never as "not published".
         $rows = foreach ($d in $domains) {
-            $txt = @(Resolve-PostureDnsRecord -Name $d -Type TXT)
+            $failed = [System.Collections.Generic.List[string]]::new()
+            $lookup = { param([string] $Record, [string] $Name, [string] $Type) try { @(Resolve-PostureDnsRecord -Name $Name -Type $Type) } catch { Write-Verbose $_.Exception.Message; $failed.Add($Record); @() } }
+            $txt = @(& $lookup 'SPF' $d 'TXT')
             [ordered]@{
                 Domain = $d
-                MX     = (@(Resolve-PostureDnsRecord -Name $d -Type MX) -join ' | ')
+                MX     = (@(& $lookup 'MX' $d 'MX') -join ' | ')
                 SPF    = (@($txt | Where-Object { $_ -match '^v=spf1' }) -join '')
-                DMARC  = (@(Resolve-PostureDnsRecord -Name "_dmarc.$d" -Type TXT | Where-Object { $_ -match '^v=DMARC1' }) -join '')
-                MTASTS = (@(Resolve-PostureDnsRecord -Name "_mta-sts.$d" -Type TXT | Where-Object { $_ -match '^v=STSv1' }) -join '')
-                TLSRPT = (@(Resolve-PostureDnsRecord -Name "_smtp._tls.$d" -Type TXT | Where-Object { $_ -match '^v=TLSRPTv1' }) -join '')
+                DMARC  = (@(& $lookup 'DMARC' "_dmarc.$d" 'TXT' | Where-Object { $_ -match '^v=DMARC1' }) -join '')
+                MTASTS = (@(& $lookup 'MTASTS' "_mta-sts.$d" 'TXT' | Where-Object { $_ -match '^v=STSv1' }) -join '')
+                TLSRPT = (@(& $lookup 'TLSRPT' "_smtp._tls.$d" 'TXT' | Where-Object { $_ -match '^v=TLSRPTv1' }) -join '')
+                LookupFailed = ($failed -join ';')
             }
         }
         & $save @($rows) 'dns-01-mail-records' $true

@@ -19,7 +19,8 @@ function Get-PostureAdminToolRestriction {
         blocks it for everyone (exclusions for administrators allowed). The Azure tools also count as restricted when
         a policy blocks Windows Azure Service Management, the API they call.
     .OUTPUTS
-        One row per tool (appId, name, restricted, how, detail); nothing when the service principal list was not
+        One row per tool (appId, name, restricted, how, detail), restricted being $null when only a policy could close
+        the tool and policies.json was not collected; nothing when the service principal list was not
         collected.
     #>
     [CmdletBinding()]
@@ -46,8 +47,10 @@ function Get-PostureAdminToolRestriction {
                 elseif ($id -in '04b07795-8ddb-461a-bbee-02f9e1bf7b46', '1950a258-227b-4e31-a9cf-717495945fc2' -and $blockedApps.ContainsKey($azureApi)) { "Azure management blocked by '$($blockedApps[$azureApi])'" }
                 else { '' })
             [ordered]@{
-                appId = $id; name = $script:PostureAdminTools[$id]; restricted = [bool]$how; how = $how
-                detail = $(if ($how) { $how } elseif ($sp) { 'anyone can sign in: assignment not required' } else { 'no enterprise app in the tenant yet: the first person to sign in creates it, open to everyone' })
+                # Closed by assignment, by being turned off or by a policy; open; or unknown ($null) when nothing on the
+                # app closes it and the Conditional Access snapshot, which could, was not collected.
+                appId = $id; name = $script:PostureAdminTools[$id]; restricted = $(if ($how) { $true } elseif ($null -eq $pol) { $null } else { $false }); how = $how
+                detail = $(if ($how) { $how } elseif ($null -eq $pol) { 'not closed on the app itself; whether a Conditional Access policy blocks it is unknown without the snapshot' } elseif ($sp) { 'anyone can sign in: assignment not required' } else { 'no enterprise app in the tenant yet: the first person to sign in creates it, open to everyone' })
             }
         })
 }

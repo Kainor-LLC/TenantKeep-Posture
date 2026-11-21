@@ -23,6 +23,52 @@ BeforeAll {
     }
 }
 
+Describe 'Mail DNS records whose lookup failed' {
+    BeforeAll {
+        $script:Dns = {
+            param([string] $Dir, [object[]] $Rows)
+            & $script:Write $Dir 'exo-01-orgconfig' @{ Name = 'contoso' }
+            & $script:Write $Dir 'exo-03-inbound-connectors' @()
+            & $script:Write $Dir 'dns-01-mail-records' $Rows
+        }
+        $script:Good = @{ MX = '0 contoso-example.mail.protection.outlook.com'; SPF = 'v=spf1 include:spf.protection.outlook.com -all'; DMARC = 'v=DMARC1; p=reject; rua=mailto:dmarc@contoso.example'; MTASTS = 'v=STSv1; id=1'; TLSRPT = 'v=TLSRPTv1; rua=mailto:tls@contoso.example' }
+        $script:Row = { param([string] $Domain, [hashtable] $Change = @{}) $r = @{ Domain = $Domain; LookupFailed = '' }; foreach ($k in $script:Good.Keys) { $r[$k] = $script:Good[$k] }; foreach ($k in $Change.Keys) { $r[$k] = $Change[$k] }; $r }
+    }
+
+    It 'does not call a record missing when DNS did not answer: the check has no answer yet, and says for which domain' {
+        $d = Join-Path $TestDrive 'dns-unknown'
+        & $script:Dns $d @((& $script:Row 'contoso.example'), (& $script:Row 'fabrikam.example' @{ DMARC = ''; LookupFailed = 'DMARC' }))
+        $by = & $script:Checks $d
+        $by['EM-013'].status | Should -Be 'notEvaluated' -Because 'an empty DMARC from a lookup that timed out used to read as "no DMARC record"'
+        $by['EM-013'].reason | Should -Match 'DNS lookup failed for 1 domain\(s\) \(fabrikam\.example\)'
+        $by['EM-014'].status | Should -Be 'pass' -Because 'the SPF lookups all answered'
+        $by['EM-015'].status | Should -Be 'pass'
+    }
+
+    It 'still fails on a gap it did see, whatever else did not answer' {
+        $d = Join-Path $TestDrive 'dns-gap'
+        & $script:Dns $d @((& $script:Row 'contoso.example' @{ DMARC = '' }), (& $script:Row 'fabrikam.example' @{ DMARC = ''; SPF = ''; LookupFailed = 'DMARC;SPF' }))
+        $by = & $script:Checks $d
+        $by['EM-013'].status | Should -Be 'fail'
+        @($by['EM-013'].affected).name | Should -Be @('contoso.example') -Because 'only the domain that answered with no record is a finding'
+        $by['EM-014'].status | Should -Be 'notEvaluated'
+    }
+
+    It 'cannot say there is no gateway when the MX lookup failed and the profile names no vendor' {
+        $d = Join-Path $TestDrive 'dns-mx'
+        & $script:Dns $d @((& $script:Row 'contoso.example' @{ MX = ''; LookupFailed = 'MX' }))
+        (& $script:Checks $d)['EM-026'].status | Should -Be 'notEvaluated'
+        (& $script:Checks $d @{ email = 'proofpoint' })['EM-026'].status | Should -Be 'fail' -Because 'a named vendor is a gateway in front whatever DNS says, and nothing locks Exchange Online to it'
+    }
+
+    It 'reads evidence from before the lookups were recorded as before' {
+        $d = Join-Path $TestDrive 'dns-old'
+        $old = & $script:Row 'contoso.example' @{ DMARC = '' }; $old.Remove('LookupFailed')
+        & $script:Dns $d @($old)
+        (& $script:Checks $d)['EM-013'].status | Should -Be 'fail'
+    }
+}
+
 Describe 'A third-party email gateway in front of Microsoft 365' {
     It 'fails when MX points at a gateway and Exchange Online still takes mail from anyone, and passes once it is locked to the gateway' {
         $d = Join-Path $TestDrive 'open'

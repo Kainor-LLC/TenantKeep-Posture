@@ -6,14 +6,34 @@ work landed on main.
 
 ## Unreleased
 
+- No answer for what was not read (2026-11-21). Where a provider could not read a file it used to carry on with
+  "off", "none" or zero; it now says unknown, and the check is judged only when the rest decides it. This covers
+  the device cleanup rule (DEV-002), feature update profiles (EP-014), quarantine notifications (EM-007), the
+  Exchange PowerShell app and its users (EM-025), label policies (CP-006), Apple VPP tokens (DEV-008), the mail
+  gateway (EM-026), Windows Hello (EP-012), password writeback (UX-015), Teams guest governance (CL-012), jailbreak
+  detection (EP-018), synced subscription owners (AZ-011) and the admin tools when the Conditional Access snapshot
+  is missing (ID-023). Removing one evidence file at a time from the demo run used to flip five passes to fails;
+  a test now does that for every file on every build and allows none.
+- One missing file no longer takes a whole domain down. The authentication checks stopped with an error without
+  the role assignments, identity without the eligible assignments, endpoint without the compliance policy
+  settings; each now evaluates what it can. An incomplete Conditional Access snapshot names the files that are
+  missing, and no reason carries the run folder's path any more.
+- A DNS lookup that fails is not a record that is missing. The mail DNS step records the lookups that got no
+  answer (`LookupFailed` in `dns-01-mail-records`), and the DMARC, SPF, MTA-STS and gateway checks read those
+  as unknown: a gap that was seen still fails, and with none seen and some domains unanswered the check waits
+  for the next collection. A timeout used to read as "no DMARC record".
+- A rate over nothing is not a rate: BitLocker escrow with no Windows devices, the join type mix with no devices
+  and self-service password reset with no members read "not evaluated" with the reason, where they passed at
+  100 percent or 0. The demo tenant wrote join types the collector never writes, so its BitLocker check had been
+  passing on zero devices; it is judged on the real fleet now.
 - A check is judged only on evidence it has (2026-11-21). The engine now holds every check to its evidence list:
   a file the check needs that is not in the run folder makes it "not evaluated" and names the file, before
   anything is compared. A check can mark a file as one it can do without (`evidenceOptional`) or name
   alternatives where one is enough (`evidenceAnyOf`: the SharePoint settings from the admin read or from Graph, a
-  slim file or the full list it replaced). Inside a pass expression a value that could not be read stops the
-  judgement and is named, where `!facts.x` on a missing value used to pass; `&&` and `||` now decide from the
-  left, so "no stale devices, or a cleanup rule" passes on a tenant with no stale devices even when the rule
-  could not be read. The evidence lists of 59 checks were corrected against what the providers read. Custom
+  slim file or the full list it replaced). Inside a pass expression a value that could not be read is unknown, a third answer beside true and false,
+  where `!facts.x` on a missing value used to pass: "no stale devices, or a cleanup rule" passes on a tenant with
+  no stale devices even when the rule could not be read, and has no answer, naming the rule, when there are stale
+  devices. The evidence lists of 59 checks were corrected against what the providers read. Custom
   checks follow the same rule: name in `evidence` only files the check needs, or list the others as optional.
 - A sign-in under the user name "Count" or "Keys" no longer stops the sign-in log read (2026-11-21). A failed
   sign-in is logged under whatever name was typed, and the tallies are kept per name; PowerShell answers `.Count`

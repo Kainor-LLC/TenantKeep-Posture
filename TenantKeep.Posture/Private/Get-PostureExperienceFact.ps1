@@ -101,7 +101,8 @@ function Get-PostureExperienceFact {
     else {
         $members = @(& $rows $reg | Where-Object { [string](& $v $_ 'UserType') -ne 'guest' })
         $enabled = @($members | Where-Object { Test-PostureTrue (& $v $_ 'IsSsprEnabled') }).Count
-        $facts.ssprEnabledPct = $(if ($members.Count) { [Math]::Round(100.0 * $enabled / $members.Count, 1) } else { 100 })
+        $facts.ssprEnabledPct = $(if ($members.Count) { [Math]::Round(100.0 * $enabled / $members.Count, 1) } else { $null })
+        if (-not $members.Count) { $notEvaluated['UX-008'] = 'The registration report lists no members, so there is no rate to judge.' }
     }
 
     # The directory as people read it: sign-in name and email the same, display names First Last. A row at a time.
@@ -155,7 +156,8 @@ function Get-PostureExperienceFact {
     $syncFeatures = & $load '01-onprem-sync-features'
     $hybridModel = [string]$(if ($OrgProfile.Contains('identityModel')) { $OrgProfile['identityModel'] }) -like 'hybrid*'
     $facts.passwordWritebackNeeded = $hybridModel
-    $facts.passwordWritebackOn = [bool](@(& $rows $syncFeatures | Where-Object { (& $v $_ 'features.passwordWritebackEnabled') -eq $true }).Count -gt 0)
+    # Unknown when the sync features were not collected; it only matters to a hybrid tenant.
+    $facts.passwordWritebackOn = $(if ($null -eq $syncFeatures) { $null } else { @(& $rows $syncFeatures | Where-Object { (& $v $_ 'features.passwordWritebackEnabled') -eq $true }).Count -gt 0 })
 
     # Restarts people can plan around (UX-017): every update ring gives at least a day's grace after the deadline.
     $cfgRows = & $load '09-intune-config-profile-settings'

@@ -70,6 +70,22 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
             $dns[1].TLSRPT | Should -BeNullOrEmpty
         }
 
+        It 'records a lookup that failed as failed, by record, and never as an empty record' {
+            # One name does not answer (a timeout); every other lookup does.
+            Mock -ModuleName TenantKeep.Posture Resolve-PostureDnsRecord {
+                if ($Name -eq '_dmarc.legacy.example') { throw 'DNS lookup failed for TXT _dmarc.legacy.example: no answer (timed out, or no resolver reached)' }
+                . $env:TKP_EXO_FIXTURE; @(Get-ExchangeFixtureDnsRecord -Name $Name -Type $Type)
+            }
+            $folder = Join-Path $script:Root 'run-dns'
+            $null = Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $rows = @(Get-Content -Raw (Join-Path $folder 'dns-01-mail-records.json') | ConvertFrom-Json -AsHashtable)
+            $legacy = @($rows | Where-Object { $_['Domain'] -eq 'legacy.example' })[0]
+            $legacy['LookupFailed'] | Should -Be 'DMARC'
+            $legacy['DMARC'] | Should -Be ''
+            $legacy['SPF'] | Should -Match '^v=spf1' -Because 'the lookups that answered are kept'
+            @($rows | Where-Object { $_['Domain'] -eq 'contoso.example' })[0]['LookupFailed'] | Should -Be ''
+        }
+
         It 'skips attack simulations quietly without the scope, and logs a denied cmdlet without stopping' {
             Join-Path $script:Folder 'exo-11-attack-simulations.json' | Should -Not -Exist
             @($script:Result.Errors) | Should -HaveCount 1 -Because ($script:Result.Errors -join ' | ')
@@ -117,6 +133,24 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
 }
 
 Describe 'Invoke-PostureExoCommand' {
+    It 'reads dig: records for an answer, nothing for "no such record", an error when DNS did not answer' {
+        InModuleScope TenantKeep.Posture {
+            $header = ';; ->>HEADER<<- opcode: QUERY, status: {0}, id: 4242'
+            $txt = @(($header -f 'NOERROR'), ';; flags: qr rd ra; QUERY: 1, ANSWER: 2', 'contoso.example.	300	IN	TXT	"v=spf1 include:spf.protection.outlook.com" " -all"', 'contoso.example.	300	IN	TXT	"MS=ms12345678"')
+            ConvertFrom-PostureDigAnswer -Line $txt -Name 'contoso.example' -Type TXT | Should -Be @('v=spf1 include:spf.protection.outlook.com -all', 'MS=ms12345678')
+            $mx = @(($header -f 'NOERROR'), 'contoso.example.	3600	IN	MX	0 contoso-example.mail.protection.outlook.com.', 'contoso.example.	3600	IN	MX	10 mx2.contoso.example.')
+            ConvertFrom-PostureDigAnswer -Line $mx -Name 'contoso.example' -Type MX | Should -Be @('0 contoso-example.mail.protection.outlook.com', '10 mx2.contoso.example')
+            # A CNAME on the way to the answer is not the answer.
+            $cname = @(($header -f 'NOERROR'), '_dmarc.contoso.example.	300	IN	CNAME	dmarc.vendor.example.', 'dmarc.vendor.example.	300	IN	TXT	"v=DMARC1; p=reject"')
+            ConvertFrom-PostureDigAnswer -Line $cname -Name '_dmarc.contoso.example' -Type TXT | Should -Be @('v=DMARC1; p=reject')
+            @(ConvertFrom-PostureDigAnswer -Line @(($header -f 'NXDOMAIN')) -Name '_mta-sts.contoso.example' -Type TXT).Count | Should -Be 0 -Because 'the name does not exist is an answer'
+            @(ConvertFrom-PostureDigAnswer -Line @(($header -f 'NOERROR')) -Name 'contoso.example' -Type MX).Count | Should -Be 0 -Because 'no record of that type is an answer'
+            { ConvertFrom-PostureDigAnswer -Line @(($header -f 'SERVFAIL')) -Name 'contoso.example' -Type TXT } | Should -Throw '*DNS lookup failed for TXT contoso.example: the server answered SERVFAIL*'
+            { ConvertFrom-PostureDigAnswer -Line @(';; connection timed out; no servers could be reached') -Name 'contoso.example' -Type MX } | Should -Throw '*no answer*'
+            { ConvertFrom-PostureDigAnswer -Line @() -Name 'contoso.example' -Type MX } | Should -Throw '*no answer*'
+        }
+    }
+
     It 'accepts Get- names only' {
         InModuleScope TenantKeep.Posture {
             { Invoke-PostureExoCommand -Name 'Set-Mailbox' } | Should -Throw

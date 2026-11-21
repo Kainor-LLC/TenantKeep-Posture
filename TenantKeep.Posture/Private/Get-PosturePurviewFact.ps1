@@ -56,7 +56,7 @@ function Get-PosturePurviewFact {
 
     # Sensitivity labels (PV-002), container labels (PV-004)
     $labels = & $load 'pv-01-sensitivity-labels'; $policies = & $load 'pv-01-label-policies'
-    if ($null -eq $labels -or $null -eq $policies) { & $missing @('PV-002', 'PV-004') 'pv-01-sensitivity-labels' }
+    if ($null -eq $labels -or $null -eq $policies) { & $missing @('PV-002', 'PV-004') $(if ($null -eq $labels) { 'pv-01-sensitivity-labels' } else { 'pv-01-label-policies' }) }
     else {
         $l = @(& $rows $labels | Where-Object { $_.Disabled -ne $true }); $p = @(& $rows $policies | Where-Object { $_.Enabled -ne $false })
         $facts.sensitivityLabels = $l.Count

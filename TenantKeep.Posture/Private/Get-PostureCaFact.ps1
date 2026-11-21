@@ -19,9 +19,15 @@ function Get-PostureCaFact {
 
     $ErrorActionPreference = 'Stop'
 
-    $required = 'policies', 'metadata', 'resolved-names'
-    if (@($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Evidence "$_.json")) }).Count -gt 0) {
-        return @{ available = $false; reason = "No Conditional Access snapshot in $Evidence (run Export-PostureCaSnapshot)." }
+    # The snapshot is seven files that belong together. None of them, or no policies: no snapshot. Some of them: an
+    # incomplete one, named file by file. The reason never carries the folder's path: it is read by people elsewhere.
+    $required = 'policies', 'named-locations', 'auth-strengths', 'auth-context', 'resolved-names', 'group-scope', 'metadata'
+    $absent = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Evidence "$_.json")) })
+    if ($absent -contains 'policies' -or $absent.Count -eq $required.Count) {
+        return @{ available = $false; reason = 'No Conditional Access snapshot in the run folder (Start-PostureRun takes one, or Export-PostureCaSnapshot).' }
+    }
+    if ($absent.Count -gt 0) {
+        return @{ available = $false; reason = "The Conditional Access snapshot is incomplete: $(@($absent | ForEach-Object { "$_.json" }) -join ', ') missing. Take it again (Resume-PostureRun -Collector Entra, or Export-PostureCaSnapshot)." }
     }
     $snap = Import-PostureCaSnapshot -Path $Evidence
     $t = @{ maxExclusionGroupMembers = 25; reportOnlyMaxDays = 90; disabledMaxDays = 90; namePattern = $null }

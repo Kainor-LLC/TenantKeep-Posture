@@ -121,7 +121,8 @@ function Get-PostureCopilotFact {
     else {
         $l = @(& $rows $labels | Where-Object { $_.Disabled -ne $true })
         $policies = & $load 'pv-01-label-policies'
-        $facts.labelsPublished = ($l.Count -gt 0) -and ($null -ne $policies -and @(& $rows $policies | Where-Object { $_.Enabled -ne $false }).Count -gt 0)
+        # No labels is not published; labels with the policies not collected is unknown.
+        $facts.labelsPublished = $(if ($l.Count -eq 0) { $false } elseif ($null -eq $policies) { $null } else { @(& $rows $policies | Where-Object { $_.Enabled -ne $false }).Count -gt 0 })
         $settings = { param($x) (@(@(Get-PostureValue $x 'Settings') | ForEach-Object { [string]$_ }) -join ' ') }   # Settings is absent on older collections
         $encrypting = @($l | Where-Object { $_.EncryptionEnabled -eq $true -or (& $settings $_) -match '(?i)\[encryptionenabled, ?true\]' })
         $facts.encryptingLabels = $encrypting.Count

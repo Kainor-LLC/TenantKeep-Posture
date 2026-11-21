@@ -101,7 +101,7 @@ scalars and string lists before they are written.
 | `exo-09-mailboxes` (+csv), `exo-09-mailboxes-by-type`, `exo-09-mailboxes-with-forwarding` | Get-EXOMailbox, unlimited | Forwarding, holds, audit flag, the Entra object id for the shared mailbox join. `-SkipMailboxEnumeration` at very large sizes |
 | `exo-10-cas-mailboxes` (+csv), `exo-10-cas-summary` | Get-EXOCASMailbox, unlimited | POP, IMAP, ActiveSync, SMTP AUTH override per mailbox |
 | `exo-11-attack-simulations` (+csv) | Graph security/attackSimulation/simulations | Only with AttackSimulation.Read.All; skipped quietly otherwise |
-| `dns-01-mail-records` (+csv) | public DNS through dig (Resolve-DnsName on Windows) | MX, SPF, DMARC, MTA-STS and TLS-RPT per custom authoritative domain; the initial onmicrosoft.com domain is left out |
+| `dns-01-mail-records` (+csv) | public DNS through dig (Resolve-DnsName on Windows) | MX, SPF, DMARC, MTA-STS and TLS-RPT per custom authoritative domain; the initial onmicrosoft.com domain is left out. `LookupFailed` lists the records whose lookup got no answer (a timeout, a server failure); the checks read those as unknown, never as not published |
 
 ```powershell
 Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$false

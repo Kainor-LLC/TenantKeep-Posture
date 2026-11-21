@@ -72,13 +72,16 @@ function Get-PostureDevicesFact {
     else {
         $facts.entraDevices = $e.enabled
         $facts.entraJoined = $e.entraJoined; $facts.hybridJoined = $e.hybridJoined; $facts.registered = $e.registered
-        $facts.hybridJoinedPct = $(if ($e.enabled -gt 0) { & $pct $e.hybridJoined $e.enabled } else { 0 })
+        # No devices at all is nothing to judge, not a rate of zero.
+        $facts.hybridJoinedPct = $(if ($e.enabled -gt 0) { & $pct $e.hybridJoined $e.enabled } else { $null })
+        if ($e.enabled -eq 0) { $notEvaluated['DEV-003'] = 'No enabled devices in Entra, so there is no join type mix to judge.' }
         $facts.staleEntraDevices = $staleList.Count
         $affected.staleEntraDevices = @($staleList)
         if ($null -eq $keys) { & $missing @('DEV-005') '08-bitlocker-keys-by-device' }
         else {
             $facts.windowsEntraDevices = $e.windows
-            $facts.bitlockerEscrowedPct = $(if ($e.windows -gt 0) { & $pct $e.escrowed $e.windows } else { 100 })
+            $facts.bitlockerEscrowedPct = $(if ($e.windows -gt 0) { & $pct $e.escrowed $e.windows } else { $null })
+            if ($e.windows -eq 0) { $notEvaluated['DEV-005'] = 'No Windows devices joined to Entra, so there are no recovery keys to expect.' }
             $affected.windowsDevicesWithoutBitLockerKey = @($noKey)
         }
     }
@@ -198,8 +201,9 @@ function Get-PostureDevicesFact {
         $exp = ConvertTo-PostureUtcDateTime (& $v $apns 'ExpirationDateTime')
         $facts.applePushCertDays = $(if ($exp) { [Math]::Floor(($exp - $AsOf).TotalDays) } else { 0 })
         $soon = @(@($vpp | Where-Object { $_ }) | Where-Object { $e = ConvertTo-PostureUtcDateTime $_.ExpirationDateTime; $e -and [Math]::Floor(($e - $AsOf).TotalDays) -lt [int]$t.minAppleCertDays })
-        $facts.vppTokens = @($vpp | Where-Object { $_ }).Count
-        $facts.vppTokensExpiringSoon = $soon.Count
+        # The token list not collected is unknown, not "no tokens".
+        $facts.vppTokens = $(if ($null -eq $vpp) { $null } else { @($vpp | Where-Object { $_ }).Count })
+        $facts.vppTokensExpiringSoon = $(if ($null -eq $vpp) { $null } else { $soon.Count })
         $affected.appleExpiry = @(@($(if ($facts.applePushCertPresent -and $facts.applePushCertDays -lt [int]$t.minAppleCertDays) { [ordered]@{ name = 'Apple push certificate'; detail = "expires in $($facts.applePushCertDays) day(s)" } })) + @($soon | ForEach-Object { [ordered]@{ name = "VPP token $($_.OrganizationName)"; detail = "expires $((ConvertTo-PostureUtcDateTime $_.ExpirationDateTime).ToString('yyyy-MM-dd'))" } }))
     }
 
@@ -279,7 +283,8 @@ function Get-PostureDevicesFact {
     }
 
     $cleanup = & $load '09-intune-device-cleanup'
-    if ($null -eq $cleanup) { & $missing @('DEV-013') '09-intune-device-cleanup'; if (-not $facts.Contains('deviceCleanupRuleEnabled')) { $facts.deviceCleanupRuleEnabled = $false } }
+    # Not collected: unknown. DEV-002 passes without it only when there are no stale devices to clean up.
+    if ($null -eq $cleanup) { & $missing @('DEV-013') '09-intune-device-cleanup'; $facts.deviceCleanupRuleEnabled = $null }
     else { $facts.deviceCleanupRuleEnabled = [bool](& $v $cleanup 'Enabled'); $facts.deviceCleanupDays = & $v $cleanup 'DeviceInactivityBeforeRetirementInDays' }
 
     # DEV-022 and DEV-023: Macs on a partner MDM (Jamf, Kandji, Mosyle). One is expected when the profile names it,

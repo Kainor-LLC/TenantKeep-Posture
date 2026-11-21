@@ -123,7 +123,8 @@ function Get-PostureEndpointFact {
         # Windows Hello for Business (EP-012) and cloud Kerberos trust (EP-013). passportforwork_{tenantid}_policies_usepassportforwork confirmed 2026-10-14; usecloudtrustforonpremauth (verify)
         $whfb = & $load '09-intune-windows-hello'
         $tenantWide = [bool]($null -ne $whfb -and (& $v $whfb 'Present') -eq $true -and [string](& $v $whfb 'State') -eq 'enabled')
-        $facts.windowsHelloEnabled = $tenantWide -or (& $hasWin 'passportforwork_.*_usepassportforwork$' '_true$')
+        # On by the tenant-wide setting or by a policy; unknown when neither says so and the tenant-wide setting was not read.
+        $facts.windowsHelloEnabled = $(if ($tenantWide -or (& $hasWin 'passportforwork_.*_usepassportforwork$' '_true$')) { $true } elseif ($null -eq $whfb) { $null } else { $false })
         $facts.windowsHelloCloudTrust = & $hasWin 'usecloudtrustforonpremauth$' '_true$'
 
         # macOS (EP-015 FileVault, EP-016 hardening, EP-017 Platform SSO). Gatekeeper, firewall, escrow and Platform SSO ids confirmed 2026-10-14.
@@ -137,7 +138,8 @@ function Get-PostureEndpointFact {
 
     # Compliance policies: SIP on macOS (EP-016), jailbreak and root detection (EP-018)
     $comp = & $load '09-intune-compliance-policy-settings'
-    if ($null -eq $comp) { & $missing @('EP-018') '09-intune-compliance-policy-settings'; if (-not $facts.Contains('macSip')) { $facts.macSip = $false } }
+    # Not collected: unknown, never "off". A fact the settings catalog already answered stays.
+    if ($null -eq $comp) { & $missing @('EP-018') '09-intune-compliance-policy-settings'; if (-not $facts.Contains('macSip')) { $facts.macSip = $null }; $facts.iosJailbreakBlocked = $null; $facts.androidRootBlocked = $null }
     else {
         $c = @(& $rows $comp)
         $facts.macSip = @($c | Where-Object { [string]$_.Type -eq 'macOSCompliancePolicy' -and [string]$_.Setting -eq 'systemIntegrityProtectionEnabled' -and $_.Value -eq $true }).Count -gt 0
@@ -145,8 +147,10 @@ function Get-PostureEndpointFact {
         $facts.androidRootBlocked = @($c | Where-Object { [string]$_.Type -match '^android' -and [string]$_.Setting -eq 'securityBlockJailbrokenDevices' -and $_.Value -eq $true }).Count -gt 0
     }
     $platforms = @($OrgProfile['platforms'] | Where-Object { $_ } | ForEach-Object { ([string]$_).ToLowerInvariant() })
-    $facts.mobileJailbreakBlocked = (($platforms -notcontains 'ios') -or [bool]$facts.iosJailbreakBlocked) -and (($platforms -notcontains 'android') -or [bool]$facts.androidRootBlocked)
-    $affected.mobilePlatformsWithoutJailbreakDetection = @(@(@('iOS', ($platforms -contains 'ios'), [bool]$facts.iosJailbreakBlocked), @('Android', ($platforms -contains 'android'), [bool]$facts.androidRootBlocked)) | Where-Object { $_[1] -and -not $_[2] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'no assigned compliance policy blocks jailbroken or rooted devices' } })
+    # A platform out of scope needs nothing; one in scope is blocked, not blocked, or unknown when the policies were not read.
+    $ios = $(if ($platforms -notcontains 'ios') { $true } else { $facts.iosJailbreakBlocked }); $android = $(if ($platforms -notcontains 'android') { $true } else { $facts.androidRootBlocked })
+    $facts.mobileJailbreakBlocked = $(if ($ios -eq $false -or $android -eq $false) { $false } elseif ($null -eq $ios -or $null -eq $android) { $null } else { $true })
+    $affected.mobilePlatformsWithoutJailbreakDetection = @(@(@('iOS', ($platforms -contains 'ios'), $facts.iosJailbreakBlocked), @('Android', ($platforms -contains 'android'), $facts.androidRootBlocked)) | Where-Object { $_[1] -and $_[2] -eq $false } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'no assigned compliance policy blocks jailbroken or rooted devices' } })
 
     # App protection (EP-018, with byod mam or mdm)
     $app = & $load '09-intune-app-protection-policies'
@@ -167,7 +171,7 @@ function Get-PostureEndpointFact {
         $deadline = @($rings | Where-Object { [string]$_.Setting -eq 'deadlineForQualityUpdatesInDays' -and $null -ne $_.Value -and [int]$_.Value -le [int]$t.maxQualityUpdateDeadlineDays })
         $facts.updateQualityDeadlineSet = $deadline.Count -gt 0
         $facts.updateFeatureDeadlineSet = @($rings | Where-Object { [string]$_.Setting -eq 'deadlineForFeatureUpdatesInDays' -and $null -ne $_.Value }).Count -gt 0
-        $facts.featureUpdateProfileAssigned = [bool]($null -ne $feature -and @(& $rows $feature | Where-Object { [int]$_.Assignments -gt 0 }).Count -gt 0)
+        $facts.featureUpdateProfileAssigned = $(if ($null -eq $feature) { $null } else { @(& $rows $feature | Where-Object { [int]$_.Assignments -gt 0 }).Count -gt 0 })
     }
 
     # ---------- Defender effective state (spec 4.11, the other half): what devices are doing, from advanced hunting ----------

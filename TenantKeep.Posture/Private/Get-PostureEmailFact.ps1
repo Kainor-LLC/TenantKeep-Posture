@@ -99,7 +99,7 @@ function Get-PostureEmailFact {
         $facts.highConfidencePhishAdminOnly = @($cfRows | Where-Object { [string]$_.HighConfidencePhishQuarantineTag -ne 'AdminOnlyAccessPolicy' }).Count -eq 0 -and $cfRows.Count -gt 0
         $affected.highConfidencePhishReleasable = @($cfRows | Where-Object { [string]$_.HighConfidencePhishQuarantineTag -ne 'AdminOnlyAccessPolicy' } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "high-confidence phish quarantine tag $($_.HighConfidencePhishQuarantineTag)" } })
         $q = & $load 'exo-05-quarantine-policies'
-        $facts.quarantineNotificationsEnabled = [bool]($null -ne $q -and @(& $rows $q | Where-Object { $_.ESNEnabled -eq $true }).Count -gt 0)
+        $facts.quarantineNotificationsEnabled = $(if ($null -eq $q) { $null } else { @(& $rows $q | Where-Object { $_.ESNEnabled -eq $true }).Count -gt 0 })
     }
 
     # Automatic external forwarding (EM-008)
@@ -182,10 +182,14 @@ function Get-PostureEmailFact {
         $rank = @{ none = 0; quarantine = 1; reject = 2 }
         $minRank = $(if ($rank.ContainsKey([string]$t.minDmarcPolicy)) { $rank[[string]$t.minDmarcPolicy] } else { 2 })
         $dmarcGaps = @(); $spfGaps = @(); $stsGaps = @()
+        # Records whose lookup failed are unknown for that domain (LookupFailed, written by the collector since 2026-11-21).
+        $dnsUnknown = @{ DMARC = [System.Collections.Generic.List[string]]::new(); SPF = [System.Collections.Generic.List[string]]::new(); STS = [System.Collections.Generic.List[string]]::new() }
         foreach ($r in $dnsRows) {
             $d = [string]$r.Domain
+            $lookupFailed = @(([string](& $v $r 'LookupFailed')) -split ';' | Where-Object { $_ })
             $dmarc = [string]$r.DMARC
-            if (-not $dmarc) { $dmarcGaps += , [ordered]@{ name = $d; detail = 'no DMARC record' } }
+            if ('DMARC' -in $lookupFailed) { $dnsUnknown.DMARC.Add($d) }
+            elseif (-not $dmarc) { $dmarcGaps += , [ordered]@{ name = $d; detail = 'no DMARC record' } }
             else {
                 $p = $(if ($dmarc -match '(?i)(?:^|;)\s*p\s*=\s*([a-z]+)') { $Matches[1].ToLowerInvariant() } else { 'none' })
                 $rua = $dmarc -match '(?i)(?:^|;)\s*rua\s*='
@@ -194,7 +198,8 @@ function Get-PostureEmailFact {
                 elseif (-not $rua) { $dmarcGaps += , [ordered]@{ name = $d; detail = "p=$p but no rua reporting address" } }
             }
             $spf = [string]$r.SPF
-            if (-not $spf) { $spfGaps += , [ordered]@{ name = $d; detail = 'no SPF record' } }
+            if ('SPF' -in $lookupFailed) { $dnsUnknown.SPF.Add($d) }
+            elseif (-not $spf) { $spfGaps += , [ordered]@{ name = $d; detail = 'no SPF record' } }
             else {
                 $lookups = @([regex]::Matches($spf, '(?i)(?:^|\s)(?:include:|a(?=[\s:/]|$)|mx(?=[\s:/]|$)|ptr|exists:|redirect=)')).Count
                 $allTerm = $(if ($spf -match '(?i)([-~?+]?)all\s*$') { $Matches[1] } else { $null })
@@ -203,8 +208,15 @@ function Get-PostureEmailFact {
                 elseif ([bool]$t.spfRequireHardFail -and $allTerm -ne '-') { $spfGaps += , [ordered]@{ name = $d; detail = "ends with ${allTerm}all, not -all" } }
                 elseif ($allTerm -in @('+', '?')) { $spfGaps += , [ordered]@{ name = $d; detail = "ends with ${allTerm}all" } }
             }
-            if (-not [string]$r.MTASTS -or -not [string]$r.TLSRPT) { $stsGaps += , [ordered]@{ name = $d; detail = "MTA-STS $(if ($r.MTASTS) { 'published' } else { 'missing' }), TLS-RPT $(if ($r.TLSRPT) { 'published' } else { 'missing' })" } }
+            if ('MTASTS' -in $lookupFailed -or 'TLSRPT' -in $lookupFailed) { $dnsUnknown.STS.Add($d) }
+            elseif (-not [string]$r.MTASTS -or -not [string]$r.TLSRPT) { $stsGaps += , [ordered]@{ name = $d; detail = "MTA-STS $(if ($r.MTASTS) { 'published' } else { 'missing' }), TLS-RPT $(if ($r.TLSRPT) { 'published' } else { 'missing' })" } }
         }
+        # A gap that was seen fails the check. With none seen and some domains unanswered, there is no answer yet.
+        foreach ($pair in @(@('EM-013', 'DMARC', $dmarcGaps.Count, 'DMARC'), @('EM-014', 'SPF', $spfGaps.Count, 'SPF'), @('EM-015', 'STS', $stsGaps.Count, 'MTA-STS and TLS-RPT'))) {
+            $unknownDomains = @($dnsUnknown[$pair[1]])
+            if ($unknownDomains.Count -gt 0 -and $pair[2] -eq 0) { $notEvaluated[$pair[0]] = "The DNS lookup failed for $($unknownDomains.Count) domain(s) ($(@($unknownDomains | Select-Object -First 5) -join ', ')), so their $($pair[3]) records are unknown; no gap was found on the others. Collect Exchange again (Resume-PostureRun -Collector Exchange)." }
+        }
+        $facts.dnsLookupsFailed = @($dnsRows | Where-Object { [string](& $v $_ 'LookupFailed') }).Count
         $facts.dnsDomains = $dnsRows.Count
         $facts.dmarcGaps = $dmarcGaps.Count; $affected.dmarcGaps = @($dmarcGaps)
         $facts.spfGaps = $spfGaps.Count; $affected.spfGaps = @($spfGaps)
@@ -279,7 +291,10 @@ function Get-PostureEmailFact {
     if ($null -eq $inbound) { & $missing @('EM-026') 'exo-03-inbound-connectors' }
     else {
         $elsewhere = @(& $rows $mxRows | Where-Object { [string](& $v $_ 'MX') -and [string](& $v $_ 'MX') -notmatch '(?i)mail\.protection\.outlook\.com' })
-        $facts.gatewayInFront = $elsewhere.Count -gt 0 -or ($emailVendor -and $emailVendor -ne 'none')
+        # A gateway is in front when an MX record points elsewhere or the profile names a vendor. Without the DNS
+        # records and without a vendor it is unknown: no records is not the same as records that point at Microsoft.
+        $mxUnknown = @(& $rows $mxRows | Where-Object { 'MX' -in @(([string](& $v $_ 'LookupFailed')) -split ';') })
+        $facts.gatewayInFront = $(if ($elsewhere.Count -gt 0 -or ($emailVendor -and $emailVendor -ne 'none')) { $true } elseif ($null -eq $mxRows -or $mxUnknown.Count -gt 0) { $null } else { $false })
         $lock = @(& $rows $inbound | Where-Object { (& $v $_ 'Enabled') -eq $true -and [string](& $v $_ 'ConnectorType') -eq 'Partner' -and [string](& $v $_ 'SenderDomains') -match '\*' -and ((& $v $_ 'RestrictDomainsToIPAddresses') -eq $true -or (& $v $_ 'RestrictDomainsToCertificate') -eq $true) })
         $facts.gatewayLockedDown = $lock.Count -gt 0
         $affected.gatewayBypass = @($(if ($facts.gatewayInFront -and -not $facts.gatewayLockedDown) {
@@ -292,9 +307,11 @@ function Get-PostureEmailFact {
     # but an administrator has the per-user setting on. Shared, room and equipment mailboxes do not sign in.
     $tools = Get-PostureAdminToolRestriction -Evidence $Evidence
     $exoApp = $(if ($tools) { @($tools | Where-Object { $_.appId -eq 'fb78d390-0c51-40cd-8e17-fdbfab77341b' })[0] } else { $null })
-    $facts.exoPowerShellAppRestricted = [bool]($exoApp -and $exoApp.restricted)
+    # Unknown when the service principals were not collected, or when only a Conditional Access policy could close the app and the snapshot is missing.
+    $facts.exoPowerShellAppRestricted = $(if ($null -eq $tools -or -not $exoApp) { $null } else { $exoApp.restricted })
     $admins = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($a in @(& $load '04-role-assignments-active') | Where-Object { $_ }) { $u = [string](& $v $a 'PrincipalUpn'); if ($u) { $null = $admins.Add($u) } }
+    $roleRows = & $load '04-role-assignments-active'
+    foreach ($a in @($roleRows | Where-Object { $_ })) { $u = [string](& $v $a 'PrincipalUpn'); if ($u) { $null = $admins.Add($u) } }
     $psUsers = [System.Collections.Generic.List[object]]::new(); $psCount = @{ n = 0 }
     $havePs = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-12-remote-powershell-users' -OnRow {
         param($_row)
@@ -303,8 +320,13 @@ function Get-PostureEmailFact {
         $psCount.n++
         if ($psUsers.Count -lt 500) { $psUsers.Add([ordered]@{ name = $upn; detail = 'Exchange Online PowerShell on, not an administrator' }) }
     }
-    if (-not $havePs -and -not $facts.exoPowerShellAppRestricted) { $notEvaluated['EM-025'] = 'exo-12-remote-powershell-users was not collected: the Exchange collector reads it since 2026-11-20, unless -SkipMailboxEnumeration (Resume-PostureRun -Collector Exchange).' }
-    else { $facts.nonAdminRemotePowerShell = $(if ($havePs) { $psCount.n } else { 0 }); $affected.nonAdminRemotePowerShell = @($psUsers) }
+    if (-not $havePs -and $facts.exoPowerShellAppRestricted -ne $true) { $notEvaluated['EM-025'] = 'exo-12-remote-powershell-users was not collected: the Exchange collector reads it since 2026-11-20, unless -SkipMailboxEnumeration (Resume-PostureRun -Collector Exchange).' }
+    else {
+        # Unknown without the list, and unknown when accounts have it on but the role holders were not collected, so
+        # administrators cannot be told from everyone else. None with it on is none either way.
+        $facts.nonAdminRemotePowerShell = $(if (-not $havePs -or ($null -eq $roleRows -and $psCount.n -gt 0)) { $null } else { $psCount.n })
+        $affected.nonAdminRemotePowerShell = @($(if ($null -ne $roleRows) { $psUsers }))
+    }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
 }

@@ -78,6 +78,11 @@ Describe 'Exchange Online PowerShell for administrators only' {
         & $script:Write $d '04-role-assignments-active' @(@{ RoleName = 'Exchange Administrator'; PrincipalUpn = 'admin1@contoso.example' })
         & $script:Write $d 'exo-01-orgconfig' @{ Name = 'contoso' }
         & $script:Write $d '10-service-principals' @((& $script:Sp 'fb78d390-0c51-40cd-8e17-fdbfab77341b' $false))
+        # Open on the app itself: without the Conditional Access snapshot a blocking policy cannot be ruled out.
+        $unknown = (& $script:Checks $d 'email')['EM-025']
+        $unknown.status | Should -Be 'notEvaluated'
+        $unknown.reason | Should -Match 'facts\.exoPowerShellAppRestricted has no value.*Not collected: policies\.json'
+        & $script:Write $d 'policies' @()
         $by = & $script:Checks $d 'email'
         $by['EM-025'].status | Should -Be 'fail'
         @($by['EM-025'].affected.name) | Should -Be @('user1@contoso.example', 'user2@contoso.example')
