@@ -7,7 +7,7 @@
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
   (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), Upkeep (a
-  report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Learn links; run weekly on
+  report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Graph APIs a check waits on, Learn links; run weekly on
   GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
   Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
   manifest is required either way. Sign needs a local
@@ -286,8 +286,8 @@ function Invoke-AttackData {
 function Invoke-Upkeep {
     # What has gone stale since the data was last reviewed, as a Markdown report: Microsoft's licensing list against
     # bundles.json, a newer ATT&CK release or a mapped technique MITRE withdrew, newer major or minor versions of the
-    # modules the collectors were tested with, Learn links that no longer answer, and data files past their review
-    # date. Runs on GitHub (.github/workflows/upkeep.yml), which files the report as an issue; the module never calls out.
+    # modules the collectors were tested with, a beta Graph API a check waits on reaching v1.0, Learn links that no
+    # longer answer, and data files past their review date. Runs on GitHub (.github/workflows/upkeep.yml), which files the report as an issue; the module never calls out.
     Write-Task 'Upkeep'
     $target = $(if ($UpkeepReport) { $UpkeepReport } else { Join-Path $OutRoot 'upkeep.md' })
     New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
@@ -301,7 +301,7 @@ function Invoke-Upkeep {
             $j = Get-Content -Raw $f.FullName | ConvertFrom-Json
             if ($j.PSObject.Properties['reviewed'] -and ([datetime]::UtcNow - [datetime]$j.reviewed).TotalDays -gt 180) { $findings.Add("licensing/$($f.Name) was last reviewed on $($j.reviewed): check it against Microsoft's service plan list and bump 'reviewed'.") }
         }
-        if ($Offline) { $notes.Add('Offline: the licensing list, ATT&CK, module versions and Learn links were not checked.') }
+        if ($Offline) { $notes.Add('Offline: the licensing list, ATT&CK, module versions, Graph APIs and Learn links were not checked.') }
         else {
             # Microsoft's licensing list: rebuild bundles.json from it into a copy and compare (verify the download URL stays put).
             try {
@@ -355,6 +355,19 @@ function Invoke-Upkeep {
                 }
                 catch { $notes.Add("$name not checked: $($_.Exception.Message)") }
             }
+
+            # Graph APIs a check waits on: in beta only today, so the check asks for an attestation instead. When the type
+            # appears in Graph's published v1.0 schema (no sign-in needed), the check can read it.
+            $waiting = @(
+                @{ Type = 'copilotPolicySetting'; Check = 'CP-015'; What = 'the Copilot policy settings (web search, image generation and the rest)'; Then = 'read the settings it covers in the collector (delegated CopilotPolicySettings.Read) and keep the attestation for agents and connectors' }
+            )
+            try {
+                $schema = Join-Path $temp 'graph-v1.0-metadata.xml'
+                Invoke-WebRequest -Uri 'https://graph.microsoft.com/v1.0/$metadata' -OutFile $schema -UseBasicParsing
+                $text = [System.IO.File]::ReadAllText($schema)
+                foreach ($w in $waiting) { if ($text.Contains("Name=`"$($w.Type)`"")) { $findings.Add("$($w.Check): Microsoft Graph v1.0 now has $($w.Type), $($w.What). Time to $($w.Then).") } }
+            }
+            catch { $notes.Add("Graph v1.0 schema not checked: $($_.Exception.Message)") }
 
             # Learn links in the catalog that no longer answer.
             $links = @(Get-ChildItem (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' } | ForEach-Object { (Get-Content -Raw $_.FullName | ConvertFrom-Json).checks } | Where-Object { $_.learn } | Group-Object learn)

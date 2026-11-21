@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- The weekly upkeep watches for beta Graph APIs a check waits on (2026-11-21): it reads Graph's published v1.0
+  schema, which needs no sign-in, and files a finding when a listed type arrives. First on the list:
+  copilotPolicySetting for CP-015, so the Copilot settings check can read what the API covers once it leaves beta.
+- System-preferred MFA is read again (2026-11-21): Graph answered 400 to the `$select` on the beta authentication
+  methods policy (seen on Kainor), so the step reads the whole policy and keeps the one setting.
 - Teams apps under app centric management (2026-11-21): the Teams collector reads the org-wide app settings
   (`Get-M365UnifiedTenantSettings`, `teams-app-settings`) and every app's availability and block state
   (`Get-AllM365TeamsApps`, `teams-app-availability`). CL-014 now judges the org-wide default for third-party apps,

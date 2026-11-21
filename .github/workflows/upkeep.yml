@@ -2,7 +2,7 @@
 name: Weekly upkeep
 
 # What has gone stale in the data the module ships: Microsoft's licensing list, MITRE ATT&CK, the PowerShell modules
-# the collectors were tested with, and Learn links. build.ps1 -Task Upkeep writes the report; this files it as one
+# the collectors were tested with, beta Graph APIs a check waits on, and Learn links. build.ps1 -Task Upkeep writes the report; this files it as one
 # issue, updated in place each week. Nothing here touches a tenant, and the module itself never calls out.
 on:
   schedule:

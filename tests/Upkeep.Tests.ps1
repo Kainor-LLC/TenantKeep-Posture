@@ -18,7 +18,7 @@ Describe 'Upkeep task' {
         $md = Get-Content -Raw $report
         $md | Should -Match '^# Weekly upkeep, \d{4}-\d{2}-\d{2}'
         $md | Should -Match '- \[ \] licensing/bundle-list\.json was last reviewed on 2020-01-01'
-        $md | Should -Match 'Offline: the licensing list, ATT&CK, module versions and Learn links were not checked\.'
+        $md | Should -Match 'Offline: the licensing list, ATT&CK, module versions, Graph APIs and Learn links were not checked\.'
         $md | Should -Not -Match ([char]0x2014)
     }
 
