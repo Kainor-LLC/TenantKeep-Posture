@@ -17,7 +17,9 @@
          organisation-wide grant; one made by hand earlier is reported, not touched.
       4. For each -Remove: deletes that account's grants and assignment.
       5. -Disable turns sign-in to the app off (for the time between runs); -Enable turns it back on.
-      6. Prints who holds access now.
+      6. -RemoveOrganizationWideGrant deletes an organisation-wide grant for the app (one made by "Grant admin
+         consent" in the portal), leaving the per-admin grants.
+      7. Prints who holds access now.
 
     Delegated permissions never exceed the signed-in admin's own rights: the app reads as the admin who runs
     Start-PostureRun, who needs SharePoint Administrator for the SharePoint read (activate it in PIM for the run). The
@@ -37,6 +39,8 @@
     Turn sign-in to the app on (for a run).
 .PARAMETER Disable
     Turn sign-in to the app off (between runs). Grants and assignments stay.
+.PARAMETER RemoveOrganizationWideGrant
+    Delete any organisation-wide grant for the app, so only the per-admin grants remain.
 .PARAMETER ClientId
     The app id. Default: TenantKeep Posture for SharePoint from TenantKeep.Posture/app-sharepoint.json.
 .EXAMPLE
@@ -54,6 +58,7 @@ param(
     [ValidatePattern('^[^@\s]+@[^@\s]+$')] [string[]] $Remove = @(),
     [switch] $Enable,
     [switch] $Disable,
+    [switch] $RemoveOrganizationWideGrant,
     [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
     [string] $AppJsonPath = (Join-Path $PSScriptRoot '..' '..' 'TenantKeep.Posture' 'app-sharepoint.json')
 )
@@ -135,10 +140,17 @@ foreach ($upn in $Remove) {
     Write-Host "Removed from $upn."
 }
 
-# 6. Who holds it now.
+# 6. An organisation-wide grant, made outside this script, removed on request.
 $all = @(Get-GraphValue "$graph/oauth2PermissionGrants?`$filter=clientId eq '$spId'")
 $org = @($all | Where-Object { [string]$_['consentType'] -eq 'AllPrincipals' })
-if ($org.Count) { Write-Warning 'An organisation-wide grant exists for this app (made outside this script). It lets any assigned account use it; remove it under Enterprise applications, TenantKeep Posture for SharePoint, Permissions, if that was not intended.' }
+if ($org.Count -and $RemoveOrganizationWideGrant) {
+    foreach ($g in $org) { if ($PSCmdlet.ShouldProcess("$($g['scope'])", 'Remove the organisation-wide grant')) { $null = Send-Graph DELETE "$graph/oauth2PermissionGrants/$($g['id'])"; Write-Host "Removed the organisation-wide grant: $($g['scope'])" } }
+    $all = @(Get-GraphValue "$graph/oauth2PermissionGrants?`$filter=clientId eq '$spId'")
+    $org = @($all | Where-Object { [string]$_['consentType'] -eq 'AllPrincipals' })
+}
+if ($org.Count) { Write-Warning 'An organisation-wide grant exists for this app (made outside this script, for example by Grant admin consent in the portal). Assignment still limits who can sign in, but the grant is wider than this design needs: run this script again with -RemoveOrganizationWideGrant.' }
+
+# 7. Who holds it now.
 $holders = @($all | Where-Object { [string]$_['consentType'] -eq 'Principal' -and [string]$_['resourceId'] -eq $resourceSp['00000003-0000-0ff1-ce00-000000000000'] } | ForEach-Object { [string]$_['principalId'] } | Sort-Object -Unique)
 $names = @($holders | ForEach-Object { $x = @(Get-GraphValue "$graph/users/$($_)?`$select=userPrincipalName"); if ($x.Count) { [string]$x[0]['userPrincipalName'] } else { $_ } })
 Write-Host ''

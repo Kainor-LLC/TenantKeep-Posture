@@ -164,7 +164,7 @@ Describe 'Grant-PostureSharePointAccess.ps1' {
                 'users/spadmin@contoso\.example\?' { return @{ id = 'u-1'; userPrincipalName = 'spadmin@contoso.example' } }
                 'users/u-1\?' { return @{ userPrincipalName = 'spadmin@contoso.example' } }
                 "oauth2PermissionGrants\?.*principalId eq 'u-1'" { return @{ value = @() } }
-                'oauth2PermissionGrants\?' { return @{ value = @(@{ id = 'g1'; consentType = 'Principal'; principalId = 'u-1'; resourceId = 'spo-sp'; scope = 'AllSites.FullControl' }) } }
+                'oauth2PermissionGrants\?' { $list = @(@{ id = 'g1'; consentType = 'Principal'; principalId = 'u-1'; resourceId = 'spo-sp'; scope = 'AllSites.FullControl' }); if ($env:TKP_SPGRANT_ORG -eq 'yes') { $list += @{ id = 'org-1'; consentType = 'AllPrincipals'; resourceId = 'spo-sp'; scope = 'AllSites.FullControl' } }; return @{ value = $list } }
                 'appRoleAssignments\?' { return @{ value = @() } }
             }
             throw "Stub has no answer for $Method $u"
@@ -185,6 +185,20 @@ Describe 'Grant-PostureSharePointAccess.ps1' {
         @($writes | Where-Object { $_.Uri -match 'users/u-1/appRoleAssignments$' }).Count | Should -Be 1
         @($writes | Where-Object { "$($_.Body)" -match 'AllPrincipals' }).Count | Should -Be 0
         $out | Should -Match 'granted to spadmin@contoso\.example'
+    }
+
+    It 'removes an organisation-wide grant made in the portal, on request only' {
+        Remove-Item -LiteralPath $env:TKP_SPGRANT_LOG -ErrorAction SilentlyContinue
+        $env:TKP_SPGRANT_ORG = 'yes'
+        try {
+            $warned = & $script:GrantScript -TenantId '33333333-3333-3333-3333-333333333333' -ClientId 'bbbbbbbb-0000-0000-0000-000000000002' 3>&1 6>$null | Out-String
+            $warned | Should -Match 'RemoveOrganizationWideGrant'
+            @(& $script:Requests | Where-Object Method -eq 'DELETE').Count | Should -Be 0
+            $null = & $script:GrantScript -TenantId '33333333-3333-3333-3333-333333333333' -ClientId 'bbbbbbbb-0000-0000-0000-000000000002' -RemoveOrganizationWideGrant 3>$null 6>$null
+            @(& $script:Requests | Where-Object { $_.Method -eq 'DELETE' -and $_.Uri -match 'oauth2PermissionGrants/org-1$' }).Count | Should -Be 1
+            @(& $script:Requests | Where-Object { $_.Method -eq 'DELETE' -and $_.Uri -match 'g1$' }).Count | Should -Be 0 -Because 'the per-admin grant stays'
+        }
+        finally { Remove-Item Env:TKP_SPGRANT_ORG -ErrorAction SilentlyContinue }
     }
 
     It 'turns sign-in off between runs and refuses another tenant' {
