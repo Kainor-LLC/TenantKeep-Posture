@@ -723,7 +723,7 @@
       ],
       "pass": "facts.bannedPasswordOnPremEnforced",
       "remediation": [
-        "Install the Entra Password Protection proxy service and the domain controller agent on every domain controller (verify the agents report in the Entra admin center).",
+        "Install the Entra Password Protection proxy service and the domain controller agent on every domain controller, then check in the Entra admin center that each agent reports in.",
         "In Entra, Password protection, set Enable password protection on Windows Server Active Directory to Yes and the mode to Enforced, after a period in Audit."
       ],
       "effort": "M",
