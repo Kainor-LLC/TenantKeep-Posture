@@ -546,6 +546,27 @@
       ],
       "licence": "Microsoft Entra Internet Access or Private Access (Entra Suite)",
       "note": "Read only where the tenant holds Internet Access or Private Access."
+    },
+    {
+      "collector": "Azure",
+      "match": "^Microsoft 365 pay-as-you-go spend$",
+      "roles": [
+        "Cost Management Reader (Azure role)",
+        "Reader (Azure role)"
+      ],
+      "note": "On the subscriptions that pay for Microsoft 365 pay-as-you-go services (verify the service names)."
+    },
+    {
+      "collector": "Azure",
+      "match": "^Microsoft 365 Backup$",
+      "roles": [
+        "Global Reader (verify)",
+        "SharePoint Administrator"
+      ],
+      "scopes": [
+        "BackupRestore-Configuration.Read.All"
+      ],
+      "note": "Graph read of Microsoft 365 Backup status and protection policies (verify the least role)."
     }
   ]
 }

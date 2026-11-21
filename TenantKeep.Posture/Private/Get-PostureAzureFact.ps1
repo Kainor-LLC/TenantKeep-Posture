@@ -240,5 +240,15 @@ function Get-PostureAzureFact {
     $scores = & $load 'az-02-secure-scores'
     if ($null -ne $scores) { $facts.azureSecureScores = @(& $rows $scores | ForEach-Object { [ordered]@{ subscription = (& $label $_.SubscriptionId); current = $_.Current; max = $_.Max; percentage = $_.Percentage } }) }
 
+    # Microsoft 365 pay-as-you-go: every paying subscription has a budget (AZ-023).
+    $payg = & $load 'az-10-m365-payg'
+    if ($null -eq $payg) { $notEvaluated['AZ-023'] = 'az-10-m365-payg.json was not collected (the Azure collector; Cost Management Reader on the subscriptions).' }
+    else {
+        $paying = @($payg | Where-Object { $_ })
+        $noBudget = @($paying | Where-Object { [int](& $v $_ 'Budgets') -eq 0 })
+        $facts.m365PaygSubscriptions = $paying.Count
+        $facts.m365PaygWithoutBudget = $noBudget.Count
+        $affected.m365PaygWithoutBudget = @($noBudget | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'SubscriptionId'); detail = (@(& $v $_ 'Services' | ForEach-Object { "$(& $v $_ 'Name') $(& $v $_ 'Cost') $(& $v $_ 'Currency')" }) -join '; ') } })
+    }
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json') }
 }

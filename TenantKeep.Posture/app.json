@@ -45,7 +45,8 @@
         "Application.Read.All",
         "Reports.Read.All",
         "SharePointTenantSettings.Read.All",
-        "NetworkAccess.Read.All"
+        "NetworkAccess.Read.All",
+        "BackupRestore-Configuration.Read.All"
       ]
     },
     {

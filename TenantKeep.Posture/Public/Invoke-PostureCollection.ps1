@@ -140,6 +140,7 @@ function Invoke-PostureCollection {
         'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups'
         'AdministrativeUnit.Read.All'             = 'Administrative units'
         'NetworkAccess.Read.All'                  = 'Global Secure Access (only where licensed)'
+        'BackupRestore-Configuration.Read.All'    = 'Microsoft 365 Backup (with the Azure collector)'
         'ThreatHunting.Read.All'                  = 'Defender devices, antivirus state, secure configuration, vulnerabilities (advanced hunting)'
         'SecurityIncident.Read.All'               = 'Defender incidents'
         'SecurityEvents.Read.All'                 = 'Secure Score'

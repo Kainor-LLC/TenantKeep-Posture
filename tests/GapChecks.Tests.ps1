@@ -54,5 +54,17 @@ Describe 'Gap checks from existing evidence' {
         $inv.rows[0].GPO | Should -Be 'Legacy drive maps'
         $inv.rows[0].Readiness | Should -Be 'None'
     }
+
+    It 'judges Microsoft 365 Backup coverage and pay-as-you-go budgets, and lets a backup vendor cover OP-008' {
+        $d = Join-Path $script:Root 'payg'
+        & $script:Write $d 'az-11-m365-backup' @{ ServiceStatus = 'enabled'; SharePointPolicies = 1; OneDrivePolicies = 1; ExchangePolicies = 0 }
+        & $script:Write $d 'az-10-m365-payg' @(@{ SubscriptionId = 'sub-1'; Services = @(@{ Name = 'Microsoft 365 Backup'; Cost = 12.5; Currency = 'USD' }); Budgets = 0 })
+        & $script:Write $d 'az-01-subscriptions' @(@{ SubscriptionId = 'sub-1'; Name = 'Billing'; State = 'Enabled'; AtTenantRoot = $false; ManagementGroupChain = 'Tenant Root / Platform' })
+        $by = & $script:Checks $d @('operations', 'azure') '{ "version": 1, "azure": "platform", "thirdParty": { "backup": "none" } }'
+        $by['OP-008'].status | Should -Be 'fail' -Because 'Exchange has no active policy'
+        $by['AZ-023'].affected.name | Should -Be @('sub-1')
+        $vendor = & $script:Checks $d @('operations') '{ "version": 1, "thirdParty": { "backup": "Veeam" } }'
+        $vendor['OP-008'].status | Should -Be 'coveredBy'
+    }
 }
 

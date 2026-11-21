@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- Microsoft 365 pay-as-you-go and Backup (2026-11-20): with the Azure collector, the subscriptions that pay for
+  Microsoft 365 pay-as-you-go services over the last 30 days and their budgets (AZ-023 asks for a budget alert), and
+  Microsoft 365 Backup's status and protection policies (OP-008: on and protecting SharePoint, OneDrive and Exchange,
+  covered by another backup product named in the profile). Cost Management's query is a read sent as a POST; one
+  function makes it and refuses any other path. New permission BackupRestore-Configuration.Read.All (rerun the app
+  setup and consent).
 - Network access domain (2026-11-20): Global Secure Access checks: NET-001 Microsoft traffic forwarded, NET-002
   internet traffic filtered, NET-003 private apps through Private Access, NET-004 Conditional Access sees the original
   source address. Licensed by Internet Access, Private Access or Entra Suite; covered by another secure web gateway or

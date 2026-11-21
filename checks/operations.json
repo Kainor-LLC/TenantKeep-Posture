@@ -237,6 +237,42 @@
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "OP-008",
+      "domain": "operations",
+      "title": "Microsoft 365 Backup on and protecting every workload",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "backup:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "az-11-m365-backup.json"
+      ],
+      "pass": "facts.m365BackupEnabled && facts.m365BackupWorkloadsProtected == 3",
+      "remediation": [
+        "In the Microsoft 365 admin center, Settings, Microsoft 365 Backup, connect a billing subscription (pay-as-you-go through Azure).",
+        "Create protection policies for SharePoint, OneDrive and Exchange covering the sites and mailboxes that matter, then all of them as budget allows.",
+        "Put a budget alert on the paying subscription (AZ-023) and test a restore."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing visible; deleted or encrypted content can be restored quickly when needed."
+      },
+      "learn": "https://learn.microsoft.com/microsoft-365/backup/backup-overview",
+      "deepLink": "https://admin.microsoft.com/#/Settings/enhancedRestore",
+      "narrative": "Retention keeps copies for compliance but restoring at scale after ransomware or a mass deletion is slow and partial. Microsoft 365 Backup restores whole sites, OneDrives and mailboxes to a point in time, quickly. A third-party backup named in the profile covers this check.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-11",
+        "iso27001": "A.8.13",
+        "cmmc": "MP.L2-3.8.9",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

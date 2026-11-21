@@ -74,3 +74,27 @@ function Invoke-PostureAzureRequest {
     }
     return $items.ToArray()
 }
+
+function Invoke-PostureCostQuery {
+    <#
+    .SYNOPSIS
+        A Cost Management query, the one Azure read that is a POST: Microsoft.CostManagement/query takes the question
+        in the body and changes nothing. Any other path is refused, so this cannot become a way to write.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory)] [ValidatePattern('^/subscriptions/[^/?]+/providers/Microsoft\.CostManagement/query\?api-version=[0-9-]+(-preview)?$')] [string] $Path,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Query
+    )
+
+    $ErrorActionPreference = 'Stop'
+    Update-PostureServiceSession -Name azure
+    if (-not (Get-Command -Name Invoke-AzRestMethod -ErrorAction SilentlyContinue)) { throw 'Invoke-AzRestMethod is not available; install Az.Accounts and connect first.' }
+    $payload = ConvertTo-Json -InputObject $Query -Depth 10 -Compress
+    $response = Invoke-AzRestMethod -Method POST -Path $Path -Payload $payload -ErrorAction Stop   # posture:read-only-post (Cost Management query)
+    if ($response.StatusCode -ge 400) { throw "Cost query on $Path returned $($response.StatusCode): $(([string]$response.Content).Substring(0, [Math]::Min(300, ([string]$response.Content).Length)))" }
+    $body = ConvertFrom-Json -InputObject $response.Content -AsHashtable -Depth 30
+    $cols = @($body.properties.columns | ForEach-Object { [string]$_.name })
+    return @(@($body.properties.rows) | ForEach-Object { $row = $_; $o = [ordered]@{}; for ($i = 0; $i -lt $cols.Count; $i++) { $o[$cols[$i]] = $row[$i] }; $o })
+}

@@ -55,6 +55,14 @@ function Get-PostureOperationsFact {
     $facts.messageCenterOwnerNamed = [bool]$owner
     if (-not $present) { foreach ($id in 'OP-001', 'OP-002', 'OP-003', 'OP-004') { $notEvaluated[$id] = 'No profile: the operations answers (SIEM, backup, break-glass test, Message Center owner) come from New-PostureProfile.' } }
 
+    # Microsoft 365 Backup (OP-008), read by the Azure collector: on, and protecting all three workloads.
+    $mb = & $load 'az-11-m365-backup'
+    if ($null -eq $mb) { $notEvaluated['OP-008'] = 'az-11-m365-backup.json was not collected (the Azure collector reads it; set the profile''s azure answer and grant BackupRestore-Configuration.Read.All).' }
+    else {
+        $facts.m365BackupEnabled = [string](& $v $mb 'ServiceStatus') -eq 'enabled'
+        $facts.m365BackupWorkloadsProtected = @('SharePointPolicies', 'OneDrivePolicies', 'ExchangePolicies' | Where-Object { [int](& $v $mb $_) -gt 0 }).Count
+    }
+
     # Secure Score against the comparative average (OP-005)
     $ss = & $load 'def-06-secure-score'
     if ($null -eq $ss -or (& $v $ss 'Present') -ne $true) { $notEvaluated['OP-005'] = 'def-06-secure-score.json was not collected (Invoke-PostureCollection -Collector Defender; needs SecurityEvents.Read.All).' }

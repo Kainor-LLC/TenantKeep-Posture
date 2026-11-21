@@ -15,6 +15,16 @@ BeforeAll {
     Mock -ModuleName TenantKeep.Posture Test-PostureAzureSession { $env:TKP_AZ_CONNECTED -eq '1' }
     Mock -ModuleName TenantKeep.Posture Invoke-PostureAzureQuery { . $env:TKP_AZ_FIXTURE; @(Get-AzureFixtureQuery -Query $Query) }
     Mock -ModuleName TenantKeep.Posture Invoke-PostureAzureRequest { . $env:TKP_AZ_FIXTURE; @(Get-AzureFixtureRequest -Path $Path) }
+    # Microsoft 365 pay-as-you-go: sub-1 pays for Backup; Backup protects SharePoint and OneDrive but not Exchange.
+    Mock -ModuleName TenantKeep.Posture Invoke-PostureCostQuery { if ($Path -match '/subscriptions/sub-1/') { @([ordered]@{ Cost = 12.5; ServiceName = 'Microsoft 365 Backup'; Currency = 'USD' }, [ordered]@{ Cost = 80; ServiceName = 'Virtual Machines'; Currency = 'USD' }) } else { @() } }
+    Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -ParameterFilter { $Uri -like 'solutions/backupRestore*' } {
+        switch -Regex ($Uri) {
+            '/sharePointProtectionPolicies' { @(@{ status = 'active' }) }
+            '/oneDriveForBusinessProtectionPolicies' { @(@{ status = 'active' }) }
+            '/exchangeProtectionPolicies' { @(@{ status = 'inactive' }) }
+            default { @{ serviceStatus = @{ status = 'enabled' } } }
+        }
+    }
 }
 
 AfterAll {
@@ -43,6 +53,10 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             $script:Result.Errors.Count | Should -Be 0
             @(& $script:Read 'az-01-subscriptions' | Where-Object { $_.AtTenantRoot }).Name | Should -Be 'Sandbox'
             @(& $script:Read 'az-03-policy-assignments' | Where-Object { $_.IsMcsb }).Count | Should -Be 1
+            $payg = @(& $script:Read 'az-10-m365-payg')
+            $payg.SubscriptionId | Should -Be @('sub-1') -Because 'only Microsoft 365 services count, and only subscriptions that pay for them'
+            $payg[0].Services.Name | Should -Be @('Microsoft 365 Backup')
+            (& $script:Read 'az-11-m365-backup').ExchangePolicies | Should -Be 0
         }
 
         It 'resolves role names, scope levels and subscription ids on the assignments' {
@@ -95,6 +109,15 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
         It 'refuses when Azure was asked for by name' {
             $env:TKP_AZ_CONNECTED = '0'
             { Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder (Join-Path $script:Root 'run2') } | Should -Throw '*Connect-AzAccount*'
+        }
+    }
+}
+
+Describe 'Invoke-PostureCostQuery' {
+    It 'refuses any path but a Cost Management query' {
+        InModuleScope TenantKeep.Posture {
+            { Invoke-PostureCostQuery -Path '/subscriptions/sub-1/providers/Microsoft.Consumption/budgets/x?api-version=2023-05-01' -Query @{} } | Should -Throw '*does not match*'
+            { Invoke-PostureCostQuery -Path '/subscriptions/sub-1/resourceGroups/rg/providers/Microsoft.CostManagement/query?api-version=2023-11-01' -Query @{} } | Should -Throw '*does not match*'
         }
     }
 }

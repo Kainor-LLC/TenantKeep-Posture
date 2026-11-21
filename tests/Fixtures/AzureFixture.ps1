@@ -58,6 +58,7 @@ function Get-AzureFixtureRequest {
         '/providers/Microsoft\.Authorization/classicAdministrators' { if ($Path -match 'sub-2') { @{ properties = @{ emailAddress = 'old@contoso.example'; role = 'CoAdministrator' } } } else { @() }; break }
         '/providers/Microsoft\.ADHybridHealthService/services' { @{ serviceName = 'AadSyncService-contoso'; type = 'AadSyncService'; health = 'Healthy'; activeAlerts = 0 }; break }
         '/providers/microsoft\.aadiam/diagnosticSettings' { @{ name = 'entra-to-law'; properties = @{ workspaceId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.OperationalInsights/workspaces/law'; logs = @(@{ category = 'AuditLogs'; enabled = $true }, @{ category = 'SignInLogs'; enabled = $true }, @{ category = 'ProvisioningLogs'; enabled = $false }) } }; break }
+        '/providers/Microsoft\.Consumption/budgets' { @(); break }
         default { throw "Fixture has no Resource Manager answer for: $Path" }
     }
 }

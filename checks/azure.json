@@ -824,6 +824,45 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "AZ-023",
+      "domain": "azure",
+      "title": "Microsoft 365 pay-as-you-go spend has a budget alert",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-10-m365-payg.json"
+      ],
+      "pass": "facts.m365PaygWithoutBudget == 0",
+      "affected": "facts.m365PaygWithoutBudget",
+      "remediation": [
+        "On each subscription listed, create a budget in Cost Management with alerts at 80 and 100 percent to the people who own Microsoft 365.",
+        "Limit Owner and Contributor on the paying subscription; anyone with them can change the billing policy (AZ-011)."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing visible; the owners hear about spend before the invoice."
+      },
+      "learn": "https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets",
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/budgets",
+      "narrative": "Microsoft 365 pay-as-you-go services (Backup, Archive, SharePoint Premium, Copilot messages) bill to an Azure subscription with no cap; a budget only alerts, but without one the first sign of runaway usage is the invoice.",
+      "frameworks": {
+        "nist-csf-2": "GV.RM-01",
+        "iso27001": "A.5.37",
+        "cmmc": "",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

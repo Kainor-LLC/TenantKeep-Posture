@@ -157,6 +157,28 @@ function Invoke-PostureAzureCollection {
         & $save @($settings | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); WorkspaceId = (& $v $_ 'properties.workspaceId'); EventHub = (& $v $_ 'properties.eventHubAuthorizationRuleId'); StorageAccountId = (& $v $_ 'properties.storageAccountId'); Categories = @(@(& $v $_ 'properties.logs') | Where-Object { (& $v $_ 'enabled') -eq $true } | ForEach-Object { [string](& $v $_ 'category') }) } }) 'az-09-entra-diagnostic-settings' $true
     } | Out-Null
 
+    # ---------- 6. Microsoft 365 pay-as-you-go and Backup ----------
+    Invoke-PostureStep -Label 'Microsoft 365 pay-as-you-go spend' -Folder $Folder -Script {
+        # Which subscriptions pay for Microsoft 365 pay-as-you-go services (Backup, Archive, SharePoint Premium, Copilot
+        # messages) over the last 30 days, and whether each has a budget. Service names are Cost Management's (verify).
+        $to = [datetime]::UtcNow.Date; $from = $to.AddDays(-30)
+        $query = [ordered]@{ type = 'ActualCost'; timeframe = 'Custom'; timePeriod = [ordered]@{ from = $from.ToString('yyyy-MM-ddT00:00:00Z'); to = $to.ToString('yyyy-MM-ddT00:00:00Z') }; dataset = [ordered]@{ granularity = 'None'; aggregation = [ordered]@{ totalCost = [ordered]@{ name = 'Cost'; function = 'Sum' } }; grouping = @([ordered]@{ type = 'Dimension'; name = 'ServiceName' }) } }
+        $rows = foreach ($s in $subIds) {
+            $costs = @(Invoke-PostureCostQuery -Path "/subscriptions/$s/providers/Microsoft.CostManagement/query?api-version=2023-11-01" -Query $query)
+            $m365 = @($costs | Where-Object { [string](& $v $_ 'ServiceName') -match 'Microsoft 365|SharePoint|Syntex|Purview|Copilot' -and [double](& $v $_ 'Cost') -gt 0 })
+            if ($m365.Count -eq 0) { continue }
+            $budgets = @(& $rest "/subscriptions/$s/providers/Microsoft.Consumption/budgets?api-version=2023-05-01")
+            [ordered]@{ SubscriptionId = $s; Services = @($m365 | ForEach-Object { [ordered]@{ Name = [string](& $v $_ 'ServiceName'); Cost = [Math]::Round([double](& $v $_ 'Cost'), 2); Currency = [string](& $v $_ 'Currency') } }); Budgets = $budgets.Count }
+        }
+        & $save @($rows) 'az-10-m365-payg'
+    } | Out-Null
+    Invoke-PostureStep -Label 'Microsoft 365 Backup' -Folder $Folder -Script {
+        # Microsoft 365 Backup through Graph: whether the service is on and which workloads have an active policy.
+        $svc = Invoke-PostureGraphRequest -Uri 'solutions/backupRestore' -ApiVersion 'v1.0' -Single
+        $active = { param([string] $kind) @(Invoke-PostureGraphRequest -Uri "solutions/backupRestore/$kind" -ApiVersion 'v1.0' | Where-Object { [string](& $v $_ 'status') -eq 'active' }).Count }
+        & $saveOne ([ordered]@{ ServiceStatus = (& $v $svc 'serviceStatus.status'); SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') }) 'az-11-m365-backup'
+    } | Out-Null
+
     $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
     return @{ files = $files.ToArray(); errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath }); subscriptions = $subIds.Count }
 }

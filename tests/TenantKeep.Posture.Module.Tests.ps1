@@ -171,7 +171,13 @@ Describe 'Read-only guard' {
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureAzureCommand.ps1')
         $src | Should -Match 'Invoke-AzRestMethod -Method GET'
-        $src | Should -Not -Match 'Invoke-AzRestMethod -Method (POST|PUT|PATCH|DELETE)'
+        $src | Should -Not -Match 'Invoke-AzRestMethod -Method (PUT|PATCH|DELETE)'
+        # One POST is allowed: the Cost Management query, a read whose question goes in the body. It must carry the
+        # read-only marker and its path must be pinned to Microsoft.CostManagement/query.
+        $posts = @($src -split "`n" | Where-Object { $_ -match 'Invoke-AzRestMethod -Method POST' })
+        $posts.Count | Should -BeLessOrEqual 1
+        foreach ($p in $posts) { $p | Should -Match 'posture:read-only-post' }
+        if ($posts.Count) { $src | Should -Match ([regex]::Escape("ValidatePattern('^/subscriptions/[^/?]+/providers/Microsoft\.CostManagement/query")) }
     }
 
     It 'runs PnP and Teams cmdlets only through their entry points, which accept read names only' {
