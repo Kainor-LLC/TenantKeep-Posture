@@ -6,6 +6,16 @@ work landed on main.
 
 ## Unreleased
 
+- Per-user MFA on a large tenant is a sample, and says so (2026-11-21). Above 5,000 members the collector reads
+  every administrator and 1,000 other members at random. When one of them had per-user MFA it then read everyone,
+  a request per account, with no checkpoint: hours on a tenant of hundreds of thousands. The sample is now the
+  answer either way, AU-009 says what it judged ("3 of the 1,012 accounts sampled have per-user MFA; the tenant
+  has 80,000 members"), and `-FullPerUserMfa` reads everyone when the full list is wanted. The rows are written
+  as each batch answers.
+- Exchange Online PowerShell access without the whole directory. The setting is on for everyone by default, so
+  the list was a row per user. The collector now skips it when the Exchange Online PowerShell app is closed to
+  everyone but assigned people (EM-025 passes on that alone), and otherwise counts everyone and keeps the first
+  500 accounts that are people and, when the role holders are in the run folder, not administrators.
 - SharePoint: the site list is the sites, not the OneDrives (2026-11-21). Both SharePoint collectors listed every
   OneDrive, one per user, and no check reads them: on a large tenant that was most of the collector's time and
   the largest file in the run. They are left out now; `-IncludeOneDriveSites` lists them all the same, and the

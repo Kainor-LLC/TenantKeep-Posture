@@ -58,8 +58,8 @@ function Start-PostureRun {
         Days of Entra sign-in log to read, 1 to 30. Default 7. On a large tenant this is the longest part of a run;
         it streams, saves a checkpoint, carries on by itself after a failure and resumes with Resume-PostureRun.
     .PARAMETER FullPerUserMfa
-        Read every member's per-user MFA state. Default: all of them up to 5,000 members; above that every admin and
-        1,000 at random, and everyone only when one of those has it.
+        Read every member's per-user MFA state. Default: all of them up to 5,000 members; above that a sample, every
+        admin and 1,000 at random, and the check says it judged a sample.
     .PARAMETER Redact
         Also write share/ with the report, report.md and findings.json with the tenant's people and places replaced
         by placeholders, for a report that goes to an AI service or a third party (New-PostureReport -Redact).

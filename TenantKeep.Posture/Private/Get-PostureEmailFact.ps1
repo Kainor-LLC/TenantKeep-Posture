@@ -323,24 +323,44 @@ function Get-PostureEmailFact {
     $roleRows = & $load '04-role-assignments-active'
     $roleHolders = Get-PostureRoleHolder -Folder $Evidence
     $admins = $roleHolders.upns
-    $psUsers = [System.Collections.Generic.List[object]]::new(); $psCount = @{ n = 0 }
+    $psUsers = [System.Collections.Generic.List[object]]::new(); $psCount = @{ n = 0; adminsListed = 0 }
+    # The collector counts the accounts and keeps the first 500 (exo-12-remote-powershell-summary carries NonAdmin
+    # since 2026-11-21); a run from before that lists every account with the setting on.
+    $psSummary = & $load 'exo-12-remote-powershell-summary'
+    $counted = [bool]($psSummary -and $null -ne (& $v $psSummary 'NonAdmin'))
+    $adminsExcluded = $counted -and (Test-PostureTrue (& $v $psSummary 'AdminsExcluded'))
     $havePs = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-12-remote-powershell-users' -OnRow {
         param($_row)
         $upn = [string](& $v $_row 'UserPrincipalName')
-        if ([string](& $v $_row 'RecipientTypeDetails') -match '^(SharedMailbox|RoomMailbox|EquipmentMailbox|SchedulingMailbox)$' -or $admins.Contains($upn)) { return }
+        if ([string](& $v $_row 'RecipientTypeDetails') -match '^(SharedMailbox|RoomMailbox|EquipmentMailbox|SchedulingMailbox)$') { return }
+        if (-not $adminsExcluded -and $admins.Contains($upn)) { $psCount.adminsListed++; return }
         $psCount.n++
         if ($psUsers.Count -lt 500) { $psUsers.Add([ordered]@{ name = $upn; detail = 'Exchange Online PowerShell on, not an administrator' }) }
     }
     if (-not $havePs -and $facts.exoPowerShellAppRestricted -ne $true) { $notEvaluated['EM-025'] = 'exo-12-remote-powershell-users was not collected: the Exchange collector reads it since 2026-11-20, unless -SkipMailboxEnumeration (Resume-PostureRun -Collector Exchange).' }
     else {
-        # Unknown without the list, and unknown when accounts have it on but the role holders were not collected, so
-        # administrators cannot be told from everyone else. None with it on is none either way.
-        $facts.nonAdminRemotePowerShell = $(if (-not $havePs -or ($null -eq $roleRows -and $psCount.n -gt 0)) { $null } else { $psCount.n })
-        $affected.nonAdminRemotePowerShell = @($(if ($null -ne $roleRows) { $psUsers }))
-        if ($null -ne $roleRows) { $affectedCounts.nonAdminRemotePowerShell = $psCount.n }
+        # How many, and how sure. Counted by the collector with the administrators left out: that number. Otherwise
+        # the administrators are told apart here, which needs the role holders, and the whole list: when the
+        # collector kept 500 of more, the count is a floor.
+        $total = $(if ($counted) { [int](& $v $psSummary 'NonAdmin') } else { $null })
+        $capped = [bool]($counted -and -not $adminsExcluded -and $total -gt [int](& $v $psSummary 'Listed'))
+        $known = $adminsExcluded -or $null -ne $roleRows
+        $facts.nonAdminRemotePowerShell = $(
+            if (-not $havePs) { $null }
+            elseif ($adminsExcluded) { $total }
+            elseif (-not $known -and $psCount.n -gt 0) { $null }
+            elseif ($capped -and $psCount.n -eq 0) { $null }
+            else { $psCount.n })
+        $affected.nonAdminRemotePowerShell = @($(if ($known) { $psUsers }))
+        if ($known) { $affectedCounts.nonAdminRemotePowerShell = $(if ($adminsExcluded) { $total } else { $psCount.n }) }
+        if ($capped) {
+            $advice = "the list holds the first $([int](& $v $psSummary 'Listed')) of $total accounts and the administrators were not known when Exchange was collected. Collect Exchange again into the run folder that holds the Entra evidence (Resume-PostureRun -Collector Exchange)."
+            if ($psCount.n -gt 0) { $notes['EM-025'] = "At least $($psCount.n): $advice" }
+            elseif ($havePs -and $known -and $facts.exoPowerShellAppRestricted -ne $true) { $notEvaluated['EM-025'] = "No account that is not an administrator among those listed, but $advice" }
+        }
         # With a group that holds a role unopened, some of the accounts listed may be administrators.
         $roleGap = Get-PostureRoleHolderGap -Holder $roleHolders
-        if ($roleGap -and $null -ne $roleRows -and $psCount.n -gt 0) { $notes['EM-025'] = "Some of the accounts listed may be administrators: $roleGap." }
+        if ($roleGap -and $known -and $psCount.n -gt 0 -and -not $notes.ContainsKey('EM-025')) { $notes['EM-025'] = "Some of the accounts listed may be administrators: $roleGap." }
     }
 
     return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }

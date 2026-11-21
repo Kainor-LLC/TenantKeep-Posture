@@ -123,6 +123,15 @@ function Get-PostureAuthFact {
         $facts.perUserMfaEnforced = [int](& $v $perUser 'Enforced')
         $facts.perUserMfaEnabled = [int](& $v $perUser 'Enabled')
         $facts.perUserMfaReadErrors = [int](& $v $perUser 'Errors')
+        # Above 5,000 members the read is a sample: every administrator and 1,000 members at random. The answer
+        # says so, either way.
+        if ([string](& $v $perUser 'Mode') -eq 'sample') {
+            $read = [int](& $v $perUser 'Users'); $all = [int](& $v $perUser 'Members'); $with = $facts.perUserMfaEnforced + $facts.perUserMfaEnabled
+            $admins = & $v $perUser 'SampledAdmins'
+            $who = $(if ($null -ne $admins) { "every administrator ($([int]$admins)) and $([int](& $v $perUser 'SampledMembers')) other members at random" } else { 'every administrator and 1,000 other members at random' })
+            $notes['AU-009'] = $(if ($with -gt 0) { "$with of the $read accounts sampled have per-user MFA; the tenant has $all members, and the sample is $who. Collect with -FullPerUserMfa to list every account." }
+                else { "None of the $read accounts sampled has per-user MFA; the tenant has $all members, and the sample is $who. With none in 1,000 the rate is under 0.3 percent (95 percent confidence)." })
+        }
         # The accounts behind those counts, a row at a time: the first 500 are kept for the report.
         $perUserList = [System.Collections.Generic.List[object]]::new(); $perUserCount = @{ n = 0 }
         $null = Read-PostureEvidenceRow -Folder $Evidence -Name '05-per-user-mfa' -OnRow {

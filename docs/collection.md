@@ -26,7 +26,7 @@ dates with no zone (`11/15/2026 02:03:22`); those are UTC too, and are read as U
 | `04-role-holders` (+csv), `04-role-holders-summary` | groups/{id}/transitiveMembers for each group that holds a role; PIM for Groups eligibilitySchedules for the same groups where the tenant has PIM | One row per person and role: `Held` is Direct, Eligible, Group or EligibleGroup, with the group and the kind of membership. Every admin set (registration, users, sign-in tallies, the checks, the admins table) reads it. A group that could not be opened is named in the summary (`GroupsNotRead`, `EligibleMembersNotRead`), the step is logged as failed, and the checks that count administrators say what they did not see. Needs Group.Read.All and, for who can join, PrivilegedEligibilitySchedule.Read.AzureADGroup (verify: a Global Reader can read the members of a role-assignable group) |
 | `04-pim-role-policies` (+csv) | roleManagementPolicyAssignments with rules | Activation MFA, justification, max duration, approval per role; feeds ID-006 |
 | `05-auth-registration` (+csv), `05-auth-registration-summary` | userRegistrationDetails report | Needs AuditLog.Read.All and UserAuthenticationMethod.Read.All. The summary carries `Tally` (users, self-service reset enabled, phishable, phishable administrators), counted in the same pass, so the report reads the counts and never the list |
-| `05-per-user-mfa` (+csv), `05-per-user-mfa-summary` | users/{id}/authentication/requirements, batched 20 per request | Legacy per-user MFA state; feeds AU-009. `-SkipPerUserMfa` on very large tenants |
+| `05-per-user-mfa` (+csv), `05-per-user-mfa-summary` | users/{id}/authentication/requirements, batched 20 per request | Legacy per-user MFA state; feeds AU-009. Every member up to 5,000. Above that a sample: every administrator and 1,000 other members at random, and the summary (`Mode`, `SampledAdmins`, `SampledMembers`) and the check say so. `-FullPerUserMfa` reads everyone, a request per account; `-SkipPerUserMfa` leaves it out |
 | `08-entra-devices` (+csv), `08-entra-devices-by-join-os`, `08-entra-devices-stale` | devices | Join type and staleness against StaleDays; feeds the devices domain |
 | `06-users` (+csv), `06-users-summary` | users with signInActivity; retried without it when AuditLog.Read.All is missing | `SignInActivityAvailable` in the summary says which |
 | `07-groups` (+csv), `07-groups-summary` | groups with Kind and Dynamic | The summary is counted as the list is written: groups, by kind, role-assignable, synced, licensed, dynamic |
@@ -119,8 +119,12 @@ Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence        # Entra, Intune a
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
 at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
-`exo-12-remote-powershell-users` (+summary) lists the accounts with Exchange Online PowerShell on (Get-User filtered on
-RemotePowerShellEnabled, streamed; left out with -SkipMailboxEnumeration). EM-025 compares it with the role holders.
+`exo-12-remote-powershell-users` (+summary) is about the accounts with Exchange Online PowerShell on (Get-User filtered
+on RemotePowerShellEnabled; left out with -SkipMailboxEnumeration). The setting is on for everyone by default, so the
+collector counts them all and lists the first 500 that are people and, when the Entra evidence is in the same run
+folder, not administrators; the summary carries `RemotePowerShellEnabled`, `NonAdmin`, `Listed` and `AdminsExcluded`.
+When the Exchange Online PowerShell app is closed to everyone but assigned people the read is skipped (`Skipped` says
+so), and EM-025 passes on the app alone.
 
 For the user experience checks, the Exchange collector also writes `exo-13-external-in-outlook` (the built-in External
 tag), `exo-13-report-submission` (user reported settings, the Report button), and `exo-01-orgconfig` carries the MailTips

@@ -564,7 +564,10 @@ Write-Demo 'exo-10-cas-mailboxes' @($mailboxes | ForEach-Object { [ordered]@{ Pr
 Write-Demo 'exo-10-cas-summary' @{ Total = $mailboxes.Count; ImapEnabled = 0; PopEnabled = 0; ActiveSyncEnabled = $mailboxes.Count; SmtpAuthExplicitlyEnabled = 0 }
 Write-Demo 'exo-11-attack-simulations' @(@{ DisplayName = 'Q3 credential harvest'; Status = 'succeeded'; LaunchDateTime = Get-DemoDate 70; CompletionDateTime = Get-DemoDate 56; AttackTechnique = 'credentialHarvesting'; Report = @{ Simulated = 371; Compromised = 14; Reported = 122 } })
 # Exchange PowerShell left on for everyone: the admins, and the rest of the staff the check counts.
-Write-Demo 'exo-12-remote-powershell-users' @($mailboxes | ForEach-Object { @{ UserPrincipalName = $_.UserPrincipalName; RecipientTypeDetails = $_.RecipientTypeDetails } })
+# Counted as the collector counts it: everyone with the setting on, then the people among them who hold no role, of whom the first 500 are listed.
+$psPeople = @($mailboxes | Where-Object { $_.RecipientTypeDetails -notmatch '^(SharedMailbox|RoomMailbox|EquipmentMailbox|SchedulingMailbox)$' -and $_.UserPrincipalName -notin $holderUpns })
+Write-Demo 'exo-12-remote-powershell-users' @($psPeople | Select-Object -First 500 | ForEach-Object { @{ UserPrincipalName = $_.UserPrincipalName; RecipientTypeDetails = $_.RecipientTypeDetails } })
+Write-Demo 'exo-12-remote-powershell-summary' @{ RemotePowerShellEnabled = $mailboxes.Count; NonAdmin = $psPeople.Count; Listed = [Math]::Min(500, $psPeople.Count); AdminsExcluded = $true }
 Write-Demo 'exo-13-external-in-outlook' @(@{ Enabled = $true; AllowList = @() })
 Write-Demo 'exo-13-report-submission' @(@{ EnableReportToMicrosoft = $true; ReportJunkToCustomizedAddress = $true; ReportPhishToCustomizedAddress = $true })
 Write-Demo 'exo-07-eas-org-settings' @{ DefaultAccessLevel = 'Allow' }

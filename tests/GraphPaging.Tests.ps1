@@ -264,7 +264,7 @@ Describe 'Fresh tokens for the second process' {
 }
 
 Describe 'Per-user MFA on a large tenant' {
-    It 'reads a sample of 1,000 when nobody in it has per-user MFA, and everyone when somebody does' {
+    It 'reads a sample of 1,000 whatever it finds, and everyone only with -FullPerUserMfa' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             param($root)
             Mock Write-Host { }
@@ -286,12 +286,52 @@ Describe 'Per-user MFA on a large tenant' {
             $sum.Members | Should -Be 6000
             $script:Batches | Should -Be 50
 
+            $sum.SampledMembers | Should -Be 1000
+            $sum.SampledAdmins | Should -Be 0
+            @(Import-Csv -LiteralPath (Join-Path $f '05-per-user-mfa.csv')).Count | Should -Be 1000
+
+            # Someone in the sample has it: that is the finding. Everyone else is not read on the strength of it.
             $script:State = 'enforced'; $script:Batches = 0
+            $h = Join-Path $root 'mfa-hit'; New-Item -ItemType Directory -Path $h | Out-Null
+            $null = Invoke-PostureEntraCollection -Folder $h -WarningAction SilentlyContinue
+            $hit = Get-Content -Raw (Join-Path $h '05-per-user-mfa-summary.json') | ConvertFrom-Json
+            $hit.Mode | Should -Be 'sample'
+            $hit.Users | Should -Be 1000
+            $hit.Enforced | Should -Be 1000
+            $script:Batches | Should -Be 50 -Because 'a scan of 6,000 accounts is hours at scale and starts only when asked for'
+
+            $script:Batches = 0
             $g = Join-Path $root 'mfa-full'; New-Item -ItemType Directory -Path $g | Out-Null
-            $null = Invoke-PostureEntraCollection -Folder $g -WarningAction SilentlyContinue
+            $null = Invoke-PostureEntraCollection -Folder $g -FullPerUserMfa -WarningAction SilentlyContinue
             $full = Get-Content -Raw (Join-Path $g '05-per-user-mfa-summary.json') | ConvertFrom-Json
             $full.Mode | Should -Be 'full'
-            $full.Users | Should -Be 6000 -Because 'someone in the sample had it, so everyone was read'
+            $full.Users | Should -Be 6000
+            $script:Batches | Should -Be 300
+        }
+    }
+
+    It 'says in the check that it judged a sample, whether it found one or none' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            $facts = {
+                param([int] $Enforced)
+                $d = Join-Path $root "au009-$Enforced"; New-Item -ItemType Directory -Path $d | Out-Null
+                @{ Users = 1012; Members = 80000; Mode = 'sample'; SampleSize = 1012; SampledAdmins = 12; SampledMembers = 1000; Enforced = $Enforced; Enabled = 0; Disabled = 1012 - $Enforced; Errors = 0; FirstError = $null } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $d '05-per-user-mfa-summary.json')
+                Clear-PostureEvidenceCache -Confirm:$false
+                Get-PostureAuthFact -Evidence $d -OrgProfile @{} -Thresholds @{}
+            }
+            $none = & $facts 0
+            $none.facts.perUserMfaEnforced | Should -Be 0
+            $none.notes['AU-009'] | Should -Be 'None of the 1012 accounts sampled has per-user MFA; the tenant has 80000 members, and the sample is every administrator (12) and 1000 other members at random. With none in 1,000 the rate is under 0.3 percent (95 percent confidence).'
+            $some = & $facts 3
+            $some.facts.perUserMfaEnforced | Should -Be 3
+            $some.notes['AU-009'] | Should -Match '^3 of the 1012 accounts sampled have per-user MFA; the tenant has 80000 members'
+            $some.notes['AU-009'] | Should -Match 'Collect with -FullPerUserMfa to list every account\.$'
+            # A full read says nothing about a sample.
+            $d = Join-Path $root 'au009-full'; New-Item -ItemType Directory -Path $d | Out-Null
+            @{ Users = 40; Members = 40; Mode = 'full'; SampleSize = 40; Enforced = 0; Enabled = 0; Disabled = 40; Errors = 0 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $d '05-per-user-mfa-summary.json')
+            Clear-PostureEvidenceCache -Confirm:$false
+            (Get-PostureAuthFact -Evidence $d -OrgProfile @{} -Thresholds @{}).notes.ContainsKey('AU-009') | Should -BeFalse
         }
     }
 }

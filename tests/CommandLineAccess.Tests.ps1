@@ -89,4 +89,27 @@ Describe 'Exchange Online PowerShell for administrators only' {
         & $script:Write $d '10-service-principals' @((& $script:Sp 'fb78d390-0c51-40cd-8e17-fdbfab77341b' $true))
         (& $script:Checks $d 'email')['EM-025'].status | Should -Be 'pass' -Because 'the app is closed to everyone but an assigned group'
     }
+
+    It 'takes the collector''s count when the list holds the first 500, and says what it cannot know' {
+        $d = Join-Path $TestDrive 'exo-counted'
+        $list = @(1..500 | ForEach-Object { @{ UserPrincipalName = "user$_@contoso.example"; RecipientTypeDetails = 'UserMailbox' } })
+        & $script:Write $d 'exo-12-remote-powershell-users' $list
+        & $script:Write $d 'exo-01-orgconfig' @{ Name = 'contoso' }
+        & $script:Write $d '10-service-principals' @((& $script:Sp 'fb78d390-0c51-40cd-8e17-fdbfab77341b' $false))
+        & $script:Write $d 'policies' @()
+        & $script:Write $d '04-role-assignments-active' @(@{ Role = 'Exchange Administrator'; PrincipalType = 'user'; PrincipalUpn = 'user7@contoso.example' })
+        # Counted with the administrators already left out: the number is the collector's, the list its first 500.
+        & $script:Write $d 'exo-12-remote-powershell-summary' @{ RemotePowerShellEnabled = 41000; NonAdmin = 40000; Listed = 500; AdminsExcluded = $true }
+        $r = (& $script:Checks $d 'email')['EM-025']
+        $r.status | Should -Be 'fail'
+        $r.affectedCount | Should -Be 40000
+        $r.affectedListed | Should -Be 500
+        $r.reason | Should -BeNullOrEmpty
+        # Counted without knowing the administrators: the 500 listed are sorted out here, and the count is a floor.
+        & $script:Write $d 'exo-12-remote-powershell-summary' @{ RemotePowerShellEnabled = 41000; NonAdmin = 40000; Listed = 500; AdminsExcluded = $false }
+        $r = (& $script:Checks $d 'email')['EM-025']
+        $r.status | Should -Be 'fail'
+        $r.affectedCount | Should -Be 499 -Because 'user7 is an administrator'
+        $r.reason | Should -Match '^At least 499: the list holds the first 500 of 40000 accounts and the administrators were not known when Exchange was collected'
+    }
 }

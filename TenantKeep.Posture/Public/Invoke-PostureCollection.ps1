@@ -43,8 +43,9 @@ function Invoke-PostureCollection {
         profile.json of the tenant. When it carries tenantId, a Graph session in any other tenant is refused before
         anything is read: the guard for a machine that holds sessions to several tenants.
     .PARAMETER FullPerUserMfa
-        Read the per-user MFA state of every member. Default: every member up to 5,000; above that every admin and
-        1,000 members at random, and everyone only when one of them has per-user MFA.
+        Read the per-user MFA state of every member. Default: every member up to 5,000; above that a sample, every
+        admin and 1,000 members at random, and the check says it judged a sample. Reading everyone is a request
+        per account: hours on a tenant of hundreds of thousands.
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
     .PARAMETER SkipSiteEnumeration

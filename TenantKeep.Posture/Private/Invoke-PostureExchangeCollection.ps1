@@ -107,20 +107,38 @@ function Invoke-PostureExchangeCollection {
             & $saveOne $sum 'exo-10-cas-summary'
         } | Out-Null
         Invoke-PostureStep -Label 'Exchange Online PowerShell access' -Folder $Folder -Script {
-            # On for every user unless someone turned it off; streamed, so a large tenant is never held in memory. The
-            # filter on RemotePowerShellEnabled runs in Exchange (verify on a large tenant that it is honoured server-side).
-            $count = @{ Enabled = 0 }
+            # Not read at all when the Exchange Online PowerShell app is closed to everyone but the people assigned to
+            # it: the Entra collector's service principals in this folder say so, and EM-025 passes on that alone.
+            $tools = Get-PostureAdminToolRestriction -Evidence $Folder
+            $exoApp = $(if ($tools) { @($tools | Where-Object { $_.appId -eq 'fb78d390-0c51-40cd-8e17-fdbfab77341b' })[0] })
+            if ($exoApp -and $exoApp.restricted -eq $true) {
+                & $saveOne ([ordered]@{ RemotePowerShellEnabled = $null; NonAdmin = $null; Listed = 0; AdminsExcluded = $false; Skipped = 'The Exchange Online PowerShell app is closed to everyone but the people assigned to it, so the per-user setting was not read.' }) 'exo-12-remote-powershell-summary'
+                return
+            }
+            # The setting is on for every user unless someone turned it off, so the answer is most of the directory.
+            # Everyone is counted. The list keeps the first 500 accounts that are people (shared, room and equipment
+            # mailboxes do not sign in) and, when the role holders are in this folder, not administrators: those are
+            # the accounts EM-025 is about. The filter on RemotePowerShellEnabled runs in Exchange (verify on a large
+            # tenant that it is honoured server-side).
+            $adminsKnown = Test-Path -LiteralPath (Join-Path $Folder '04-role-assignments-active.json')
+            $admins = $(if ($adminsKnown) { (Get-PostureRoleHolder -Folder $Folder).upns })
+            $count = @{ Enabled = 0; NonAdmin = 0; Listed = 0 }
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-12-remote-powershell-users' -Csv -Confirm:$false
             try {
                 Invoke-PostureExoCommand -Name 'Get-User' -Parameters @{ ResultSize = 'Unlimited'; Filter = "RemotePowerShellEnabled -eq 'True'" } -OnItem {
                     param($u)
-                    Add-PostureEvidenceRow -Stream $stream -Row ([ordered]@{ UserPrincipalName = [string]$u.UserPrincipalName; RecipientTypeDetails = [string]$u.RecipientTypeDetails })
                     $count.Enabled++
+                    if ([string]$u.RecipientTypeDetails -match '^(SharedMailbox|RoomMailbox|EquipmentMailbox|SchedulingMailbox)$') { return }
+                    if ($adminsKnown -and $admins.Contains([string]$u.UserPrincipalName)) { return }
+                    $count.NonAdmin++
+                    if ($count.Listed -ge 500) { return }
+                    Add-PostureEvidenceRow -Stream $stream -Row ([ordered]@{ UserPrincipalName = [string]$u.UserPrincipalName; RecipientTypeDetails = [string]$u.RecipientTypeDetails })
+                    $count.Listed++
                 }
                 $files.Add((Close-PostureEvidenceStream -Stream $stream))
             }
             catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
-            & $saveOne ([ordered]@{ RemotePowerShellEnabled = $count.Enabled }) 'exo-12-remote-powershell-summary'
+            & $saveOne ([ordered]@{ RemotePowerShellEnabled = $count.Enabled; NonAdmin = $count.NonAdmin; Listed = $count.Listed; AdminsExcluded = [bool]$adminsKnown }) 'exo-12-remote-powershell-summary'
         } | Out-Null
     }
 

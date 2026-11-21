@@ -54,8 +54,12 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
         It 'summarises mailboxes by type, forwarding and CAS protocols' {
             @(& $script:Read 'exo-09-mailboxes-by-type' | Where-Object { $_.Name -eq 'SharedMailbox' })[0].Count | Should -Be 2
             @(& $script:Read 'exo-09-mailboxes-with-forwarding').Count | Should -Be 3
-            (& $script:Read 'exo-12-remote-powershell-summary').RemotePowerShellEnabled | Should -Be 3
-            @(& $script:Read 'exo-12-remote-powershell-users').Count | Should -Be 3
+            $ps = & $script:Read 'exo-12-remote-powershell-summary'
+            $ps.RemotePowerShellEnabled | Should -Be 3 -Because 'every account with the setting on is counted'
+            $ps.NonAdmin | Should -Be 2 -Because 'the shared mailbox does not sign in'
+            $ps.Listed | Should -Be 2
+            $ps.AdminsExcluded | Should -BeFalse -Because 'this folder has no role holders to tell administrators by'
+            @(& $script:Read 'exo-12-remote-powershell-users' | ForEach-Object { $_.UserPrincipalName }) | Should -Be @('admin1@contoso.example', 'user1@contoso.example')
             $cas = & $script:Read 'exo-10-cas-summary'
             $cas.Total | Should -Be 4
             $cas.ImapEnabled | Should -Be 1
@@ -104,6 +108,33 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
             $by['EM-016'].affectedCount | Should -Be 2 -Because 'one external SMTP forward and one recipient forward; the internal one is fine'
             $by['EM-019'].status | Should -Be 'pass'
             $by['EM-020'].status | Should -Be 'notEvaluated'
+        }
+    }
+
+    Context 'Exchange Online PowerShell access, with the Entra evidence in the folder' {
+        It 'leaves the administrators out of the count and the list when it knows who they are' {
+            $folder = Join-Path $script:Root 'ps-admins'; New-Item -ItemType Directory -Path $folder | Out-Null
+            ConvertTo-Json -InputObject @(@{ Role = 'Exchange Administrator'; AssignmentType = 'Assigned'; PrincipalType = 'user'; PrincipalUpn = 'admin1@contoso.example'; PrincipalName = 'Admin One'; PrincipalId = 'u1' }) | Set-Content -LiteralPath (Join-Path $folder '04-role-assignments-active.json')
+            $null = Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $ps = Get-Content -Raw (Join-Path $folder 'exo-12-remote-powershell-summary.json') | ConvertFrom-Json
+            $ps.RemotePowerShellEnabled | Should -Be 3
+            $ps.NonAdmin | Should -Be 1
+            $ps.AdminsExcluded | Should -BeTrue
+            @(Import-Csv -LiteralPath (Join-Path $folder 'exo-12-remote-powershell-users.csv')).UserPrincipalName | Should -Be 'user1@contoso.example'
+        }
+
+        It 'does not read the setting at all when the Exchange Online PowerShell app is closed' {
+            $folder = Join-Path $script:Root 'ps-closed'; New-Item -ItemType Directory -Path $folder | Out-Null
+            ConvertTo-Json -InputObject @(@{ AppId = 'fb78d390-0c51-40cd-8e17-fdbfab77341b'; DisplayName = 'Microsoft Exchange REST API Based PowerShell'; AccountEnabled = $true; AppRoleAssignmentRequired = $true }) | Set-Content -LiteralPath (Join-Path $folder '10-service-principals.json')
+            $null = Invoke-PostureCollection -Collector Exchange -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $ps = Get-Content -Raw (Join-Path $folder 'exo-12-remote-powershell-summary.json') | ConvertFrom-Json
+            $ps.Skipped | Should -Match 'closed to everyone but the people assigned to it'
+            $ps.RemotePowerShellEnabled | Should -BeNullOrEmpty
+            Join-Path $folder 'exo-12-remote-powershell-users.json' | Should -Not -Exist
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-PostureExoCommand -Times 0 -Exactly -Scope It -ParameterFilter { $Name -eq 'Get-User' }
+            # The check passes on the app alone.
+            $by = @{}; foreach ($x in (Invoke-PostureChecks -Evidence $folder -Domain email -PassThru).results) { $by[$x.id] = $x }
+            $by['EM-025'].status | Should -Be 'pass'
         }
     }
 

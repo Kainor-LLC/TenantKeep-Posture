@@ -7,7 +7,7 @@ function Invoke-PostureEntraCollection {
     .DESCRIPTION
         One step per file through Invoke-PostureStep: a permission failure lands in errors.txt and the run goes on.
         Added beyond the audit plan's A.1: 04-pim-role-policies (activation rules per role), 05-per-user-mfa (legacy
-        per-user MFA state, batched reads: every member up to 5,000 or with -FullPerUserMfa, else every admin and a random 1,000, and everyone only when one has it; -SkipPerUserMfa leaves it out), 08-entra-devices.
+        per-user MFA state, batched reads: every member up to 5,000 or with -FullPerUserMfa, else a sample of every admin and a random 1,000 members, which the summary and the check say; -SkipPerUserMfa leaves it out), 08-entra-devices.
         JSON holds what Graph returned (selected properties, untouched casing); CSV holds the flat projection the
         audit plan defines. Two fallbacks: users without signInActivity when AuditLog.Read.All is missing, and plain
         role assignments when PIM schedule instances are unavailable (no P2).
@@ -430,7 +430,9 @@ function Invoke-PostureEntraCollection {
             # One read per user, batched 20 at a time through $batch. authentication/requirements is beta-only (confirmed 2026-10-14).
             # (verify) scope: UserAuthenticationMethod.Read.All
             $members = $(if ($memberIds.Count -gt 0) { $memberIds } else { @(& $load '06-users' | Where-Object { $_ -and $_.UserType -eq 'Member' }) })
-            $states = [System.Collections.Generic.List[object]]::new()
+            # Rows are written and counted as each batch answers; nothing is held for the whole tenant.
+            $tally = @{ rows = 0; enforced = 0; enabled = 0; disabled = 0; errors = 0; firstError = $null }
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name '05-per-user-mfa' -Csv -Confirm:$false
             # Graph throttles inside a batch per sub-request: a 429 or 503 there is sent again, after its Retry-After.
             $scan = {
                 param($members)
@@ -448,7 +450,11 @@ function Invoke-PostureEntraCollection {
                                 $ra = 0; if ([int]::TryParse([string](& $v $resp 'headers.Retry-After'), [ref]$ra)) { $wait = [Math]::Max($wait, $ra) }
                                 continue
                             }
-                            $states.Add([ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = $status; PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') })
+                            $row = [ordered]@{ UserPrincipalName = $m.UserPrincipalName; Status = $status; PerUserMfaState = (& $v $resp 'body.perUserMfaState'); Error = (& $v $resp 'body.error.message') }
+                            Add-PostureEvidenceRow -Stream $stream -Row $row
+                            $tally.rows++
+                            if ($status -ge 400) { $tally.errors++; if (-not $tally.firstError) { $tally.firstError = "$status $($row.Error)" } }
+                            switch ([string]$row.PerUserMfaState) { 'enforced' { $tally.enforced++ } 'enabled' { $tally.enabled++ } 'disabled' { $tally.disabled++ } }
                         }
                         $pending = @($again)
                         if ($pending.Count -gt 0) {
@@ -456,30 +462,31 @@ function Invoke-PostureEntraCollection {
                             if ($delay -gt 0) { Start-Sleep -Seconds $delay }
                         }
                     }
-                    if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $states.Count) of $('{0:N0}' -f $members.Count) members"; Write-PostureProgress }
+                    if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $tally.rows) of $('{0:N0}' -f $members.Count) accounts"; Write-PostureProgress }
                 }
             }
             # Per-user MFA is legacy and Microsoft is retiring it, so most tenants have none. Up to 5,000 members, or with
-            # -FullPerUserMfa, every member is read. Above that, every admin and 1,000 members at random are read first;
-            # only when one of them has it is everyone else read too. None in 1,000 puts the rate under 0.3% (95%).
-            $mode = 'full'; $sampleSize = $members.Count
-            if ($FullPerUserMfa -or $members.Count -le 5000) { & $scan $members }
-            else {
-                $admins = @($members | Where-Object { $adminUpns.Contains([string]$_.UserPrincipalName) })
-                $rest = @($members | Where-Object { -not $adminUpns.Contains([string]$_.UserPrincipalName) })
-                $sample = @($admins) + @($rest | Get-Random -Count ([Math]::Min(1000, $rest.Count)))
-                & $scan $sample
-                $found = @($states | Where-Object { $_.PerUserMfaState -in 'enforced', 'enabled' }).Count
-                if ($found -gt 0) {
-                    $seen = [System.Collections.Generic.HashSet[string]]::new([string[]]@($sample | ForEach-Object { [string]$_.UserPrincipalName }), [System.StringComparer]::OrdinalIgnoreCase)
-                    & $scan @($members | Where-Object { -not $seen.Contains([string]$_.UserPrincipalName) })
+            # -FullPerUserMfa, every member is read. Above that the read is a sample, and the summary says so: every
+            # administrator and 1,000 other members at random. None among 1,000 puts the rate under 0.3% (95%); one
+            # among them fails the check on the sample. Reading everyone takes a request per account, hours on a
+            # tenant of hundreds of thousands, so it happens only when it is asked for.
+            $mode = 'full'; $sampleSize = $members.Count; $sampledAdmins = $null; $sampledMembers = $null
+            try {
+                if ($FullPerUserMfa -or $members.Count -le 5000) { & $scan $members }
+                else {
+                    $admins = @($members | Where-Object { $adminUpns.Contains([string]$_.UserPrincipalName) })
+                    $rest = @($members | Where-Object { -not $adminUpns.Contains([string]$_.UserPrincipalName) })
+                    $sample = @($admins) + @($rest | Get-Random -Count ([Math]::Min(1000, $rest.Count)))
+                    & $scan $sample
+                    $mode = 'sample'; $sampleSize = $sample.Count; $sampledAdmins = $admins.Count; $sampledMembers = $sample.Count - $admins.Count
                 }
-                else { $mode = 'sample'; $sampleSize = $sample.Count }
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
             }
-            $rows = @($states.ToArray())
-            & $save $rows '05-per-user-mfa' $true
-            $failed = @($rows | Where-Object { [int]$_.Status -ge 400 })
-            & $saveOne ([ordered]@{ Users = $rows.Count; Members = $members.Count; Mode = $mode; SampleSize = $sampleSize; Enforced = @($rows | Where-Object { $_.PerUserMfaState -eq 'enforced' }).Count; Enabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'enabled' }).Count; Disabled = @($rows | Where-Object { $_.PerUserMfaState -eq 'disabled' }).Count; Errors = $failed.Count; FirstError = $(if ($failed.Count -gt 0) { "$($failed[0].Status) $($failed[0].Error)" } else { $null }) }) '05-per-user-mfa-summary'
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            & $saveOne ([ordered]@{
+                    Users = $tally.rows; Members = $members.Count; Mode = $mode; SampleSize = $sampleSize; SampledAdmins = $sampledAdmins; SampledMembers = $sampledMembers
+                    Enforced = $tally.enforced; Enabled = $tally.enabled; Disabled = $tally.disabled; Errors = $tally.errors; FirstError = $tally.firstError
+                }) '05-per-user-mfa-summary'
         } | Out-Null
     }
 
