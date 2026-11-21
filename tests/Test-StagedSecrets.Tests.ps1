@@ -14,6 +14,7 @@ Describe 'Pre-commit secret scanner' {
             @{ Path = 'evidence/20261013-0900/01-organization.json' }
             @{ Path = 'samples/20261013-0900-ca/policies.json' }
             @{ Path = '.env' }
+            @{ Path = 'clients/contoso/tenantkeep.lic' }
         ) {
             @(Test-PostureStagedContent -Path $Path -Content 'nothing').Count | Should -BeGreaterOrEqual 1
         }

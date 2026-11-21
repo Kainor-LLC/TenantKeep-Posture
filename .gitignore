@@ -13,6 +13,8 @@ out/
 *.key
 *.cer
 signing*
+# licence files name a customer and a tenant
+*.lic
 
 # evidence and reports produced by the module; samples/ holds anonymized data only
 evidence/

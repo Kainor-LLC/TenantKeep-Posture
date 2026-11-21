@@ -7,7 +7,7 @@
     Pure PowerShell, no external dependency. Scans the staged version of every added, copied or modified file.
     Blocks: Entra client secrets, bearer tokens, private key blocks, Azure storage keys and SAS tokens, connection
     string passwords, cloud provider tokens, generic "secret = '...'" assignments, Teams and Slack webhooks, and
-    files that should never be committed (.pfx, .pem, CLAUDE.local.md, anything under evidence/).
+    files that should never be committed (.pfx, .pem, .lic, CLAUDE.local.md, anything under evidence/).
     A line containing the marker  posture:allow-secret  is skipped, for documented test fixtures only.
     Dot-source this file to get Test-PostureStagedContent for unit tests; run it as a script to scan the index.
 #>
@@ -28,6 +28,7 @@ $script:BlockedPathPatterns = @(
     @{ Name = 'CA snapshot folder'; Pattern = '(^|/)\d{8}-\d{4}-ca/' }
     @{ Name = 'transcript or error log'; Pattern = '(^|/)(transcript|errors)\.txt$' }
     @{ Name = 'ssh private key'; Pattern = '(^|/)id_(rsa|dsa|ecdsa|ed25519)$' }
+    @{ Name = 'licence file'; Pattern = '\.lic$' }
 )
 
 $script:ContentPatterns = @(
