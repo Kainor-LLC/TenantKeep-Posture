@@ -109,6 +109,52 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
         }
     }
 
+    Context 'every subscription read in detail' {
+        It 'marks each enabled subscription as read once the per-subscription reads are done' {
+            $subs = @(& $script:Read 'az-01-subscriptions')
+            @($subs | Where-Object { $_.State -eq 'Enabled' -and $_.DetailRead -ne $true }).Count | Should -Be 0
+            @($subs | Where-Object { $_.DetailError }).Count | Should -Be 0
+        }
+    }
+
+    Context 'one subscription refuses one read' {
+        BeforeAll {
+            $env:TKP_AZ_CONNECTED = '1'; $env:TKP_AZ_REFUSE = 'sub-2'
+            $script:Refused = Join-Path $script:Root 'refused'
+            try { $script:RefusedResult = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder $script:Refused -PassThru -WarningAction SilentlyContinue }
+            finally { Remove-Item Env:TKP_AZ_REFUSE -ErrorAction SilentlyContinue }
+            $script:ReadRefused = { param([string] $n) Get-Content -Raw (Join-Path $script:Refused "$n.json") | ConvertFrom-Json -AsHashtable }
+        }
+
+        It 'costs that subscription its rows and nothing else' {
+            @(& $script:ReadRefused 'az-02-security-contacts' | ForEach-Object { $_.SubscriptionId } | Sort-Object -Unique) | Should -Be @('sub-1') -Because 'the contacts of the subscription that answered are written'
+            @(& $script:ReadRefused 'az-02-defender-pricings' | ForEach-Object { $_.SubscriptionId } | Sort-Object -Unique) | Should -Be @('sub-1', 'sub-2') -Because 'the other reads of the same subscription went through'
+            @(& $script:ReadRefused 'az-13-budgets').Count | Should -Be 2
+        }
+
+        It 'says in the subscription list which one was not read whole, and why' {
+            $subs = @(& $script:ReadRefused 'az-01-subscriptions')
+            @($subs | Where-Object { $_.SubscriptionId -eq 'sub-1' })[0].DetailRead | Should -BeTrue
+            $two = @($subs | Where-Object { $_.SubscriptionId -eq 'sub-2' })[0]
+            $two.DetailRead | Should -BeFalse
+            $two.DetailError | Should -Match '^Defender for Cloud security contacts: GET .* returned 403'
+        }
+
+        It 'logs the step once, with how many subscriptions refused' {
+            @($script:RefusedResult.Errors | Where-Object { $_ -like 'Defender for Cloud security contacts :: Defender for Cloud security contacts could not be read for 1 of 2 subscriptions. The first: sub-2: *' }).Count | Should -Be 1
+            @($script:RefusedResult.Errors).Count | Should -Be 1
+        }
+
+        It 'judges the checks on the subscription that was read, and says so' {
+            $pf = Join-Path $script:Root 'refused-profile.json'
+            @{ version = 1; azure = 'workloads' } | ConvertTo-Json | Set-Content -LiteralPath $pf
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+            $by = @{}; foreach ($x in (Invoke-PostureChecks -Evidence $script:Refused -Domain azure -ProfilePath $pf -PassThru).results) { $by[$x.id] = $x }
+            $by['AZ-005'].status | Should -Be 'notEvaluated' -Because 'the one subscription that was read has a contact, and the other is unknown, not a gap'
+            $by['AZ-005'].reason | Should -Match 'among the 1 subscriptions that were read; the other 1 were not read \(errors\.txt says why\)'
+        }
+    }
+
     Context 'not connected' {
         It 'refuses when Azure was asked for by name' {
             $env:TKP_AZ_CONNECTED = '0'

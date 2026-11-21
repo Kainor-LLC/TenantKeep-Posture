@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Azure: every subscription, and a refusal costs one subscription (2026-11-21). The per-subscription reads
+  (Defender plans, security contacts, activity log export, classic administrators, budgets, pay-as-you-go spend)
+  stopped at the first 200 subscriptions, and one subscription that refused a read failed the whole step, so a
+  tenant with one locked-down subscription had no Defender plans for any. Every enabled subscription is read now;
+  a refusal is recorded against that subscription (`DetailError` in `az-01-subscriptions`), the others are
+  written, and the checks judge the subscriptions that answered and say how many did not. Throttling is waited
+  out, after Retry-After when Azure sends one. Budgets are read once. Resource Graph is paged by position when it
+  gives no page token, and an answer it marks as cut short is an error.
 - Intune and Defender collection without holding the long lists (2026-11-21). Autopilot devices, Intune apps and
   active incidents are written as their pages arrive; BitLocker keys are counted per device as they page (only
   how many a device has was ever kept); the ninety-day incident trend is counted as it pages. The settings of

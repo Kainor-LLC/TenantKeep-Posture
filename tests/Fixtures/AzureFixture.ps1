@@ -52,6 +52,8 @@ function Get-AzureFixtureRequest {
     [CmdletBinding()]
     param([Parameter(Mandatory)] [string] $Path)
 
+    # A subscription that refuses one read: TKP_AZ_REFUSE names the subscription, and its security contacts are denied.
+    if ($env:TKP_AZ_REFUSE -and $Path -match "/subscriptions/$([regex]::Escape($env:TKP_AZ_REFUSE))/providers/Microsoft\.Security/securityContacts") { throw "GET $Path returned 403: AuthorizationFailed: the client does not have authorization to perform action Microsoft.Security/securityContacts/read" }
     switch -Regex ($Path) {
         '/subscriptions/sub-1/providers/Microsoft\.Security/pricings' { @{ name = 'VirtualMachines'; properties = @{ pricingTier = 'Standard'; subPlan = 'P2' } }, @{ name = 'StorageAccounts'; properties = @{ pricingTier = 'Free' } }, @{ name = 'Arm'; properties = @{ pricingTier = 'Standard' } }, @{ name = 'CloudPosture'; properties = @{ pricingTier = 'Free' } }; break }
         '/subscriptions/sub-2/providers/Microsoft\.Security/pricings' { @{ name = 'StorageAccounts'; properties = @{ pricingTier = 'Standard' } }, @{ name = 'Arm'; properties = @{ pricingTier = 'Free' } }; break }

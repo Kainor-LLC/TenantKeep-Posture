@@ -22,11 +22,46 @@ function Test-PostureAzureSession {
     try { $r = Invoke-AzRestMethod -Method GET -Path '/subscriptions?api-version=2022-12-01' -ErrorAction Stop; return ($r.StatusCode -lt 400) } catch { return $false }
 }
 
+function Invoke-PostureAzureRest {
+    <#
+    .SYNOPSIS
+        One Azure Resource Manager request with the retry policy: throttling (429) and a busy or failing service
+        (500, 502, 503, 504) are waited out, after Retry-After when the answer carries one. Returns the response
+        whatever its status once the attempts are used; the caller decides what a refusal means.
+    .DESCRIPTION
+        Resource Manager throttles per subscription and per tenant. A run over hundreds of subscriptions meets the
+        limit sooner or later, and without this one 429 failed a whole step.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [hashtable] $Parameter)
+
+    $policy = $script:PostureGraphRetry
+    for ($attempt = 1; ; $attempt++) {
+        $response = Invoke-AzRestMethod @Parameter -ErrorAction Stop
+        if ([int]$response.StatusCode -notin 429, 500, 502, 503, 504 -or $attempt -ge $policy.maxAttempts) { return $response }
+        $asked = 0
+        try {
+            $headers = $(if ($response.PSObject.Properties['Headers']) { $response.Headers })
+            if ($headers -and $headers.PSObject.Properties['RetryAfter'] -and $headers.RetryAfter -and $headers.RetryAfter.Delta) { $asked = [int]$headers.RetryAfter.Delta.TotalSeconds }
+        }
+        catch { $asked = 0 }
+        $delay = [Math]::Min($policy.maxWaitSeconds, [Math]::Max($asked, $policy.baseSeconds * [Math]::Pow(2, $attempt - 1)))
+        Write-Verbose "Azure answered $([int]$response.StatusCode); waiting $([int]$delay) s (attempt $attempt of $($policy.maxAttempts))."
+        if ($script:PostureProgress) { $script:PostureProgress.label = "waiting $([int]$delay) s: Azure asked to slow down ($([int]$response.StatusCode))"; Write-PostureProgress -Force }
+        if ($delay -gt 0) { Start-Sleep -Seconds $delay }
+    }
+}
+
 function Invoke-PostureAzureQuery {
     <#
     .SYNOPSIS
         The single entry point for Azure Resource Graph: one KQL query at tenant scope, paged through the skip token.
         Reads only; Resource Graph has no write surface.
+    .DESCRIPTION
+        Resource Graph gives a skip token only when the rows carry an id to page by. A full page with no token is
+        followed by asking for the rows after it by position (-Skip), until a page comes back short. An answer
+        Resource Graph itself marks as truncated, with no way to page it, is an error: a short list must not be
+        read as the whole one. (verify) live: -Skip paging and the truncation flag, plan check 6.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
@@ -39,15 +74,21 @@ function Invoke-PostureAzureQuery {
     Update-PostureServiceSession -Name azure
     if (-not (Get-Command -Name Search-AzGraph -ErrorAction SilentlyContinue)) { throw 'Search-AzGraph is not available; install Az.ResourceGraph and connect first.' }
     $items = [System.Collections.Generic.List[object]]::new()
-    $token = $null
+    $token = $null; $skip = 0
     do {
         $params = @{ Query = $Query; First = $PageSize; UseTenantScope = $true; ErrorAction = 'Stop' }
-        if ($token) { $params.SkipToken = $token }
+        if ($token) { $params.SkipToken = $token } elseif ($skip -gt 0) { $params.Skip = $skip }
         Add-PostureCallRecord -Service azure -Method query -Target "Resource Graph: $((($Query -split '\|')[0]).Trim())"
         $page = Search-AzGraph @params
-        foreach ($row in @($page)) { if ($null -ne $row) { $items.Add($row) } }
+        $got = 0
+        foreach ($row in @($page)) { if ($null -ne $row) { $items.Add($row); $got++ } }
         $token = $(if ($page -and $page.PSObject.Properties['SkipToken']) { $page.SkipToken } else { $null })
-    } while ($token)
+        $skip = $(if (-not $token -and $got -ge $PageSize) { $items.Count } else { 0 })
+        if (-not $token -and $skip -eq 0 -and $page -and $page.PSObject.Properties['ResultTruncated'] -and [string]$page.ResultTruncated -eq 'true') {
+            throw "Resource Graph cut the answer short after $($items.Count) rows and gave no way to page it: $((($Query -split '\|')[0]).Trim())"
+        }
+        if ($items.Count -gt 5000000) { throw 'Resource Graph returned more than five million rows for one query; stopping.' }
+    } while ($token -or $skip -gt 0)
     return $items.ToArray()
 }
 
@@ -71,7 +112,8 @@ function Invoke-PostureAzureRequest {
     while ($next) {
         $params = $(if ($next -match '^https?://') { @{ Uri = $next } } else { @{ Path = $next } })
         Add-PostureCallRecord -Service azure -Method GET -Target $next
-        $response = Invoke-AzRestMethod -Method GET @params -ErrorAction Stop
+        $params.Method = 'GET'
+        $response = Invoke-PostureAzureRest -Parameter $params
         if ($response.StatusCode -ge 400) { throw "GET $next returned $($response.StatusCode): $(([string]$response.Content).Substring(0, [Math]::Min(300, ([string]$response.Content).Length)))" }
         $body = $(if ($response.Content) { ConvertFrom-Json -InputObject $response.Content -AsHashtable -Depth 30 } else { @{} })
         if ($Single -or -not ($body -is [System.Collections.IDictionary] -and $body.ContainsKey('value'))) { return $body }
@@ -98,7 +140,7 @@ function Invoke-PostureCostQuery {
     Update-PostureServiceSession -Name azure
     if (-not (Get-Command -Name Invoke-AzRestMethod -ErrorAction SilentlyContinue)) { throw 'Invoke-AzRestMethod is not available; install Az.Accounts and connect first.' }
     $payload = ConvertTo-Json -InputObject $Query -Depth 10 -Compress
-    $response = Invoke-AzRestMethod -Method POST -Path $Path -Payload $payload -ErrorAction Stop   # posture:read-only-post (Cost Management query)
+    $response = Invoke-PostureAzureRest -Parameter @{ Method = 'POST'; Path = $Path; Payload = $payload }   # posture:read-only-post (Cost Management query)
     Add-PostureCallRecord -Service azure -Method POST -Target $Path   # posture:read-only-post (the ledger entry for the query above)
     if ($response.StatusCode -ge 400) { throw "Cost query on $Path returned $($response.StatusCode): $(([string]$response.Content).Substring(0, [Math]::Min(300, ([string]$response.Content).Length)))" }
     $body = ConvertFrom-Json -InputObject $response.Content -AsHashtable -Depth 30

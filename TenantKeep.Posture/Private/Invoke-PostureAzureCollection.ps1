@@ -35,14 +35,35 @@ function Invoke-PostureAzureCollection {
                     [ordered]@{ SubscriptionId = (& $str $_.subscriptionId); Name = (& $str $_.name); State = (& $str $_.state); ManagementGroupChain = ($chain -join ' / '); ManagementGroupNames = $chainNames; AtTenantRoot = ($chain.Count -le 1); DetailRead = $false }
                 })
             # The per-subscription reads below (Defender plans, contacts, activity log export, classic administrators,
-            # budgets, spend) cover the first 200 enabled subscriptions. DetailRead says which, so the checks judge
-            # those and say how many were left out, never count an unread subscription as a gap.
-            $covered = [System.Collections.Generic.HashSet[string]]::new([string[]]@($flat | Where-Object { $_.State -eq 'Enabled' } | ForEach-Object { [string]$_.SubscriptionId } | Select-Object -First 200))
-            foreach ($row in $flat) { $row.DetailRead = $covered.Contains([string]$row.SubscriptionId) }
+            # budgets, spend) go to every enabled subscription. DetailRead says which of them answered every one of
+            # those reads, so the checks judge those and say how many were left out, and never count a subscription
+            # that was not read as a gap. It is false here and set once the reads are done: a run that stops in
+            # between leaves a list that claims nothing.
             & $save $flat 'az-01-subscriptions' $true
             $flat
         })
-    $subIds = @($subs | Where-Object { $_ -and $_.State -eq 'Enabled' -and $_.DetailRead } | ForEach-Object { $_.SubscriptionId })
+    $subIds = @($subs | Where-Object { $_ -and $_.State -eq 'Enabled' } | ForEach-Object { $_.SubscriptionId })
+    # One read per subscription. A subscription that refuses costs its own rows, never the step's: the others are
+    # read and written, the refusal is kept against the subscription, and the step is logged once with how many refused.
+    $subErrors = @{}; $subFailures = @{}
+    $eachSub = {
+        param([string] $What, [scriptblock] $Read)
+        $subFailures[$What] = @{ n = 0; first = $null }
+        $done = 0
+        foreach ($sub in $subIds) {
+            try { & $Read $sub }
+            catch {
+                $message = (([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()
+                $subFailures[$What].n++
+                if (-not $subFailures[$What].first) { $subFailures[$What].first = "$($sub): $message" }
+                if (-not $subErrors.ContainsKey($sub)) { $subErrors[$sub] = [System.Collections.Generic.List[string]]::new() }
+                $subErrors[$sub].Add("$($What): $message")
+            }
+            $done++
+            if ($script:PostureProgress -and $subIds.Count -gt 20 -and $done % 20 -eq 0) { $script:PostureProgress.label = "$($What): $done of $($subIds.Count) subscriptions"; Write-PostureProgress }
+        }
+    }
+    $refusals = { param([string] $What) if ($subFailures[$What].n -gt 0) { throw "$What could not be read for $($subFailures[$What].n) of $($subIds.Count) subscriptions. The first: $($subFailures[$What].first)" } }
     Invoke-PostureStep -Label 'Azure management groups' -Folder $Folder -Script {
         $rows = & $q "resourcecontainers | where type == 'microsoft.management/managementgroups' | project name, displayName = tostring(properties.displayName), parent = tostring(properties.details.parent.name)"
         & $save @($rows | ForEach-Object { [ordered]@{ Name = (& $str $_.name); DisplayName = (& $str $_.displayName); Parent = (& $str $_.parent) } }) 'az-01-management-groups' $true
@@ -50,14 +71,17 @@ function Invoke-PostureAzureCollection {
 
     # ---------- 2. Defender for Cloud ----------
     Invoke-PostureStep -Label 'Defender for Cloud plans' -Folder $Folder -Script {
-        $rows = foreach ($s in $subIds) {
+        $rows = & $eachSub 'Defender for Cloud plans' {
+            param($s)
             foreach ($p in @(& $rest "/subscriptions/$s/providers/Microsoft.Security/pricings?api-version=2024-01-01")) { [ordered]@{ SubscriptionId = $s; Plan = (& $v $p 'name'); Tier = (& $v $p 'properties.pricingTier'); SubPlan = (& $v $p 'properties.subPlan') } }
         }
         & $save @($rows) 'az-02-defender-pricings' $true
+        & $refusals 'Defender for Cloud plans'
     } | Out-Null
     Invoke-PostureStep -Label 'Defender for Cloud security contacts' -Folder $Folder -Script {
         # The 2023-12-01-preview shape carries notificationsSources (sourceType Alert with minimalSeverity) and isEnabled; older contacts carry alertNotifications. Both are read (live shape confirmed 2026-10-15).
-        $rows = foreach ($s in $subIds) {
+        $rows = & $eachSub 'Defender for Cloud security contacts' {
+            param($s)
             foreach ($c in @(& $rest "/subscriptions/$s/providers/Microsoft.Security/securityContacts?api-version=2023-12-01-preview")) {
                 $alertSource = @(@(& $v $c 'properties.notificationsSources') | Where-Object { [string](& $v $_ 'sourceType') -eq 'Alert' } | Select-Object -First 1)
                 $minimal = & $v $c 'properties.alertNotifications.minimalSeverity'
@@ -68,6 +92,7 @@ function Invoke-PostureAzureCollection {
             }
         }
         & $save @($rows) 'az-02-security-contacts' $true
+        & $refusals 'Defender for Cloud security contacts'
     } | Out-Null
     Invoke-PostureStep -Label 'Azure Secure Score and assessments' -Folder $Folder -Script {
         $scores = & $q "securityresources | where type == 'microsoft.security/securescores' | project subscriptionId, name, current = todouble(properties.score.current), max = todouble(properties.score.max), percentage = todouble(properties.score.percentage)"
@@ -86,12 +111,14 @@ function Invoke-PostureAzureCollection {
 
     # ---------- 4. Activity log export ----------
     Invoke-PostureStep -Label 'Activity log diagnostic settings' -Folder $Folder -Script {
-        $rows = foreach ($s in $subIds) {
+        $rows = & $eachSub 'Activity log diagnostic settings' {
+            param($s)
             $settings = @(& $rest "/subscriptions/$s/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview")
             if ($settings.Count -eq 0) { [ordered]@{ SubscriptionId = $s; Name = $null; WorkspaceId = $null; EventHub = $null; StorageAccountId = $null; Categories = 0 } }
             foreach ($d in $settings) { [ordered]@{ SubscriptionId = $s; Name = (& $v $d 'name'); WorkspaceId = (& $v $d 'properties.workspaceId'); EventHub = (& $v $d 'properties.eventHubAuthorizationRuleId'); StorageAccountId = (& $v $d 'properties.storageAccountId'); Categories = @(@(& $v $d 'properties.logs') | Where-Object { (& $v $_ 'enabled') -eq $true }).Count } }
         }
         & $save @($rows) 'az-04-activity-log-exports' $true
+        & $refusals 'Activity log diagnostic settings'
     } | Out-Null
 
     # ---------- 5. IAM ----------
@@ -117,11 +144,13 @@ function Invoke-PostureAzureCollection {
     Invoke-PostureStep -Label 'Classic administrators' -Folder $Folder -Script {
         # The classic administrators resource type is gone on tenants that completed the 2024 retirement (confirmed 2026-10-15: 404 InvalidResourceType);
         # that answer means none are left, which is the pass. Any other error is logged.
-        $rows = foreach ($s in $subIds) {
+        $rows = & $eachSub 'Classic administrators' {
+            param($s)
             $answer = $(try { @(& $rest "/subscriptions/$s/providers/Microsoft.Authorization/classicAdministrators?api-version=2015-06-01") } catch { if ($_.Exception.Message -match 'InvalidResourceType|404') { @() } else { throw } })
             foreach ($a in $answer) { [ordered]@{ SubscriptionId = $s; EmailAddress = (& $v $a 'properties.emailAddress'); Role = (& $v $a 'properties.role') } }
         }
         & $save @($rows) 'az-05-classic-administrators' $true
+        & $refusals 'Classic administrators'
     } | Out-Null
 
     # ---------- 6. Resource hygiene ----------
@@ -174,8 +203,16 @@ function Invoke-PostureAzureCollection {
         }
         & $save @($hits) 'az-12-open-management-ports' $true
     } | Out-Null
+    $budgetCount = @{}
     Invoke-PostureStep -Label 'Subscription budgets' -Folder $Folder -Script {
-        & $save @($subIds | ForEach-Object { [ordered]@{ SubscriptionId = $_; Budgets = @(& $rest "/subscriptions/$_/providers/Microsoft.Consumption/budgets?api-version=2023-05-01").Count } }) 'az-13-budgets' $true
+        # Read once here and kept by subscription: the pay-as-you-go step below asks the same question.
+        $rows = & $eachSub 'Subscription budgets' {
+            param($s)
+            $budgetCount[$s] = @(& $rest "/subscriptions/$s/providers/Microsoft.Consumption/budgets?api-version=2023-05-01").Count
+            [ordered]@{ SubscriptionId = $s; Budgets = $budgetCount[$s] }
+        }
+        & $save @($rows) 'az-13-budgets' $true
+        & $refusals 'Subscription budgets'
     } | Out-Null
     Invoke-PostureStep -Label 'Backup vault protection' -Folder $Folder -Script {
         # Soft delete keeps deleted backups recoverable; immutability stops backups being shortened or removed (verify the
@@ -202,14 +239,30 @@ function Invoke-PostureAzureCollection {
         # messages) over the last 30 days, and whether each has a budget. Service names are Cost Management's (verify).
         $to = [datetime]::UtcNow.Date; $from = $to.AddDays(-30)
         $query = [ordered]@{ type = 'ActualCost'; timeframe = 'Custom'; timePeriod = [ordered]@{ from = $from.ToString('yyyy-MM-ddT00:00:00Z'); to = $to.ToString('yyyy-MM-ddT00:00:00Z') }; dataset = [ordered]@{ granularity = 'None'; aggregation = [ordered]@{ totalCost = [ordered]@{ name = 'Cost'; function = 'Sum' } }; grouping = @([ordered]@{ type = 'Dimension'; name = 'ServiceName' }) } }
-        $rows = foreach ($s in $subIds) {
+        $rows = & $eachSub 'Microsoft 365 pay-as-you-go spend' {
+            param($s)
             $costs = @(Invoke-PostureCostQuery -Path "/subscriptions/$s/providers/Microsoft.CostManagement/query?api-version=2023-11-01" -Query $query)
             $m365 = @($costs | Where-Object { [string](& $v $_ 'ServiceName') -match 'Microsoft 365|SharePoint|Syntex|Purview|Copilot' -and [double](& $v $_ 'Cost') -gt 0 })
-            if ($m365.Count -eq 0) { continue }
-            $budgets = @(& $rest "/subscriptions/$s/providers/Microsoft.Consumption/budgets?api-version=2023-05-01")
-            [ordered]@{ SubscriptionId = $s; Services = @($m365 | ForEach-Object { [ordered]@{ Name = [string](& $v $_ 'ServiceName'); Cost = [Math]::Round([double](& $v $_ 'Cost'), 2); Currency = [string](& $v $_ 'Currency') } }); Budgets = $budgets.Count }
+            if ($m365.Count -eq 0) { return }
+            # The budgets step already counted them; asked again only when that step did not reach this subscription.
+            $budgets = $(if ($budgetCount.ContainsKey($s)) { $budgetCount[$s] } else { @(& $rest "/subscriptions/$s/providers/Microsoft.Consumption/budgets?api-version=2023-05-01").Count })
+            [ordered]@{ SubscriptionId = $s; Services = @($m365 | ForEach-Object { [ordered]@{ Name = [string](& $v $_ 'ServiceName'); Cost = [Math]::Round([double](& $v $_ 'Cost'), 2); Currency = [string](& $v $_ 'Currency') } }); Budgets = $budgets }
         }
         & $save @($rows) 'az-10-m365-payg'
+        & $refusals 'Microsoft 365 pay-as-you-go spend'
+    } | Out-Null
+
+    # Which subscriptions answered every per-subscription read: written into the list now that the reads are done.
+    Invoke-PostureStep -Label 'Azure subscriptions read in detail' -Folder $Folder -Script {
+        if ($subs.Count -eq 0) { return }
+        $final = @($subs | ForEach-Object {
+                $row = [ordered]@{}; foreach ($k in $_.get_Keys()) { $row[$k] = $_[$k] }
+                $id = [string]$row.SubscriptionId
+                $row.DetailRead = ([string]$row.State -eq 'Enabled' -and -not $subErrors.ContainsKey($id))
+                $row.DetailError = $(if ($subErrors.ContainsKey($id)) { ($subErrors[$id] -join ' | ') } else { $null })
+                $row
+            })
+        & $save $final 'az-01-subscriptions' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Microsoft 365 Backup' -Folder $Folder -Script {
         # Microsoft 365 Backup through Graph: whether the service is on and which workloads have an active policy.

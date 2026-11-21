@@ -157,12 +157,16 @@ answers DeviceInfo only).
 ## What the Azure collector writes
 
 On a `Connect-AzAccount` session with Reader on the subscriptions (or the management group) and Security Reader.
-Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls per subscription are capped at
-200 subscriptions, and `az-01-subscriptions` says which with `DetailRead`. The checks that read per-subscription
-files (Defender plans, security contacts, activity log export, classic administrators, budgets, pay-as-you-go
-spend) judge the subscriptions that were read and no others: a gap among them is a finding whose reason says
-"Judged on 200 of N subscriptions", and with no gap among them the check has no answer for the tenant. Both go
-through Get-only entry points. Sign in to Graph before importing Az.Accounts in the same
+Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls go to every enabled
+subscription for six things: Defender plans, security contacts, activity log export, classic administrators,
+budgets and pay-as-you-go spend. A subscription that refuses one of them costs its own rows and nothing else: the
+others are read and written, the step is logged once with how many refused, and `az-01-subscriptions` says per
+subscription whether every read went through (`DetailRead`, and `DetailError` with the refusal). The checks on
+those files judge the subscriptions that were read and no others: a gap among them is a finding whose reason says
+"Judged on N of M subscriptions", and with no gap among them the check has no answer for the tenant. Throttling
+(429) and a busy service are waited out, after Retry-After when Azure sends one. Resource Graph is paged by its
+skip token, and by position when a full page comes with none ((verify) live). Both go through Get-only entry
+points. Sign in to Graph before importing Az.Accounts in the same
 process: imported first, Az breaks `Connect-MgGraph` with "Entry point was not found" (observed 2026-10-15 on macOS). On macOS the Az browser sign-in can hit the same MSAL
 conflicts as the others. What works (confirmed 2026-10-15): a token from the Azure CLI with the classic Resource
 Manager audience, handed to Az.Accounts:

@@ -63,7 +63,7 @@ function Get-PostureAzureFact {
         if ($read.Count -ge $s.Count) { return }
         if ($read.Count -eq 0) { $notEvaluated[$Id] = "The evidence does not say which of the $($s.Count) subscriptions were read in detail. Collect Azure again (Resume-PostureRun -Collector Azure)."; return }
         if ($Gaps -gt 0) { $notes[$Id] = "Judged on $($read.Count) of $($s.Count) subscriptions; the other $($s.Count - $read.Count) were not read." }
-        else { $notEvaluated[$Id] = "No $What among the $($read.Count) subscriptions that were read; the other $($s.Count - $read.Count) were not read (the per-subscription reads cover the first 200), so there is no answer for the tenant yet." }
+        else { $notEvaluated[$Id] = "No $What among the $($read.Count) subscriptions that were read; the other $($s.Count - $read.Count) were not read (errors.txt says why), so there is no answer for the tenant yet." }
     }
     $subName = @{}; foreach ($x in $s) { $subName[[string]$x.SubscriptionId] = [string]$x.Name }
     $label = { param([string] $id) $(if ($subName.ContainsKey($id)) { "$($subName[$id]) ($id)" } else { $id }) }
