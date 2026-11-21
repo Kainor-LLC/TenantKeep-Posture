@@ -57,6 +57,16 @@ function Invoke-PostureCollection {
     .PARAMETER SkipMailboxEnumeration
         Skip the Exchange mailbox and CAS mailbox pulls (10 to 20 minutes at 20k mailboxes); the forwarding, shared
         mailbox and per-mailbox protocol checks are then not evaluated.
+    .PARAMETER StepCompleted
+        A script block called each time a step, or a collector, has finished, with what it closed:
+        @{ folder; root; collector; step; state; files; record }. files are the evidence files just finished (final
+        names, never a file still being written); record are the run's journal and error files as they stand. The
+        Automation runbook uses it to copy both to the customer's own storage as the run goes, so a job that is
+        stopped and started again carries on. The module does nothing with the files and sends them nowhere. A
+        block that throws does not stop the collection.
+    .PARAMETER SkipFinished
+        With -OutputFolder: a collector the run already records as finished is not collected again. For a run that
+        is being continued by something other than Resume-PostureRun, which works this out itself.
     .PARAMETER PassThru
         Return a summary object instead of the folder path.
     .EXAMPLE
@@ -108,6 +118,8 @@ function Invoke-PostureCollection {
         [switch] $SkipMailboxEnumeration,
         [switch] $SkipSiteEnumeration,
         [switch] $IncludeOneDriveSites,
+        [scriptblock] $StepCompleted,
+        [switch] $SkipFinished,
         [switch] $PassThru
     )
 
@@ -145,6 +157,7 @@ function Invoke-PostureCollection {
         'LifecycleWorkflows.Read.All'             = 'Lifecycle workflows'
         'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups, Role holders (who can join a group that holds a role)'
         'AdministrativeUnit.Read.All'             = 'Administrative units'
+        'SharePointTenantSettings.Read.All'       = 'SharePoint tenant settings (Graph)'
         'NetworkAccess.Read.All'                  = 'Global Secure Access (only where licensed)'
         'BackupRestore-Configuration.Read.All'    = 'Microsoft 365 Backup (with the Azure collector)'
         'ThreatHunting.Read.All'                  = 'Defender devices, antivirus state, secure configuration, vulnerabilities (advanced hunting)'
@@ -191,6 +204,16 @@ function Invoke-PostureCollection {
     # The journal of this collection (logs/journal.jsonl): steps, files and finished collectors as they happen.
     $journalBefore = $script:PostureJournalFolder
     $script:PostureJournalFolder = $folder
+    $stepCompletedBefore = $script:PostureStepCompleted
+    $script:PostureStepCompleted = $StepCompleted
+    $script:PostureStepFiles.Clear(); $script:PostureStepCompletedWarned = $false
+    # -SkipFinished: what the run's manifest and journal record as finished before this collection adds to them.
+    $finishedBefore = @()
+    if ($SkipFinished -and $OutputFolder) {
+        $manifestBefore = $(try { Get-Content -Raw -LiteralPath (Join-Path $folder 'collection.json') -ErrorAction Stop | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null })
+        $finishedBefore = @(Get-PostureFinishedCollector -Folder $folder -Manifest @($(if ($manifestBefore) { $manifestBefore['collectors'] })))
+        if ($finishedBefore.Count -gt 0) { Write-Verbose "Finished earlier in this run, not collected again: $($finishedBefore -join ', ')." }
+    }
 
     try {
         $files = [System.Collections.Generic.List[string]]::new()
@@ -250,6 +273,7 @@ function Invoke-PostureCollection {
         }
         $timed = {
             param([string] $Name, [scriptblock] $Block)
+            if ($Name -in $finishedBefore) { return }
             Set-PostureProgressPhase -Name $Name
             $script:PostureCurrentCollector = $Name
             $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount; $skipped0 = $script:PostureStepsSkipped
@@ -268,6 +292,7 @@ function Invoke-PostureCollection {
                 Write-PostureStepFailure -Folder $folder -Label 'Steps not attempted' -Message $message -Collector $Name -Confirm:$false
                 Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'stopped'; collector = $Name; cause = 'token'; notAttempted = $left }
                 $null = & $writeManifest
+                Invoke-PostureStepCompleted -Folder $folder -State collector
                 if ($result -is [System.Collections.IDictionary] -and $result.Contains('files')) { foreach ($f in @($result['files'])) { if ($f) { $files.Add($f) } } }
                 return
             }
@@ -276,10 +301,11 @@ function Invoke-PostureCollection {
             # a run that stops in a later collector is resumed from there.
             Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'done'; collector = $Name; seconds = $timings[$Name].seconds; steps = $timings[$Name].steps }
             $null = & $writeManifest
+            Invoke-PostureStepCompleted -Folder $folder -State collector
             # A collector whose step failed returns nothing: record nothing, and never let that stop the others.
             if ($result -is [System.Collections.IDictionary] -and $result.Contains('files')) { foreach ($f in @($result['files'])) { if ($f) { $files.Add($f) } } }
         }
-        if (-not $SkipCaSnapshot) {
+        if (-not $SkipCaSnapshot -and 'ConditionalAccess' -notin $finishedBefore) {
             Set-PostureProgressPhase -Name 'ConditionalAccess'
             $clock = [System.Diagnostics.Stopwatch]::StartNew()
             $snap = Export-PostureCaSnapshot -OutputFolder $folder -IncludeMembers:$IncludeMembers -PassThru
@@ -288,6 +314,9 @@ function Invoke-PostureCollection {
             $ran.Add('ConditionalAccess')
             Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'done'; collector = 'ConditionalAccess'; seconds = $timings['ConditionalAccess'].seconds; steps = 1 }
             $null = & $writeManifest
+            # The snapshot writes its files itself, not through a step: they are handed over here, by name.
+            Add-PostureStepFile -Path @($snap.Files)
+            Invoke-PostureStepCompleted -Folder $folder -State collector
         }
         # What to expect of the sign-in, from the Conditional Access snapshot: said before the long reads, not
         # found out in the middle of them. Only for a signed-in person (a managed identity has no sign-in frequency).
@@ -304,6 +333,7 @@ function Invoke-PostureCollection {
         if ($run.Defender) { & $timed 'Defender' { Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc } }
 
         $manifest = & $writeManifest -Final
+        Invoke-PostureStepCompleted -Folder $folder -State collector
         $errors = @($manifest['errors'])
         if ($errors.Count -gt 0) { Write-Warning "$($errors.Count) step(s) failed; see $errorsPath" }
 
@@ -314,6 +344,8 @@ function Invoke-PostureCollection {
     }
     finally {
         $script:PostureJournalFolder = $journalBefore
+        $script:PostureStepCompleted = $stepCompletedBefore
+        $script:PostureStepFiles.Clear()
         $script:PostureCurrentStep = $null
         if (-not $OutputFolder) { try { Stop-Transcript | Out-Null } catch { Write-Verbose 'No transcript to stop.' } }
     }

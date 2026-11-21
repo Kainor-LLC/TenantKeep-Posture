@@ -159,7 +159,8 @@ Describe 'deploy scripts' {
         $warned = [regex]::Matches($collection, "'([A-Za-z]+\.[A-Za-z.]+)'\s+= '") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
         $warned.Count | Should -BeGreaterThan 15
         foreach ($scope in $warned) { $grant | Should -Match ([regex]::Escape("'$scope'")) -Because "$scope is a collector scope" }
-        foreach ($needle in 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access', 'f2ef992c-3afb-46b9-b7cf-a126ee74c451') { $grant | Should -Match ([regex]::Escape($needle)) }
+        foreach ($needle in 'Exchange.ManageAsApp', 'application_access', 'f2ef992c-3afb-46b9-b7cf-a126ee74c451') { $grant | Should -Match ([regex]::Escape($needle)) }
+        $warned | Should -Contain 'SharePointTenantSettings.Read.All' -Because 'the scheduled run reads the SharePoint tenant settings through Graph'
         # Graph application roles nothing reads with: site content and usage reports.
         foreach ($unused in 'Sites.Read.All', 'Reports.Read.All') { $grant | Should -Not -Match ([regex]::Escape("'$unused'")) -Because "no collector uses $unused" }
     }
@@ -190,5 +191,217 @@ Describe 'deploy scripts' {
     It 'the grant script refuses without the admin scopes' {
         Mock Get-MgContext { [pscustomobject]@{ Scopes = @('Policy.Read.All') } }
         { & (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' } | Should -Throw '*missing AppRoleAssignment.ReadWrite.All*'
+    }
+}
+
+Describe 'posture-runbook.ps1 carries on in a run an earlier job began' {
+    BeforeAll {
+        # The runbook's own blocks, taken from its source and run against a fake container: no Azure.
+        $script:RunbookPath = Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1'
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:RunbookPath, [ref]$null, [ref]$null)
+        $block = { param([string] $Name) $ast.Find({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $Name }.GetNewClosure(), $true).Right.Extent.Text }
+        $script:FindUnfinished = [scriptblock]::Create("& { $(& $block '$findUnfinished') }").Invoke()[0]
+        $script:UploadChangedText = & $block '$uploadChanged'
+        $script:Source = Get-Content -Raw $script:RunbookPath
+        $script:Now = [datetime]::new(2026, 11, 21, 15, 0, 0)
+    }
+
+    It 'picks the newest run when it has a journal, no report, and began less than a day ago' {
+        & $script:FindUnfinished @('20261101-0300/report.html', '20261101-0300/journal.jsonl', '20261121-0300/journal.jsonl', '20261121-0300/06-users.json') $script:Now | Should -Be '20261121-0300'
+    }
+
+    It 'starts a new run when <Why>' -ForEach @(
+        @{ Why = 'the newest run has its report'; Blobs = @('20261121-0300/journal.jsonl', '20261121-0300/report.html') }
+        @{ Why = 'the newest run began more than a day ago'; Blobs = @('20261120-0300/journal.jsonl') }
+        @{ Why = 'the newest run has no journal (made before the journal, or by hand)'; Blobs = @('20261121-0300/06-users.json') }
+        @{ Why = 'an older run is unfinished and a newer one is done'; Blobs = @('20261121-0100/journal.jsonl', '20261121-0300/journal.jsonl', '20261121-0300/report.html') }
+        @{ Why = 'the newest run is dated after now'; Blobs = @('20261122-0300/journal.jsonl') }
+        @{ Why = 'the container is empty'; Blobs = @() }
+        @{ Why = 'nothing in the container is a run'; Blobs = @('notes/journal.jsonl', 'readme.txt') }
+    ) {
+        & $script:FindUnfinished ([string[]]$Blobs) $script:Now | Should -BeNullOrEmpty
+    }
+
+    It 'sends a file once, again only when it has changed, with its folder in the name, and never a file still being written' {
+        $run = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-runbook-$([guid]::NewGuid().ToString('n'))" '20261121-0300'
+        New-Item -ItemType Directory -Path (Join-Path $run 'affected') -Force | Out-Null
+        try {
+            foreach ($n in '06-users.json', '06-users.csv', 'journal.jsonl', '07-groups.json.part', 'cursor-07-groups.json', '.tenantkeep.lock', 'affected/ID-012.csv') { Set-Content -LiteralPath (Join-Path $run $n) -Value 'x' }
+            $outside = Join-Path (Split-Path $run -Parent) 'profile.json'; Set-Content -LiteralPath $outside -Value '{}'
+            # The variables the block reads from the runbook's scope (Set-Variable: nothing in this file reads them by name).
+            $sent = [System.Collections.Generic.List[string]]::new()
+            Set-Variable -Name uploaded -Value @{}
+            Set-Variable -Name postureContainer -Value 'posture'
+            Set-Variable -Name blobPut -Value { param([string] $Container, [string] $Name, [string] $Path) $sent.Add("$Container/$Name") }
+            $uploadChanged = [scriptblock]::Create($script:UploadChangedText.Trim().TrimStart('{').TrimEnd('}'))
+            $all = @(Get-ChildItem -LiteralPath $run -File -Recurse -Force | ForEach-Object { $_.FullName }) + @($outside, (Join-Path $run 'not-there.json'))
+            & $uploadChanged $run $all
+            @($sent | Sort-Object) | Should -Be @('posture/20261121-0300/06-users.csv', 'posture/20261121-0300/06-users.json', 'posture/20261121-0300/affected/ID-012.csv', 'posture/20261121-0300/journal.jsonl')
+            $sent.Clear()
+            & $uploadChanged $run $all
+            $sent.Count | Should -Be 0 -Because 'nothing changed'
+            Add-Content -LiteralPath (Join-Path $run 'journal.jsonl') -Value 'another line'
+            & $uploadChanged $run $all
+            @($sent) | Should -Be @('posture/20261121-0300/journal.jsonl') -Because 'the journal grew and the evidence did not'
+        }
+        finally { Remove-Item -LiteralPath (Split-Path $run -Parent) -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'copies the run to the container as it goes, continues in it, and uploads the subfolders' {
+        $script:Source | Should -Match 'StepCompleted = \$onStep'
+        $script:Source | Should -Match '-StepCompleted \$onStep -SkipFinished:\(\[bool\]\$continue\)'
+        $script:Source | Should -Match '\$collectParams\.OutputFolder = \$folder; \$collectParams\.SkipFinished = \$true'
+        $script:Source | Should -Match 'Get-ChildItem -Path \$folder -File -Recurse' -Because 'the report points to affected/<check>.csv'
+        $script:Source | Should -Not -Match 'Remove-Item[^\n]*\$postureContainer' -Because 'a run in the container is only ever pruned by the keep-runs rule'
+    }
+
+    It 'sends the vault token only to an Azure Key Vault secret address' {
+        $pattern = [regex]::Match($script:Source, "\`$purviewCert -notmatch '([^']+)'").Groups[1].Value
+        $pattern | Should -Not -BeNullOrEmpty
+        'https://kv-contoso-posture.vault.azure.net/secrets/purview-cert' | Should -Match $pattern
+        'https://kv-contoso-posture.vault.azure.net/secrets/purview-cert/0123456789abcdef0123456789abcdef' | Should -Match $pattern
+        foreach ($bad in 'https://attacker.example/secrets/x', 'https://kv.vault.azure.net.attacker.example/secrets/x', 'http://kv-contoso.vault.azure.net/secrets/x', 'https://kv-contoso.vault.azure.net/keys/x', 'https://kv-contoso.vault.azure.net/secrets/x?redirect=https://attacker.example', 'https://kv-contoso.vault.azure.net@attacker.example/secrets/x') {
+            $bad | Should -Not -Match $pattern -Because "$bad is not a Key Vault secret"
+        }
+        # The check comes before the token is asked for.
+        $script:Source.IndexOf('$purviewCert -notmatch') | Should -BeLessThan $script:Source.IndexOf("Get-AzAccessToken -ResourceUrl 'https://vault.azure.net'")
+    }
+
+    It 'attaches the report only up to 2 MB, and says where it is otherwise' {
+        $script:Source | Should -Match '\(Get-Item -LiteralPath \$reportFile\)\.Length -le 2MB'
+        $script:Source | Should -Match 'The report is too large to attach'
+    }
+}
+
+Describe 'SharePoint in the scheduled run' {
+    BeforeAll {
+        $script:GrantPath = Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1'
+        # The grant script against a fake Graph: every request is noted, nothing leaves the test.
+        $script:RunGrant = {
+            param([hashtable] $With)
+            # A plain variable, not $script: one: the mock runs inside the grant script, whose script scope is its own.
+            $graphSent = [System.Collections.Generic.List[object]]::new()
+            Mock Get-MgContext { [pscustomobject]@{ Scopes = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All', 'RoleManagement.ReadWrite.Directory') } }
+            Mock Write-Host { }
+            Mock Invoke-MgGraphRequest {
+                $graphSent.Add([pscustomobject]@{ Method = [string]$Method; Uri = [string]$Uri; Body = $Body })
+                if ($Method -ne 'GET') { return @{} }
+                if ($Uri -match 'appRoleAssignments$') { return @{ value = @() } }
+                if ($Uri -match "servicePrincipals\?\`$filter=appId eq '([^']+)'") {
+                    $app = $Matches[1]
+                    # Every resource exposes every role asked of it, named by the role, so a grant can be read back.
+                    $names = 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Mail.Send', 'User.Read.All', 'OnPremDirectorySynchronization.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskyUser.Read.All', 'IdentityRiskEvent.Read.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementServiceConfig.Read.All', 'DeviceManagementApps.Read.All', 'BitLockerKey.ReadBasic.All', 'AttackSimulation.Read.All', 'AccessReview.Read.All', 'EntitlementManagement.Read.All', 'LifecycleWorkflows.Read.All', 'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All', 'Organization.Read.All', 'Application.Read.All', 'SharePointTenantSettings.Read.All', 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access'
+                    return @{ value = @(@{ id = "sp-$app"; appRoles = @($names | ForEach-Object { @{ id = "role:$_"; value = $_; allowedMemberTypes = @('Application') } }) }) }
+                }
+                if ($Uri -match 'roleDefinitions') { return @{ value = @(@{ id = 'def-global-reader'; displayName = 'Global Reader' }) } }
+                if ($Uri -match 'roleAssignments\?') { return @{ value = @() } }
+                throw "unexpected request $Uri"
+            }
+            $null = & $script:GrantPath -PrincipalId '00000000-0000-0000-0000-000000000001' @With -WarningVariable w -WarningAction SilentlyContinue
+            $script:GrantWarnings = @($w)
+            @($graphSent | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match 'appRoleAssignments$' } | ForEach-Object { "$($_.Body.resourceId) $($_.Body.appRoleId -replace '^role:', '')" })
+        }
+    }
+
+    It 'grants the Graph read of the tenant settings with -IncludePosture, and no SharePoint role at all' {
+        $granted = & $script:RunGrant @{ IncludePosture = $true }
+        $granted | Should -Contain 'sp-00000003-0000-0000-c000-000000000000 SharePointTenantSettings.Read.All'
+        @($granted | Where-Object { $_ -match 'Sites\.' }) | Should -BeNullOrEmpty -Because 'full control of every site is not something a scheduled read gets by default'
+        @($granted | Where-Object { $_ -match '^sp-00000003-0000-0ff1-ce00-000000000000 ' }) | Should -BeNullOrEmpty -Because 'nothing is granted on SharePoint Online itself'
+        $granted | Should -Contain 'sp-00000002-0000-0ff1-ce00-000000000000 Exchange.ManageAsApp'
+        $granted | Should -Contain 'sp-48ac35b8-9aa8-4d74-927d-1f4a14a0b239 application_access'
+        @($script:GrantWarnings | Where-Object { [string]$_ -match 'FullControl' }) | Should -BeNullOrEmpty
+    }
+
+    It 'grants Sites.FullControl.All only when asked, and says what it is' {
+        $granted = & $script:RunGrant @{ IncludePosture = $true; IncludeSharePointAdminRead = $true }
+        $granted | Should -Contain 'sp-00000003-0000-0ff1-ce00-000000000000 Sites.FullControl.All'
+        @($script:GrantWarnings | Where-Object { [string]$_ -match 'standing permission to read and change every file in every site' }).Count | Should -Be 1
+    }
+
+    It 'refuses the SharePoint switch on its own' {
+        Mock Get-MgContext { [pscustomobject]@{ Scopes = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All') } }
+        Mock Invoke-MgGraphRequest { throw 'nothing should be sent' }
+        { & $script:GrantPath -PrincipalId '00000000-0000-0000-0000-000000000001' -IncludeSharePointAdminRead } | Should -Throw '*goes with -IncludePosture*'
+    }
+
+    It 'keeps the Teams read when the SharePoint admin read is refused or not set up' {
+        $rb = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1')
+        $rb | Should -Match "& \`$phase 'SharePoint' \{ Connect-PnPOnline -Url \`$spoAdmin -ManagedIdentity \} @\('SharePoint'\)"
+        $rb | Should -Match "& \`$phase 'Teams' \{ Connect-MicrosoftTeams -Identity \| Out-Null \} @\('Teams'\)"
+        $rb | Should -Not -Match "@\('SharePoint', 'Teams'\)" -Because 'one sign-in that fails must not cost the other read'
+    }
+
+    It 'tells an identity without the Graph settings role how to get it' {
+        $src = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'Private' 'Invoke-PostureEntraCollection.ps1')
+        $src | Should -Match 'Run deploy/automation/Grant-ManagedIdentityGraphRole\.ps1 -IncludePosture again'
+    }
+}
+
+Describe 'The posture runbook on a Hybrid Runbook Worker' {
+    BeforeAll {
+        $script:DeployPath = Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'deploy.ps1'
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:DeployPath, [ref]$null, [ref]$null)
+        # The script's own block that links the posture schedule, run against a fake az.
+        $script:LinkBlock = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq '$IncludePosture' -and $n.Extent.Text -match 'hybridRunbookWorkerGroups' }, $true).Extent.Text
+        $script:Link = {
+            param([string] $HybridWorkerGroup, [object[]] $Existing = @(), [switch] $GroupMissing)
+            $calls = [System.Collections.Generic.List[string]]::new()
+            function Invoke-Az {
+                $line = $args -join ' '
+                $calls.Add($line)
+                if ($line -match 'hybridRunbookWorkerGroups' -and $GroupMissing) { throw 'az rest failed: ResourceNotFound' }
+            }
+            Mock Write-Host { }
+            # The variables the block reads from deploy.ps1's scope.
+            foreach ($pair in @(
+                    @('IncludePosture', $true), @('postureRunbook', 'Invoke-PostureCycle'), @('automationAccount', 'aa-tenantkeep-dev'),
+                    @('aaPath', '/subscriptions/s/resourceGroups/rg/providers/Microsoft.Automation/automationAccounts/aa-tenantkeep-dev'),
+                    @('o', [pscustomobject]@{ postureScheduleName = [pscustomobject]@{ value = 'posture-monthly' } })
+                )) { Set-Variable -Name $pair[0] -Value $pair[1] }
+            Set-Variable -Name links -Value @($Existing)
+            . ([scriptblock]::Create($script:LinkBlock)) 3>$null
+            , @($calls)
+        }
+        $script:Linked = { param([string] $RunOn) [pscustomobject]@{ id = '/x/jobSchedules/11111111-1111-1111-1111-111111111111'; properties = [pscustomobject]@{ runbook = [pscustomobject]@{ name = 'Invoke-PostureCycle' }; schedule = [pscustomobject]@{ name = 'posture-monthly' }; runOn = $RunOn } } }
+    }
+
+    It 'links the schedule to the sandbox when no worker group is named' {
+        $calls = & $script:Link ''
+        @($calls | Where-Object { $_ -match '--method put' }).Count | Should -Be 1
+        ($calls -join "`n") | Should -Not -Match 'runOn'
+        ($calls -join "`n") | Should -Not -Match 'hybridRunbookWorkerGroups'
+    }
+
+    It 'links the schedule to the worker group, after checking the group is there' {
+        $calls = & $script:Link 'posture-workers'
+        $calls[0] | Should -Match '--method get .*hybridRunbookWorkerGroups/posture-workers'
+        @($calls | Where-Object { $_ -match '--method put' -and $_ -match '"runOn":"posture-workers"' }).Count | Should -Be 1
+    }
+
+    It 'moves a schedule from the sandbox to the worker group, and back' {
+        $calls = & $script:Link 'posture-workers' @(& $script:Linked '')
+        @($calls | Where-Object { $_ -match '--method delete .*jobSchedules/11111111-1111-1111-1111-111111111111' }).Count | Should -Be 1
+        @($calls | Where-Object { $_ -match '--method put' -and $_ -match '"runOn":"posture-workers"' }).Count | Should -Be 1
+        $back = & $script:Link '' @(& $script:Linked 'posture-workers')
+        @($back | Where-Object { $_ -match '--method delete' }).Count | Should -Be 1
+        @($back | Where-Object { $_ -match '--method put' -and $_ -notmatch 'runOn' }).Count | Should -Be 1
+    }
+
+    It 'leaves a schedule alone that already runs where it should, and one whose worker group is not there' {
+        $same = & $script:Link 'posture-workers' @(& $script:Linked 'posture-workers')
+        @($same | Where-Object { $_ -match '--method (put|delete)' }) | Should -BeNullOrEmpty
+        $missing = & $script:Link 'posture-workers' @(& $script:Linked '') -GroupMissing
+        @($missing | Where-Object { $_ -match '--method (put|delete)' }) | Should -BeNullOrEmpty -Because 'a schedule pointed at a group with no worker would start nothing'
+    }
+
+    It 'gives the worker identity the storage and vault roles in the template, and only when one is named' {
+        $bicep = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'main.bicep')
+        $bicep | Should -Match "param workerPrincipalId string = ''"
+        $bicep | Should -Match "resource workerBlobRole 'Microsoft\.Authorization/roleAssignments@[0-9-]+' = if \(!empty\(workerPrincipalId\)\)"
+        $bicep | Should -Match "resource purviewVaultWorker 'Microsoft\.Authorization/roleAssignments@[0-9-]+' = if \(includePosture && !empty\(workerPrincipalId\)\)"
+        $deploy = Get-Content -Raw $script:DeployPath
+        $deploy | Should -Match '"workerPrincipalId=\$HybridWorkerPrincipalId"'
+        $deploy | Should -Match '--run-on \$HybridWorkerGroup'
     }
 }

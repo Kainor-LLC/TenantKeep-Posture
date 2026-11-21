@@ -6,6 +6,29 @@ work landed on main.
 
 ## Unreleased
 
+- The Automation runbook carries on instead of starting over (2026-11-21). Azure Automation stops a sandbox job
+  after three hours and starts it again from the top; the runbook began every job with an empty folder and
+  uploaded nothing until the end, so a tenant that needed more than three hours never finished. The run is now
+  copied to the customer's container as it goes (each evidence file when its step closes, with the journal), and
+  a job that finds a run from the last day with a journal and no report downloads it and continues: finished
+  domains are left alone, finished long lists are kept. New on `Invoke-PostureCollection`: `-StepCompleted`, a
+  block called with the files each step closed (the module does nothing with them itself), and `-SkipFinished`.
+- The runbook uploads the run's subfolders. `affected/<check>.csv`, which the report points to for the full
+  lists, never reached the container.
+- The scheduled run reads SharePoint settings through Graph, and no longer holds full control of every site by
+  default. `Grant-ManagedIdentityGraphRole.ps1 -IncludePosture` grants `SharePointTenantSettings.Read.All`, whose
+  absence failed that read on every scheduled run, and grants nothing on SharePoint Online.
+  `Sites.FullControl.All`, a standing permission to read and change every file in every site, is granted only
+  with `-IncludeSharePointAdminRead`, for the site list, and the script says what it is. An identity that already
+  holds it keeps it until an admin removes it. A refused SharePoint read no longer costs the Teams read.
+- A large tenant can run the posture runbook on a Hybrid Runbook Worker: `deploy.ps1 -HybridWorkerGroup` and
+  `-HybridWorkerPrincipalId`. docs/scheduling.md says when (20,000 users until measured) and what the worker's
+  identity needs.
+- The runbook sends its Key Vault token only to an Azure Key Vault secret address. It went to whatever URL the
+  `TENANTKEEP_PURVIEW_CERT` variable held.
+- A report over 2 MB is not attached to the runbook's email, which would not have been sent; the message says
+  where the report is.
+
 - A run that outlives its sign-in (2026-11-21). An admin account often has a Conditional Access sign-in frequency
   of a few hours. Past it every renewal is refused, and every remaining step failed one by one, each with its own
   line. Now, when a renewal is refused because the sign-in has ended (`invalid_grant` or `interaction_required`:

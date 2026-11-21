@@ -53,8 +53,11 @@ param postureKeepRuns int = 24
 @description('The tenant initial domain, for app-only Exchange and Purview sign-in: contoso.onmicrosoft.com.')
 param organization string = ''
 
-@description('SharePoint admin site URL, for app-only PnP sign-in: https://contoso-admin.sharepoint.com.')
+@description('SharePoint admin site URL, for the opt-in SharePoint admin read (app-only PnP sign-in, which needs Sites.FullControl.All): https://contoso-admin.sharepoint.com. Empty: the scheduled run reads the SharePoint tenant settings through Graph only.')
 param sharePointAdminUrl string = ''
+
+@description('Object id of the identity a Hybrid Runbook Worker machine signs in as, when the posture runbook runs on a worker group instead of the sandbox. It gets the storage and vault roles the Automation account\'s identity has. Empty: no worker.')
+param workerPrincipalId string = ''
 
 param tags object = {
   product: 'TenantKeep Posture'
@@ -155,6 +158,17 @@ resource blobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// A Hybrid Runbook Worker runs the same runbook as its machine's identity, which reads and writes the same containers.
+resource workerBlobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(workerPrincipalId)) {
+  name: guid(storage.id, workerPrincipalId, blobDataContributor)
+  scope: storage
+  properties: {
+    roleDefinitionId: blobDataContributor
+    principalId: workerPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource deployerBlobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerObjectId)) {
   name: guid(storage.id, deployerObjectId, blobDataContributor)
   scope: storage
@@ -248,6 +262,15 @@ resource purviewVaultSecretsUser 'Microsoft.Authorization/roleAssignments@2022-0
   properties: {
     roleDefinitionId: keyVaultSecretsUser
     principalId: automation.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+resource purviewVaultWorker 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (includePosture && !empty(workerPrincipalId)) {
+  name: guid(purviewVaultName, workerPrincipalId, keyVaultSecretsUser)
+  scope: purviewVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUser
+    principalId: workerPrincipalId
     principalType: 'ServicePrincipal'
   }
 }

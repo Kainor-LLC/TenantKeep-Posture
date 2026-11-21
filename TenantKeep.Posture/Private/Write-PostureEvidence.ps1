@@ -66,6 +66,7 @@ function Write-PostureEvidence {
     $count = if ($AsArray) { $items.Count } else { 1 }
     if (-not $Quiet) { Write-Host ('{0,-42} {1,7:N0}' -f "$Name.json", $count) }
     Write-PostureJournal -Folder $Folder -Entry @{ kind = 'file'; name = $Name; rows = $count; bytes = [long][System.IO.FileInfo]::new($path).Length; collector = [string]$script:PostureCurrentCollector; step = [string]$script:PostureCurrentStep }
+    Add-PostureStepFile -Path @($path, $(if ($withCsv) { $csvPath }))
     return $path
 }
 
@@ -234,6 +235,7 @@ function Close-PostureEvidenceStream {
     if ($Stream.csv) { $Stream.csv.Dispose(); [System.IO.File]::Move("$($Stream.csvPath).part", $Stream.csvPath, $true) }
     [System.IO.File]::Move("$($Stream.path).part", $Stream.path, $true)
     if (-not $Quiet) { Write-Host ('{0,-42} {1,7:N0}' -f "$($Stream.name).json", $Stream.count) }
+    Add-PostureStepFile -Path @($Stream.path, $(if ($Stream.csv) { $Stream.csvPath }))
     Write-PostureJournal -Folder (Split-Path -Parent $Stream.path) -Entry @{ kind = 'file'; name = $Stream.name; rows = [long]$Stream.count; bytes = [long](Get-Item -LiteralPath $Stream.path).Length; collector = [string]$script:PostureCurrentCollector; step = [string]$script:PostureCurrentStep }
     return $Stream.path
 }

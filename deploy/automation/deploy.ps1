@@ -46,6 +46,17 @@ param(
     [string] $PostureTimeUtc = '03:00',
     [int] $PostureKeepRuns = 24,
     [string] $ClientFolder,
+    # Only with the SharePoint admin read (Grant-ManagedIdentityGraphRole.ps1 -IncludeSharePointAdminRead, which grants
+    # Sites.FullControl.All): leave -SharePointAdminUrl out and the scheduled run reads the SharePoint tenant settings
+    # through Graph and nothing else of SharePoint.
+
+    # A large tenant (docs/scheduling.md has the size) runs the posture runbook on a Hybrid Runbook Worker, which has
+    # neither the sandbox's three hours nor its memory and disk. -HybridWorkerGroup names a worker group that already
+    # exists in the Automation account; the monthly schedule then starts the runbook there. -HybridWorkerPrincipalId is
+    # the object id of the identity the worker machine signs in as: it gets the storage and vault roles here, and the
+    # tenant roles from Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <that id>.
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$')] [string] $HybridWorkerGroup,
+    [ValidatePattern('^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$')] [string] $HybridWorkerPrincipalId,
     # The versions the module is tested with (Get-PostureRequirement)
     [string] $ExchangeOnlineManagementVersion = '3.10.1',
     [string] $PnPPowerShellVersion = '3.2.0',
@@ -80,7 +91,7 @@ $paramArgs = @("baseName=$BaseName", "envName=$EnvName", "scheduleTimeUtc=$Sched
     "emailTo=$(($EmailTo | ForEach-Object { $_ }) -join ',')", "emailFrom=$EmailFrom", "breakGlass=$(($BreakGlass | ForEach-Object { $_ }) -join ',')",
     "teamsWebhookUrl=$TeamsWebhookUrl",
     "includePosture=$($IncludePosture.IsPresent.ToString().ToLowerInvariant())", "postureDayOfMonth=$PostureDayOfMonth", "postureTimeUtc=$PostureTimeUtc", "postureKeepRuns=$PostureKeepRuns",
-    "organization=$Organization", "sharePointAdminUrl=$SharePointAdminUrl")
+    "organization=$Organization", "sharePointAdminUrl=$SharePointAdminUrl", "workerPrincipalId=$HybridWorkerPrincipalId")
 $bicep = Join-Path $PSScriptRoot 'main.bicep'
 if (-not $PSCmdlet.ShouldProcess($ResourceGroup, 'Deploy main.bicep')) {
     Invoke-Az deployment group what-if -g $ResourceGroup -f $bicep -p @paramArgs | Write-Host
@@ -181,14 +192,33 @@ if (-not $linked) {
 }
 else { Write-Host "Schedule $scheduleName already linked" }
 if ($IncludePosture) {
+    # The posture schedule starts the runbook in the sandbox, or on a Hybrid Runbook Worker group when one is named.
+    # A link cannot be changed, so one that points at the other place is removed and made again.
     $postureSchedule = $o.postureScheduleName.value
-    $plinked = $links | Where-Object { $_.properties.runbook.name -eq $postureRunbook -and $_.properties.schedule.name -eq $postureSchedule }
-    if (-not $plinked) {
-        $body = @{ properties = @{ runbook = @{ name = $postureRunbook }; schedule = @{ name = $postureSchedule } } } | ConvertTo-Json -Compress
-        $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/jobSchedules/$([guid]::NewGuid())`?api-version=2023-11-01" --body $body -o none
-        Write-Host "Linked schedule $postureSchedule to $postureRunbook"
+    $plinked = @($links | Where-Object { $_.properties.runbook.name -eq $postureRunbook -and $_.properties.schedule.name -eq $postureSchedule })
+    $runOn = [string]$HybridWorkerGroup
+    $linkPosture = $true
+    if ($runOn) {
+        try { $null = Invoke-Az rest --method get --url "https://management.azure.com$aaPath/hybridRunbookWorkerGroups/$runOn`?api-version=2023-11-01" -o none }
+        catch {
+            Write-Warning "Hybrid Runbook Worker group '$runOn' is not in $automationAccount. Create the group and add a worker to it (docs/scheduling.md), then run this script again. The posture schedule was left as it is."
+            $linkPosture = $false
+        }
     }
-    else { Write-Host "Schedule $postureSchedule already linked" }
+    if ($linkPosture) {
+        foreach ($old in @($plinked | Where-Object { [string]$_.properties.runOn -ne $runOn })) {
+            $null = Invoke-Az rest --method delete --url "https://management.azure.com$aaPath/jobSchedules/$(($old.id -split '/')[-1])`?api-version=2023-11-01" -o none
+            Write-Host "Removed the link that started $postureRunbook $(if ([string]$old.properties.runOn) { "on $($old.properties.runOn)" } else { 'in the sandbox' })"
+        }
+        if (@($plinked | Where-Object { [string]$_.properties.runOn -eq $runOn }).Count -eq 0) {
+            $properties = @{ runbook = @{ name = $postureRunbook }; schedule = @{ name = $postureSchedule } }
+            if ($runOn) { $properties.runOn = $runOn }
+            $body = @{ properties = $properties } | ConvertTo-Json -Compress
+            $null = Invoke-Az rest --method put --url "https://management.azure.com$aaPath/jobSchedules/$([guid]::NewGuid())`?api-version=2023-11-01" --body $body -o none
+            Write-Host "Linked schedule $postureSchedule to $postureRunbook$(if ($runOn) { ", to run on $runOn" })"
+        }
+        else { Write-Host "Schedule $postureSchedule already linked$(if ($runOn) { ", to run on $runOn" })" }
+    }
 }
 
 # 6. Wait for the imports. Automation has failed a good import on its side (a 500 or a timeout while storing the content)
@@ -222,12 +252,18 @@ $notReady = @($imports | Where-Object State -NE 'Succeeded')
 Write-Host ''
 Write-Host 'Next, once, as a Global Administrator of the tenant:'
 Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All"
-Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })"
+Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })$(if ($IncludePosture -and $SharePointAdminUrl) { ' -IncludeSharePointAdminRead' })"
+if ($IncludePosture -and $SharePointAdminUrl) { Write-Host '  (-IncludeSharePointAdminRead grants Sites.FullControl.All on SharePoint Online, which the site list needs. Its help says what that means; leave -SharePointAdminUrl out to do without.)' }
+if ($IncludePosture -and $HybridWorkerGroup) {
+    Write-Host "  The posture runbook runs on the worker group $HybridWorkerGroup, as the identity of the worker machine: grant that identity the same roles,"
+    Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $(if ($HybridWorkerPrincipalId) { $HybridWorkerPrincipalId } else { '<object id of the worker machine''s identity>' }) -IncludePosture"
+    if (-not $HybridWorkerPrincipalId) { Write-Host '  and run this script again with -HybridWorkerPrincipalId <that id>, so it can read and write the storage containers and read the Purview certificate.' }
+}
 $after = $(if ($notReady) { ' (once the imports above show Succeeded)' } else { '' })
 Write-Host "Then start a job$($after): az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $runbookName"
 if ($IncludePosture) {
     Write-Host "Purview (once): ./deploy/setup/New-PosturePurviewApp.ps1 -ResourceGroup $ResourceGroup -AutomationAccount $automationAccount -VaultName $($o.purviewVaultName.value)"
-    Write-Host "Posture run$($after): az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook   (after the Azure Reader roles)"
+    Write-Host "Posture run$($after): az automation runbook start -g $ResourceGroup --automation-account-name $automationAccount -n $postureRunbook$(if ($HybridWorkerGroup) { " --run-on $HybridWorkerGroup" })   (after the Azure Reader roles)"
 }
 if ($notReady) {
     Write-Host ''

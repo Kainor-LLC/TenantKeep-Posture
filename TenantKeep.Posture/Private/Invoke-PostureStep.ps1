@@ -62,10 +62,12 @@ function Invoke-PostureStep {
     $outerStep = $script:PostureCurrentStep
     $script:PostureCurrentStep = $Label
     $stepClock = [System.Diagnostics.Stopwatch]::StartNew()
+    $filesFrom = $script:PostureStepFiles.Count
     Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'started'; collector = [string]$script:PostureCurrentCollector; step = $Label }
     try {
         $stepOutput = & $Script
         Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'done'; collector = [string]$script:PostureCurrentCollector; step = $Label; seconds = [Math]::Round($stepClock.Elapsed.TotalSeconds, 1); key = $KeepKey }
+        Invoke-PostureStepCompleted -Folder $Folder -Step $Label -State done -From $filesFrom
         $script:PostureCurrentStep = $outerStep
         return $stepOutput
     }
@@ -80,6 +82,8 @@ function Invoke-PostureStep {
         $where = @(([string]$_.ScriptStackTrace) -split "`n" | Where-Object { $_ } | Select-Object -First 4 | ForEach-Object { $_.Trim().Replace([string]$script:ModuleRoot, '<module>') })
         Write-PostureStepFailure -Folder $Folder -Label $Label -Message $message -Where $where -Request ([string]$script:PostureLastCall) -Confirm:$false
         Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'failed'; collector = [string]$script:PostureCurrentCollector; step = $Label; seconds = [Math]::Round($stepClock.Elapsed.TotalSeconds, 1); cause = (Get-PostureFailureCause -Message $message); message = $message }
+        # What the step wrote before it failed is handed over too: it is this attempt's evidence.
+        Invoke-PostureStepCompleted -Folder $Folder -Step $Label -State failed -From $filesFrom
         $script:PostureCurrentStep = $outerStep
         return
     }

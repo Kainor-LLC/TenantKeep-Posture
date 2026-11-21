@@ -14,6 +14,60 @@
 $script:PostureJournalFolder = $null
 $script:PostureCurrentStep = $null
 $script:PostureStaleCache = @{}
+# Invoke-PostureCollection -StepCompleted: the caller's block, the files written since the last call to it, and
+# whether a failure of the block has been said (it is said once).
+$script:PostureStepCompleted = $null
+$script:PostureStepFiles = [System.Collections.Generic.List[string]]::new()
+$script:PostureStepCompletedWarned = $false
+
+function Add-PostureStepFile {
+    <#
+    .SYNOPSIS
+        Notes a finished evidence file for the -StepCompleted block. Does nothing when a collection has none.
+    #>
+    [CmdletBinding()]
+    param([AllowEmptyCollection()] [AllowNull()] [string[]] $Path)
+
+    if (-not $script:PostureStepCompleted) { return }
+    foreach ($p in @($Path)) { if ($p) { $script:PostureStepFiles.Add($p) } }
+}
+
+function Invoke-PostureStepCompleted {
+    <#
+    .SYNOPSIS
+        Calls the block given to Invoke-PostureCollection -StepCompleted with what a step, or a collector, has just
+        closed: @{ folder; root; collector; step; state; files; record }.
+    .DESCRIPTION
+        files are the evidence files finished since -From (their final names, JSON and CSV; never a .part file).
+        record are the run's own records as they stand now: the journal, errors.txt and errors.jsonl. The block is
+        the caller's: the Automation runbook uploads both lists to the customer's storage, so a job that is started
+        again finds what the last one read. The module does nothing with them and sends them nowhere. A block
+        that throws never stops the collection; the first failure is a warning.
+    .PARAMETER From
+        Where in the list of noted files this step began. A step inside another hands over its own files.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string] $Folder,
+        [string] $Step = '',
+        [Parameter(Mandatory)] [ValidateSet('done', 'failed', 'collector')] [string] $State,
+        [int] $From = 0
+    )
+
+    if (-not $script:PostureStepCompleted) { return }
+    $noted = $script:PostureStepFiles
+    $from = [Math]::Min([Math]::Max(0, $From), $noted.Count)
+    $closed = @($noted.GetRange($from, $noted.Count - $from) | Select-Object -Unique | Where-Object { Test-Path -LiteralPath $_ })
+    $noted.RemoveRange($from, $noted.Count - $from)
+    $layout = Get-PostureRunLayout -Folder $Folder
+    $record = @((Join-Path $layout.logs 'journal.jsonl'), (Join-Path $layout.errors 'errors.txt'), (Join-Path $layout.errors 'errors.jsonl') | Where-Object { Test-Path -LiteralPath $_ })
+    $completed = [ordered]@{ folder = [string]$layout.evidence; root = [string]$layout.root; collector = [string]$script:PostureCurrentCollector; step = $Step; state = $State; files = [string[]]$closed; record = [string[]]$record }
+    try { $null = & $script:PostureStepCompleted $completed }
+    catch {
+        if (-not $script:PostureStepCompletedWarned) { Write-Warning "The -StepCompleted block failed after '$(if ($Step) { $Step } else { $completed.collector })': $((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()) The collection carries on, and says this once." }
+        $script:PostureStepCompletedWarned = $true
+    }
+}
 
 function Write-PostureJournal {
     <#

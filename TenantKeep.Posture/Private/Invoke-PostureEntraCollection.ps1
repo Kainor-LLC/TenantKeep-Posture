@@ -525,7 +525,10 @@ function Invoke-PostureEntraCollection {
     # Reader. Written as Graph sends it, to compare on a live run before any check moves to it (verify).
     Invoke-PostureStep -Label 'SharePoint tenant settings (Graph)' -Folder $Folder -Script {
         $context = Get-MgContext
-        if ($context -and 'SharePointTenantSettings.Read.All' -notin @($context.Scopes)) { throw 'missing scope SharePointTenantSettings.Read.All: the tenant consented to the TenantKeep Posture app before this permission was added; an admin consents again to add it.' }
+        if ($context -and 'SharePointTenantSettings.Read.All' -notin @($context.Scopes)) {
+            if ([string]$context.AuthType -eq 'Delegated') { throw 'missing scope SharePointTenantSettings.Read.All: the tenant consented to the TenantKeep Posture app before this permission was added; an admin consents again to add it.' }
+            throw 'missing scope SharePointTenantSettings.Read.All: the identity that runs this was granted its roles before this one was added. Run deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -IncludePosture again; a role reaches a running identity within a day.'
+        }
         & $saveOne (Invoke-PostureGraphRequest -Uri 'admin/sharepoint/settings' -ApiVersion 'v1.0' -Single) 'spo-tenant-settings-graph'
     } | Out-Null
 

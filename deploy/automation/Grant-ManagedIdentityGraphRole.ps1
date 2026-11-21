@@ -11,25 +11,37 @@
     also Mail.Send, which you then restrict to the sender mailbox with an Exchange application access policy:
       New-ApplicationAccessPolicy -AppId <identity appId> -PolicyScopeGroupId <mail-enabled security group holding the mailbox> -AccessRight RestrictAccess
 
-    With -IncludePosture, everything the monthly posture cycle reads: the Graph application roles every collector uses,
-    Exchange.ManageAsApp on Office 365 Exchange Online (app-only Exchange and Purview), Sites.FullControl.All on
-    SharePoint Online (verify: the least application permission that lets Get-PnPTenant and site enumeration read),
-    application_access on the Skype and Teams Tenant Admin API, and the Global Reader directory role on the identity
-    (what Exchange, Purview and Teams app-only sign-ins map to for read access; verify Purview accepts Global Reader).
-    Azure Reader and Security Reader on the subscriptions are printed as az commands, since they are ARM, not Graph.
+    With -IncludePosture, everything the monthly posture cycle reads: the Graph application roles every collector uses
+    (SharePointTenantSettings.Read.All among them, which is how the scheduled run reads the SharePoint tenant
+    settings), Exchange.ManageAsApp on Office 365 Exchange Online (app-only Exchange and Purview), application_access
+    on the Skype and Teams Tenant Admin API, and the Global Reader directory role on the identity (what Exchange,
+    Purview and Teams app-only sign-ins map to for read access; verify Purview accepts Global Reader). Azure Reader
+    and Security Reader on the subscriptions are printed as az commands, since they are ARM, not Graph.
+
+    -IncludeSharePointAdminRead adds Sites.FullControl.All on SharePoint Online, and nothing grants it otherwise. It is
+    what the SharePoint admin read needs (the site list, restricted search, the settings Graph does not carry), and
+    there is no smaller application permission that lets it work (verify). It is also a standing permission to read
+    and change every file in every site, held by an identity that runs unattended. The module only reads with it. Leave
+    it out unless the report needs the site list from the scheduled run; an admin can add that part by hand with
+    collectors/windows/Get-SpoBaseline.ps1 and Import-PostureEvidence instead.
 
     Needs a delegated Graph session with AppRoleAssignment.ReadWrite.All and Application.Read.All; -IncludePosture also
     RoleManagement.ReadWrite.Directory for the Global Reader assignment.
 .EXAMPLE
     Connect-MgGraph -TenantId <tenant> -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All, RoleManagement.ReadWrite.Directory
     ./Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <automationPrincipalId output of the deployment> -IncludePosture
+.EXAMPLE
+    ./Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <id> -IncludePosture -IncludeSharePointAdminRead
+
+    Also grants Sites.FullControl.All on SharePoint Online, for the site list in the scheduled run. Read the note above first.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'One-time admin script output is for the console.')]
 param(
     [Parameter(Mandatory)] [string] $PrincipalId,
     [switch] $IncludeMailSend,
-    [switch] $IncludePosture
+    [switch] $IncludePosture,
+    [switch] $IncludeSharePointAdminRead
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -47,7 +59,9 @@ $postureGraphRoles = @(
     'DeviceManagementManagedDevices.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementServiceConfig.Read.All', 'DeviceManagementApps.Read.All',
     'BitLockerKey.ReadBasic.All', 'AttackSimulation.Read.All', 'AccessReview.Read.All', 'EntitlementManagement.Read.All', 'LifecycleWorkflows.Read.All',
     'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All',
-    'Organization.Read.All', 'Application.Read.All'
+    'Organization.Read.All', 'Application.Read.All',
+    # The SharePoint tenant settings, through Graph: the scheduled run's default read of them.
+    'SharePointTenantSettings.Read.All'
 )
 if ($IncludePosture) { $roles += $postureGraphRoles }
 
@@ -55,8 +69,15 @@ if ($IncludePosture) { $roles += $postureGraphRoles }
 $grants = [ordered]@{ '00000003-0000-0000-c000-000000000000' = @{ label = 'Microsoft Graph'; roles = $roles } }
 if ($IncludePosture) {
     $grants['00000002-0000-0ff1-ce00-000000000000'] = @{ label = 'Office 365 Exchange Online'; roles = @('Exchange.ManageAsApp') }
-    $grants['00000003-0000-0ff1-ce00-000000000000'] = @{ label = 'Office 365 SharePoint Online'; roles = @('Sites.FullControl.All') }
     $grants['48ac35b8-9aa8-4d74-927d-1f4a14a0b239'] = @{ label = 'Skype and Teams Tenant Admin API'; roles = @('application_access') }
+}
+if ($IncludeSharePointAdminRead -and -not $IncludePosture) { throw '-IncludeSharePointAdminRead goes with -IncludePosture.' }
+if ($IncludePosture -and $IncludeSharePointAdminRead) {
+    Write-Warning 'Sites.FullControl.All on SharePoint Online is a standing permission to read and change every file in every site. The module only reads with it (the site list, restricted search), but the identity holds it for as long as the grant stands. Remove it when the scheduled run no longer needs the site list.'
+    $grants['00000003-0000-0ff1-ce00-000000000000'] = @{ label = 'Office 365 SharePoint Online'; roles = @('Sites.FullControl.All') }
+}
+elseif ($IncludePosture) {
+    Write-Host 'SharePoint: the scheduled run reads the tenant settings through Graph (SharePointTenantSettings.Read.All). The site list needs -IncludeSharePointAdminRead, which grants Sites.FullControl.All; without it those checks say not evaluated.'
 }
 $existing = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$PrincipalId/appRoleAssignments" -OutputType HashTable).value)
 foreach ($appId in $grants.Keys) {

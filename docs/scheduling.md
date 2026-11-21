@@ -59,7 +59,7 @@ succeeded, builds the report against the previous run for the trend, exports the
 collector that could not sign in is named in the job output and in the report's "not collected" list.
 
 ```powershell
-./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -IncludePosture -Organization contoso.onmicrosoft.com -SharePointAdminUrl https://contoso-admin.sharepoint.com -ClientFolder ~/tenantkeep/clients/contoso
+./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -IncludePosture -Organization contoso.onmicrosoft.com -ClientFolder ~/tenantkeep/clients/contoso
 Connect-MgGraph -TenantId <tenant id> -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All, RoleManagement.ReadWrite.Directory
 ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <printed id> -IncludePosture
 az role assignment create --assignee-object-id <printed id> --assignee-principal-type ServicePrincipal --role Reader --scope /subscriptions/<id>
@@ -68,11 +68,50 @@ az automation runbook start -g rg-tenantkeep-dev --automation-account-name aa-te
 ```
 
 What the identity gets with -IncludePosture: the Graph application roles the collectors use (the same list
-Invoke-PostureCollection warns about), Exchange.ManageAsApp for app-only Exchange and Purview, Sites.FullControl.All
-on SharePoint Online for PnP's tenant reads (verify: the least application permission that works), the Teams tenant
+Invoke-PostureCollection warns about), Exchange.ManageAsApp for app-only Exchange and Purview, the Teams tenant
 admin API role, and the Global Reader directory role. All read. The runtime environment also gets
 ExchangeOnlineManagement, PnP.PowerShell, MicrosoftTeams and Az.ResourceGraph from the Gallery; package imports finish
 in the background, so wait for them to show Available before the first job.
+
+SharePoint in the scheduled run. By default the identity reads the SharePoint tenant settings through Graph
+(`SharePointTenantSettings.Read.All`, part of -IncludePosture) and nothing else of SharePoint: the sharing and
+access checks are judged, and the checks on the site list say not evaluated. The site list, restricted search and
+the settings Graph does not carry need the SharePoint admin read, which for an identity means
+`Sites.FullControl.All` on SharePoint Online: a standing permission to read and change every file in every site
+(verify: no smaller application permission lets the tenant reads work). It is opt-in, in two places that go
+together: `deploy.ps1 -SharePointAdminUrl https://contoso-admin.sharepoint.com` and
+`Grant-ManagedIdentityGraphRole.ps1 -IncludePosture -IncludeSharePointAdminRead`. The other way to get the site list
+into the report keeps that permission off the identity: an admin runs `collectors/windows/Get-SpoBaseline.ps1` by
+hand and brings the folder in with `Import-PostureEvidence`.
+
+A job that is stopped carries on. Azure Automation stops a sandbox job after three hours and starts it again from
+the top, up to three times (verify the limit for the PowerShell 7 runtime). The runbook copies the run to the
+`posture-runs` container as it goes: each evidence file when its step closes, with the run's journal and error files.
+A job that starts and finds a run in the container that began less than a day ago, with a journal and no report,
+downloads it and continues in it: the domains that finished are left alone, and a long list that finished (users,
+devices, mailboxes, sites) is kept and not read again. A list that was part way through is read again from its
+start. Three hours for each of four starts is what a run in the sandbox has.
+
+The size line. The sandbox also has about 400 MB of memory and 1 GB of disk (verify both). The report for 300,000
+users peaks near 520 MB and its evidence is over 1 GB, so a tenant of that size does not fit whatever the time.
+Until it is measured on a live tenant, take 20,000 users as the line (verify): above it, run the posture runbook on
+a Hybrid Runbook Worker, a machine of the customer's that has neither limit. The nightly Conditional Access cycle
+stays in the sandbox at any size.
+
+```powershell
+# The worker group and its machine are the customer's to create (an Azure VM or an Arc-enabled server with the Hybrid
+# Worker extension, PowerShell 7.4 or later, and the modules: Install-Module TenantKeep.Posture, Microsoft.Graph.Authentication,
+# ExchangeOnlineManagement, PnP.PowerShell, MicrosoftTeams, Az.Accounts, Az.ResourceGraph).
+./deploy/automation/deploy.ps1 -ResourceGroup rg-tenantkeep-dev -IncludePosture -Organization contoso.onmicrosoft.com -HybridWorkerGroup posture-workers -HybridWorkerPrincipalId <object id of the worker machine's identity>
+./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <the same object id> -IncludePosture
+az automation runbook start -g rg-tenantkeep-dev --automation-account-name aa-tenantkeep-dev -n Invoke-PostureCycle --run-on posture-workers
+```
+
+`-HybridWorkerGroup` makes the monthly schedule start the same runbook on that group; running the script again
+without it moves the schedule back to the sandbox. On a worker the runbook signs in as the machine's managed
+identity, not the Automation account's (verify on the first worker run), so that identity is the one that gets the
+tenant roles, the Azure Reader roles, and, through `-HybridWorkerPrincipalId`, the storage and vault roles. The
+script refuses to point the schedule at a group that does not exist.
 
 Learned on the first Kainor runs (2026-10-15), all baked into the runbook:
 
@@ -103,7 +142,9 @@ Learned on the first Kainor runs (2026-10-15), all baked into the runbook:
 - Two warnings are licence facts, not faults: lifecycle workflows need Entra ID Governance, restricted SharePoint
   search needs SharePoint Advanced Management.
 
-Still (verify): whether a smaller SharePoint application permission than Sites.FullControl.All lets the tenant reads work.
+Still (verify): whether a smaller SharePoint application permission than Sites.FullControl.All lets the tenant reads
+work; the sandbox's limits for the PowerShell 7 runtime (three hours, 400 MB, 1 GB); the size line, on a live tenant;
+which identity a runbook signs in as on a Hybrid Runbook Worker.
 
 ## Permissions
 
