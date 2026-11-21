@@ -262,6 +262,7 @@ function ConvertTo-PostureReportMarkdown {
         & $line
         if (@($rh.notFinished).Count) { & $line "Did not finish: $(@($rh.notFinished) -join ', '). Collect only what is missing, into the same run: ``$($rh.resume)``"; & $line }
         if (@($rh.stoppedIn).Count) { & $table @('Domain', 'Step that started and never finished') @(foreach ($x in $rh.stoppedIn) { , @($x.collector, $x.step) }) }
+        if ($rh.Contains('notAttempted') -and @($rh.notAttempted).Count) { & $line "Not attempted, because the sign-in had ended: $(@($rh.notAttempted).Count) step(s)."; & $line; & $table @('Domain', 'Step not attempted') @(foreach ($x in $rh.notAttempted) { , @($x.collector, $x.step) }) }
         if (@($rh.stale).Count) { & $line 'Files left from an earlier attempt, not read:'; & $line; & $table @('File', 'Domain', 'Step') @(foreach ($x in $rh.stale) { , @($x.file, $x.collector, $x.step) }) }
         if (@($rh.cutShort).Count) { $names = @($rh.cutShort | ForEach-Object { '`' + $_ + '`' }) -join ', '; & $line "Files that were not finished, never read: $names"; & $line }
     }

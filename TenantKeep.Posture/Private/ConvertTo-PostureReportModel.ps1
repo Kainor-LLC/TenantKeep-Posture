@@ -444,7 +444,9 @@ function ConvertTo-PostureReportModel {
     # answer Resume-PostureRun gives). From the folder: writes that were cut short (.part files, never read).
     $journal = $(try { Get-PostureJournalState -Folder $Evidence } catch { @{ present = $false; steps = @{}; collectors = @{}; files = @{} } })
     $runHealth.stoppedIn = @($journal.steps.get_Values() | Where-Object { $_.state -eq 'started' } | Sort-Object { $_.started } | ForEach-Object { [ordered]@{ collector = [string]$_.collector; step = [string]$_.step } })
-    $finished = @(@($(if ($collection) { & $v $collection 'collectors' })) + @($journal.collectors.get_Keys() | Where-Object { $journal.collectors[$_].state -eq 'done' }) | Where-Object { $_ } | Select-Object -Unique)
+    $finished = @($(try { Get-PostureFinishedCollector -Folder $Evidence -Manifest @($(if ($collection) { & $v $collection 'collectors' })) } catch { @($(if ($collection) { & $v $collection 'collectors' })) }))
+    # Steps that were not attempted because the sign-in they depend on had ended.
+    $runHealth.notAttempted = @($journal.steps.get_Values() | Where-Object { $_.state -eq 'skipped' } | Sort-Object { [string]$_.collector }, { [string]$_.step } | ForEach-Object { [ordered]@{ collector = [string]$_.collector; step = [string]$_.step } })
     $expected = @(@($(if ($plan) { Get-PostureValue $plan 'planned' })) + @($journal.collectors.get_Keys()) | Where-Object { $_ } | Select-Object -Unique)
     $runHealth.notFinished = @($expected | Where-Object { $_ -notin $finished })
     $staleNames = @($(try { Get-PostureStaleEvidence -Folder $Evidence } catch { @() }))

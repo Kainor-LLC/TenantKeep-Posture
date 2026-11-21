@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# Steps not attempted in this process because their sign-in had ended; the collection counts them per domain.
+$script:PostureStepsSkipped = 0
+
 function Invoke-PostureStep {
     <#
     .SYNOPSIS
@@ -43,6 +46,15 @@ function Invoke-PostureStep {
             }
             catch { Write-Verbose "$Label could not be kept ($($_.Exception.Message)); reading it again." }
         }
+    }
+
+    # The sign-in this collector depends on has ended and could not be renewed (Restore-PostureSignIn): the step is
+    # not attempted. No request is sent and no failure is written for it; the collection writes one line for the
+    # domain, with how many steps were left. A step kept from earlier in the run, above, needs no sign-in.
+    if (Get-PostureEndedSignIn) {
+        Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'skipped'; collector = [string]$script:PostureCurrentCollector; step = $Label; cause = 'token' }
+        $script:PostureStepsSkipped++
+        return
     }
 
     # The journal: started, then done or failed. Files the step writes are recorded under its label, and the label

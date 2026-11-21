@@ -28,8 +28,11 @@ decisions; `(verify)` marks what has not been proven live yet.
    admin in through the Exchange module's own app, which renews its own tokens. Exchange and Purview run in a second
    process that receives access tokens over standard input and never the refresh token. It starts first and signs in
    to Purview first, so that prompt comes in the first minute, then collects alongside the main process; both write
-   into one run folder, and `errors.txt` and the `collection.json` merge are serialised on a lock file in it. In
-   Automation, the account's managed identity signs in to everything except Purview (see Identities).
+   into one run folder, and `errors.txt` and the `collection.json` merge are serialised on a lock file in it. When
+   the sign-in ends during a run (a Conditional Access sign-in frequency) and a renewal is refused, the main process
+   asks the same admin to sign in again and gives the new refresh token to the thread that renews for the second
+   process; with no one to ask, the run stops once and the domains that depend on the sign-in are not recorded as
+   finished. In Automation, the account's managed identity signs in to everything except Purview (see Identities).
 2. **Collect.** `Invoke-PostureCollection` writes one evidence folder per run: JSON and CSV files named after the audit
    plan (`04-role-assignments-active.csv`, `exo-04-antiphish.json`, ...), a `collection.json` manifest with the tenant
    id, account, scopes, API versions and errors, and the Conditional Access snapshot. Every Graph call pins its API

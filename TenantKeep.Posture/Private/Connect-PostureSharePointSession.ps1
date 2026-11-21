@@ -93,6 +93,7 @@ function Connect-PostureSharePointSession {
     if (-not $tokens['refresh_token']) { throw 'The SharePoint sign-in returned no refresh token (offline_access missing from the grant?).' }
     $now = [datetime]::UtcNow
     $session['sharepoint'] = @{ clientId = $clientId; refreshToken = [string]$tokens['refresh_token']; account = $who }
+    $null = $script:PostureSessionEnded.Remove('sharepoint')
     $session['tokens']['sharepoint'] = @{ accessToken = [string]$tokens['access_token']; expiresUtc = $now.AddSeconds([int]$tokens['expires_in']); scope = [string]$(if ($tokens.ContainsKey('scope')) { $tokens['scope'] }) }
     Write-Host "SharePoint admin read signed in as $account through TenantKeep Posture for SharePoint." -ForegroundColor Green
     return @{ account = $account; clientId = $clientId; expiresUtc = $session['tokens']['sharepoint']['expiresUtc'] }

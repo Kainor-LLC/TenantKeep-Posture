@@ -59,7 +59,14 @@ function Get-PostureFailureCause {
 
     $m = [string]$Message
     if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant|premium licen[cs]e)') { return 'licence' }
-    if ($m -match '(?i)(token.*(expired|lifetime)|InvalidAuthenticationToken|AADSTS700082|AADSTS50173|refresh token.*(expired|revoked)|CompactToken)') { return 'token' }
+    # A consent that is missing comes back as invalid_grant, like an ended sign-in, and is a grant to make.
+    if ($m -match '(?i)(AADSTS65001|consent_required|AADSTS650\d\d)') { return 'permission' }
+    # A sign-in that has ended: the token, or the sign-in behind it, is no longer accepted. A sign-in frequency that
+    # has passed is AADSTS70043 or 70044; the run's own words for it are "The sign-in ended".
+    if ($m -match '(?i)(token.*(expired|lifetime)|InvalidAuthenticationToken|AADSTS700082|AADSTS50173|AADSTS70043|AADSTS70044|refresh token.*(expired|revoked)|CompactToken|\binvalid_grant\b|\binteraction_required\b|The sign-in ended)') { return 'token' }
+    # A bare 401 is the service not accepting the token, which is nearly always a sign-in that ran out. The answer
+    # that means a role is missing is 403, and a message that carries both stays a permission.
+    if ($m -match '(?i)(\b401\b|does not indicate success: Unauthorized|\(Unauthorized\))' -and $m -notmatch '(?i)(\b403\b|Forbidden|Authorization_RequestDenied|Insufficient privileges|AccessDenied|Access (is )?denied)') { return 'token' }
     if ($m -match '(?i)(module (is )?not (available|installed)|Install-Module |Add-WindowsCapability)') { return 'module' }
     if ($m -match '(?i)-[A-Za-z]+ is not in this session') { return 'unavailable' }
     if ($m -match '(?i)(\b403\b|Forbidden|Authorization_RequestDenied|Insufficient privileges|AccessDenied|Access (is )?denied|does not have (the )?(required )?permission|is not authorized|isn''t authorized|not within your (current )?(write |management )?scope|UnauthorizedAccess|\b401\b|Unauthorized|missing scope|RoleNotAssigned|-[A-Za-z]+ is not available; import|The term ''[A-Za-z]+-[A-Za-z]+'' is not recognized)') { return 'permission' }

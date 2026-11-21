@@ -5,6 +5,9 @@
 # run's one-time secret, which the child receives over standard input with its first tokens. Each answer is one
 # access token for one of the resources the child was allowed.
 
+# The running token service, kept so a new sign-in in the main thread can give it the new refresh token.
+$script:PostureTokenServer = $null
+
 function Start-PostureTokenServer {
     <#
     .SYNOPSIS
@@ -22,15 +25,19 @@ function Start-PostureTokenServer {
     $pipe = "tenantkeep-$([guid]::NewGuid().ToString('n'))"
     $secret = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
     if (-not $PSCmdlet.ShouldProcess($pipe, 'Serve access tokens to the second process')) { return $null }
-    # The thread has its own copy of the session: same process, never written anywhere.
-    $copy = @{}; foreach ($k in $script:PostureSession.Keys) { $copy[$k] = $script:PostureSession[$k] }
+    # The thread has its own copy of the session: same process, never written anywhere. The copy is synchronized,
+    # because one other thread writes to it: when the sign-in ends and the admin signs in again in the main thread,
+    # the new refresh token is put here too (Restore-PostureSignIn). The thread itself never asks anyone anything.
+    $copy = [hashtable]::Synchronized(@{}); foreach ($k in $script:PostureSession.Keys) { $copy[$k] = $script:PostureSession[$k] }
     $copy['tokens'] = @{}; foreach ($k in $script:PostureSession['tokens'].Keys) { $copy['tokens'][$k] = $script:PostureSession['tokens'][$k].Clone() }
+    $copy['serviceThread'] = $true; $copy['interactive'] = $false
     $psd1 = Join-Path $script:ModuleRoot 'TenantKeep.Posture.psd1'
     $job = Start-ThreadJob -Name $pipe -ScriptBlock {
         Import-Module $using:psd1 -Force
         & (Get-Module TenantKeep.Posture) Invoke-PostureTokenService -Session $using:copy -Pipe $using:pipe -Secret $using:secret -Resource $using:Resource
     }
-    return @{ pipe = $pipe; secret = $secret; job = $job }
+    $script:PostureTokenServer = @{ pipe = $pipe; secret = $secret; job = $job; session = $copy }
+    return $script:PostureTokenServer
 }
 
 function Invoke-PostureTokenService {
@@ -81,6 +88,7 @@ function Stop-PostureTokenServer {
 
     if (-not $Server) { return }
     if (-not $PSCmdlet.ShouldProcess($Server.pipe, 'Stop the token service')) { return }
+    if ($script:PostureTokenServer -and $script:PostureTokenServer['pipe'] -eq $Server.pipe) { $script:PostureTokenServer = $null }
     try { $null = Request-PosturePipeMessage -Pipe $Server.pipe -Message "$($Server.secret) stop" -TimeoutMs 3000 } catch { Write-Verbose "Token service already stopped: $($_.Exception.Message)" }
     try { $null = Wait-Job -Job $Server.job -Timeout 5; Remove-Job -Job $Server.job -Force } catch { Write-Verbose 'Token service job already gone.' }
 }

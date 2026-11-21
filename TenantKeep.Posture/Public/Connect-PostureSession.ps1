@@ -89,9 +89,20 @@ function Connect-PostureSession {
         account      = $account
         refreshToken = [string]$tokens['refresh_token']
         signedInUtc  = $now
+        # For a sign-in that ends during a long run (Restore-PostureSignIn): whether someone can be asked to sign in
+        # again and how, and how many times that has happened.
+        interactive  = (Test-PostureInteractive)
+        signInMode   = $(if ($DeviceCode) { 'device' } elseif ($NoBrowser) { 'nobrowser' } else { 'browser' })
+        signInsRenewed = 0
+        # Who the account is to Conditional Access, from its token: its id and the roles it holds now. Read only to
+        # say beforehand which sign-in frequency applies to it (Get-PostureSignInFrequencyNotice).
+        objectId     = [string]$(if ($claims.ContainsKey('oid')) { $claims['oid'] })
+        roleTemplateIds = @($(if ($claims.ContainsKey('wids')) { $claims['wids'] }) | Where-Object { $_ } | ForEach-Object { [string]$_ })
         tokens       = @{ graph = @{ accessToken = [string]$tokens['access_token']; expiresUtc = $now.AddSeconds([int]$tokens['expires_in']); scope = [string]$(if ($tokens.ContainsKey('scope')) { $tokens['scope'] }) } }
     }
     if (-not $script:PostureSession['refreshToken']) { throw 'The sign-in returned no refresh token (offline_access missing from consent?). Other services cannot be reached from it.' }
+    # A new sign-in: whatever was recorded about an earlier one having ended no longer holds.
+    $script:PostureSessionEnded.Clear()
 
     Connect-PostureService -Name graph
     $null = Assert-PostureGraphScope -RequiredScope @('Directory.Read.All')

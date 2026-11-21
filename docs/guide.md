@@ -243,6 +243,16 @@ way: the run's journal says which domains finished, and only the one it stopped 
 collected. Run Health says where it stopped. A file left from an earlier attempt, whose step ran again and could
 not write it, is not read: the checks that need it say not evaluated.
 
+A long run can outlast its sign-in. Admin accounts often have a Conditional Access sign-in frequency of a few hours,
+and past it Microsoft refuses every renewal until the admin signs in again. The run says so before the long reads
+start, from the Conditional Access snapshot it has just taken: "Sign-in frequency: the Conditional Access policy
+'Admins, 4 hours' asks this account to sign in again every 4 hours." When that moment comes and someone is at the
+console, the run pauses, asks the same account to sign in again (a device code, or the browser, as the run began),
+and repeats the request it was making; the new sign-in must be the same account in the same tenant. When no one
+signs in within fifteen minutes, or the run has no console, it stops there once: the steps that depend on the
+sign-in are not attempted, each domain gets one line saying how many, and Resume-PostureRun carries on after a new
+sign-in.
+
 The long lists are not read twice. When a domain is collected again in the same run, a list that already finished
 (users, authentication registration, groups, devices, mailboxes, sites) is kept, and the console says so: "Users
 kept, read 2026-11-21 09:40 UTC". A list that stopped part way (the sign-in ended, the network dropped) carries on

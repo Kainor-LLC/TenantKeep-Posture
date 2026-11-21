@@ -6,6 +6,27 @@ work landed on main.
 
 ## Unreleased
 
+- A run that outlives its sign-in (2026-11-21). An admin account often has a Conditional Access sign-in frequency
+  of a few hours. Past it every renewal is refused, and every remaining step failed one by one, each with its own
+  line. Now, when a renewal is refused because the sign-in has ended (`invalid_grant` or `interaction_required`:
+  AADSTS70043, 70044, 700082, 50173) and someone is at the console, the run pauses, asks the same account to sign
+  in again and repeats the request it was making. The new sign-in must be the same account in the same tenant, at
+  most three times in a run, and the second process's renewals get the new sign-in too. With no one to ask, or
+  when no one signs in within fifteen minutes, the run stops once: the steps that depend on the sign-in are not
+  attempted and send nothing, each domain gets one line with how many were left, the domain is not recorded as
+  finished, and `Resume-PostureRun` carries on after a new sign-in. Exchange and Purview, which sign in through
+  the Exchange module, are not touched by this.
+- The run says beforehand which sign-in frequency applies. From the Conditional Access snapshot: the shortest
+  frequency among the enabled policies that cover the account (by id, by "All users", or by a role in its token)
+  and Microsoft Graph, and what will happen when the run outlasts it. A policy that depends on a group is reported
+  as "may", since group membership is not read for this.
+- A bare 401 is an ended sign-in. It was classed as a missing role and Run Health advised granting one. A 401 is
+  the service not accepting the token; 403 is the answer that means a role is missing.
+- A domain started again that did not finish is not finished. `Resume-PostureRun` and Run Health took a domain as
+  finished when an earlier attempt had put it in collection.json, even when a later attempt at it died or stopped
+  part way after its failures had been cleared for the retry. The journal's last word on a domain now decides.
+- Run Health lists the steps that were not attempted because the sign-in had ended.
+
 - The long lists are not read twice (2026-11-21). Collecting a domain again in the same run, after a failure or a
   process that stopped, read every list again: the users, registration, groups and devices of a large tenant are
   hours. A list that finished in this run less than a day ago is now kept (users, registration, per-user MFA,

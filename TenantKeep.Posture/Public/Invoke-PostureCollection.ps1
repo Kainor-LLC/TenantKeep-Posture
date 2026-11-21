@@ -252,10 +252,25 @@ function Invoke-PostureCollection {
             param([string] $Name, [scriptblock] $Block)
             Set-PostureProgressPhase -Name $Name
             $script:PostureCurrentCollector = $Name
-            $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount
+            $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount; $skipped0 = $script:PostureStepsSkipped
             Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'started'; collector = $Name }
             $result = & $Block
             $timings[$Name] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = [Math]::Max(1, $script:PostureStepCount - $steps0) }
+            # The sign-in this collector depends on ended and could not be renewed: it is not finished. One line
+            # says so, with how many of its steps were not attempted, where each would have failed on its own.
+            # Resume-PostureRun collects it again after a new sign-in, and keeps the long lists that did finish.
+            $endedSignIn = Get-PostureEndedSignIn -Collector $Name
+            if ($endedSignIn) {
+                $left = $script:PostureStepsSkipped - $skipped0
+                $message = "The sign-in ended at $($endedSignIn.utc.ToString('HH:mm')) UTC: $(([string]$endedSignIn.reason).TrimEnd('.')). $left step(s) of $Name were not attempted. Resume-PostureRun carries on after a new sign-in."
+                Write-Warning "${Name}: $message"
+                Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path $errorsPath -Value "Steps not attempted :: $message" }
+                Write-PostureStepFailure -Folder $folder -Label 'Steps not attempted' -Message $message -Collector $Name -Confirm:$false
+                Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'stopped'; collector = $Name; cause = 'token'; notAttempted = $left }
+                $null = & $writeManifest
+                if ($result -is [System.Collections.IDictionary] -and $result.Contains('files')) { foreach ($f in @($result['files'])) { if ($f) { $files.Add($f) } } }
+                return
+            }
             $ran.Add($Name)
             # Finished, whatever its steps did: the journal and the manifest say so now, not at the end of the run, so
             # a run that stops in a later collector is resumed from there.
@@ -274,6 +289,9 @@ function Invoke-PostureCollection {
             Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'done'; collector = 'ConditionalAccess'; seconds = $timings['ConditionalAccess'].seconds; steps = 1 }
             $null = & $writeManifest
         }
+        # What to expect of the sign-in, from the Conditional Access snapshot: said before the long reads, not
+        # found out in the middle of them. Only for a signed-in person (a managed identity has no sign-in frequency).
+        if ([string]$context.AuthType -eq 'Delegated') { Write-PostureSignInFrequencyNotice -Folder $folder }
         if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa -FullPerUserMfa:$FullPerUserMfa } }
         # A step like any other, so a refusal or a missing licence is recorded with its cause and the run goes on.
         if ($Collector -contains 'SignIns') { & $timed 'SignIns' { Invoke-PostureStep -Label 'Sign-in log' -Folder $folder -Script { Invoke-PostureSignInCollection -Folder $folder -Days $SignInDays -AsOf $startedUtc } } }

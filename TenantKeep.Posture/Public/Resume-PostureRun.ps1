@@ -84,8 +84,9 @@ function Resume-PostureRun {
         # What finished: the manifest, which is written after every collector, and the journal, which says the same
         # line by line and survives a process that died before the manifest was written. A run from before the
         # journal has the manifest alone.
-        $journal = Get-PostureJournalState -Folder $folder
-        $done = @(@($(if ($manifest) { $manifest['collectors'] })) + @($journal.collectors.get_Keys() | Where-Object { $journal.collectors[$_].state -eq 'done' }) | Where-Object { $_ } | Select-Object -Unique)
+        # A collector that was started again and did not finish (the process died, the sign-in ended) is not
+        # finished, whatever an earlier attempt put in the manifest.
+        $done = @(Get-PostureFinishedCollector -Folder $folder -Manifest @($(if ($manifest) { $manifest['collectors'] })))
         $why = [ordered]@{}
         foreach ($c in $planned) { if ($c -notin $done) { $why[$c] = 'did not finish' } }
         foreach ($f in $failures) {

@@ -615,13 +615,19 @@ function ConvertTo-PostureReportHtml {
     # files left from an earlier attempt and writes that were cut short. None of these is read as evidence.
     $stopped = @($(if ($rh -and $rh.Contains('stoppedIn')) { $rh.stoppedIn })); $unfinished = @($(if ($rh -and $rh.Contains('notFinished')) { $rh.notFinished }))
     $staleFiles = @($(if ($rh -and $rh.Contains('stale')) { $rh.stale })); $cutShort = @($(if ($rh -and $rh.Contains('cutShort')) { $rh.cutShort }))
-    $interrupted = ($stopped.Count + $unfinished.Count + $staleFiles.Count + $cutShort.Count) -gt 0
+    $notAttempted = @($(if ($rh -and $rh.Contains('notAttempted')) { $rh.notAttempted }))
+    $interrupted = ($stopped.Count + $unfinished.Count + $staleFiles.Count + $cutShort.Count + $notAttempted.Count) -gt 0
     if ($interrupted) {
         & $w '<h3>Where the Collection Stopped</h3>'
         if ($unfinished.Count) { & $w "<p class=`"banner warn`"><strong>$($unfinished.Count) domain(s) did not finish: $(& $h ($unfinished -join ', ')).</strong> The process stopped before the end. Their checks say not evaluated. This collects only what is missing, into the same run:</p><div class=`"cmd`"><code id=`"cmd-resume-stopped`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume-stopped`">Copy</button></div>" }
         if ($stopped.Count) {
             & $w '<p>Steps that started and never finished:</p><table><thead><tr><th>Domain</th><th>Step</th></tr></thead><tbody>'
             foreach ($x in $stopped) { & $w "<tr><td>$(& $h $(if ($x.collector) { $x.collector } else { 'Run' }))</td><td>$(& $h $x.step)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        if ($notAttempted.Count) {
+            & $w "<p>$($notAttempted.Count) step(s) were not attempted, because the sign-in they depend on had ended:</p><table><thead><tr><th>Domain</th><th>Step</th></tr></thead><tbody>"
+            foreach ($x in $notAttempted) { & $w "<tr><td>$(& $h $x.collector)</td><td>$(& $h $x.step)</td></tr>" }
             & $w '</tbody></table>'
         }
         if ($staleFiles.Count) {

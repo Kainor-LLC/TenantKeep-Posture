@@ -97,6 +97,29 @@ function Get-PostureJournalState {
     return $state
 }
 
+function Get-PostureFinishedCollector {
+    <#
+    .SYNOPSIS
+        The collectors of a run that finished: the ones its manifest lists and the ones its journal says are done,
+        less any the journal says were started again and did not finish.
+    .DESCRIPTION
+        The manifest keeps a collector from the attempt that first finished it. When a later attempt at the same
+        collector stops part way (the process dies, the sign-in ends), the journal's last word on it is "started"
+        or "stopped", and it is not finished: the failures the attempt set out to retry were cleared when it began.
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)] [string] $Folder,
+        [AllowNull()] [AllowEmptyCollection()] [object[]] $Manifest = @()
+    )
+
+    $state = Get-PostureJournalState -Folder $Folder
+    $done = @($state.collectors.get_Keys() | Where-Object { $state.collectors[$_].state -eq 'done' })
+    $unfinished = @($state.collectors.get_Keys() | Where-Object { $state.collectors[$_].state -ne 'done' })
+    return [string[]]@(@($Manifest) + $done | Where-Object { $_ -and $_ -notin $unfinished } | ForEach-Object { [string]$_ } | Select-Object -Unique)
+}
+
 function Get-PostureKeptStep {
     <#
     .SYNOPSIS

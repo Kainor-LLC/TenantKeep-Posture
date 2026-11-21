@@ -68,8 +68,20 @@ function Get-PostureToken {
             $holder = $session['sharepoint']
         }
         $scope = Get-PostureResourceScope -Resource $Resource -TenantName $session['tenantName']
-        $form = @{ grant_type = 'refresh_token'; client_id = $holder['clientId']; refresh_token = $holder['refreshToken']; scope = $scope }
-        $response = Invoke-PostureTokenRequest -Endpoint token -TenantId $session['tenantId'] -Form $form
+        $holderName = $(if ($Resource -eq 'sharepoint') { 'sharepoint' } else { 'main' })
+        # A sign-in already known to have ended is not asked about again: this throws what was recorded.
+        if ($script:PostureSessionEnded.ContainsKey($holderName)) { Restore-PostureSignIn -Session $session -Holder $holderName -Reason '' }
+        $grant = { Invoke-PostureTokenRequest -Endpoint token -TenantId $session['tenantId'] -Form @{ grant_type = 'refresh_token'; client_id = $holder['clientId']; refresh_token = $holder['refreshToken']; scope = $scope } }
+        try { $response = & $grant }
+        catch {
+            # Refused because the sign-in itself is over (a Conditional Access sign-in frequency, a revoked session):
+            # no renewal works until the admin signs in again. Restore-PostureSignIn asks, when there is someone to
+            # ask, and puts the new refresh token in the session; otherwise it records that the sign-in ended and
+            # throws. Any other refusal is thrown as it came.
+            if (-not (Test-PostureSignInEnded -Message ([string]$_.Exception.Message))) { throw }
+            Restore-PostureSignIn -Session $session -Holder $holderName -Reason ([string]$_.Exception.Message)
+            $response = & $grant
+        }
         if ($response.ContainsKey('refresh_token') -and $response['refresh_token']) { $holder['refreshToken'] = [string]$response['refresh_token'] }
         $token = [string]$response['access_token']
         $tokens[$Resource] = @{ accessToken = $token; expiresUtc = $now.AddSeconds([int]$response['expires_in']); scope = [string]$(if ($response.ContainsKey('scope')) { $response['scope'] }) }
