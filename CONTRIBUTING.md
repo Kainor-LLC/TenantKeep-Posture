@@ -22,11 +22,15 @@ The conventions a maintainer follows are in [CLAUDE.md](CLAUDE.md): read-only ag
 managed identity only, every API version pinned, checks as data. Locally:
 
 ```powershell
-git config core.hooksPath .githooks   # once per clone: secret scan before commit, analyzer and tests before push
+git config core.hooksPath .githooks   # once per clone: secret and company-information scan on every commit, message and push; analyzer and tests before push
 ./build.ps1 -Task Analyze, Test
 ```
 
 CI runs the same analyzer and test suite on Ubuntu, macOS and Windows.
+
+Fixtures, samples and docs use reserved names only: `name@contoso.example`, `contoso.onmicrosoft.com`,
+`contoso.sharepoint.com`, the made-up Fernquill tenant. The hooks and CI refuse any other mail domain or tenant
+name, and on a maintainer's machine anything named in the local notes.
 
 ## Releasing (maintainers)
 

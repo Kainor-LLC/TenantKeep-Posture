@@ -147,7 +147,7 @@ Describe 'New-PostureCaDocument' {
             $brandPath = Join-Path $script:Out 'brand.json'
             New-Item -ItemType Directory -Path $script:Out -Force | Out-Null
             @{
-                preparedBy = @{ name = 'Example MSP'; contact = 'security@example-msp.com' }
+                preparedBy = @{ name = 'Example MSP'; contact = 'security@msp.example' }
                 client = @{ name = 'Contoso Ltd' }
                 confidentiality = 'Confidential. Prepared for Contoso Ltd.'
                 footer = 'Prepared by Example MSP'

@@ -56,7 +56,7 @@ to allow it: [docs/security-review.md](docs/security-review.md).
 ## Develop
 
 ```powershell
-git config core.hooksPath .githooks            # once per clone: secret scan before commit, analyzer and tests before push
+git config core.hooksPath .githooks            # once per clone: secret and company-information scan on every commit, message and push; analyzer and tests before push
 ./build.ps1 -Task Analyze, Test
 ./build.ps1 -Task Package -CertificatePath ./signing.pfx   # release zip; fails without a code-signing cert
 ```

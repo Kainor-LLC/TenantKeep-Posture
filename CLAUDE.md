@@ -30,7 +30,7 @@ tests/                      Pester 5.5+ (6 works); one test file per public cmdl
 samples/                    anonymized evidence folder for tests and demos; never real tenant data
 build.ps1                   Analyze, Test, Build, Sign, Package. Sign and Package fail without the signing cert
 PSScriptAnalyzerSettings.psd1
-.githooks/                  pre-commit secret scanner and pre-push analyzer-and-tests gate; enable once per clone with: git config core.hooksPath .githooks
+.githooks/                  commit guards, one rule set (Test-StagedSecrets.ps1): credentials, files that never belong in a commit, and company information (a deny list built at run time from CLAUDE.local.md and ~/tenantkeep/clients, never stored and never printed, plus an allow list of reserved mail and tenant names for fixtures). pre-commit scans the staged files, commit-msg the message, pre-push every commit about to leave and then the analyzer-and-tests gate; enable once per clone with: git config core.hooksPath .githooks
 .github/workflows/          ci.yml: Analyze + Test on ubuntu, macos, windows. release.yml: a v* tag opens a draft release, then a package job gated by the release environment (a maintainer approves every run) writes the integrity manifest with the licence key through OpenID Connect, packages, attaches the zip and publishes to the Gallery; with the repository variable RELEASE_SIGNING on it runs on Windows and Authenticode-signs through Azure Artifact Signing first, otherwise it packages unsigned and says so. No certificate, secret or key ever exists as a file, in CI or anywhere. Setup: deploy/release/
 ```
 

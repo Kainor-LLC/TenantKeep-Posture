@@ -1,10 +1,24 @@
 #!/bin/sh
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
-# No red pushes: the analyzer and the full test suite must pass locally before anything leaves this machine.
-# CI runs the same two tasks; a failure here is a failure there, minus the email.
+# Two gates before anything leaves this machine.
+# 1. The commits being pushed are scanned (messages and added lines) with the pre-commit rules, so a commit made
+#    with --no-verify, or before a rule existed, is caught while it is still local. This gate has no bypass variable.
+# 2. No red pushes: the analyzer and the full test suite must pass locally. CI runs the same two tasks; a failure
+#    here is a failure there, minus the email.
 set -e
+ROOT="$(git rev-parse --show-toplevel)"
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "pre-push: pwsh not found; refusing to push without the scan." >&2
+  exit 1
+fi
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue   # a deleted ref publishes nothing
+  if [ "$remote_sha" = "$zero" ]; then range="$local_sha --not --remotes"; else range="$remote_sha..$local_sha"; fi
+  pwsh -NoProfile -NonInteractive -File "$ROOT/.githooks/Test-StagedSecrets.ps1" -Outgoing "$range" || exit 1
+done
 echo "pre-push: analyzer and tests (set TENANTKEEP_SKIP_PREPUSH=1 to bypass once)"
-if [ "${TENANTKEEP_SKIP_PREPUSH:-}" = "1" ]; then echo "pre-push: skipped by request"; exit 0; fi
+if [ "${TENANTKEEP_SKIP_PREPUSH:-}" = "1" ]; then echo "pre-push: analyzer and tests skipped by request"; exit 0; fi
 # -Command, not -File: an array parameter only parses from the PowerShell command line.
 pwsh -NoProfile -Command './build.ps1 -Task Analyze, Test -SkipInstall' >/tmp/tenantkeep-prepush.log 2>&1 || {
   grep -E "PSScriptAnalyzer reported|\[-\]|Tests Passed|Failed:" /tmp/tenantkeep-prepush.log | sed 's/\x1b\[[0-9;]*m//g' | head -20

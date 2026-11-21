@@ -78,10 +78,10 @@ Describe 'New-PostureProfile' {
             $rel = "~/.tkp-test-$([guid]::NewGuid().ToString('n'))"
             $expected = Join-Path $HOME ($rel.Substring(2)) 'profile.json'
             try {
-                $out = New-PostureProfile -Path "$rel/profile.json" -NonInteractive -ClientName 'Tilde' -SharePointClientId '89ebfc90-bbac-49ad-a8f3-b81a29737495' -TenantId '11111111-2222-3333-4444-555555555555'
+                $out = New-PostureProfile -Path "$rel/profile.json" -NonInteractive -ClientName 'Tilde' -SharePointClientId '99999999-8888-7777-6666-555555555555' -TenantId '11111111-2222-3333-4444-555555555555'
                 $out | Should -Be $expected
                 $written = Get-Content -Raw $expected | ConvertFrom-Json
-                $written.sharePointClientId | Should -Be '89ebfc90-bbac-49ad-a8f3-b81a29737495'
+                $written.sharePointClientId | Should -Be '99999999-8888-7777-6666-555555555555'
                 $written.tenantId | Should -Be '11111111-2222-3333-4444-555555555555'
             }
             finally { Remove-Item -LiteralPath (Join-Path $HOME ($rel.Substring(2))) -Recurse -Force -ErrorAction SilentlyContinue }

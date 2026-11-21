@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Commit guards for company information (2026-11-21): the scan that stops credentials now also refuses anything
+  named in the developer's local notes or client folders (a deny list built when the hook runs, never stored, a
+  hit reported by file and line without its text) and any mail domain or Microsoft tenant name that is not a
+  reserved example name. The same rules run on the commit message and, before a push, on every commit about to
+  leave, so a commit made with `--no-verify` is caught while it is still local. CI applies the allow list to the
+  whole tree. A test fixture carried the client id of a SharePoint app in the publisher's own tenant; it is a
+  made-up id now.
 - The weekly upkeep watches for beta Graph APIs a check waits on (2026-11-21): it reads Graph's published v1.0
   schema, which needs no sign-in, and files a finding when a listed type arrives. First on the list:
   copilotPolicySetting for CP-015, so the Copilot settings check can read what the API covers once it leaves beta.

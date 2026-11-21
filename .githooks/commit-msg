@@ -1,0 +1,11 @@
+#!/bin/sh
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+# Commit message scan: the same rules as the pre-commit scan, on the message. Enabled with the other hooks by
+# git config core.hooksPath .githooks
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "commit-msg: pwsh not found; refusing to commit without the message scan." >&2
+  exit 1
+fi
+exec pwsh -NoProfile -NonInteractive -File "$ROOT/.githooks/Test-StagedSecrets.ps1" -MessageFile "$1"
