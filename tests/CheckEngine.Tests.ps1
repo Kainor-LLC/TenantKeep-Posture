@@ -212,6 +212,21 @@ Describe 'Invoke-PostureCheckEvaluation' {
         }
     }
 
+    It 'turns a pass on part of the data into no answer, and keeps a fail with what it was judged on' {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
+            $part = @{ note = 'Judged on one domain of three.'; noAnswer = 'Nothing wrong in one domain; the other two were not read.' }
+            # TS-001 fails (count 3 over the limit of 2) and TS-002 passes; both were judged on part of the data.
+            $partial = @{ test = { param($Evidence, $OrgProfile, $Thresholds) @{ facts = @{ count = 3; enabled = $true }; affected = @{ items = @(@{ name = 'alpha' }) }; partial = @{ 'TS-001' = $part; 'TS-002' = $part }; evidence = @('provider.json') } }.GetNewClosure() }
+            $by = @{}; foreach ($r in (Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $partial).results) { $by[$r.id] = $r }
+            $by['TS-001'].status | Should -Be 'fail' -Because 'a gap that was seen is a finding however much was left unread'
+            $by['TS-001'].reason | Should -Be 'Judged on one domain of three.'
+            $by['TS-001'].affectedCount | Should -Be 1
+            $by['TS-002'].status | Should -Be 'notEvaluated' -Because 'the part that was not read could hold the gap'
+            $by['TS-002'].reason | Should -Be 'Nothing wrong in one domain; the other two were not read.'
+            $by['TS-002'].affectedCount | Should -Be 0
+        }
+    }
+
     It 'counts statuses and records the catalog version' {
         InModuleScope TenantKeep.Posture {
             $script:Run.catalogVersion | Should -Be 'test.1'

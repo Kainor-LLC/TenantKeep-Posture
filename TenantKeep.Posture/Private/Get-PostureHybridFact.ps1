@@ -35,6 +35,8 @@ function Get-PostureHybridFact {
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
     # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
     $affectedCounts = @{}
+    # Checks judged on part of the data: the engine turns a pass into no answer and puts a note on a fail.
+    $partial = @{}
     $adMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected: run collectors/windows/Get-ADBaseline.ps1 on a domain-joined Windows machine and copy its folder into the evidence folder." } }
 
     $sync = & $load '01-onprem-sync-features'; $domains = & $load '01-domains'; $health = & $load 'az-08-entra-connect-health'
@@ -199,8 +201,34 @@ function Get-PostureHybridFact {
     }
 
     $gpos = & $load 'ad-08-gpos'
-    if ($null -ne $gpos) { $gp = @(& $rows $gpos); $facts.gpos = $gp.Count; $facts.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true }).Count; $facts.unlinkedGpos = @($gp | Where-Object { [int]$_.Links -eq 0 }).Count; $affected.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'cpassword in the GPO report' } }) }
+    if ($null -ne $gpos) {
+        $gp = @(& $rows $gpos); $facts.gpos = $gp.Count
+        $withPassword = @($gp | Where-Object { $_.HasCpassword -eq $true }).Count
+        # Whether the preference files in SYSVOL were read: the collector says so since 2026-11-21 (ad-08-gpos-summary,
+        # and HasCpassword empty on each row when they were not). Not read is unknown, never "no stored password".
+        $gpoSummary = & $load 'ad-08-gpos-summary'
+        $notScanned = ($null -ne $gpoSummary -and (& $v $gpoSummary 'SysvolScanned') -eq $false) -or @($gp | Where-Object { $_ -is [System.Collections.IDictionary] -and $_.Contains('HasCpassword') -and $null -eq $_['HasCpassword'] }).Count -gt 0
+        $facts.gposWithCpassword = $(if ($notScanned -and $withPassword -eq 0) { $null } else { $withPassword })
+        if ($null -eq $facts.gposWithCpassword) { $notEvaluated['HY-030'] = 'The Group Policy preference files in SYSVOL could not be read when Active Directory was collected, so whether a policy stores a password is unknown. Run collectors/windows/Get-ADBaseline.ps1 again from a machine that can read SYSVOL.' }
+        $facts.unlinkedGpos = @($gp | Where-Object { [int]$_.Links -eq 0 }).Count
+        $affected.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'cpassword in the GPO report' } })
+    }
     else { $notEvaluated['HY-030'] = 'ad-08-gpos.json was not collected (GroupPolicy module missing on the jump box, or the step failed).' }
 
-    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json', 'ad-01-forest-domain.json') }
+    # A forest with more than one domain, read on one of them: the collector reads one domain for each run. The
+    # checks on that domain's accounts, groups, policies and computers speak for that domain and no other. The
+    # Recycle Bin and the certificate templates are the forest's and are whole.
+    $inForest = [Math]::Max([int](& $v $forest 'DomainCount'), @(& $v $forest 'ForestDomains' | Where-Object { $_ }).Count)
+    $readDomains = [Math]::Max(1, @(& $v $forest 'DomainsCollected' | Where-Object { $_ }).Count)
+    if ($inForest -gt $readDomains) {
+        $domainName = [string](& $v $forest 'DomainName'); $where = $(if ($domainName) { "the domain $domainName" } else { 'one domain' })
+        foreach ($id in 'HY-010', 'HY-011', 'HY-012', 'HY-013', 'HY-014', 'HY-015', 'HY-016', 'HY-017', 'HY-018', 'HY-019', 'HY-020', 'HY-021', 'HY-022', 'HY-024', 'HY-025', 'HY-026', 'HY-027', 'HY-028', 'HY-030', 'HY-031') {
+            $partial[$id] = @{
+                note     = "Judged on $where, one of $inForest in the forest; the other $($inForest - $readDomains) were not read."
+                noAnswer = "Nothing wrong was found in $where, but the forest has $inForest domains and the other $($inForest - $readDomains) were not read: the collector reads one domain for each run, so there is no answer for the forest."
+            }
+        }
+    }
+
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; partial = $partial; evidence = @('01-onprem-sync-features.json', 'ad-01-forest-domain.json') }
 }

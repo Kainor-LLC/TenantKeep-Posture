@@ -227,6 +227,14 @@ bundle.json (every file with its SHA-256). Bring the folder into the run with `I
 Connect Health) the cloud collectors already wrote. Nothing is installed or scheduled; the Hybrid Runbook Worker option
 in deploy/ is the v1.1 path for monthly runs.
 
+On a large domain: users and computers are read through the pipeline and counted as they arrive, never held as a
+list. GPO links come from one directory query for `gPLink`, and passwords stored in Group Policy Preferences from one
+pass over the preference files in SYSVOL (`ad-08-gpos-summary` says whether SYSVOL could be read; when it could not,
+HY-030 has no answer instead of "none"). The collector reads one domain for each run. `ad-01-forest-domain` records
+the forest's domains and the one that was read, and on a forest with more than one the checks on accounts, groups,
+policies and computers say which domain they judged: a finding stands with that note, and where nothing was found
+there is no answer for the forest. bundle.json carries the forest name, its domains and its UPN suffixes.
+
 ## What the Windows SharePoint collector writes
 
 collectors/windows/Get-SpoBaseline.ps1 is the SharePoint admin read without any third-party app: Windows-only, outside

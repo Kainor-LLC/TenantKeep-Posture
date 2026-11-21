@@ -93,6 +93,10 @@ try {
         [ordered]@{
             ForestName = $forest.Name; ForestFunctionalLevel = [string]$forest.ForestMode; DomainName = $domain.DNSRoot; DomainFunctionalLevel = [string]$domain.DomainMode
             DomainCount = @($forest.Domains).Count; Sites = @($forest.Sites).Count; GlobalCatalogs = @($forest.GlobalCatalogs).Count
+            # What this run covered: one domain. A forest with more is read one domain at a time, and the report says
+            # which one it judged.
+            ForestDomains = @($forest.Domains | ForEach-Object { [string]$_ }); DomainsCollected = @([string]$domain.DNSRoot)
+            UpnSuffixes = @(@($forest.Domains) + @($forest.UPNSuffixes) | ForEach-Object { [string]$_ } | Where-Object { $_ } | Sort-Object -Unique)
             Fsmo = [ordered]@{ SchemaMaster = $forest.SchemaMaster; DomainNamingMaster = $forest.DomainNamingMaster; PdcEmulator = $domain.PDCEmulator; RidMaster = $domain.RIDMaster; InfrastructureMaster = $domain.InfrastructureMaster }
             RecycleBinEnabled = $recycleBin; MachineAccountQuota = [int]$domainObj.'ms-DS-MachineAccountQuota'
             PasswordPolicy = [ordered]@{ MinPasswordLength = $policy.MinPasswordLength; ComplexityEnabled = $policy.ComplexityEnabled; LockoutThreshold = $policy.LockoutThreshold; LockoutDurationMinutes = $policy.LockoutDuration.TotalMinutes; MaxPasswordAgeDays = $policy.MaxPasswordAge.TotalDays; PasswordHistoryCount = $policy.PasswordHistoryCount; ReversibleEncryptionEnabled = $policy.ReversibleEncryptionEnabled }
@@ -167,44 +171,95 @@ try {
         $schemaDn = (Get-ADRootDSE @srv).schemaNamingContext
         $lapsAttrs = @('msLAPS-PasswordExpirationTime', 'ms-Mcs-AdmPwdExpirationTime') | Where-Object { @(Get-ADObject -SearchBase $schemaDn -LDAPFilter "(lDAPDisplayName=$_)" @srv).Count -gt 0 }
         $hasWindowsLaps = $lapsAttrs -contains 'msLAPS-PasswordExpirationTime'; $hasLegacyLaps = $lapsAttrs -contains 'ms-Mcs-AdmPwdExpirationTime'
-        $computers = Get-ADComputer -Filter 'Enabled -eq $true' -Properties (@('OperatingSystem', 'LastLogonTimestamp', 'PasswordLastSet') + @($lapsAttrs)) @srv
-        $rows = @($computers | ForEach-Object {
-                $last = $(if ($_.LastLogonTimestamp) { [DateTime]::FromFileTimeUtc($_.LastLogonTimestamp) } else { $null })
-                [ordered]@{ Name = $_.Name; OperatingSystem = $_.OperatingSystem; IsServer = ([string]$_.OperatingSystem -match 'Server'); IsDomainController = $false; LastLogon = $(if ($last) { $last.ToString('o') } else { $null }); Stale = ($null -eq $last -or $last -lt $staleBefore); WindowsLaps = ($hasWindowsLaps -and $null -ne $_.'msLAPS-PasswordExpirationTime'); LegacyLaps = ($hasLegacyLaps -and $null -ne $_.'ms-Mcs-AdmPwdExpirationTime') }
-            })
-        $dcNames = @(Get-ADDomainController -Filter * @srv | ForEach-Object { $_.Name })
-        foreach ($r in $rows) { if ($dcNames -contains $r.Name) { $r.IsDomainController = $true } }
+        # Through the pipeline: each computer becomes its row and is counted as it arrives, so the directory's
+        # objects are never held (a list of them is gigabytes in a large domain). The rows are what is kept.
+        $dcNames = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        Get-ADDomainController -Filter * @srv | ForEach-Object { [void]$dcNames.Add([string]$_.Name) }
+        $t = @{ n = 0; activeWindows = 0; workstations = 0; windowsLaps = 0; legacyLaps = 0; stale = 0; os = @{} }
+        $rows = New-Object 'System.Collections.Generic.List[object]'
+        Get-ADComputer -Filter 'Enabled -eq $true' -Properties (@('OperatingSystem', 'LastLogonTimestamp', 'PasswordLastSet') + @($lapsAttrs)) @srv | ForEach-Object {
+            $last = $(if ($_.LastLogonTimestamp) { [DateTime]::FromFileTimeUtc($_.LastLogonTimestamp) } else { $null })
+            $row = [ordered]@{ Name = $_.Name; OperatingSystem = $_.OperatingSystem; IsServer = ([string]$_.OperatingSystem -match 'Server'); IsDomainController = $dcNames.Contains([string]$_.Name); LastLogon = $(if ($last) { $last.ToString('o') } else { $null }); Stale = ($null -eq $last -or $last -lt $staleBefore); WindowsLaps = ($hasWindowsLaps -and $null -ne $_.'msLAPS-PasswordExpirationTime'); LegacyLaps = ($hasLegacyLaps -and $null -ne $_.'ms-Mcs-AdmPwdExpirationTime') }
+            $rows.Add($row)
+            $t.n++
+            $osName = [string]$row.OperatingSystem
+            if ($t.os.ContainsKey($osName)) { $t.os[$osName]++ } else { $t.os[$osName] = 1 }
+            if ($row.Stale) { $t.stale++ }
+            if (-not $row.IsDomainController -and -not $row.Stale -and $osName -match 'Windows') {
+                $t.activeWindows++
+                if (-not $row.IsServer) { $t.workstations++ }
+                if ($row.WindowsLaps) { $t.windowsLaps++ } elseif ($row.LegacyLaps) { $t.legacyLaps++ }
+            }
+            if ($t.n % 5000 -eq 0) { Write-Progress -Activity 'Computers' -Status "$($t.n) read" }
+        }
+        Write-Progress -Activity 'Computers' -Completed
         $rows | Save-Evidence -Name 'ad-06-computers' -Csv
-        $windows = @($rows | Where-Object { -not $_.IsDomainController -and -not $_.Stale -and [string]$_.OperatingSystem -match 'Windows' })
         [ordered]@{
-            EnabledComputers = $rows.Count; ActiveWindowsNonDc = $windows.Count; ActiveWindowsWorkstations = @($windows | Where-Object { -not $_.IsServer }).Count
-            WindowsLaps = @($windows | Where-Object { $_.WindowsLaps }).Count; LegacyLaps = @($windows | Where-Object { $_.LegacyLaps -and -not $_.WindowsLaps }).Count
-            ByOperatingSystem = @($rows | Group-Object { [string]$_.OperatingSystem } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count })
-            StaleComputers = @($rows | Where-Object { $_.Stale }).Count; WindowsLapsSchema = $hasWindowsLaps; LegacyLapsSchema = $hasLegacyLaps
+            EnabledComputers = $t.n; ActiveWindowsNonDc = $t.activeWindows; ActiveWindowsWorkstations = $t.workstations
+            WindowsLaps = $t.windowsLaps; LegacyLaps = $t.legacyLaps
+            ByOperatingSystem = @($t.os.GetEnumerator() | ForEach-Object { [ordered]@{ Name = $_.Key; Count = $_.Value } } | Sort-Object { -$_.Count })
+            StaleComputers = $t.stale; WindowsLapsSchema = $hasWindowsLaps; LegacyLapsSchema = $hasLegacyLaps
         } | Save-Evidence -Name 'ad-06-computers-summary' -Single
     }
 
     Invoke-Step 'Users: stale, password never expires' {
         $staleBefore = $now.AddDays(-$StaleDays)
-        $users = Get-ADUser -Filter * -Properties Enabled, LastLogonTimestamp, PasswordNeverExpires, PasswordLastSet, whenChanged, ServicePrincipalName @srv
-        $enabled = @($users | Where-Object { $_.Enabled })
-        $stale = @($enabled | Where-Object { $t = $_.LastLogonTimestamp; (-not $t) -or [DateTime]::FromFileTimeUtc($t) -lt $staleBefore })
-        $never = @($enabled | Where-Object { $_.PasswordNeverExpires -and @($_.ServicePrincipalName).Count -eq 0 })
-        [ordered]@{ Users = @($users).Count; Enabled = $enabled.Count; Disabled = @($users).Count - $enabled.Count; StaleEnabled = $stale.Count; PasswordNeverExpiresEnabledHumans = $never.Count; StaleDays = $StaleDays } | Save-Evidence -Name 'ad-07-users-summary' -Single
-        $never | ForEach-Object { [ordered]@{ SamAccountName = $_.SamAccountName; PasswordLastSet = (& $iso $_.PasswordLastSet) } } | Save-Evidence -Name 'ad-07-password-never-expires' -Csv
-        $stale | ForEach-Object { [ordered]@{ SamAccountName = $_.SamAccountName; LastLogon = (& $fileTime $_.LastLogonTimestamp) } } | Save-Evidence -Name 'ad-07-stale-users' -Csv
+        # One pass through the pipeline: every user is counted as it arrives and only the two short lists are kept.
+        # Assigned to a variable, the users of a large domain are gigabytes of objects in Windows PowerShell.
+        $t = @{ n = 0; enabled = 0 }
+        $stale = New-Object 'System.Collections.Generic.List[object]'; $never = New-Object 'System.Collections.Generic.List[object]'
+        Get-ADUser -Filter * -Properties Enabled, LastLogonTimestamp, PasswordNeverExpires, PasswordLastSet, ServicePrincipalName @srv | ForEach-Object {
+            $t.n++
+            if ($t.n % 5000 -eq 0) { Write-Progress -Activity 'Users' -Status "$($t.n) read" }
+            if (-not $_.Enabled) { return }
+            $t.enabled++
+            $stamp = $_.LastLogonTimestamp
+            if ((-not $stamp) -or [DateTime]::FromFileTimeUtc($stamp) -lt $staleBefore) { $stale.Add([ordered]@{ SamAccountName = $_.SamAccountName; LastLogon = (& $fileTime $stamp) }) }
+            if ($_.PasswordNeverExpires -and @($_.ServicePrincipalName).Count -eq 0) { $never.Add([ordered]@{ SamAccountName = $_.SamAccountName; PasswordLastSet = (& $iso $_.PasswordLastSet) }) }
+        }
+        Write-Progress -Activity 'Users' -Completed
+        [ordered]@{ Users = $t.n; Enabled = $t.enabled; Disabled = $t.n - $t.enabled; StaleEnabled = $stale.Count; PasswordNeverExpiresEnabledHumans = $never.Count; StaleDays = $StaleDays } | Save-Evidence -Name 'ad-07-users-summary' -Single
+        $never | Save-Evidence -Name 'ad-07-password-never-expires' -Csv
+        $stale | Save-Evidence -Name 'ad-07-stale-users' -Csv
     }
 
     Invoke-Step 'Group Policy inventory' {
         if (-not $hasGpo) { throw 'GroupPolicy module not available; GPO inventory skipped. On Windows Server: Install-WindowsFeature GPMC. On Windows 10 or 11: Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0. Then open a new PowerShell window and run this script again.' }
         $gpos = @(Get-GPO -All @srv)
+        # Where each GPO is linked, from the gPLink attribute of the domain, its organizational units and the sites:
+        # one directory query for all of them. (A report per GPO, as before, is hours in a domain with thousands.)
+        $linksById = @{}
+        $containers = @(Get-ADObject -LDAPFilter '(gPLink=*)' -SearchBase $domainDn -SearchScope Subtree -Properties gPLink, CanonicalName @srv) + @(Get-ADObject -LDAPFilter '(gPLink=*)' -SearchBase "CN=Sites,$configDn" -SearchScope Subtree -Properties gPLink, CanonicalName @srv)
+        foreach ($c in $containers) {
+            foreach ($m in [regex]::Matches([string]$c.gPLink, '\[LDAP://[cC][nN]=(\{[0-9A-Fa-f-]{36}\}),[^;\]]*;(\d+)\]')) {
+                # Link options: bit 0 set means the link is disabled.
+                if (([int]$m.Groups[2].Value -band 1) -ne 0) { continue }
+                $id = $m.Groups[1].Value.Trim('{', '}').ToLowerInvariant()
+                if (-not $linksById.ContainsKey($id)) { $linksById[$id] = New-Object 'System.Collections.Generic.List[string]' }
+                $linksById[$id].Add([string]$c.CanonicalName)
+            }
+        }
+        # Passwords stored in Group Policy Preferences (cpassword), from one pass over the preference files in SYSVOL.
+        # When SYSVOL cannot be read the answer is unknown, never "none".
+        $withPassword = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        $sysvol = "\\$($domain.DNSRoot)\SYSVOL\$($domain.DNSRoot)\Policies"
+        $scanned = $false
+        try {
+            if (Test-Path -LiteralPath $sysvol) {
+                Get-ChildItem -LiteralPath $sysvol -Recurse -Filter '*.xml' -File -ErrorAction Stop | Where-Object { $_.FullName -match '\\Preferences\\' } | ForEach-Object {
+                    if (Select-String -LiteralPath $_.FullName -Pattern 'cpassword="[^"]' -Quiet) { if ($_.FullName -match '\{([0-9A-Fa-f-]{36})\}') { [void]$withPassword.Add($Matches[1].ToLowerInvariant()) } }
+                }
+                $scanned = $true
+            }
+        }
+        catch { Add-Content -Path $errorsPath -Value "Group Policy preference files :: $((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim())" }
         $rows = foreach ($g in $gpos) {
-            $xml = [xml](Get-GPOReport -Guid $g.Id -ReportType Xml @srv)
-            $links = @($xml.GPO.LinksTo | ForEach-Object { $_.SOMPath })
-            $cpassword = ($xml.OuterXml -match 'cpassword=')
-            [ordered]@{ Name = $g.DisplayName; Id = [string]$g.Id; Status = [string]$g.GpoStatus; Created = (& $iso $g.CreationTime); Modified = (& $iso $g.ModificationTime); Links = $links.Count; LinkedTo = ($links -join ' | '); HasCpassword = $cpassword; UserVersion = $g.User.DSVersion; ComputerVersion = $g.Computer.DSVersion }
+            $id = ([string]$g.Id).ToLowerInvariant()
+            $links = @($(if ($linksById.ContainsKey($id)) { $linksById[$id] }))
+            [ordered]@{ Name = $g.DisplayName; Id = [string]$g.Id; Status = [string]$g.GpoStatus; Created = (& $iso $g.CreationTime); Modified = (& $iso $g.ModificationTime); Links = $links.Count; LinkedTo = ($links -join ' | '); HasCpassword = $(if ($scanned) { $withPassword.Contains($id) } else { $null }); UserVersion = $g.User.DSVersion; ComputerVersion = $g.Computer.DSVersion }
         }
         @($rows) | Save-Evidence -Name 'ad-08-gpos' -Csv
+        [ordered]@{ Gpos = $gpos.Count; Linked = @($rows | Where-Object { $_.Links -gt 0 }).Count; SysvolScanned = $scanned; WithStoredPassword = $(if ($scanned) { $withPassword.Count } else { $null }) } | Save-Evidence -Name 'ad-08-gpos-summary' -Single
     }
 
     Invoke-Step 'AD CS' {
@@ -239,8 +294,11 @@ finally {
 }
 # bundle.json: what Import-PostureEvidence checks before it copies a file into a run.
 $domainName = $(try { (Get-ADDomain @srv).DNSRoot } catch { '' })
+$forestInfo = $(try { Get-ADForest @srv } catch { $null })
+$forestDomains = @($(if ($forestInfo) { $forestInfo.Domains | ForEach-Object { [string]$_ } }))
+$upnSuffixes = @($(if ($forestInfo) { @($forestInfo.Domains) + @($forestInfo.UPNSuffixes) | ForEach-Object { [string]$_ } | Where-Object { $_ } | Sort-Object -Unique }))
 $files = @($written | Select-Object -Unique | ForEach-Object { [ordered]@{ name = $_; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $out $_)).Hash.ToLowerInvariant() } })
-$bundle = [ordered]@{ kind = 'ad'; collector = 'Get-ADBaseline.ps1'; schema = 1; domain = $domainName; collectedUtc = $now.ToString('o'); account = [string]$env:USERNAME; powershell = [string]$PSVersionTable.PSVersion; files = $files }
+$bundle = [ordered]@{ kind = 'ad'; collector = 'Get-ADBaseline.ps1'; schema = 1; domain = $domainName; forest = $(if ($forestInfo) { [string]$forestInfo.Name } else { '' }); forestDomains = $forestDomains; upnSuffixes = $upnSuffixes; collectedUtc = $now.ToString('o'); account = [string]$env:USERNAME; powershell = [string]$PSVersionTable.PSVersion; files = $files }
 [System.IO.File]::WriteAllText((Join-Path $out 'bundle.json'), (ConvertTo-Json -InputObject $bundle -Depth 5), [System.Text.UTF8Encoding]::new($false))
 Write-Host "`nDone: $out. Bring it into the run: Import-PostureEvidence -Path '$out' -Run <run folder>"
 if (Test-Path $errorsPath) { Write-Warning "Some steps failed; see $errorsPath" }

@@ -110,6 +110,59 @@ Describe 'Hybrid checks from the Windows collector files' {
     }
 }
 
+Describe 'A forest with more domains than the one that was read' {
+    BeforeAll {
+        # The same evidence, from a forest of three domains: the collector reads one for each run.
+        $script:Multi = Join-Path $script:Root 'multi'
+        Copy-Item -LiteralPath $script:Ev -Destination $script:Multi -Recurse
+        $file = Join-Path $script:Multi 'ad-01-forest-domain.json'
+        $forest = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+        $forest.DomainName = 'emea.contoso.example'; $forest.DomainCount = 3; $forest.ForestDomains = @('contoso.example', 'emea.contoso.example', 'apac.contoso.example'); $forest.DomainsCollected = @('emea.contoso.example')
+        ConvertTo-Json -InputObject $forest -Depth 10 | Set-Content -LiteralPath $file
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $run = Invoke-PostureChecks -Evidence $script:Multi -ProfilePath $script:ProfilePath -Domain hybrid -PassThru
+        $script:MultiBy = @{}; foreach ($r in $run.results) { $script:MultiBy[$r.id] = $r }
+    }
+
+    It 'keeps what it found in that domain as a finding, and says which domain it judged' {
+        foreach ($id in @($script:By.get_Keys() | Where-Object { $script:By[$_].status -eq 'fail' -and $_ -match '^HY-0(1\d|2[0-24-8]|3[01])$' })) {
+            $script:MultiBy[$id].status | Should -Be 'fail' -Because "$id failed on the domain that was read"
+            $script:MultiBy[$id].reason | Should -Match '^Judged on the domain emea\.contoso\.example, one of 3 in the forest; the other 2 were not read\.'
+        }
+        $script:MultiBy['HY-010'].status | Should -Be 'fail'
+    }
+
+    It 'has no answer for the forest where it found nothing in that domain' {
+        $passing = @($script:By.get_Keys() | Where-Object { $script:By[$_].status -eq 'pass' -and $_ -match '^HY-0(1\d|2[0-24-8]|3[01])$' })
+        $passing.Count | Should -BeGreaterThan 0
+        foreach ($id in $passing) {
+            $script:MultiBy[$id].status | Should -Be 'notEvaluated' -Because "$id passed on one domain of three, which says nothing about the other two"
+            $script:MultiBy[$id].reason | Should -Match 'the forest has 3 domains and the other 2 were not read'
+        }
+    }
+
+    It 'still judges what belongs to the forest as a whole' {
+        $script:MultiBy['HY-023'].status | Should -Be $script:By['HY-023'].status -Because 'the Recycle Bin is a forest feature'
+        $script:MultiBy['HY-029'].status | Should -Be $script:By['HY-029'].status -Because 'certificate templates live in the forest''s configuration'
+        $script:MultiBy['HY-023'].reason | Should -Not -Match 'one of 3'
+    }
+}
+
+Describe 'Passwords stored in Group Policy when SYSVOL could not be read' {
+    It 'has no answer instead of "none", and still fails on one it saw' {
+        $d = Join-Path $script:Root 'sysvol'
+        Copy-Item -LiteralPath $script:Ev -Destination $d -Recurse
+        $write = { param([string] $Name, $Data) ConvertTo-Json -InputObject $Data -Depth 10 | Set-Content -LiteralPath (Join-Path $d "$Name.json") }
+        & $write 'ad-08-gpos' @(@{ Name = 'Default Domain Policy'; Links = 1; HasCpassword = $null }, @{ Name = 'Workstations'; Links = 2; HasCpassword = $null })
+        & $write 'ad-08-gpos-summary' @{ Gpos = 2; Linked = 2; SysvolScanned = $false; WithStoredPassword = $null }
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $r = @((Invoke-PostureChecks -Evidence $d -ProfilePath $script:ProfilePath -Domain hybrid -PassThru).results | Where-Object { $_.id -eq 'HY-030' })[0]
+        $r.status | Should -Be 'notEvaluated'
+        $r.reason | Should -Match 'SYSVOL could not be read'
+        $script:By['HY-030'].status | Should -Be 'fail' -Because 'the evidence that did read the files found a stored password'
+    }
+}
+
 Describe 'The Windows collector script' {
     It 'parses, is Windows-only by location, reads only, and writes the ad-* files the facts expect' {
         $path = Join-Path $PSScriptRoot '..' 'collectors' 'windows' 'Get-ADBaseline.ps1'
@@ -119,6 +172,13 @@ Describe 'The Windows collector script' {
         $src = Get-Content -Raw $path
         $src | Should -Not -Match '(^|[;{|(&])\s*(Set|New|Remove|Add|Move|Rename|Enable|Disable|Reset|Unlock|Grant|Revoke)-AD' -Because 'the collector reads only'
         $src | Should -Not -Match 'Set-GPO|Set-GPRegistryValue|New-GPO|Remove-GPO'
+        # The directory is read through the pipeline, never into a variable: a large domain's users are gigabytes there.
+        $src | Should -Not -Match '\$\w+\s*=\s*Get-ADUser\s+-Filter\s+\*' -Because 'every user of the domain in one variable does not fit a jump box'
+        $src | Should -Not -Match '\$\w+\s*=\s*Get-ADComputer\s+-Filter'
+        $src | Should -Not -Match 'Get-GPOReport' -Because 'a report per GPO is hours in a domain with thousands; links come from gPLink and stored passwords from SYSVOL'
+        # Windows PowerShell 5.1 runs it: none of the operators that came later.
+        $src | Should -Not -Match '\?\?|\?\.|\s\?\s[^:]+\s:\s' -Because 'null-coalescing, null-conditional and ternary operators are PowerShell 7'
+        foreach ($n in 'ad-08-gpos-summary', 'ForestDomains', 'DomainsCollected', 'upnSuffixes') { $src | Should -Match ([regex]::Escape($n)) }
         foreach ($n in 'ad-01-forest-domain', 'ad-01-trusts', 'ad-02-domain-controllers', 'ad-03-privileged-groups', 'ad-03-admin-accounts', 'ad-04-builtin-accounts', 'ad-05-delegation', 'ad-05-kerberoastable', 'ad-05-asrep-roastable', 'ad-06-computers-summary', 'ad-07-users-summary', 'ad-08-gpos', 'ad-09-adcs', 'ad-09-adcs-templates', 'ad-10-entra-accounts') { $src | Should -Match ([regex]::Escape("'$n'")) }
     }
 }

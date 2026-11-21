@@ -17,7 +17,10 @@ function Invoke-PostureCheckEvaluation {
 
         Coverage: a provider that judged a check on part of the data (the collector read 200 of 1,500 subscriptions)
         says so in notes[<check id>], which becomes the reason of a pass or fail; when nothing failed in the part it
-        saw, it names the check in notEvaluated instead. A provider that keeps only the first rows of an affected
+        saw, it names the check in notEvaluated instead. A provider that cannot tell which of the two it is (it
+        does not judge the check itself) declares partial[<check id>] = @{ note; noAnswer } and the engine applies
+        the same rule to the outcome: a fail keeps its answer with the note, a pass becomes not evaluated with the
+        noAnswer sentence. A provider that keeps only the first rows of an affected
         list gives the true number in affectedCounts[<affected key>]: affectedCount is that number, and
         affectedListed how many rows the result carries.
         Threshold precedence: catalog default, then profile.thresholds by key, then baseline.thresholds[check id].
@@ -188,6 +191,14 @@ function Invoke-PostureCheckEvaluation {
         $result.status = if ($passed) { 'pass' } else { 'fail' }
         # Judged on part of the data: the provider says how much.
         if ($df.Contains('notes') -and $df['notes'] -and $df['notes'].Contains($id)) { $result.reason = [string]$df['notes'][$id] }
+        # Judged on part of the data, as the provider declares for this check (partial[<id>] with a note and a
+        # noAnswer sentence). What was read and failed is a finding, and says how much was read. What was read and
+        # passed is no answer: the part that was not read could hold the gap.
+        if ($df.Contains('partial') -and $df['partial'] -and $df['partial'].Contains($id)) {
+            $part = $df['partial'][$id]
+            if ($passed) { $result.status = 'notEvaluated'; $result.reason = [string]$part['noAnswer']; $result.affected = @(); $unlisted = 0 }
+            elseif (-not $result.reason) { $result.reason = [string]$part['note'] }
+        }
         # The values the pass expression judged, so the report says what was found in this tenant: scalars as they
         # are, a list as its count.
         $observed = [ordered]@{}

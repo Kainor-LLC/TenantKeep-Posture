@@ -6,6 +6,15 @@ work landed on main.
 
 ## Unreleased
 
+- The Windows AD collector on a large domain (2026-11-21). It read every user and every computer into a variable,
+  gigabytes in Windows PowerShell on a domain of hundreds of thousands, and ran one Group Policy report per GPO,
+  hours with thousands of them. Users and computers now go through the pipeline and are counted as they arrive.
+  GPO links come from one query for `gPLink`, and stored passwords from one pass over the preference files in
+  SYSVOL. When SYSVOL cannot be read, HY-030 has no answer; it used to read as "no stored passwords".
+- A forest read on one domain says so. The collector reads one domain for each run and the report judged the
+  forest on it without a word. The checks on a domain's accounts, groups, policies and computers now keep a
+  finding with "Judged on the domain X, one of N in the forest" and have no answer where nothing was found.
+  Reading every domain in one run is not built. bundle.json gains the forest, its domains and its UPN suffixes.
 - The sign-in read keeps no list of who failed from where (2026-11-21). To spot a password spray the collector
   remembered, for each address, every account that failed from it, up to 1,000 accounts for each of 20,000
   addresses, and wrote that to its checkpoint on disk every ten pages (276 MB at the ceilings). An account is now
