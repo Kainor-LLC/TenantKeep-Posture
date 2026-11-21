@@ -337,7 +337,11 @@
     "adminToolsOpenToEveryone": "Admin command-line tools anyone can sign in to",
     "deviceCodeFlowBlockPolicies": "Policies that block device code sign-in for everyone",
     "exoPowerShellAppRestricted": "Exchange Online PowerShell app closed to everyone but an assigned group",
-    "nonAdminRemotePowerShell": "People who are not administrators with Exchange Online PowerShell on"
+    "nonAdminRemotePowerShell": "People who are not administrators with Exchange Online PowerShell on",
+    "gatewayInFront": "An email gateway sits in front of Microsoft 365",
+    "gatewayLockedDown": "Exchange Online accepts mail only from the gateway",
+    "gatewayBypass": "Domains whose mail can skip the gateway",
+    "safeLinksTeamsOffice": "Safe Links on for Teams and Office apps"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

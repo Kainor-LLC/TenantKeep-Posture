@@ -103,7 +103,7 @@ function New-PostureProfile {
         externalCollaboration = 'governed'
         copilot               = 'none'
         azure                 = 'none'
-        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; macMdm = 'none'; siem = 'none'; backup = 'none'; swg = 'none'; ztna = 'none' }
+        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; macMdm = 'none'; siem = 'none'; backup = 'none'; swg = 'none'; ztna = 'none'; training = 'none' }
         frameworks            = @()
         goals                 = @()
         thresholds            = [ordered]@{ maxPermanentGlobalAdmins = 2; staleDeviceDays = 90; maxExclusionGroupMembers = 25; inactiveGuestDays = 90; reportOnlyMaxDays = 90; disabledMaxDays = 90; criticalCveMaxAgeDays = 14; namePattern = $null }
@@ -205,6 +205,7 @@ function New-PostureProfile {
             email = 'email security in front of Microsoft 365 (Proofpoint, Mimecast)'; edr = 'endpoint detection and response (CrowdStrike, SentinelOne)'
             mfa = 'MFA other than Microsoft (Duo, Okta)'; mdm = 'device management for every platform (Workspace ONE)'; macMdm = 'device management for Macs only (Jamf, Kandji, Mosyle)'
             siem = 'SIEM (Splunk, Sentinel in another tenant)'; backup = 'Microsoft 365 backup (Veeam, AvePoint)'; swg = 'secure web gateway (Zscaler, Netskope)'; ztna = 'private access or VPN replacement (Zscaler, Cloudflare)'
+            training = 'phishing awareness training and simulation (KnowBe4, Proofpoint Security Awareness)'
         }
         foreach ($cat in @($answers.thirdParty.Keys)) {
             $label = $(if ($vendorLabel.ContainsKey($cat)) { $vendorLabel[$cat] } else { "$cat control" })

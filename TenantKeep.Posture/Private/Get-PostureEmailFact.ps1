@@ -74,12 +74,14 @@ function Get-PostureEmailFact {
 
     # Safe Links, Safe Attachments, global MDO settings (EM-005)
     $sl = & $load 'exo-05-mdo-safelinks'; $sa = & $load 'exo-05-mdo-safeattachments'; $g = & $load 'exo-05-mdo-global'
-    if ($null -eq $sl -or $null -eq $sa -or $null -eq $g) { & $missing @('EM-005') 'exo-05-mdo-*' }
+    if ($null -eq $sl -or $null -eq $sa -or $null -eq $g) { & $missing @('EM-005', 'EM-027') 'exo-05-mdo-*' }
     else {
         $facts.safeLinksComplete = @(& $rows $sl | Where-Object { $_.EnableSafeLinksForEmail -eq $true -and $_.EnableSafeLinksForTeams -eq $true -and $_.EnableSafeLinksForOffice -eq $true }).Count -gt 0
         $facts.safeAttachmentsEnabled = @(& $rows $sa | Where-Object { $_.Enable -eq $true -and [string]$_.Action -in @('Block', 'DynamicDelivery') }).Count -gt 0
         $g1 = @(& $rows $g | Select-Object -First 1)
         $facts.safeAttachmentsSpoEnabled = [bool]($g1.Count -gt 0 -and (& $v $g1[0] 'EnableATPForSPOTeamsODB') -eq $true)
+        # EM-027: the parts a mail gateway does not reach, files and links in SharePoint, OneDrive, Teams and Office.
+        $facts.safeLinksTeamsOffice = @(& $rows $sl | Where-Object { $_.EnableSafeLinksForTeams -eq $true -and $_.EnableSafeLinksForOffice -eq $true }).Count -gt 0
         $facts.safeDocumentsEnabled = [bool]($g1.Count -gt 0 -and (& $v $g1[0] 'EnableSafeDocs') -eq $true)
         $lic = @($OrgProfile['licenses'] | Where-Object { $_ })
         $facts.safeDocumentsExpected = [bool](@($lic | Where-Object { $_ -in @('E5', 'MDE2') }).Count -gt 0)
@@ -266,6 +268,24 @@ function Get-PostureEmailFact {
         $recent = @(& $rows $sim | Where-Object { $d = ConvertTo-PostureUtcDateTime $(if ($_.CompletionDateTime) { $_.CompletionDateTime } else { $_.LaunchDateTime }); $d -and $d -ge $window })
         $facts.attackSimulations = @(& $rows $sim).Count
         $facts.attackSimulationsInWindow = $recent.Count
+    }
+
+    # EM-026: with a gateway in front (MX pointing elsewhere, or an email vendor in the profile), mail must not be able
+    # to reach Exchange Online directly and skip it: an enabled partner connector for every sender (*) that accepts mail
+    # only from the gateway's addresses or certificate.
+    $mxRows = & $load 'dns-01-mail-records'; $inbound = & $load 'exo-03-inbound-connectors'
+    $tp = $(if ($OrgProfile.Contains('thirdParty') -and $OrgProfile['thirdParty']) { $OrgProfile['thirdParty'] } else { @{} })
+    $emailVendor = $(if ($tp.Contains('email')) { [string]$tp['email'] } else { '' })
+    if ($null -eq $inbound) { & $missing @('EM-026') 'exo-03-inbound-connectors' }
+    else {
+        $elsewhere = @(& $rows $mxRows | Where-Object { [string](& $v $_ 'MX') -and [string](& $v $_ 'MX') -notmatch '(?i)mail\.protection\.outlook\.com' })
+        $facts.gatewayInFront = $elsewhere.Count -gt 0 -or ($emailVendor -and $emailVendor -ne 'none')
+        $lock = @(& $rows $inbound | Where-Object { (& $v $_ 'Enabled') -eq $true -and [string](& $v $_ 'ConnectorType') -eq 'Partner' -and [string](& $v $_ 'SenderDomains') -match '\*' -and ((& $v $_ 'RestrictDomainsToIPAddresses') -eq $true -or (& $v $_ 'RestrictDomainsToCertificate') -eq $true) })
+        $facts.gatewayLockedDown = $lock.Count -gt 0
+        $affected.gatewayBypass = @($(if ($facts.gatewayInFront -and -not $facts.gatewayLockedDown) {
+                    if ($elsewhere.Count) { $elsewhere | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Domain'); detail = "MX $([string](& $v $_ 'MX')); nothing stops mail sent straight to Exchange Online" } } }
+                    else { [ordered]@{ name = $emailVendor; detail = 'no inbound connector limits mail to the gateway' } }
+                }))
     }
 
     # EM-025: Exchange Online PowerShell only for administrators: either its app is closed to everyone else, or no one

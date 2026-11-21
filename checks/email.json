@@ -716,7 +716,9 @@
         "MDO2"
       ],
       "applicableWhen": {},
-      "coveredBy": [],
+      "coveredBy": [
+        "training:*"
+      ],
       "thresholds": {
         "maxDaysSinceSimulation": 90
       },
@@ -932,6 +934,88 @@
       "attack": [
         "T1059.009",
         "T1114.002"
+      ]
+    },
+    {
+      "id": "EM-026",
+      "domain": "email",
+      "title": "Mail arrives only through the email gateway",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "dns-01-mail-records.json",
+        "exo-03-inbound-connectors.json"
+      ],
+      "pass": "!facts.gatewayInFront || facts.gatewayLockedDown",
+      "affected": "facts.gatewayBypass",
+      "remediation": [
+        "Create (or edit) an inbound connector from Partner organization, for sender domains *, that rejects mail unless it comes from the gateway's IP addresses, or from its TLS certificate name.",
+        "Take the gateway's published IP ranges or certificate name from the vendor's documentation (Proofpoint, Mimecast and others publish both), and keep them current.",
+        "Test by sending straight to the domain's tenant.mail.protection.outlook.com host from outside: the message should be refused."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people: mail still arrives through the gateway as before; only mail that tried to go around it is refused."
+      },
+      "learn": "https://learn.microsoft.com/exchange/mail-flow-best-practices/use-connectors-to-configure-mail-flow/set-up-connectors-to-route-mail",
+      "deepLink": "https://admin.exchange.microsoft.com/#/connectors",
+      "narrative": "With Proofpoint, Mimecast or another gateway in front of Microsoft 365, the MX record points at the gateway, but Exchange Online still accepts mail sent straight to the tenant's own mail host, which anyone can look up. Attackers send there to skip the gateway's filtering entirely. A partner connector that accepts mail only from the gateway closes that path.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-027",
+      "domain": "email",
+      "title": "Safe Attachments and Safe Links for SharePoint, OneDrive, Teams and Office apps",
+      "severityDefault": "Medium",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-05-mdo-global.json",
+        "exo-05-mdo-safelinks.json"
+      ],
+      "pass": "facts.safeAttachmentsSpoEnabled && facts.safeLinksTeamsOffice",
+      "remediation": [
+        "In Microsoft Defender, Email and collaboration, Policies, Safe Attachments, Global settings, turn on Defender for Office 365 for SharePoint, OneDrive and Microsoft Teams.",
+        "In the Safe Links policy that covers everyone (or the preset policy), turn on Safe Links for Microsoft Teams and for Office 365 apps.",
+        "Keep these on even with another email gateway in front: the gateway filters mail, not files shared in SharePoint, OneDrive or Teams."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people unless a file or link is malicious: then the file is blocked or the link opens a warning page."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/safe-attachments-for-spo-odfb-teams-about",
+      "deepLink": "https://security.microsoft.com/threatpolicy",
+      "narrative": "A third-party email gateway filters mail, so a check that counts it as covering Defender for Office 365 is right for mail and wrong for everything else. Files shared in SharePoint, OneDrive and Teams, and links clicked in Teams chats and Office documents, reach people without passing the gateway. These settings come with the Defender for Office 365 licence and protect exactly that part.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L2-3.14.2",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1204.002",
+        "T1566.003"
       ]
     }
   ]

@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- A third-party email gateway (2026-11-20): EM-026 mail arrives only through the gateway (with MX pointing elsewhere or
+  an email vendor in the profile, a partner connector must accept mail only from the gateway, or attackers deliver
+  straight to Exchange Online); EM-027 Safe Attachments and Safe Links for SharePoint, OneDrive, Teams and Office apps,
+  judged apart from mail since a mail gateway does not reach files. A new profile vendor, thirdParty.training
+  (KnowBe4, Proofpoint Security Awareness), covers the attack simulation check.
 - Command-line access (2026-11-20): ID-023 Microsoft's admin command-line tools (Graph PowerShell, Graph Explorer,
   Azure CLI and PowerShell, the Exchange, SharePoint and Teams shells) open only to an assigned group or blocked by
   Conditional Access for everyone else; CA-016 device code sign-in blocked; EM-025 Exchange Online PowerShell only for
