@@ -1,6 +1,10 @@
 {
   "version": "2026.10.0",
-  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only.",
+  "attack": {
+    "version": "20.1",
+    "domain": "enterprise-attack"
+  },
+  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only. attack: the MITRE ATT&CK release the checks' technique ids are checked against; build.ps1 -Task AttackData writes checks/attack.json from that release and refuses any other.",
   "domains": [
     {
       "key": "identity",

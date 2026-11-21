@@ -213,6 +213,7 @@ function ConvertTo-PostureReportModel {
             effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']
             learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license'])
             frameworks = $(if ($c['frameworks']) { $c['frameworks'] } else { [ordered]@{} })
+            attack = @(Get-PostureAttackTechnique -Catalog $Catalog -Check $c)
         }
     }
     # Do today: failing quick fixes (effort S) that users will not notice or will barely notice.
@@ -325,7 +326,7 @@ function ConvertTo-PostureReportModel {
     $story = [ordered]@{ projected = $projected; history = $history; outcomes = $outcomes; quickWins = $quickWins; roadmap = $roadmap; funnel = $funnel; ledger = $ledger }
 
     $catalogText = [ordered]@{}
-    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
+    foreach ($c in $Catalog.checks) { $catalogText[[string]$c['id']] = [ordered]@{ narrative = [string]$c['narrative']; remediation = [string]$c['remediation']; steps = @($c['steps']); effort = $(if ($c.Contains('effort')) { [string]$c['effort'] } else { $null }); category = [string]$c['category']; userImpact = $(if ($c.Contains('userImpact')) { $c['userImpact'] } else { $null }); learn = [string]$c['learn']; deepLink = [string]$c['deepLink']; license = @($c['license']); frameworks = $c['frameworks']; attack = @(Get-PostureAttackTechnique -Catalog $Catalog -Check $c); evidence = @($c['evidence']); input = $(if ($c.Contains('input')) { $c['input'] } else { $null }) } }
 
     $collection = & $load 'collection'
     $tenantId = $(if ($collection) { & $v $collection 'tenantId' } else { & $v (& $load 'metadata') 'tenantId' })
@@ -414,6 +415,7 @@ function ConvertTo-PostureReportModel {
         copilot      = $copilot
         trend        = $trend
         crosswalk    = $crosswalk
+        attack       = (Get-PostureAttackCoverage -Catalog $Catalog -Result @($results))
         results      = $results
         catalogText  = $catalogText
         labels       = $(if ($Catalog.Contains('labels') -and $Catalog['labels']) { $Catalog['labels'] } else { @{ facts = @{}; thresholds = @{} } })

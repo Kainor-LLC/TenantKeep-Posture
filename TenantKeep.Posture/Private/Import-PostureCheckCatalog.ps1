@@ -7,13 +7,15 @@ function Import-PostureCheckCatalog {
         Each file holds { "domain": "ca", "checks": [ ... ] }. Every check must carry the fields CLAUDE.md lists;
         a bad check fails the load with the file, id and missing field named, so a broken catalog never ships.
         catalog.json in the folder gives the catalog version, chains.json the control chains
-        (Import-PostureControlChain) and facts.json the plain labels for facts and thresholds (returned as labels);
-        none is a domain file. Custom checks are tagged custom = true.
+        (Import-PostureControlChain), facts.json the plain labels for facts and thresholds (returned as labels) and
+        attack.json the MITRE ATT&CK techniques the checks name, with names and tactics (returned as attack, generated
+        by build.ps1 -Task AttackData); none is a domain file. Custom checks are tagged custom = true.
 
         remediation is a string or an array of steps. Every check comes back with both: steps (one or more) and
         remediation as one string, so a reader that wants text (CSV, the CA document, the public catalog) never
         sees an array. effort (S, M, L) is optional; category is fix or improve, fix when absent; userImpact is
-        what users notice when the fix lands: a level (none, low, medium, high) and a sentence.
+        what users notice when the fix lands: a level (none, low, medium, high) and a sentence. attack is optional: the
+        ATT&CK technique ids (T1078.004) the check helps stop or detect.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -46,7 +48,7 @@ function Import-PostureCheckCatalog {
 
     $load = {
         param([string] $Folder, [bool] $Custom)
-        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' })) {
+        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' })) {
             $doc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json -AsHashtable -Depth 20
             $domain = [string](Get-PostureValue $doc 'domain')
             $list = if ($doc -is [System.Collections.IDictionary]) { @($doc['checks']) } else { @($doc) }
@@ -67,6 +69,10 @@ function Import-PostureCheckCatalog {
                 if ($c.Contains('userImpact')) {
                     $ui = $c['userImpact']
                     if (-not ($ui -is [System.Collections.IDictionary]) -or [string]$ui['level'] -notin $userImpacts -or [string]::IsNullOrWhiteSpace([string]$ui['text'])) { throw "$($file.Name): check '$($c['id'])' userImpact needs a level ($($userImpacts -join ', ')) and text" }
+                }
+                if ($c.Contains('attack')) {
+                    $bad = @(@($c['attack']) | Where-Object { -not ($_ -is [string]) -or $_ -notmatch '^T\d{4}(\.\d{3})?$' })
+                    if (-not ($c['attack'] -is [array]) -or $bad.Count) { throw "$($file.Name): check '$($c['id'])' attack must be a list of ATT&CK technique ids like T1078.004" }
                 }
                 if (-not $c.Contains('category') -or -not $c['category']) { $c['category'] = 'fix' }
                 elseif ([string]$c['category'] -notin $categories) { throw "$($file.Name): check '$($c['id'])' has category '$($c['category'])'; expected $($categories -join ', ')" }
@@ -92,10 +98,20 @@ function Import-PostureCheckCatalog {
         foreach ($k in 'facts', 'thresholds') { if ($doc[$k]) { $labels[$k] = $doc[$k] } }
     }
 
+    # The ATT&CK techniques by id, in tactic order; a custom check may name one the file lacks and shows the id alone.
+    $attack = $null
+    $attackFile = Join-Path $Path 'attack.json'
+    if (Test-Path -LiteralPath $attackFile) {
+        $doc = Get-Content -Raw -LiteralPath $attackFile | ConvertFrom-Json -AsHashtable
+        $byId = [ordered]@{}; foreach ($t in @($doc['techniques'])) { $byId[[string]$t['id']] = $t }
+        $attack = [ordered]@{ version = [string]$doc['version']; tactics = @($doc['tactics']); techniques = $byId; notice = [string]$doc['notice'] }
+    }
+
     return [ordered]@{
         version = $version
         domains = $domainList
         labels  = $labels
+        attack  = $attack
         path    = $Path
         checks  = @($checks | Sort-Object { $_['id'] })
     }

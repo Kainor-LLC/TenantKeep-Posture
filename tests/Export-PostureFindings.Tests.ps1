@@ -18,7 +18,7 @@ Describe 'Export-PostureFindings' {
         $path | Should -Be (Join-Path $script:Ev 'findings.csv')
         $rows = @(Import-Csv -LiteralPath $path)
         $rows.Count | Should -BeGreaterThan 3
-        @($rows[0].PSObject.Properties.Name) | Should -Be @('ID', 'Domain', 'Finding', 'Severity', 'Priority', 'Status', 'Affected', 'Remediation', 'Portal', 'Learn', 'Evidence', 'Checked', 'Licence')
+        @($rows[0].PSObject.Properties.Name) | Should -Be @('ID', 'Domain', 'Finding', 'Severity', 'Priority', 'Status', 'Affected', 'Remediation', 'Portal', 'Learn', 'ATT&CK', 'Evidence', 'Checked', 'Licence')
         $weight = @{ Critical = 4; High = 3; Medium = 2; Low = 1 }
         @($rows | ForEach-Object { $weight[$_.Severity] }) | Should -Be @($rows | ForEach-Object { $weight[$_.Severity] } | Sort-Object -Descending)
         @($rows | Where-Object { $_.Status -ne 'Fail' }).Count | Should -Be 0

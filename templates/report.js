@@ -59,7 +59,13 @@
     links.forEach(function (a) { if (a.getAttribute('href') === '#' + id) { a.setAttribute('aria-current', 'page'); } else { a.removeAttribute('aria-current'); } });
     window.scrollTo(0, 0);
   }
-  function route() { var id = (location.hash || '#overview').substring(1); if (!$(id)) { id = 'overview'; } show(id); }
+  // A view id shows that view; any other element id (a finding card, a tactic) shows the view holding it, then scrolls to it.
+  function route() {
+    var el = $((location.hash || '#overview').substring(1)), view = el && el.closest ? el.closest('section.view') : null;
+    if (!view) { show('overview'); return; }
+    show(view.id);
+    if (view !== el) { el.scrollIntoView(); }
+  }
   window.addEventListener('hashchange', route);
   route();
 
@@ -136,6 +142,7 @@
     var list = r.affected || [];
     var affected = list.map(function (a) { return '<li>' + esc(nameOf(a)) + (a && a.detail ? ' <span class="tech">(' + esc(humanDetail(a.detail)) + ')</span>' : '') + '</li>'; }).join('');
     var fw = c.frameworks ? Object.keys(c.frameworks).filter(function (k) { return c.frameworks[k]; }).map(function (k) { return '<span class="chip">' + esc(frameworkLabel(k)) + ' ' + esc(c.frameworks[k]) + '</span>'; }).join('') : '';
+    var atk = (c.attack || []).map(function (t) { return '<li><a href="' + esc(t.url) + '" target="_blank" rel="noopener"><code>' + esc(t.id) + '</code> ' + esc(t.name) + '</a>' + (t.tactics && t.tactics.length ? ' <span class="tech">(' + esc(t.tactics.join(', ')) + ')</span>' : '') + '</li>'; }).join('');
     var mine = data.exceptions.filter(function (e) { return e.check === id; });
     var exList = mine.map(function (e, i) { return '<li>' + (e.object ? '<strong>' + esc(e.object) + '</strong>: ' : '<strong>Whole check</strong>: ') + esc(e.justification || '') + ' <span class="tech">(owner ' + esc(e.owner || '') + ', approver ' + esc(e.approver || '') + ', until ' + esc(e.expires || 'no expiry') + ')</span>' + cmdBlock('cmd-remove-' + i, 'Remove-PostureException ' + target() + ' -Check ' + psq(id) + (e.object ? ' -Object ' + psq(e.object) : '')) + '</li>'; }).join('');
     drawer.innerHTML = '<button class="close" type="button">Close</button>' +
@@ -147,6 +154,7 @@
       (c.userImpact ? '<h4>What Users Notice</h4><p><span class="chip ui-' + esc(c.userImpact.level) + '">User impact: ' + esc(c.userImpact.level) + '</span> ' + esc(c.userImpact.text) + '</p>' : '') +
       '<h4>Remediation</h4>' + (c.steps && c.steps.length > 1 ? '<ol class="steps">' + c.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' : '<p>' + esc(c.remediation) + '</p>') + '<p>' + (c.learn ? '<a class="btn" href="' + esc(c.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a> ' : '') + (c.deepLink ? '<a class="btn" href="' + esc(c.deepLink) + '" target="_blank" rel="noopener">Open in Portal</a>' : '') + '</p>' +
       (fw ? '<h4>Frameworks</h4><p class="chips">' + fw + '</p>' : '') +
+      (atk ? '<h4>MITRE ATT&amp;CK</h4><ul class="attack-list">' + atk + '</ul>' : '') +
       (affected ? '<h4>Affected (' + Math.max(list.length, r.affectedCount || 0).toLocaleString() + ')</h4>' + ((r.affectedCount || 0) > list.length ? '<p class="hint">Showing the first ' + list.length + '. Every one is in affected/' + esc(r.id) + '.csv in the run folder.</p>' : '') + '<ul class="affected">' + affected + '</ul><p><button type="button" id="export-affected">Export Affected CSV</button></p>' : '') +
       (exList ? '<h4>Accepted Risks</h4><p class="hint">To withdraw one, copy its command. ' + esc(RERUN_HINT) + '</p><ul class="exception-list">' + exList + '</ul>' : '') +
       acceptPanel(r, list) +

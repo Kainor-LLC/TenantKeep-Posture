@@ -160,6 +160,7 @@ function ConvertTo-PostureReportMarkdown {
             else { & $line (& $esc $x.remediation) }
             & $line
             if ($x.userImpact) { & $line "What users notice ($($x.userImpact['level'])): $(& $esc $x.userImpact['text'])"; & $line }
+            if ($x.Contains('attack') -and @($x.attack).Count) { & $line "MITRE ATT&CK: $(@($x.attack | ForEach-Object { "[$($_.id)]($($_.url)) $(& $esc $_.name)" }) -join '; ')"; & $line }
             & $line "[Learn]($($x.learn))$(if ($x.deepLink) { " [Portal]($($x.deepLink))" })"
             & $line
         }

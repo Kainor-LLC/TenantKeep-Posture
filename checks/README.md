@@ -27,11 +27,22 @@ Every check carries, and the catalog test enforces:
 | `deepLink` | Portal deep link, or null |
 | `narrative` | Why it matters: two to four factual sentences |
 | `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
+| `attack` | Optional: the MITRE ATT&CK Enterprise technique ids the check helps stop or detect, for example `["T1078.004", "T1110.003"]`. Sub-techniques where one fits. Left off where no technique fits (the user experience domain, housekeeping checks) |
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
 (below). `facts.json` holds a plain label for every fact a pass expression reads and every threshold, shown on the
 report's finding cards beside the value ("Administrators without a phishing-resistant method: 2"); a new fact or
-threshold needs a label there or the catalog test fails. `layers.json` holds the defence-in-depth sets the report draws as layered rings, each layer a list of catalog checks. `outcomes.json` holds the board-level outcomes (ransomware readiness, identity hygiene, ...), each scored over the checks it names. None of these is a domain file.
+threshold needs a label there or the catalog test fails. `layers.json` holds the defence-in-depth sets the report draws as layered rings, each layer a list of catalog checks. `outcomes.json` holds the board-level outcomes (ransomware readiness, identity hygiene, ...), each scored over the checks it names. `attack.json` holds the name, tactics and link of every ATT&CK technique a check names; it is generated, never edited (below). None of these is a domain file.
+
+## MITRE ATT&CK
+
+`catalog.json` pins the ATT&CK release under `attack.version`. `build.ps1 -Task AttackData -AttackStix
+<enterprise-attack-<version>.json>` reads MITRE's STIX bundle for that release (github.com/mitre-attack/attack-stix-data),
+fails on any id a check names that the release lacks, has revoked (naming the replacement) or has deprecated, and
+writes `attack.json` with the techniques in use and MITRE's copyright notice and licence, as MITRE's terms of use ask.
+The catalog test fails when `attack.json` is not the pinned release or does not list exactly the techniques the checks
+name, so a new mapping always goes through the task. MITRE ships in April and October: move the pin, run the task,
+fix what it names. Nothing is fetched at run time.
 
 ## Control chains
 

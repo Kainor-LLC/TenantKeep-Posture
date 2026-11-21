@@ -118,7 +118,7 @@ Describe 'New-PostureReport' {
         }
 
         It 'renders every view server-side with the navigation' {
-            foreach ($id in 'overview', 'domains', 'checks', 'admins', 'exposure', 'copilot', 'ca', 'recommendations', 'inventory', 'trend', 'licensing', 'appendix') {
+            foreach ($id in 'overview', 'domains', 'checks', 'admins', 'exposure', 'copilot', 'ca', 'recommendations', 'inventory', 'attack', 'trend', 'licensing', 'appendix') {
                 $script:Html | Should -Match "<section class=`"view( active)?`" id=`"$id`""
                 $script:Html | Should -Match "<a href=`"#$id`""
             }
@@ -148,6 +148,18 @@ Describe 'New-PostureReport' {
             foreach ($ch in @($script:Rep.chains)) { $script:Html | Should -Match "id=`"chain-$($ch.id)`"" }
             @($script:Rep.chains).Count | Should -BeGreaterThan 0 -Because 'the CA checks in the fixture belong to a chain'
             @($script:Rep.alreadyGood.Keys).Count | Should -BeGreaterThan 0
+        }
+
+        It 'maps the run onto ATT&CK: chips on the cards, a column per tactic, MITRE''s notice' {
+            $a = $script:Rep.attack
+            $a.version | Should -Match '^\d+\.\d+$'
+            [int]$a.totals.gap | Should -BeGreaterThan 0 -Because 'the fixture fails CA-002, which names T1110.003'
+            $script:Html | Should -Match 'class="chip attack" href="https://attack\.mitre\.org/techniques/T1110/003/"'
+            foreach ($t in $a.tactics) { $script:Html | Should -Match "id=`"attack-$($t.key)`"" }
+            $script:Html | Should -Match 'This work is reproduced and distributed with the permission of The MITRE Corporation'
+            $script:Md | Should -Match 'MITRE ATT&CK: \[T1078\.004\]\(https://attack\.mitre\.org/techniques/T1078/004/\)'
+            $doc = Get-Content -Raw -LiteralPath ($script:R.Files | Where-Object { $_ -like '*findings.json' }) | ConvertFrom-Json
+            @($doc.findings | Where-Object id -eq 'CA-002')[0].attack.id | Should -Contain 'T1110.003'
         }
 
         It 'encodes brand text and keeps the executive template flag on the body' {

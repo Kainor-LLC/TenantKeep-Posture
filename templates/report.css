@@ -323,6 +323,23 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .qw-count { width: 100%; font-weight: 700; font-size: 15px; }
 .qw-chip { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--fg); text-decoration: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .qw-chip.sev-Critical { border-color: var(--err); } .qw-chip.sev-High { border-color: var(--warn); }
+.qw-chip.st-fail { border-color: var(--err); } .qw-chip.st-acceptedRisk { border-color: var(--warn); } .qw-chip.st-pass, .qw-chip.st-coveredBy { border-color: var(--ok); }
+.qw-chip.st-notEvaluated, .qw-chip.st-notApplicable { color: var(--muted); border-style: dashed; }
+/* ATT&CK coverage: a column per tactic that wraps on narrow screens, a row per technique with its standing. */
+.chip.attack { color: var(--fg); text-decoration: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.chip.attack:hover { text-decoration: underline; }
+.attack-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; margin: 18px 0; }
+.attack-tactic { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; scroll-margin-top: 16px; }
+.attack-tactic h3 { margin: 0 0 8px; font-size: 15px; }
+.attack-tactic ul { list-style: none; margin: 0; padding: 0; }
+.attack-tech { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.attack-tech:first-child { border-top: 0; }
+.attack-tech a { color: var(--fg); }
+.attack-tech .hint { margin: 2px 0; }
+.attack-checks { margin: 2px 0 0; line-height: 1.9; }
+.attack-checks .qw-chip { display: inline-block; white-space: nowrap; }
+.attack-list { padding-left: 18px; }
+.attack-list li { margin: 3px 0; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .lane { background: var(--soft); border-radius: 8px; padding: 10px 12px; }
 .lane h4 { margin: 0; text-transform: none; letter-spacing: 0; color: var(--fg); font-size: 14px; display: flex; gap: 8px; align-items: baseline; }

@@ -5,7 +5,8 @@
   Build script for TenantKeep.Posture.
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
-  PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
+  PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
+  (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
   manifest is required either way. Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
@@ -16,6 +17,9 @@
 .EXAMPLE
   ./build.ps1 -Task LicensingData -LicensingCsv './Product names and service plan identifiers for licensing.csv'
   # the CSV from learn.microsoft.com/entra/identity/users/licensing-service-plan-reference; review the diff before committing
+.EXAMPLE
+  ./build.ps1 -Task AttackData -AttackStix ./enterprise-attack-20.1.json
+  # MITRE's STIX bundle for the version checks/catalog.json pins, from github.com/mitre-attack/attack-stix-data
 .EXAMPLE
   ./build.ps1 -Task Package -CertificatePath ./signing.pfx
   # password from TENANTKEEP_SIGNING_PASSWORD
@@ -28,7 +32,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -42,6 +46,9 @@ param(
 
     # LicensingData task: Microsoft's "Product names and service plan identifiers for licensing" CSV, downloaded by hand.
     [string] $LicensingCsv,
+
+    # AttackData task: MITRE's enterprise ATT&CK STIX bundle (enterprise-attack-<version>.json), downloaded by hand.
+    [string] $AttackStix,
 
     # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY).
     [string] $GalleryApiKey = $env:TENANTKEEP_GALLERY_KEY,
@@ -201,6 +208,71 @@ function Invoke-LicensingData {
     Write-Host "Wrote $path ($(@($out).Count) SKUs)"
 }
 
+function Invoke-AttackData {
+    # checks/attack.json: each MITRE ATT&CK technique a check names, with its name and tactics, from MITRE's STIX release
+    # of the version checks/catalog.json pins. An id the release lacks, revoked or deprecated fails the task with the
+    # check named, so a mapping cannot go stale quietly. MITRE ships in April and October: move the pin, rerun, fix.
+    Write-Task 'AttackData'
+    if (-not $AttackStix -or -not (Test-Path -LiteralPath $AttackStix)) { throw '-AttackStix: enterprise-attack-<version>.json from github.com/mitre-attack/attack-stix-data' }
+    $dir = Join-Path $Root 'checks'
+    $pin = [string](Get-Content -Raw (Join-Path $dir 'catalog.json') | ConvertFrom-Json -AsHashtable).attack.version
+    $objects = @((Get-Content -Raw -LiteralPath $AttackStix | ConvertFrom-Json -AsHashtable -Depth 20).objects)
+    $release = [string](@($objects | Where-Object { $_.type -eq 'x-mitre-collection' })[0].x_mitre_version)
+    if ($release -ne $pin) { throw "$AttackStix is ATT&CK $release; checks/catalog.json pins $pin. Change attack.version there to move releases, then run this again." }
+    $idOf = { param($o) [string]@($o.external_references | Where-Object { $_.source_name -eq 'mitre-attack' })[0].external_id }
+    $byRef = @{}; foreach ($o in $objects) { $byRef[[string]$o.id] = $o }
+    $tech = @{}
+    foreach ($o in $objects | Where-Object { $_.type -eq 'attack-pattern' }) {
+        $id = & $idOf $o
+        # A revoked object keeps its old id; a live one with the same id wins.
+        if (-not $tech.ContainsKey($id) -or $tech[$id].Contains('revoked')) { $tech[$id] = $o }
+    }
+    $revokedBy = @{}; foreach ($r in $objects | Where-Object { $_.type -eq 'relationship' -and $_.relationship_type -eq 'revoked-by' }) { $revokedBy[[string]$r.source_ref] = $byRef[[string]$r.target_ref] }
+    $tactics = @(@($objects | Where-Object { $_.type -eq 'x-mitre-matrix' })[0].tactic_refs | ForEach-Object { $t = $byRef[[string]$_]; [ordered]@{ id = & $idOf $t; key = [string]$t.x_mitre_shortname; name = [string]$t.name } })
+    $order = @($tactics | ForEach-Object { $_.key })
+
+    $used = [ordered]@{}; $problems = [System.Collections.Generic.List[string]]::new()
+    foreach ($f in Get-ChildItem -Path $dir -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }) {
+        foreach ($c in @((Get-Content -Raw $f.FullName | ConvertFrom-Json -AsHashtable -Depth 20).checks)) {
+            if (-not $c.Contains('attack')) { continue }
+            foreach ($id in @($c.attack)) {
+                $o = $tech[[string]$id]
+                if (-not $o) { $problems.Add("$($c.id) names $id, which ATT&CK $release does not have"); continue }
+                if ($o.Contains('revoked') -and $o.revoked) {
+                    $next = $revokedBy[[string]$o.id]
+                    $problems.Add("$($c.id) names $id, revoked in ATT&CK $release$(if ($next) { " by $(& $idOf $next) ($($next.name))" })"); continue
+                }
+                if ($o.Contains('x_mitre_deprecated') -and $o.x_mitre_deprecated) { $problems.Add("$($c.id) names $id, deprecated in ATT&CK $release"); continue }
+                $used[[string]$id] = $o
+            }
+        }
+    }
+    if ($problems.Count) { throw "ATT&CK mappings to fix:`n  $($problems -join "`n  ")" }
+
+    $out = foreach ($id in @($used.Keys | Sort-Object)) {
+        $o = $used[$id]
+        $name = [string]$o.name
+        if ($id.Contains('.')) { $name = "$($tech[$id.Split('.')[0]].name): $name" }
+        $phases = @($o.kill_chain_phases | Where-Object { $_.kill_chain_name -eq 'mitre-attack' } | ForEach-Object { [string]$_.phase_name })
+        [ordered]@{ id = $id; name = $name; tactics = @($order | Where-Object { $_ -in $phases }); url = "https://attack.mitre.org/techniques/$($id.Replace('.', '/'))/" }
+    }
+    # MITRE's terms of use: a copy carries the copyright designation and the licence (attack.mitre.org/resources/legal-and-branding/terms-of-use).
+    $year = ([datetime]@($objects | Where-Object { $_.type -eq 'x-mitre-collection' })[0].modified).Year
+    $doc = [ordered]@{
+        description = 'Generated by build.ps1 -Task AttackData from the checks'' attack ids and MITRE''s STIX release. Do not edit by hand.'
+        version     = $release
+        domain      = 'enterprise-attack'
+        source      = 'https://github.com/mitre-attack/attack-stix-data'
+        notice      = "$([char]0x00A9) $year The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation. MITRE ATT&CK and ATT&CK are registered trademarks of The MITRE Corporation."
+        license     = 'The MITRE Corporation (MITRE) hereby grants you a non-exclusive, royalty-free license to use ATT&CK for research, development, and commercial purposes. Any copy you make for such purposes is authorized provided that you reproduce MITRE''s copyright designation and this license in any such copy.'
+        tactics     = $tactics
+        techniques  = @($out)
+    }
+    $path = Join-Path $dir 'attack.json'
+    [System.IO.File]::WriteAllText($path, ($doc | ConvertTo-Json -Depth 6) + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Wrote $path (ATT&CK $release, $(@($out).Count) techniques)"
+}
+
 function Invoke-Catalog {
     # The public catalog page for the website (CLAUDE.md, Licensing): ids, titles, the narrative and the licence required.
     # No pass logic, no remediation, no framework mappings: those are the product.
@@ -211,7 +283,7 @@ function Invoke-Catalog {
     $labels = @{}; foreach ($d in @($catalogDoc.domains)) { $labels[[string]$d.key] = [string]$d.label }
     $order = @($catalogDoc.domains | ForEach-Object { [string]$_.key })
     $version = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).version
-    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }
+    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }
     $byDomain = @{}
     foreach ($f in $files) { $d = Get-Content -Raw $f.FullName | ConvertFrom-Json; $byDomain[[string]$d.domain] = @($d.checks) }
     $md = [System.Collections.Generic.List[string]]::new()
@@ -419,7 +491,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -432,6 +504,7 @@ foreach ($t in @('LicensingData', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', '
         'Package' { Invoke-Package -Stage $stage }
         'Catalog' { Invoke-Catalog }
         'LicensingData' { Invoke-LicensingData }
+        'AttackData' { Invoke-AttackData }
         'Publish' { Invoke-Publish -Stage $stage }
     }
 }

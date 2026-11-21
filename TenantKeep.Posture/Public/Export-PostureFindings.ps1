@@ -74,6 +74,7 @@ function Export-PostureFindings {
             'Remediation' = $(if ($c) { [string]$c['remediation'] } else { '' })
             'Portal'      = $(if ($c -and $c.Contains('deepLink')) { [string]$c['deepLink'] } else { '' })
             'Learn'       = $(if ($c) { [string]$c['learn'] } else { '' })
+            'ATT&CK'      = $(if ($c -and $c.Contains('attack')) { @($c['attack']) -join '; ' } else { '' })
             'Evidence'    = (@($r.evidence) -join '; ')
             'Checked'     = [string]$r.checkedUtc
             'Licence'     = $licenceLabel

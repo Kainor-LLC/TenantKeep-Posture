@@ -82,7 +82,7 @@ function ConvertTo-PostureReportHtml {
     & $w '</div><div class="toolbar"><button type="button" id="toggle-exec" aria-pressed="false">Executive Mode</button><button type="button" id="print">Print</button><button type="button" id="export-checks" class="tech">Export Checks CSV</button></div></header>'
 
     # Navigation
-    $viewList = @(@('overview', 'Overview', $true), @('recommendations', 'Recommendations', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('inventory', 'Inventory', [bool]($r.Contains('inventory') -and @($r.inventory | Where-Object { $_.total -gt 0 }).Count)), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing', [bool]$r.licensing), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
+    $viewList = @(@('overview', 'Overview', $true), @('recommendations', 'Recommendations', $true), @('domains', 'Domains', $true), @('checks', 'Checks Explorer', $true), @('admins', 'Your Administrators', $true), @('exposure', 'External Exposure', $false), @('copilot', 'Copilot Readiness', [bool]($r.copilot -and $r.copilot.present)), @('ca', 'Conditional Access', [bool]$r.ca), @('inventory', 'Inventory', [bool]($r.Contains('inventory') -and @($r.inventory | Where-Object { $_.total -gt 0 }).Count)), @('crosswalk', 'Crosswalk', [bool]$r.crosswalk), @('attack', 'ATT&CK Coverage', [bool]($r.Contains('attack') -and $r.attack)), @('trend', 'Trend', [bool]$r.trend), @('licensing', 'Licensing', [bool]$r.licensing), @('health', 'Run Health', $true), @('appendix', 'Appendix', $true))
     & $w '<nav class="views" aria-label="Views">'
     foreach ($vw in $viewList) { & $w "<a href=`"#$($vw[0])`"$(if (-not $vw[2]) { ' class="na"' })>$(& $h $vw[1])</a>" }
     & $w '</nav><main>'
@@ -404,6 +404,7 @@ function ConvertTo-PostureReportHtml {
             if ($x.learn) { $links += '<a class="btn" href="' + (& $h $x.learn) + '" target="_blank" rel="noopener">Microsoft Learn</a>' }
             $links += '<a class="btn" href="#checks" data-check="' + (& $h $x.id) + '">Details and Accept Risk</a>'
             $fw = @($x.frameworks.Keys | Where-Object { $x.frameworks[$_] } | ForEach-Object { '<span class="chip">' + (& $h $(if ($frameworkLabel.Contains($_)) { $frameworkLabel[$_] } else { $_ })) + ' ' + (& $h $x.frameworks[$_]) + '</span>' }) -join ''
+            if ($x.Contains('attack')) { $fw += @($x.attack | ForEach-Object { '<a class="chip attack" href="' + (& $h $_.url) + '" target="_blank" rel="noopener" title="' + (& $h $_.name) + '">ATT&amp;CK ' + (& $h $_.id) + '</a>' }) -join '' }
             & $w ('<article class="finding' + $(if ($x.category -eq 'improve') { ' improve' }) + ' sev-' + (& $h $x.severity) + '" id="rec-' + (& $h $x.id) + '"><header><p class="chips">' + $chips + '</p><h4 class="finding-title"><code>' + (& $h $x.id) + '</code> ' + (& $h $x.title) + '</h4></header>' +
                 '<div class="finding-grid"><div><h5>What We Found</h5>' + ($found -join '') + $affected + '</div><div><h5>Why It Matters</h5><p>' + (& $h $x.why) + '</p></div></div>' +
                 '<h5>How To Fix</h5>' + $fix + $(if ($x.userImpact) { '<p class="user-impact"><strong>What users notice:</strong> ' + (& $h $x.userImpact['text']) + '</p>' }) + '<p class="links">' + ($links -join ' ') + '</p>' + $(if ($fw) { '<p class="chips tech">' + $fw + '</p>' }) + '</article>')
@@ -454,6 +455,35 @@ function ConvertTo-PostureReportHtml {
             & $w '</tbody></table>'
         }
         & $w '</section>'
+    }
+    # ATT&CK coverage: the techniques the evaluated checks name, under each tactic, with how their checks stand.
+    if ($r.Contains('attack') -and $r.attack) {
+        $at = $r.attack
+        $stand = [ordered]@{ gap = @('err', [string][char]0x2715, 'Gap'); accepted = @('warn', '!', 'Accepted risk'); covered = @('ok', [string][char]0x2713, 'Covered'); unchecked = @('na', [string][char]0x2013, 'Not checked') }
+        & $w ('<section class="view" id="attack"><h2>ATT&amp;CK Coverage</h2><p class="lede">Each check names the MITRE ATT&amp;CK techniques it helps stop or detect. These are the ' + $at.techniques + ' techniques this run''s checks address, under each tactic, with how their checks stand. Covered means those checks pass: the risk is lower, not gone, and ATT&amp;CK does not list every way in.</p>')
+        $seg = @('covered', 'accepted', 'gap', 'unchecked' | ForEach-Object { @{ label = $stand[$_][2]; value = [int]$at.totals[$_]; tone = $stand[$_][0] } })
+        $worst = @($at.tactics | Sort-Object { - [int]$_.counts.gap }, { $_.name } | Select-Object -First 1)
+        $takeaway = $(if ([int]$at.totals.gap) { "$($at.totals.gap) of $($at.techniques) techniques have a failing check; $($worst[0].name) has the most ($($worst[0].counts.gap))." } else { "No technique the checks address has a failing check." })
+        $rows = @($at.tactics | ForEach-Object {
+                $t = $_; $ev = [int]$t.counts.covered + [int]$t.counts.accepted + [int]$t.counts.gap
+                $bar = ConvertTo-PostureBarChart -Thin -Name $t.name -Segment @('covered', 'accepted', 'gap', 'unchecked' | ForEach-Object { @{ label = $stand[$_][2]; value = [int]$t.counts[$_]; tone = $stand[$_][0] } })
+                '<a class="pillar" href="#attack-' + (& $h $t.key) + '"><span class="name">' + (& $h $t.name) + '</span><span class="frac">' + $t.counts.covered + ' of ' + $ev + ' covered</span>' + $bar + '</a>'
+            }) -join ''
+        & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Title 'Techniques by Standing' -Takeaway $takeaway -Body (ConvertTo-PostureDonutChart -Name 'ATT&CK techniques by standing' -CenterLabel 'techniques' -Segment $seg)) + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Tactics' -Takeaway 'Techniques covered of those evaluated, per tactic. A technique under two tactics counts in both.' -Body ('<div class="pillars">' + $rows + '</div>' + (ConvertTo-PostureChartLegend -Item $seg))) + '</div>')
+        # Failing checks first on each technique, eight at most; the drawer behind each check has the rest of the story.
+        $checkRank = @{ fail = 0; acceptedRisk = 1; notEvaluated = 2; pass = 3; coveredBy = 3 }
+        & $w '<div class="attack-matrix">'
+        foreach ($t in $at.tactics) {
+            $items = @($t.techniques | ForEach-Object {
+                    $x = $_; $st = $stand[[string]$x.status]; $n = @($x.checks).Count
+                    $ordered = @($x.checks | Sort-Object { $checkRank[[string]$_.status] }, { $_.id })
+                    $checkLinks = (@($ordered | Select-Object -First 8 | ForEach-Object { '<a href="#checks" data-check="' + (& $h $_.id) + '" class="qw-chip st-' + (& $h $_.status) + '" title="' + (& $h "$($_.title): $($statusLabel[[string]$_.status])") + '">' + (& $h $_.id) + '</a>' }) -join ' ') + $(if ($n -gt 8) { ' <span class="muted">+' + ($n - 8) + '</span>' })
+                    '<li class="attack-tech"><span class="status-dot t-' + $st[0] + '" aria-hidden="true">' + $st[1] + '</span><div><a href="' + (& $h $x.url) + '" target="_blank" rel="noopener"><code>' + (& $h $x.id) + '</code> ' + (& $h $x.name) + '</a><p class="hint">' + $st[2] + ': ' + $x.pass + ' of ' + $n + ' check' + $(if ($n -ne 1) { 's' }) + ' pass</p><p class="attack-checks">' + $checkLinks + '</p></div></li>'
+                }) -join ''
+            & $w ('<section class="attack-tactic" id="attack-' + (& $h $t.key) + '"><h3>' + (& $h $t.name) + ' <span class="muted tech">' + (& $h $t.id) + '</span></h3><ul>' + $items + '</ul></section>')
+        }
+        & $w '</div>'
+        & $w ('<p class="hint tech">MITRE ATT&amp;CK ' + (& $h $at.version) + ', Enterprise. ' + (& $h $at.notice) + '</p></section>')
     }
     # Licensing: what the tenant holds and uses, what each goal needs, and what to add. No prices anywhere.
     if ($r.licensing) {

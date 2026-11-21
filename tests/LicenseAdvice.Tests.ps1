@@ -78,7 +78,8 @@ Describe 'Get-PostureLicenseAdvice' {
                     $j.title | Should -Be $p.title
                     (@($j.skus.sku) -join ',') | Should -Be (@($p.skus.sku) -join ',') -Because "$($c.sku) option $i"
                     (@($j.adds) -join ',') | Should -Be (@($p.adds) -join ',')
-                    (@($j.redundant.name) -join ',') | Should -Be (@($p.redundant.name) -join ',')
+                    # One name at a time: build.ps1 runs the suite in strict mode, where .name on an empty list throws.
+                    (@($j.redundant | ForEach-Object { $_.name }) -join ',') | Should -Be (@($p.redundant | ForEach-Object { $_.name }) -join ',')
                     (@($j.alsoIncludes) -join ',') | Should -Be (@($p.alsoIncludes) -join ',')
                 }
             }

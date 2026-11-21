@@ -2,7 +2,7 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.5.0' }
 
 BeforeDiscovery {
-    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
+    $script:CheckFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'checks') -Filter '*.json' | Where-Object Name -NotIn 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
     $script:BaselineFiles = @(Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'baselines') -Filter '*.json' | ForEach-Object { @{ Name = $_.Name; Path = $_.FullName } })
 }
 
@@ -28,6 +28,25 @@ Describe 'Shipped check catalog' {
                 foreach ($t in @($check.thresholds.Keys)) { $c.labels.thresholds.Keys | Should -Contain $t -Because "$($check.id) shows that threshold on its card" }
             }
             Get-Content -Raw (Join-Path $c.path 'facts.json') | Should -Not -Match ([char]0x2014)
+        }
+    }
+
+    It 'names only ATT&CK techniques in checks/attack.json, which is the pinned release and lists exactly the techniques used' {
+        InModuleScope TenantKeep.Posture {
+            $c = Import-PostureCheckCatalog
+            $pin = (Get-Content -Raw (Join-Path $c.path 'catalog.json') | ConvertFrom-Json).attack.version
+            $c.attack.version | Should -Be $pin -Because 'run build.ps1 -Task AttackData with the pinned release after moving the pin'
+            $used = @($c.checks | Where-Object { $_.Contains('attack') } | ForEach-Object { @($_.attack) } | Sort-Object -Unique)
+            @($c.attack.techniques.Keys | Sort-Object) | Should -Be $used -Because 'run build.ps1 -Task AttackData after changing a check''s attack ids'
+            $tactics = @($c.attack.tactics | ForEach-Object { $_.key })
+            foreach ($t in $c.attack.techniques.Values) {
+                $t.name | Should -Not -BeNullOrEmpty
+                $t.url | Should -Match '^https://attack\.mitre\.org/techniques/T\d{4}(/\d{3})?/$'
+                @($t.tactics).Count | Should -BeGreaterThan 0
+                foreach ($k in @($t.tactics)) { $tactics | Should -Contain $k }
+            }
+            $c.attack.notice | Should -Match 'The MITRE Corporation' -Because 'MITRE''s terms of use ask for the copyright designation in every copy'
+            @($c.checks | Where-Object { $_.domain -eq 'experience' -and $_.Contains('attack') }).Count | Should -Be 0 -Because 'user experience improvements are not defences'
         }
     }
 

@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- MITRE ATT&CK (2026-11-20): 177 checks name the ATT&CK Enterprise techniques they help stop or detect (82
+  techniques, release 20.1, pinned in checks/catalog.json). A new ATT&CK Coverage view shows, under each tactic, which
+  techniques have a failing check, an accepted risk, passing checks or no evaluated check; cards carry the technique
+  ids, and findings.csv (an ATT&CK column), findings.json and report.md list them. `build.ps1 -Task AttackData` checks
+  every id against MITRE's release and fails on revoked or deprecated ones. Links inside a view (a quick win's chip, a
+  tactic) now open the view that holds them instead of a blank page.
 - Microsoft 365 pay-as-you-go and Backup (2026-11-20): with the Azure collector, the subscriptions that pay for
   Microsoft 365 pay-as-you-go services over the last 30 days and their budgets (AZ-023 asks for a budget alert), and
   Microsoft 365 Backup's status and protection policies (OP-008: on and protecting SharePoint, OneDrive and Exchange,

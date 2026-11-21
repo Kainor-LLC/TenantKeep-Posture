@@ -29,7 +29,10 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.SHAREPOINT.1.1v1"
-      }
+      },
+      "attack": [
+        "T1530"
+      ]
     },
     {
       "id": "CL-002",
@@ -61,7 +64,10 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.SHAREPOINT.3.1v1"
-      }
+      },
+      "attack": [
+        "T1530"
+      ]
     },
     {
       "id": "CL-003",
@@ -91,7 +97,11 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.SHAREPOINT.2.1v1"
-      }
+      },
+      "attack": [
+        "T1213.002",
+        "T1530"
+      ]
     },
     {
       "id": "CL-004",
@@ -126,7 +136,10 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
-      }
+      },
+      "attack": [
+        "T1537"
+      ]
     },
     {
       "id": "CL-005",
@@ -160,7 +173,10 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L1-3.1.1",
         "cisa-scuba": ""
-      }
+      },
+      "attack": [
+        "T1213.002"
+      ]
     },
     {
       "id": "CL-006",
@@ -195,7 +211,10 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
-      }
+      },
+      "attack": [
+        "T1078.004"
+      ]
     },
     {
       "id": "CL-007",
@@ -265,7 +284,10 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.3",
         "cisa-scuba": ""
-      }
+      },
+      "attack": [
+        "T1213.002"
+      ]
     },
     {
       "id": "CL-009",
@@ -327,7 +349,10 @@
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.TEAMS.2.1v1"
-      }
+      },
+      "attack": [
+        "T1566.003"
+      ]
     },
     {
       "id": "CL-011",
@@ -357,7 +382,10 @@
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.TEAMS.2.2v1"
-      }
+      },
+      "attack": [
+        "T1566.003"
+      ]
     },
     {
       "id": "CL-012",
@@ -388,7 +416,10 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.TEAMS.3.1v1"
-      }
+      },
+      "attack": [
+        "T1213.005"
+      ]
     },
     {
       "id": "CL-013",
@@ -418,7 +449,10 @@
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.TEAMS.1.1v1"
-      }
+      },
+      "attack": [
+        "T1213.005"
+      ]
     },
     {
       "id": "CL-014",
@@ -448,7 +482,10 @@
         "iso27001": "A.5.19",
         "cmmc": "CM.L2-3.4.8",
         "cisa-scuba": "MS.TEAMS.5.1v1"
-      }
+      },
+      "attack": [
+        "T1671"
+      ]
     },
     {
       "id": "CL-015",
@@ -497,7 +534,11 @@
         "portal": "https://admin.microsoft.com/sharepoint?page=dataAccessGovernance&modern=true",
         "command": "Import-PostureSharingReport",
         "steps": "In the SharePoint admin center open Reports, Data access governance, Site permissions across your organization. Run it for SharePoint and again for OneDrive (the first run can take up to five days), then Download CSV. Copy the command below, add the downloaded file's path (drag the file into the PowerShell window), and run it."
-      }
+      },
+      "attack": [
+        "T1213.002",
+        "T1530"
+      ]
     },
     {
       "id": "CL-016",
@@ -530,7 +571,10 @@
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.22",
         "cisa-scuba": "MS.SHAREPOINT.1.2v1"
-      }
+      },
+      "attack": [
+        "T1530"
+      ]
     }
   ]
 }

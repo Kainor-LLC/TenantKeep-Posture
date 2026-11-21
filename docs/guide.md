@@ -134,6 +134,12 @@ Writes report.html (self-contained, interactive), report.md and checks.json into
 `-Baseline nist-csf-2` (or iso-27001-2022, nist-800-171, cmmc-2, cisa-scuba, hipaa, copilot-readiness) to narrow the
 checks and add the crosswalk appendix. Add `-Format Pdf` for a PDF through a headless Edge or Chrome.
 
+The ATT&CK Coverage view lays the run over MITRE ATT&CK: under each tactic, the techniques the checks address, each a
+gap (a check for it fails), accepted risk, covered (its checks pass) or not checked (no check for it could be
+evaluated). Checks the profile rules out are left out, so a cloud-only tenant sees no Kerberos techniques. Covered
+lowers the risk; it does not prove a technique cannot be used. Finding cards, findings.csv, findings.json and report.md
+carry each check's technique ids.
+
 ## 8. Work the findings
 
 report.html opens in any browser and changes nothing: select a check for what was found, why it matters, how to fix
