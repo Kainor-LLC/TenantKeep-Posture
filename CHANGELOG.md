@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- AZ-026, AZ-027 and AZ-028 no longer pass on nothing (2026-11-21): a subscription without backup vaults, a Sentinel
+  workspace or Entra Domain Services now reads as not evaluated with the reason, as AZ-021 does for SQL. Found on the
+  first live Azure run.
 - `Start-PostureRun -Name` works (2026-11-21): a loop over the SharePoint and Teams sign-ins reused `$name`, which
   PowerShell treats as the same variable as `-Name`, so every run folder was called "Teams" (then "Teams-2"). A test
   now fails on any function that loops over a variable named like one of its own parameters.

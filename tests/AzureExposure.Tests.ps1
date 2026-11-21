@@ -66,4 +66,18 @@ Describe 'Azure exposure, cost, backups, Sentinel and Entra Domain Services' {
         foreach ($t in 'Top Secure Score Improvements', 'Secure Score by Category', 'Defender for Cloud Secure Score', 'Top Defender for Cloud Recommendations') { $html | Should -Match $t }
         $html | Should -Match 'href="https://security\.microsoft\.com/securescore\?actionId=MFARegistrationV2"'
     }
+
+    It 'does not pass AZ-026, AZ-027 or AZ-028 on a tenant without backup vaults, Sentinel or Entra Domain Services' {
+        $empty = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-azempty-$([guid]::NewGuid().ToString('n'))"
+        try {
+            & $script:Base $empty
+            foreach ($n in 'az-14-backup-vaults', 'az-15-sentinel', 'az-16-entra-domain-services') { & $script:Write $empty $n @() }
+            $pf = Join-Path $empty 'profile.json'
+            @{ version = 1; azure = 'workloads' } | ConvertTo-Json | Set-Content $pf
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $r = Invoke-PostureChecks -Evidence $empty -Domain azure -ProfilePath $pf -PassThru
+            foreach ($id in 'AZ-026', 'AZ-027', 'AZ-028') { @($r.results | Where-Object id -eq $id)[0].status | Should -Be 'notEvaluated' -Because "$id has nothing to judge" }
+        }
+        finally { Remove-Item -LiteralPath $empty -Recurse -Force -ErrorAction SilentlyContinue }
+    }
 }

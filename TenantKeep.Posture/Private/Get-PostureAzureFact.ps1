@@ -266,6 +266,8 @@ function Get-PostureAzureFact {
     else {
         $weak = @(& $rows $bv | Where-Object { [string]$_.SoftDelete -notin 'Enabled', 'AlwaysON', 'On' -or [string]$_.Immutability -notin 'Unlocked', 'Locked' })
         $facts.backupVaultsUnprotected = $weak.Count
+        # Nothing to protect is not a pass: say so, as AZ-021 does for SQL.
+        if (@(& $rows $bv).Count -eq 0) { $notEvaluated['AZ-026'] = 'No backup vaults in the subscriptions.' }
         $affected.backupVaultsUnprotected = @($weak | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "soft delete $(if ($_.SoftDelete) { $_.SoftDelete } else { 'off' }), immutability $(if ($_.Immutability) { $_.Immutability } else { 'off' })" } })
     }
 
@@ -278,6 +280,7 @@ function Get-PostureAzureFact {
         $complete = @($ws | Where-Object { $have = @(([string]$_.Connectors) -split ',\s*'); @($core | Where-Object { $_ -notin $have }).Count -eq 0 })
         $facts.sentinelWorkspaces = $ws.Count
         $facts.sentinelWithCoreConnectors = $complete.Count
+        if ($ws.Count -eq 0) { $notEvaluated['AZ-027'] = 'No Microsoft Sentinel workspace in the subscriptions; OP-001 asks whether a SIEM receives these logs.' }
         $affected.sentinelWithCoreConnectors = @($ws | Where-Object { $_ -notin $complete } | ForEach-Object { $have = @(([string]$_.Connectors) -split ',\s*'); [ordered]@{ name = [string]$_.Workspace; detail = "missing $(@($core | Where-Object { $_ -notin $have }) -join ', ')" } })
     }
 
@@ -290,6 +293,7 @@ function Get-PostureAzureFact {
                 if ($why.Count) { [ordered]@{ name = [string]$x.Name; detail = "$($why -join ', ') on" } }
             })
         $facts.entraDomainServicesWeak = $weakDs.Count
+        if (@(& $rows $ds).Count -eq 0) { $notEvaluated['AZ-028'] = 'No Entra Domain Services in the subscriptions.' }
         $affected.entraDomainServicesWeak = @($weakDs)
     }
 
