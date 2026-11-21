@@ -247,5 +247,14 @@ function Get-PostureIdentityFact {
         $affected.legacySignInUsers = @(@(& $load '06-signins-legacy-users') | Where-Object { $_ } | ForEach-Object { [ordered]@{ name = [string]$_.UserPrincipalName; detail = "$($_.SignIns) sign-in(s) over $(([string]$_.ClientApps) -replace ';', ', '), last $($_.LastSignIn)" } })
     }
 
+    # ID-023: Microsoft's admin command-line tools open only to the people who need them (Get-PostureAdminToolRestriction).
+    $tools = Get-PostureAdminToolRestriction -Evidence $Evidence
+    if ($null -eq $tools) { $notEvaluated['ID-023'] = '10-service-principals.json was not collected (the Entra collector).' }
+    else {
+        $open = @($tools | Where-Object { -not $_.restricted })
+        $facts.adminToolsOpenToEveryone = $open.Count
+        $affected.adminToolsOpenToEveryone = @($open | ForEach-Object { [ordered]@{ name = $_.name; detail = $_.detail } })
+    }
+
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
 }

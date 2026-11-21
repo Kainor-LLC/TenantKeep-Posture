@@ -617,6 +617,46 @@
         "cmmc": "",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "CA-016",
+      "domain": "ca",
+      "title": "Device code sign-in blocked",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.deviceCodeFlowBlockPolicies >= 1",
+      "remediation": [
+        "Create a Conditional Access policy for all users and all resources with the condition Authentication flows, Device code flow (and Authentication transfer), and the grant Block access.",
+        "Exclude only the break-glass accounts and a group for devices that really need device code sign-in (meeting room displays, some command-line work), and keep that group small.",
+        "Start in report-only mode for a week and check the sign-in log for device code sign-ins you did not expect."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Almost no one notices. People who type a code at microsoft.com/devicelogin to sign in a TV, a shared display or a command-line tool are refused unless they are in the exception group."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-block-authentication-flows",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Device code phishing is a sign-in on the attacker's behalf: the attacker starts a device code sign-in with a trusted app, sends the code to a user as an urgent request, and the user signs in with MFA on the real Microsoft page, handing the attacker a token. MFA does not stop it because the user completes MFA. Few organisations need device code sign-in at all, so blocking it closes the attack for almost no cost.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1528",
+        "T1566.002"
+      ]
     }
   ]
 }

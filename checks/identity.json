@@ -854,6 +854,46 @@
       "attack": [
         "T1537"
       ]
+    },
+    {
+      "id": "ID-023",
+      "domain": "identity",
+      "title": "Admin command-line tools open only to the people who need them",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json",
+        "policies.json"
+      ],
+      "pass": "facts.adminToolsOpenToEveryone == 0",
+      "affected": "facts.adminToolsOpenToEveryone",
+      "remediation": [
+        "For each tool listed, open its enterprise application (create it first with New-MgServicePrincipal -AppId <id> if the tenant has none yet), set Assignment required to Yes, and assign a group of the administrators and developers who use it, including the account that runs TenantKeep Posture.",
+        "Or block the tools in Conditional Access for everyone except that group; for Azure CLI and Azure PowerShell, blocking Windows Azure Service Management for everyone else does the same.",
+        "Note that Restrict access to Microsoft Entra admin center only hides the portal: it does not stop PowerShell or Graph."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Only people outside the assigned group notice: Graph PowerShell, the Azure CLI and the other shells refuse their sign-in. Most users never run them."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "Any member can sign in to Graph PowerShell, Graph Explorer, the Azure CLI or the Exchange, SharePoint and Teams shells and read whatever their account can see: the whole directory, groups, devices and much of the configuration. Attackers with a stolen password or token use exactly these tools, because they are trusted Microsoft apps with consent already in place. Limiting them to the people who need them removes a ready-made reconnaissance kit from every ordinary account.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.18",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1059.009",
+        "T1087.004"
+      ]
     }
   ]
 }

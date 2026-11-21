@@ -892,6 +892,47 @@
       "attack": [
         "T1684.002"
       ]
+    },
+    {
+      "id": "EM-025",
+      "domain": "email",
+      "title": "Exchange Online PowerShell only for administrators",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-12-remote-powershell-users.json",
+        "10-service-principals.json",
+        "04-role-assignments-active.json"
+      ],
+      "pass": "facts.exoPowerShellAppRestricted || facts.nonAdminRemotePowerShell == 0",
+      "affected": "facts.nonAdminRemotePowerShell",
+      "remediation": [
+        "Turn it off for everyone who is not an administrator: Get-User -ResultSize Unlimited -Filter \"RemotePowerShellEnabled -eq 'True'\" | Where-Object { the account is not an admin } | Set-User -RemotePowerShellEnabled $false.",
+        "Turn it off for new accounts too, as part of account creation, since it is on by default.",
+        "Or close the Exchange Online PowerShell app to everyone but an assigned group (ID-023), which covers new accounts without a script."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "No one who is not an administrator uses Exchange Online PowerShell; Outlook, the web and mobile mail work exactly as before."
+      },
+      "learn": "https://learn.microsoft.com/powershell/exchange/disable-access-to-exchange-online-powershell",
+      "deepLink": "https://admin.exchange.microsoft.com/#/mailboxes",
+      "narrative": "Exchange Online PowerShell is on for every account unless someone turns it off. An ordinary mailbox user can connect to it and read their own mailbox rules, forwarding and permissions at scale, and an attacker with that user's password or token can do the same, including creating inbox rules that hide replies. Administrators need it; nobody else does.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.18",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1059.009",
+        "T1114.002"
+      ]
     }
   ]
 }

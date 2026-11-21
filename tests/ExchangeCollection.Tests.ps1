@@ -54,6 +54,8 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
         It 'summarises mailboxes by type, forwarding and CAS protocols' {
             @(& $script:Read 'exo-09-mailboxes-by-type' | Where-Object { $_.Name -eq 'SharedMailbox' })[0].Count | Should -Be 2
             @(& $script:Read 'exo-09-mailboxes-with-forwarding').Count | Should -Be 3
+            (& $script:Read 'exo-12-remote-powershell-summary').RemotePowerShellEnabled | Should -Be 3
+            @(& $script:Read 'exo-12-remote-powershell-users').Count | Should -Be 3
             $cas = & $script:Read 'exo-10-cas-summary'
             $cas.Total | Should -Be 4
             $cas.ImapEnabled | Should -Be 1

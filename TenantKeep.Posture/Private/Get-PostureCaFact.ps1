@@ -174,6 +174,20 @@ function Get-PostureCaFact {
     $facts.policyCount = $policies.Count
     $facts.enabledPolicyCount = $enabled.Count
 
+    # CA-016: device code sign-in blocked for everyone. Read from the snapshot as Graph sent it: the policy model leaves
+    # authentication flows out. A snapshot whose API version does not return them at all cannot say (verify v1.0).
+    $raw = Read-PostureEvidenceFile -Folder $Evidence -Name 'policies'
+    $rawItems = @($(if ($raw -is [System.Collections.IDictionary] -and $raw.Contains('value')) { $raw['value'] } else { $raw }) | Where-Object { $_ })
+    $carriesFlows = @($rawItems | Where-Object { $c = Get-PostureValue $_ 'conditions'; $c -is [System.Collections.IDictionary] -and $c.Contains('authenticationFlows') }).Count -gt 0
+    if ($rawItems.Count -gt 0 -and -not $carriesFlows) { $notEvaluated['CA-016'] = 'The Conditional Access snapshot carries no authentication flows, so a device code block cannot be read from it. Take the snapshot again (Export-PostureCaSnapshot -ApiVersion beta) and check the policy in the portal.' }
+    else {
+        $deviceCode = @($rawItems | Where-Object {
+                [string](Get-PostureValue $_ 'state') -eq 'enabled' -and @(Get-PostureValue $_ 'grantControls.builtInControls') -contains 'block' -and
+                @(Get-PostureValue $_ 'conditions.users.includeUsers') -contains 'All' -and [string](Get-PostureValue $_ 'conditions.authenticationFlows.transferMethods') -match 'deviceCodeFlow'
+            })
+        $facts.deviceCodeFlowBlockPolicies = $deviceCode.Count
+    }
+
     return @{
         available    = $true
         facts        = $facts

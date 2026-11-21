@@ -268,5 +268,23 @@ function Get-PostureEmailFact {
         $facts.attackSimulationsInWindow = $recent.Count
     }
 
+    # EM-025: Exchange Online PowerShell only for administrators: either its app is closed to everyone else, or no one
+    # but an administrator has the per-user setting on. Shared, room and equipment mailboxes do not sign in.
+    $tools = Get-PostureAdminToolRestriction -Evidence $Evidence
+    $exoApp = $(if ($tools) { @($tools | Where-Object { $_.appId -eq 'fb78d390-0c51-40cd-8e17-fdbfab77341b' })[0] } else { $null })
+    $facts.exoPowerShellAppRestricted = [bool]($exoApp -and $exoApp.restricted)
+    $admins = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($a in @(& $load '04-role-assignments-active') | Where-Object { $_ }) { $u = [string](& $v $a 'PrincipalUpn'); if ($u) { $null = $admins.Add($u) } }
+    $psUsers = [System.Collections.Generic.List[object]]::new(); $psCount = @{ n = 0 }
+    $havePs = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-12-remote-powershell-users' -OnRow {
+        param($_row)
+        $upn = [string](& $v $_row 'UserPrincipalName')
+        if ([string](& $v $_row 'RecipientTypeDetails') -match '^(SharedMailbox|RoomMailbox|EquipmentMailbox|SchedulingMailbox)$' -or $admins.Contains($upn)) { return }
+        $psCount.n++
+        if ($psUsers.Count -lt 500) { $psUsers.Add([ordered]@{ name = $upn; detail = 'Exchange Online PowerShell on, not an administrator' }) }
+    }
+    if (-not $havePs -and -not $facts.exoPowerShellAppRestricted) { $notEvaluated['EM-025'] = 'exo-12-remote-powershell-users was not collected: the Exchange collector reads it since 2026-11-20, unless -SkipMailboxEnumeration (Resume-PostureRun -Collector Exchange).' }
+    else { $facts.nonAdminRemotePowerShell = $(if ($havePs) { $psCount.n } else { 0 }); $affected.nonAdminRemotePowerShell = @($psUsers) }
+
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
 }

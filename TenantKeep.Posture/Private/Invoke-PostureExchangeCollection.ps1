@@ -104,6 +104,22 @@ function Invoke-PostureExchangeCollection {
             catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
             & $saveOne $sum 'exo-10-cas-summary'
         } | Out-Null
+        Invoke-PostureStep -Label 'Exchange Online PowerShell access' -Folder $Folder -Script {
+            # On for every user unless someone turned it off; streamed, so a large tenant is never held in memory. The
+            # filter on RemotePowerShellEnabled runs in Exchange (verify on a large tenant that it is honoured server-side).
+            $count = @{ Enabled = 0 }
+            $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'exo-12-remote-powershell-users' -Csv -Confirm:$false
+            try {
+                Invoke-PostureExoCommand -Name 'Get-User' -Parameters @{ ResultSize = 'Unlimited'; Filter = "RemotePowerShellEnabled -eq 'True'" } -OnItem {
+                    param($u)
+                    Add-PostureEvidenceRow -Stream $stream -Row ([ordered]@{ UserPrincipalName = [string]$u.UserPrincipalName; RecipientTypeDetails = [string]$u.RecipientTypeDetails })
+                    $count.Enabled++
+                }
+                $files.Add((Close-PostureEvidenceStream -Stream $stream))
+            }
+            catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+            & $saveOne ([ordered]@{ RemotePowerShellEnabled = $count.Enabled }) 'exo-12-remote-powershell-summary'
+        } | Out-Null
     }
 
     Invoke-PostureStep -Label 'Attack simulations' -Folder $Folder -Script {

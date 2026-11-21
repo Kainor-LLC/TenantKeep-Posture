@@ -333,7 +333,11 @@
     "cloudManagedGroupPct": "Groups from AD now managed in Entra (%)",
     "syncedUsers": "Users synced from AD",
     "usersManagedInEntraFromAd": "Users from AD now managed in Entra",
-    "cloudOnlyMembers": "Members not synced from AD"
+    "cloudOnlyMembers": "Members not synced from AD",
+    "adminToolsOpenToEveryone": "Admin command-line tools anyone can sign in to",
+    "deviceCodeFlowBlockPolicies": "Policies that block device code sign-in for everyone",
+    "exoPowerShellAppRestricted": "Exchange Online PowerShell app closed to everyone but an assigned group",
+    "nonAdminRemotePowerShell": "People who are not administrators with Exchange Online PowerShell on"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

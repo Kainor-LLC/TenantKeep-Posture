@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Command-line access (2026-11-20): ID-023 Microsoft's admin command-line tools (Graph PowerShell, Graph Explorer,
+  Azure CLI and PowerShell, the Exchange, SharePoint and Teams shells) open only to an assigned group or blocked by
+  Conditional Access for everyone else; CA-016 device code sign-in blocked; EM-025 Exchange Online PowerShell only for
+  administrators, read by the Exchange collector. Each says plainly that hiding the Entra admin center stops neither
+  PowerShell nor Graph.
 - Users and groups managed in AD or in Entra (2026-11-20): HY-032 flags groups synced from AD that a live Conditional
   Access policy uses (exclusions above all) or that assign licences, since whoever can edit them in AD decides cloud
   access; HY-033 (improvement) measures how many groups from AD have had their source of authority switched to Entra,

@@ -351,6 +351,19 @@
     },
     {
       "collector": "Exchange",
+      "match": "^Exchange Online PowerShell access$",
+      "roles": [
+        "Global Reader"
+      ],
+      "alsoWorks": [
+        "View-Only Organization Management"
+      ],
+      "scopes": [],
+      "licence": "",
+      "note": "Get-User, filtered to the users who can use Exchange Online PowerShell."
+    },
+    {
+      "collector": "Exchange",
       "match": "^Attack simulations$",
       "roles": [
         "Security Reader",

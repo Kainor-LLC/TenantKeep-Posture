@@ -111,6 +111,9 @@ Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence        # Entra, Intune a
 Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
 at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
 
+`exo-12-remote-powershell-users` (+summary) lists the accounts with Exchange Online PowerShell on (Get-User filtered on
+RemotePowerShellEnabled, streamed; left out with -SkipMailboxEnumeration). EM-025 compares it with the role holders.
+
 ## What the Defender collector writes
 
 Graph only, on the same session as the Entra collector: advanced hunting is a query-style POST that changes nothing.

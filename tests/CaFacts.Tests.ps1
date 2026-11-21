@@ -100,8 +100,8 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates all 15 CA checks against the shipped catalog version' {
-        $script:Run.results.Count | Should -Be 15
+    It 'evaluates all 16 CA checks against the shipped catalog version' {
+        $script:Run.results.Count | Should -Be 16
         $script:Run.catalogVersion | Should -Match '^\d{4}\.'
         Join-Path $script:Root 'checks.json' | Should -Exist
     }
