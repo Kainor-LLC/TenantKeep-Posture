@@ -65,7 +65,28 @@ function Find-PostureEvidenceRow {
     $out = @{}
     if ($want.Count -eq 0) { return $out }
     if (Test-Path -LiteralPath $csv) {
-        Import-Csv -LiteralPath $csv | ForEach-Object { $k = [string]$_.$Key; if ($k -and $want.Contains($k)) { $out[$k] = $_ } }
+        # Fields only, no object per row: a handful of rows out of hundreds of thousands is one array index and one
+        # set lookup for each row that is not wanted. The parser knows quoted fields, doubled quotes and line
+        # breaks inside a field, as Export-Csv and the stream writer write them.
+        $parser = [Microsoft.VisualBasic.FileIO.TextFieldParser]::new($csv, [System.Text.Encoding]::UTF8)
+        try {
+            $parser.SetDelimiters(','); $parser.HasFieldsEnclosedInQuotes = $true; $parser.TrimWhiteSpace = $false
+            if ($parser.EndOfData) { return $out }
+            $columns = $parser.ReadFields()
+            $at = [array]::IndexOf($columns, $Key)
+            if ($at -lt 0) { foreach ($i in 0..($columns.Count - 1)) { if ([string]::Equals($columns[$i], $Key, [System.StringComparison]::OrdinalIgnoreCase)) { $at = $i; break } } }
+            if ($at -lt 0) { return $out }
+            while (-not $parser.EndOfData) {
+                $fields = $parser.ReadFields()
+                if ($at -ge $fields.Count) { continue }
+                $k = $fields[$at]
+                if (-not $k -or -not $want.Contains($k)) { continue }
+                $row = [ordered]@{}
+                for ($i = 0; $i -lt $columns.Count; $i++) { $row[$columns[$i]] = $(if ($i -lt $fields.Count) { $fields[$i] } else { '' }) }
+                $out[$k] = [pscustomobject]$row
+            }
+        }
+        finally { $parser.Dispose() }
         return $out
     }
     # Assigned first: the reader returns the array wrapped so an empty one survives, and @( ) around it would keep the wrapper.
@@ -91,8 +112,9 @@ function Read-PostureEvidenceRow {
 
     $csv = Join-Path $Folder "$Name.csv"
     if (Test-Path -LiteralPath $csv) {
-        # An empty list writes an empty CSV, which Import-Csv reads as no rows.
-        Import-Csv -LiteralPath $csv | ForEach-Object { & $OnRow $_ }
+        # An empty list writes an empty CSV, which Import-Csv reads as no rows. A process block, not ForEach-Object:
+        # the same rows for a fifth less time, which is seconds on a list of hundreds of thousands.
+        Import-Csv -LiteralPath $csv | & { process { & $OnRow $_ } }
         return $true
     }
     $all = Read-PostureEvidenceFile -Folder $Folder -Name $Name

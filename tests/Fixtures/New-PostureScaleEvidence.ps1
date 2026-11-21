@@ -8,7 +8,9 @@ function New-PostureScaleEvidence {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test fixture: writes made-up files under a path the test owns.')]
     param(
         [Parameter(Mandatory)] [string] $Path,
-        [int] $Users = 20000
+        [int] $Users = 20000,
+        # Personal sites added to the site list, as a collection with -IncludeOneDriveSites writes them.
+        [int] $OneDrives = 0
     )
 
     $ErrorActionPreference = 'Stop'
@@ -76,7 +78,24 @@ function New-PostureScaleEvidence {
     & $stream 'exo-09-mailboxes' $mailboxes
     & $stream 'exo-10-cas-mailboxes' $mailboxes
     & $stream 'exo-12-remote-powershell-users' $Users
-    & $stream 'spo-sites' $sites
+    if ($OneDrives -le 0) { & $stream 'spo-sites' $sites }
+    else {
+        # Sites first, then a OneDrive for each of the first $OneDrives users, in the one list.
+        $all = @(& $templates 'spo-sites')
+        $shared = @($all | Where-Object { -not $_.IsOneDrive }); $personal = @($all | Where-Object { $_.IsOneDrive })
+        if ($personal.Count -eq 0) { $personal = @($shared | Select-Object -First 1 | ForEach-Object { $copy = [ordered]@{}; foreach ($e in $_.GetEnumerator()) { $copy[[string]$e.Key] = $e.Value }; $copy.IsOneDrive = $true; $copy.Template = 'SPSPERS#10'; $copy }) }
+        & $module {
+            param($ev, $sites, $OneDrives, $shared, $personal, $scale)
+            $s = Open-PostureEvidenceStream -Folder $ev -Name 'spo-sites' -Csv -Confirm:$false
+            try {
+                for ($i = 0; $i -lt $sites; $i++) { Add-PostureEvidenceRow -Stream $s -Row (& $scale $shared[$i % $shared.Count] ([int][Math]::Floor($i / $shared.Count))) }
+                for ($i = 0; $i -lt $OneDrives; $i++) { Add-PostureEvidenceRow -Stream $s -Row (& $scale $personal[$i % $personal.Count] ([int][Math]::Floor($i / $personal.Count) + 1)) }
+            }
+            catch { Stop-PostureEvidenceStream -Stream $s -Confirm:$false; throw }
+            $null = Close-PostureEvidenceStream -Stream $s -Quiet
+        } $ev $sites $OneDrives $shared $personal $scale
+        $written['spo-sites'] = $sites + $OneDrives
+    }
     & $whole '09-autopilot-devices' ([int]($devices * 0.6))
     & $whole '08-bitlocker-keys-by-device' ([int]($devices * 0.8))
     & $whole 'def-01-devices' $devices

@@ -97,16 +97,23 @@ function Get-PostureAzureFact {
         $pr = @(& $rows $pricing)
         # (verify) plan names as the pricings API spells them
         $planFor = [ordered]@{ VirtualMachines = 'microsoft.compute/virtualmachines'; StorageAccounts = 'microsoft.storage/storageaccounts'; KeyVaults = 'microsoft.keyvault/vaults'; SqlServers = 'microsoft.sql/servers'; Containers = 'microsoft.containerservice/managedclusters'; AppServices = 'microsoft.web/sites'; Api = 'microsoft.apimanagement/service' }
-        $gaps = @()
+        # Resource types and plan tiers by subscription, built once: asked per subscription from the lists themselves
+        # this took minutes on a tenant of 1,500 subscriptions.
+        $typesBySub = @{}
+        foreach ($row in @(& $rows $byType)) { $k = [string]$row.SubscriptionId; if (-not $typesBySub.ContainsKey($k)) { $typesBySub[$k] = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase) }; $null = $typesBySub[$k].Add([string]$row.Type) }
+        $tiersBySubPlan = @{}
+        foreach ($row in $pr) { $k = "$([string]$row.SubscriptionId)|$([string]$row.Plan)"; if (-not $tiersBySubPlan.ContainsKey($k)) { $tiersBySubPlan[$k] = [System.Collections.Generic.List[string]]::new() }; $tiersBySubPlan[$k].Add([string]$row.Tier) }
+        $gaps = [System.Collections.Generic.List[object]]::new()
         foreach ($sub in $read) {
-            $types = @($(if ($null -ne $byType) { @(& $rows $byType | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId } | ForEach-Object { ([string]$_.Type).ToLowerInvariant() }) }))
+            $id = [string]$sub.SubscriptionId
+            $types = $typesBySub[$id]
             foreach ($plan in $planFor.Keys) {
-                if ($types -notcontains $planFor[$plan]) { continue }
-                $tier = @($pr | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and [string]$_.Plan -eq $plan } | ForEach-Object { [string]$_.Tier })
-                if ($tier -notcontains 'Standard') { $gaps += , [ordered]@{ name = "$(& $label $sub.SubscriptionId): $plan"; detail = "resources of that type exist and the plan is $(if ($tier.Count -gt 0) { $tier[0] } else { 'absent' })" } }
+                if (-not $types -or -not $types.Contains($planFor[$plan])) { continue }
+                $tier = @($(if ($tiersBySubPlan.ContainsKey("$id|$plan")) { $tiersBySubPlan["$id|$plan"] }))
+                if ($tier -notcontains 'Standard') { $gaps.Add([ordered]@{ name = "$(& $label $id): $plan"; detail = "resources of that type exist and the plan is $(if ($tier.Count -gt 0) { $tier[0] } else { 'absent' })" }) }
             }
-            $arm = @($pr | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and [string]$_.Plan -eq 'Arm' } | ForEach-Object { [string]$_.Tier })
-            if ($arm -notcontains 'Standard') { $gaps += , [ordered]@{ name = "$(& $label $sub.SubscriptionId): Arm"; detail = 'Defender for Resource Manager off' } }
+            $arm = @($(if ($tiersBySubPlan.ContainsKey("$id|Arm")) { $tiersBySubPlan["$id|Arm"] }))
+            if ($arm -notcontains 'Standard') { $gaps.Add([ordered]@{ name = "$(& $label $id): Arm"; detail = 'Defender for Resource Manager off' }) }
         }
         $facts.defenderPlanGaps = $gaps.Count
         $affected.defenderPlanGaps = @($gaps)
@@ -120,7 +127,10 @@ function Get-PostureAzureFact {
     if ($null -eq $contacts) { & $missing @('AZ-005') 'az-02-security-contacts' }
     else {
         $c = @(& $rows $contacts)
-        $noContact = @($read | Where-Object { $sub = $_; @($c | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and $_.Emails -and [string]$_.AlertState -ne 'Off' -and $_.IsEnabled -ne $false }).Count -eq 0 })
+        # The subscriptions that have a working contact, as a set: one pass over the contacts, one over the subscriptions.
+        $withContact = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($row in $c) { if ($row.Emails -and [string]$row.AlertState -ne 'Off' -and $row.IsEnabled -ne $false) { $null = $withContact.Add([string]$row.SubscriptionId) } }
+        $noContact = @($read | Where-Object { -not $withContact.Contains([string]$_.SubscriptionId) })
         $facts.subscriptionsWithoutSecurityContact = $noContact.Count
         $affected.subscriptionsWithoutSecurityContact = @($noContact | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'no security contact with alert notifications on' } })
         & $partial 'AZ-005' $noContact.Count 'subscription without a security contact'
@@ -131,7 +141,9 @@ function Get-PostureAzureFact {
     if ($null -eq $exports) { & $missing @('AZ-006') 'az-04-activity-log-exports' }
     else {
         $e = @(& $rows $exports)
-        $noExport = @($read | Where-Object { $sub = $_; @($e | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and ($_.WorkspaceId -or $_.EventHub) -and [int]$_.Categories -gt 0 }).Count -eq 0 })
+        $withExport = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($row in $e) { if (($row.WorkspaceId -or $row.EventHub) -and [int]$row.Categories -gt 0) { $null = $withExport.Add([string]$row.SubscriptionId) } }
+        $noExport = @($read | Where-Object { -not $withExport.Contains([string]$_.SubscriptionId) })
         $facts.subscriptionsWithoutActivityLogExport = $noExport.Count
         $affected.subscriptionsWithoutActivityLogExport = @($noExport | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'no diagnostic setting sends the activity log to a workspace or event hub' } })
         & $partial 'AZ-006' $noExport.Count 'subscription without an activity log export'
@@ -176,8 +188,12 @@ function Get-PostureAzureFact {
         # AZ-011 owners per subscription (direct plus inherited from management group and root)
         $owners = @($a | Where-Object { [string]$_.RoleName -eq 'Owner' })
         $overLimit = @(); $syncedOwners = @()
+        # Owners by subscription, built once; the ones at the root or a management group apply to every subscription.
+        $inheritedOwners = @($owners | Where-Object { [string]$_.ScopeLevel -in @('root', 'managementGroup') })
+        $ownersBySub = @{}
+        foreach ($o in $owners) { if ([string]$o.ScopeLevel -ne 'subscription') { continue }; $k = [string]$o.SubscriptionId; if (-not $ownersBySub.ContainsKey($k)) { $ownersBySub[$k] = [System.Collections.Generic.List[object]]::new() }; $ownersBySub[$k].Add($o) }
         foreach ($sub in $s) {
-            $mine = @($owners | Where-Object { ([string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and [string]$_.ScopeLevel -eq 'subscription') -or [string]$_.ScopeLevel -in @('root', 'managementGroup') })
+            $mine = @(@($(if ($ownersBySub.ContainsKey([string]$sub.SubscriptionId)) { $ownersBySub[[string]$sub.SubscriptionId] })) + @($inheritedOwners))
             $principals = @($mine | ForEach-Object { $_.PrincipalId } | Sort-Object -Unique)
             if ($principals.Count -gt [int]$t.maxOwnersPerSubscription) { $overLimit += , [ordered]@{ name = [string]$sub.Name; detail = "$($principals.Count) owners (limit $($t.maxOwnersPerSubscription)): $(@($mine | ForEach-Object { & $who $_ } | Sort-Object -Unique) -join ', ')" } }
             foreach ($o in $mine) { $u = $userById[[string]$o.PrincipalId]; if ($u -and $u.OnPremisesSyncEnabled -eq $true) { $syncedOwners += , [ordered]@{ name = [string]$u.UserPrincipalName; detail = "Owner on $($sub.Name), synced from on-premises AD" } } }

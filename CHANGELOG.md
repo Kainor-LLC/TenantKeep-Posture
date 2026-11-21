@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Measured at 300,000 users (2026-11-21). On the made-up tenant the review used (300,000 users, 300,000
+  OneDrives, 50,000 devices, 50,000 groups, 1.1 GB of evidence) the report now peaks at 524 MB and takes 114
+  seconds. It peaked at 10.2 GB before the large lists were read a row at a time.
+- Faster lookups (2026-11-21). The Azure checks asked each list again for every subscription: 197.7 seconds on a
+  made-up tenant of 1,500 subscriptions. The lists are indexed by subscription once, and the same tenant takes
+  1.6 seconds. Finding a handful of rows in a large list (the principals behind Azure role assignments, the
+  accounts behind shared mailboxes) reads the CSV's fields without building an object for every row, about two
+  and a half times as fast.
 - The report costs the same memory on a large tenant as on a small one (2026-11-21). Every list with a row per
   user, device, group, mailbox or site was loaded whole somewhere after collection, and kept in a cache: the
   report peaked at 10 GB on a made-up tenant of 300,000 users. Each of those reads is now a pass over the CSV a

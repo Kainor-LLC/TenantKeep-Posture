@@ -41,6 +41,42 @@ Describe 'Large lists are never loaded whole after collection' {
     }
 }
 
+Describe 'Finding a few rows in a large list' {
+    It 'returns the wanted rows by key from the CSV, with quoted commas, doubled quotes and line breaks intact' {
+        InModuleScope TenantKeep.Posture {
+            $dir = Join-Path $TestDrive 'find'; New-Item -ItemType Directory -Path $dir | Out-Null
+            $s = Open-PostureEvidenceStream -Folder $dir -Name 'people' -Csv -Confirm:$false
+            Add-PostureEvidenceRow -Stream $s -Row ([ordered]@{ Id = 'a1'; DisplayName = 'Smith, John'; Note = 'said "hello"'; Enabled = $true })
+            Add-PostureEvidenceRow -Stream $s -Row ([ordered]@{ Id = 'B2'; DisplayName = "Two`nlines"; Note = ''; Enabled = $false })
+            foreach ($i in 1..300) { Add-PostureEvidenceRow -Stream $s -Row ([ordered]@{ Id = "x$i"; DisplayName = "Filler $i"; Note = $null; Enabled = $true }) }
+            $null = Close-PostureEvidenceStream -Stream $s -Quiet
+            # The JSON twin goes, so the answer can only have come from the CSV.
+            Remove-Item -LiteralPath (Join-Path $dir 'people.json')
+            $found = Find-PostureEvidenceRow -Folder $dir -Name 'people' -Key 'Id' -Value 'A1', 'b2', 'missing'
+            @($found.get_Keys() | Sort-Object) | Should -Be @('a1', 'B2') -Because 'keys match whatever their case, and keep the case the file has'
+            $found['a1'].DisplayName | Should -Be 'Smith, John'
+            $found['a1'].Note | Should -Be 'said "hello"'
+            $found['a1'].Enabled | Should -Be 'True'
+            $found['B2'].DisplayName | Should -Be "Two`nlines"
+            @($found['a1'].PSObject.Properties.Name) | Should -Be @('Id', 'DisplayName', 'Note', 'Enabled')
+            (Find-PostureEvidenceRow -Folder $dir -Name 'people' -Key 'Id' -Value @()).get_Count() | Should -Be 0
+            (Find-PostureEvidenceRow -Folder $dir -Name 'people' -Key 'NoSuchColumn' -Value 'a1').get_Count() | Should -Be 0
+            Find-PostureEvidenceRow -Folder $dir -Name 'absent' -Key 'Id' -Value 'a1' | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'hands every row to the row reader' {
+        InModuleScope TenantKeep.Posture {
+            $dir = Join-Path $TestDrive 'rows'; New-Item -ItemType Directory -Path $dir | Out-Null
+            $null = Write-PostureEvidence -Folder $dir -Name 'list' -InputObject @(1..25 | ForEach-Object { [ordered]@{ Id = $_; Name = "n$_" } }) -AsArray -Csv -Quiet
+            $seen = [System.Collections.Generic.List[string]]::new()
+            Read-PostureEvidenceRow -Folder $dir -Name 'list' -OnRow { param($row) $seen.Add([string]$row.Name) } | Should -BeTrue
+            $seen.Count | Should -Be 25
+            $seen[24] | Should -Be 'n25'
+        }
+    }
+}
+
 Describe 'The evidence cache' {
     It 'keeps a small file and parses a large one again each time, so a large list never stays in memory' {
         InModuleScope TenantKeep.Posture {
