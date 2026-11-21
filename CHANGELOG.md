@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Intune and Defender collection without holding the long lists (2026-11-21). Autopilot devices, Intune apps and
+  active incidents are written as their pages arrive; BitLocker keys are counted per device as they page (only
+  how many a device has was ever kept); the ninety-day incident trend is counted as it pages. The settings of
+  assigned settings catalog policies are read twenty policies to a request, and one policy that is refused no
+  longer costs the others. Intune apps are read with only the properties that are written.
+- A Defender device list larger than one query returns. A shard that comes back with fewer rows than it has is
+  read again in sixteen parts, so a fleet up to sixteen times larger than before is listed whole. Past that the
+  list is still marked cut short and the checks on it have no answer.
 - The Entra collector holds none of its long lists (2026-11-21). App registrations, service principals, delegated
   grants, risk detections and ownerless groups are written as their pages arrive. Risky users are the users at
   risk now: the list used to be everyone who ever had a risk, dismissed and remediated included. PIM for Groups

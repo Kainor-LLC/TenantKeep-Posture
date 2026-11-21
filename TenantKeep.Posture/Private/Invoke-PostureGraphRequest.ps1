@@ -55,31 +55,34 @@ function Invoke-PostureGraphRequest {
 
     $ErrorActionPreference = 'Stop'
 
-    $url = if ($Uri -match '^https?://') { $Uri } else { "https://graph.microsoft.com/$ApiVersion/$($Uri.TrimStart('/'))" }
+    # Every local here carries the graph prefix on purpose. An -OnPage block runs inside this function, so a name it
+    # reads from its own caller ($total, $items, $page, $next) would find this function's variable of that name
+    # first: a collector's counter called $total once came back as this function's row count.
+    $graphUrl = if ($Uri -match '^https?://') { $Uri } else { "https://graph.microsoft.com/$ApiVersion/$($Uri.TrimStart('/'))" }
     $null = $script:GraphApiVersionsUsed.Add($ApiVersion)
 
     # Not $( ): a subexpression unrolls an empty list to nothing.
-    $items = $null
-    if (-not $OnPage) { $items = [System.Collections.Generic.List[object]]::new() }
-    $next = $(if ($StartAt) { $StartAt } else { $url })
-    $page = 0; [long]$total = 0
-    while ($next) {
-        $response = Invoke-PostureGraphPage -Url $next -Method $Method -Body $Body -Headers $Headers
-        if ($Single -or -not $response.ContainsKey('value')) { return $response }
-        $page++
-        $values = @($response.value)
-        $total += $values.Count
-        $following = if ($response.ContainsKey('@odata.nextLink')) { [string]$response.'@odata.nextLink' } else { $null }
-        if ($OnPage) { & $OnPage $values @{ number = $page; count = $total; nextLink = $following } }
-        else { foreach ($v in $values) { $items.Add($v) } }
-        if ($following -and $page -ge 2 -and $script:PostureProgress) {
-            $script:PostureProgress.label = "$(if ($Label) { $Label } else { 'reading' }): page $page, $('{0:N0}' -f $total) so far"
+    $graphItems = $null
+    if (-not $OnPage) { $graphItems = [System.Collections.Generic.List[object]]::new() }
+    $graphNext = $(if ($StartAt) { $StartAt } else { $graphUrl })
+    $graphPage = 0; [long]$graphTotal = 0
+    while ($graphNext) {
+        $graphResponse = Invoke-PostureGraphPage -Url $graphNext -Method $Method -Body $Body -Headers $Headers
+        if ($Single -or -not $graphResponse.ContainsKey('value')) { return $graphResponse }
+        $graphPage++
+        $graphValues = @($graphResponse.value)
+        $graphTotal += $graphValues.Count
+        $graphFollowing = if ($graphResponse.ContainsKey('@odata.nextLink')) { [string]$graphResponse.'@odata.nextLink' } else { $null }
+        if ($OnPage) { & $OnPage $graphValues @{ number = $graphPage; count = $graphTotal; nextLink = $graphFollowing } }
+        else { foreach ($graphValue in $graphValues) { $graphItems.Add($graphValue) } }
+        if ($graphFollowing -and $graphPage -ge 2 -and $script:PostureProgress) {
+            $script:PostureProgress.label = "$(if ($Label) { $Label } else { 'reading' }): page $graphPage, $('{0:N0}' -f $graphTotal) so far"
             Write-PostureProgress
         }
-        $next = $following
+        $graphNext = $graphFollowing
     }
-    if ($OnPage) { return $total }
-    return $items.ToArray()
+    if ($OnPage) { return $graphTotal }
+    return $graphItems.ToArray()
 }
 
 function Invoke-PostureGraphPage {

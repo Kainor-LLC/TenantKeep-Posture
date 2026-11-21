@@ -263,6 +263,26 @@ Describe 'Fresh tokens for the second process' {
     }
 }
 
+Describe 'A block handed to the page reader' {
+    It 'sees its caller''s variables, not the page reader''s own of the same name' {
+        InModuleScope TenantKeep.Posture {
+            Mock Invoke-MgGraphRequest { @{ value = @(@{ id = 'a' }, @{ id = 'b' }) } }
+            # A caller's counters under the names a page reader would naturally use for its own.
+            $total = @{ n = 0 }; $items = [System.Collections.Generic.List[string]]::new(); $page = 'mine'; $next = 'mine'; $url = 'mine'; $values = 'mine'; $response = 'mine'; $following = 'mine'
+            $seen = @{}
+            $read = Invoke-PostureGraphRequest -Uri 'things' -ApiVersion 'v1.0' -OnPage {
+                param($rows)
+                foreach ($row in $rows) { $total.n++; $items.Add([string]$row['id']) }
+                $seen.page = $page; $seen.next = $next; $seen.url = $url; $seen.values = $values; $seen.response = $response; $seen.following = $following
+            }
+            $read | Should -Be 2
+            $total.n | Should -Be 2 -Because 'the block counts into its caller''s $total'
+            $items | Should -Be @('a', 'b')
+            foreach ($name in 'page', 'next', 'url', 'values', 'response', 'following') { $seen[$name] | Should -Be 'mine' -Because "`$$name is the caller's" }
+        }
+    }
+}
+
 Describe 'Per-user MFA on a large tenant' {
     It 'reads a sample of 1,000 whatever it finds, and everyone only with -FullPerUserMfa' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {

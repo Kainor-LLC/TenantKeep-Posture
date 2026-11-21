@@ -48,17 +48,26 @@ function Invoke-PostureDefenderCollection {
         }
         # One shard's rows are in memory at a time; each is handed to -OnRow, which writes it and counts it.
         $asked = @{}
-        foreach ($c in '0123456789abcdef'.ToCharArray()) {
-            $asked[[string]$c] = $true
-            $rows = @(& $hunt "$Table | where DeviceId startswith '$c' $Rest")
+        $hex = '0123456789abcdef'.ToCharArray()
+        foreach ($c in $hex) {
+            $prefix = [string]$c; $asked[$prefix] = $true
+            $rows = @(& $hunt "$Table | where DeviceId startswith '$prefix' $Rest")
+            $want = [long]$(if ($expected.ContainsKey($prefix)) { $expected[$prefix] } else { 0 })
+            if ($rows.Count -lt $want) {
+                # Fewer rows than the shard has: the answer met the row cap of one query. The shard is read again in
+                # sixteen parts, by the second character of the id, and the fuller of the two answers is kept. A
+                # shard that is still short leaves the list marked cut short.
+                $parts = [System.Collections.Generic.List[object]]::new()
+                foreach ($second in $hex) { foreach ($row in @(& $hunt "$Table | where DeviceId startswith '$prefix$second' $Rest")) { $parts.Add($row) } }
+                if ($parts.Count -ge $rows.Count) { $rows = $parts.ToArray() }
+            }
             $huntCoverage.read += $rows.Count
-            if ($expected.ContainsKey([string]$c) -and $rows.Count -lt $expected[[string]$c]) { $huntCoverage.shardsShort++ }
+            if ($rows.Count -lt $want) { $huntCoverage.shardsShort++ }
             foreach ($row in $rows) { & $OnRow $row }
         }
         foreach ($k in $expected.get_Keys()) { if (-not $asked.ContainsKey($k) -and $expected[$k] -gt 0) { $huntCoverage.shardsShort++ } }
     }
     $coverage = { [ordered]@{ RowsExpected = $huntCoverage.expected; RowsRead = $huntCoverage.read; Truncated = ($huntCoverage.shardsShort -gt 0) } }
-    $group = { param($rows, [string[]] $keys) @(@($rows | ForEach-Object { [pscustomobject]$_ }) | Group-Object -Property $keys | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count }) }
     # Counts by a key, as the summaries carry them: most first.
     $bump = { param($map, [string] $key) $map[$key] = 1 + $(if ($map.ContainsKey($key)) { $map[$key] } else { 0 }) }
     $counts = { param($map) @($map.get_Keys() | ForEach-Object { [ordered]@{ Name = $_; Count = $map[$_] } } | Sort-Object { -$_.Count }) }
@@ -128,28 +137,48 @@ function Invoke-PostureDefenderCollection {
 
     Invoke-PostureStep -Label 'Defender incidents' -Folder $Folder -Script {
         # SecurityIncident.Read.All; active incidents only.
-        $incidents = & $get "security/incidents?`$filter=status eq 'active'&`$select=id,displayName,severity,status,assignedTo,createdDateTime,lastUpdateDateTime,classification,determination&`$top=50"
-        $rows = @($incidents | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Severity = (& $v $_ 'severity'); Status = (& $v $_ 'status'); AssignedTo = (& $v $_ 'assignedTo'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastUpdateDateTime = (& $v $_ 'lastUpdateDateTime'); Classification = (& $v $_ 'classification') } })
-        & $save $rows 'def-05-incidents' $true
+        # Written and counted as the pages arrive.
         $week = $AsOf.AddDays(-7)
-        & $saveOne ([ordered]@{ Active = $rows.Count; OpenOver7Days = @($rows | Where-Object { $d = ConvertTo-PostureUtcDateTime $_.CreatedDateTime; $d -and $d -lt $week }).Count; OpenOver7DaysUnassigned = @($rows | Where-Object { -not $_.AssignedTo } | Where-Object { $d = ConvertTo-PostureUtcDateTime $_.CreatedDateTime; $d -and $d -lt $week }).Count; BySeverity = (& $group $rows @('Severity')) }) 'def-05-incidents-summary'
+        $t = @{ active = 0; old = 0; oldUnassigned = 0; severity = @{} }
+        $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'def-05-incidents' -Csv -Confirm:$false
+        try {
+            $null = Invoke-PostureGraphRequest -Uri "security/incidents?`$filter=status eq 'active'&`$select=id,displayName,severity,status,assignedTo,createdDateTime,lastUpdateDateTime,classification,determination&`$top=50" -ApiVersion 'v1.0' -Label 'Defender incidents' -OnPage {
+                param($page)
+                foreach ($incident in $page) {
+                    $row = ForEach-Object -InputObject $incident -Process { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Severity = (& $v $_ 'severity'); Status = (& $v $_ 'status'); AssignedTo = (& $v $_ 'assignedTo'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastUpdateDateTime = (& $v $_ 'lastUpdateDateTime'); Classification = (& $v $_ 'classification') } }
+                    Add-PostureEvidenceRow -Stream $stream -Row $row
+                    $t.active++
+                    & $bump $t.severity ([string]$row.Severity)
+                    $created = ConvertTo-PostureUtcDateTime $row.CreatedDateTime
+                    if ($created -and $created -lt $week) { $t.old++; if (-not $row.AssignedTo) { $t.oldUnassigned++ } }
+                }
+            }
+            $files.Add((Close-PostureEvidenceStream -Stream $stream))
+        }
+        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        & $saveOne ([ordered]@{ Active = $t.active; OpenOver7Days = $t.old; OpenOver7DaysUnassigned = $t.oldUnassigned; BySeverity = (& $counts $t.severity) }) 'def-05-incidents-summary'
     } | Out-Null
 
     Invoke-PostureStep -Label 'Defender incident trend' -Folder $Folder -Script {
         # Every incident created in the last 90 days, counted by week (starting Monday) and severity; only the two
         # fields the count needs are read, and nothing per incident is written.
         $since = $AsOf.ToUniversalTime().Date.AddDays(-90)
-        $all = & $get "security/incidents?`$filter=createdDateTime ge $($since.ToString('yyyy-MM-ddTHH:mm:ssZ'))&`$select=createdDateTime,severity&`$top=50"
         $weeks = [ordered]@{}
         for ($d = $since.AddDays(-(([int]$since.DayOfWeek + 6) % 7)); $d -le $AsOf.ToUniversalTime(); $d = $d.AddDays(7)) { $weeks[$d.ToString('yyyy-MM-dd')] = [ordered]@{ WeekStart = $d.ToString('yyyy-MM-dd'); High = 0; Medium = 0; Low = 0; Informational = 0; Total = 0 } }
-        foreach ($i in $all) {
-            $c = ConvertTo-PostureUtcDateTime (& $v $i 'createdDateTime'); if (-not $c) { continue }
-            $ws = $c.Date.AddDays(-(([int]$c.DayOfWeek + 6) % 7)).ToString('yyyy-MM-dd')
-            if (-not $weeks.Contains($ws)) { continue }
-            $sev = switch ([string](& $v $i 'severity')) { 'high' { 'High' } 'medium' { 'Medium' } 'low' { 'Low' } default { 'Informational' } }
-            $weeks[$ws][$sev]++; $weeks[$ws].Total++
+        # Counted as the pages arrive: a busy tenant has tens of thousands of incidents in ninety days.
+        $seen = @{ n = 0 }
+        $null = Invoke-PostureGraphRequest -Uri "security/incidents?`$filter=createdDateTime ge $($since.ToString('yyyy-MM-ddTHH:mm:ssZ'))&`$select=createdDateTime,severity&`$top=50" -ApiVersion 'v1.0' -Label 'Defender incident trend' -OnPage {
+            param($page)
+            foreach ($i in $page) {
+                $seen.n++
+                $c = ConvertTo-PostureUtcDateTime (& $v $i 'createdDateTime'); if (-not $c) { continue }
+                $ws = $c.Date.AddDays(-(([int]$c.DayOfWeek + 6) % 7)).ToString('yyyy-MM-dd')
+                if (-not $weeks.Contains($ws)) { continue }
+                $sev = switch ([string](& $v $i 'severity')) { 'high' { 'High' } 'medium' { 'Medium' } 'low' { 'Low' } default { 'Informational' } }
+                $weeks[$ws][$sev]++; $weeks[$ws].Total++
+            }
         }
-        & $saveOne ([ordered]@{ Days = 90; Incidents = @($all).Count; Weeks = @($weeks.Values) }) 'def-05-incidents-weekly'
+        & $saveOne ([ordered]@{ Days = 90; Incidents = $seen.n; Weeks = @($weeks.Values) }) 'def-05-incidents-weekly'
     } | Out-Null
 
     Invoke-PostureStep -Label 'Secure Score' -Folder $Folder -Script {

@@ -139,9 +139,10 @@ Scopes: ThreatHunting.Read.All (hunting), SecurityIncident.Read.All (incidents),
 Score). Skipped with a warning when ThreatHunting.Read.All is missing. The device tables are read in 16 shards by
 the first character of the device id, to stay under the row cap of one query (10,000 rows when this was written
 (verify); the cap is the service's to change). One query per table first asks how many rows each shard has, and
-the summary records `RowsExpected`, `RowsRead` and `Truncated`: when a shard returns fewer rows than it has, the
-list is cut short and the checks that count devices over it (EP-019, EP-020, EP-021) have no answer, with the two
-numbers as the reason. Needs Defender for Endpoint P2 for the configuration and vulnerability tables (verify: P1
+the summary records `RowsExpected`, `RowsRead` and `Truncated`. A shard that returns fewer rows than it has is read
+again in sixteen parts, by the second character of the id. When it is still short after that, the list is cut
+short and the checks that count devices over it (EP-019, EP-020, EP-021) have no answer, with the two numbers as
+the reason. Needs Defender for Endpoint P2 for the configuration and vulnerability tables (verify: P1
 answers DeviceInfo only).
 
 | File | Source | Notes |

@@ -15,8 +15,10 @@ BeforeAll {
     Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
     Mock -ModuleName TenantKeep.Posture Test-PostureAzureSession { $false }
 
-    # Synthetic tenant, routed by path. Every value is made up.
-    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest {
+    # Synthetic tenant, routed by path. Every value is made up. The route is a script block of its own so a request
+    # inside a $batch is answered exactly as the same request sent alone.
+    $script:GraphRoute = {
+        param([string] $Uri, $Body)
         $path = [uri]::UnescapeDataString(([uri]$Uri).PathAndQuery) -replace '^/(v1\.0|beta)/', ''
         $u = { param($items) @{ value = $items } }
         switch -Regex ($path) {
@@ -69,10 +71,14 @@ BeforeAll {
             }
             '^\$batch$' {
                 $reqs = ($Body | ConvertFrom-Json -AsHashtable).requests
-                # PIM for Groups goes through $batch too: one eligible member in the admins group.
                 @{ responses = @($reqs | ForEach-Object {
-                            if ($_.url -like '*privilegedAccess/group/eligibilitySchedules*') { @{ id = $_.id; status = 200; body = @{ value = @(@{ id = 'es1'; groupId = 'grp-admins'; accessId = 'member'; principalId = 'u1'; status = 'Provisioned'; memberType = 'Direct' }) } } }
-                            else { @{ id = $_.id; status = 200; body = @{ perUserMfaState = $(if ($_.url -like '*/u2/*') { 'enforced' } else { 'disabled' }) } } }
+                            $request = $_
+                            if ($request.url -like '*/authentication/requirements') { @{ id = $request.id; status = 200; body = @{ perUserMfaState = $(if ($request.url -like '*/u2/*') { 'enforced' } else { 'disabled' }) } } }
+                            else {
+                                # Any other request in a batch gets the answer the same request gets alone; a refusal becomes its status.
+                                try { @{ id = $request.id; status = 200; body = (& $script:GraphRoute "https://graph.microsoft.com/v1.0$($request.url)" $null) } }
+                                catch { @{ id = $request.id; status = 403; body = @{ error = @{ message = $_.Exception.Message } } } }
+                            }
                         })
                 }; break
             }
@@ -120,7 +126,12 @@ BeforeAll {
                 $q = [string](ConvertFrom-Json $Body).Query
                 $hex = $(if ($q -match "startswith '([0-9a-f])'") { $Matches[1] } else { '' })
                 # Each table is first asked how many rows every shard has: two devices in shard a, none elsewhere.
-                if ($q -match 'summarize Count = count\(\) by Shard') { @{ results = @(@{ Shard = 'a'; Count = $(if ($env:TKP_DEF_SHORT) { 9 } else { 2 }) }) }; break }
+                if ($q -match 'summarize Count = count\(\) by Shard') { @{ results = @(@{ Shard = 'a'; Count = $(if ($env:TKP_DEF_SHORT) { 9 } elseif ($env:TKP_DEF_SPLIT) { 5 } else { 2 }) }) }; break }
+                # A shard at the row cap, read again by the second character of the id: five devices under a1 and a2.
+                if ($env:TKP_DEF_SPLIT -and $q -match "startswith '(a[0-9a-f])'") {
+                    $two = $Matches[1]; $n = $(if ($two -eq 'a1') { 3 } elseif ($two -eq 'a2') { 2 } else { 0 })
+                    @{ results = @(for ($k = 1; $k -le $n; $k++) { @{ DeviceId = "$two$k"; DeviceName = "PC-$two$k"; OSPlatform = 'Windows11'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Active'; ExposureLevel = 'Low'; AadDeviceId = "dev-$two$k"; AvMode = '0'; AvIsSignatureUpToDate = 'true' } }) }; break
+                }
                 switch -Regex ($q) {
                     '^DeviceInfo' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Active'; ExposureLevel = 'Medium'; AadDeviceId = 'dev-1'; Timestamp = '2026-10-13T00:00:00Z' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Inactive'; ExposureLevel = 'High'; AadDeviceId = 'dev-2'; Timestamp = '2026-10-01T00:00:00Z' }) } } else { @{ results = @() } }; break }
                     '^DeviceTvmInfoGathering' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; AvMode = '0'; AvIsSignatureUpToDate = 'true' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; AvMode = '1'; AvIsSignatureUpToDate = 'false' }) } } else { @{ results = @() } }; break }
@@ -213,6 +224,9 @@ BeforeAll {
             default { throw "Unexpected Graph call in test: $path" }
         }
     }
+    # The body by its bound parameter: a GET binds none, and under strict mode (another test file may leave it on)
+    # reading $Body itself would throw.
+    Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest { & $script:GraphRoute $Uri $PesterBoundParameters['Body'] }
 }
 
 AfterAll {
@@ -441,7 +455,7 @@ Describe 'Invoke-PostureCollection' {
             $s.Enforced | Should -Be 1
             $s.Disabled | Should -Be 2
             (& $script:Read '05-per-user-mfa' | Where-Object UserPrincipalName -eq 'admin2@contoso.example').PerUserMfaState | Should -Be 'enforced'
-            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/$batch' -and $Method -eq 'POST' } -Because 'authentication/requirements exists only in beta'
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/beta/$batch' -and $Method -eq 'POST' -and ([string]$Body -match 'authentication/requirements') } -Because 'authentication/requirements exists only in beta'
         }
 
         It 'collects Entra devices with join type and staleness' {
@@ -640,6 +654,22 @@ Describe 'Invoke-PostureCollection' {
             # The synthetic tenant answers the methods policy without its methods: that is no answer, not "every method off".
             $by['AU-001'].status | Should -Be 'notEvaluated'
             $by['AU-001'].reason | Should -Match 'lists no authentication methods'
+        }
+    }
+
+    Context 'a Defender shard at the row cap' {
+        It 'reads the shard again in sixteen parts and has the whole list' {
+            # The count says five devices under a; one query for a returns two (the cap); a1 and a2 return three and two.
+            $env:TKP_DEF_SPLIT = '1'
+            try { $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'defsplit') -Collector Defender -SkipCaSnapshot -PassThru -WarningAction SilentlyContinue }
+            finally { Remove-Item Env:TKP_DEF_SPLIT -ErrorAction SilentlyContinue }
+            $summary = Get-Content -Raw (Join-Path $r.Folder 'def-01-devices-summary.json') | ConvertFrom-Json
+            $summary.Truncated | Should -BeFalse -Because 'the sixteen parts returned every row the shard has'
+            $summary.RowsExpected | Should -Be 5
+            $summary.RowsRead | Should -Be 5
+            $summary.Devices | Should -Be 5
+            @(Import-Csv -LiteralPath (Join-Path $r.Folder 'def-01-devices.csv') | ForEach-Object { $_.DeviceId }) | Should -Be @('a11', 'a12', 'a13', 'a21', 'a22')
+            (Get-Content -Raw (Join-Path $r.Folder 'def-02-av-state-summary.json') | ConvertFrom-Json).Truncated | Should -BeFalse
         }
     }
 

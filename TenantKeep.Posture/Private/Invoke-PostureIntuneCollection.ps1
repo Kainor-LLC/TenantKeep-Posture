@@ -26,6 +26,22 @@ function Invoke-PostureIntuneCollection {
     $saveOne = { param($Data, [string] $Name) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data)) }
     $get = { param([string] $Uri, [string] $Api = 'v1.0') @(Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api) }
     $one = { param([string] $Uri, [string] $Api = 'v1.0') Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api -Single }
+    # A list written a row at a time as its pages arrive, so none of it is held: -Row turns one Graph item ($_) into
+    # the row to write. Returns how many rows were written.
+    $streamed = {
+        param([string] $Uri, [string] $Name, [scriptblock] $Row, [string] $Api = 'v1.0')
+        $written = @{ n = 0 }
+        $stream = Open-PostureEvidenceStream -Folder $Folder -Name $Name -Csv -Confirm:$false
+        try {
+            $null = Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api -Label $Name -OnPage {
+                param($page)
+                foreach ($item in $page) { $r = ForEach-Object -InputObject $item -Process $Row; if ($r) { Add-PostureEvidenceRow -Stream $stream -Row $r; $written.n++ } }
+            }
+            $files.Add((Close-PostureEvidenceStream -Stream $stream))
+        }
+        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        $written.n
+    }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $group = { param($rows, [string[]] $keys) @(@($rows | ForEach-Object { [pscustomobject]$_ }) | Group-Object -Property $keys | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count }) }
     $odataType = { param($o) ([string]$o['@odata.type']) -replace '^#microsoft\.graph\.', '' }
@@ -93,8 +109,7 @@ function Invoke-PostureIntuneCollection {
         & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); DeviceNameTemplate = (& $v $_ 'deviceNameTemplate'); Language = (& $v $_ 'language'); Assignments = @(& $v $_ 'assignments').Count } }) '09-autopilot-profiles' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Autopilot devices' -Folder $Folder -Script {
-        $rows = & $get 'deviceManagement/windowsAutopilotDeviceIdentities?$top=999'
-        & $save @($rows | ForEach-Object { [ordered]@{ SerialNumber = (& $v $_ 'serialNumber'); Manufacturer = (& $v $_ 'manufacturer'); Model = (& $v $_ 'model'); GroupTag = (& $v $_ 'groupTag'); EnrollmentState = (& $v $_ 'enrollmentState'); LastContactedDateTime = (& $v $_ 'lastContactedDateTime'); DeploymentProfileAssignmentStatus = (& $v $_ 'deploymentProfileAssignmentStatus'); ManagedDeviceId = (& $v $_ 'managedDeviceId'); AzureActiveDirectoryDeviceId = (& $v $_ 'azureActiveDirectoryDeviceId') } }) '09-autopilot-devices' $true
+        $null = & $streamed 'deviceManagement/windowsAutopilotDeviceIdentities?$top=999' '09-autopilot-devices' { [ordered]@{ SerialNumber = (& $v $_ 'serialNumber'); Manufacturer = (& $v $_ 'manufacturer'); Model = (& $v $_ 'model'); GroupTag = (& $v $_ 'groupTag'); EnrollmentState = (& $v $_ 'enrollmentState'); LastContactedDateTime = (& $v $_ 'lastContactedDateTime'); DeploymentProfileAssignmentStatus = (& $v $_ 'deploymentProfileAssignmentStatus'); ManagedDeviceId = (& $v $_ 'managedDeviceId'); AzureActiveDirectoryDeviceId = (& $v $_ 'azureActiveDirectoryDeviceId') } }
     } | Out-Null
 
     $compliance = @(Invoke-PostureStep -Label 'Intune compliance policies' -Folder $Folder -Script {
@@ -118,8 +133,8 @@ function Invoke-PostureIntuneCollection {
         })
 
     Invoke-PostureStep -Label 'Intune apps' -Folder $Folder -Script {
-        $rows = & $get 'deviceAppManagement/mobileApps?$top=999'
-        & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Publisher = (& $v $_ 'publisher'); Type = (& $odataType $_); IsFeatured = (& $v $_ 'isFeatured'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) '09-intune-apps' $true
+        # Only the properties that are written: an app's full record carries its icon and its detection rules.
+        $null = & $streamed 'deviceAppManagement/mobileApps?$select=id,displayName,publisher,isFeatured,createdDateTime,lastModifiedDateTime&$top=999' '09-intune-apps' { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Publisher = (& $v $_ 'publisher'); Type = (& $odataType $_); IsFeatured = (& $v $_ 'isFeatured'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }
     } | Out-Null
 
     Invoke-PostureStep -Label 'Apple push certificate' -Folder $Folder -Script {
@@ -189,12 +204,19 @@ function Invoke-PostureIntuneCollection {
     Invoke-PostureStep -Label 'Settings catalog policy settings' -Folder $Folder -Script {
         $out = [System.Collections.Generic.List[object]]::new()
         # $catalog holds the raw Graph rows; the projection the facts read is what the step wrote.
-        foreach ($raw in @($catalog | Where-Object { $_ -and @(& $v $_ 'assignments').Count -gt 0 })) {
+        # One read per assigned policy, twenty to a request ($batch). A policy whose settings are refused fails the
+        # step after the others are written down, so one policy never costs the rest.
+        $assigned = @($catalog | Where-Object { $_ -and @(& $v $_ 'assignments').Count -gt 0 })
+        $answers = @(Invoke-PostureGraphBatch -Url @($assigned | ForEach-Object { "deviceManagement/configurationPolicies/$($_.id)/settings" }) -ApiVersion 'beta' -Label 'Settings catalog policy settings')
+        $refused = [System.Collections.Generic.List[string]]::new()
+        for ($n = 0; $n -lt $assigned.Count; $n++) {
+            $raw = $assigned[$n]; $answer = $answers[$n]
+            if ($answer.status -ge 400 -or $answer.status -eq 0) { $refused.Add("$(& $v $raw 'name'): $($answer.status) $($answer.error)"); continue }
             $p = [ordered]@{ Id = $raw.id; Name = (& $v $raw 'name'); TemplateFamily = (& $v $raw 'templateReference.templateFamily'); TemplateDisplayName = (& $v $raw 'templateReference.templateDisplayName'); Platforms = (& $v $raw 'platforms') }
-            $settings = & $get "deviceManagement/configurationPolicies/$($p.Id)/settings" 'beta'
-            foreach ($s in $settings) { & $flattenSetting (& $v $s 'settingInstance') '' $p $out }
+            foreach ($s in @(& $v $answer.body 'value' | Where-Object { $_ })) { & $flattenSetting (& $v $s 'settingInstance') '' $p $out }
         }
         & $save $out.ToArray() '09-intune-policy-settings' $true
+        if ($refused.Count -gt 0) { throw "The settings of $($refused.Count) of $($assigned.Count) assigned settings catalog policies could not be read: $($refused[0])" }
     } | Out-Null
 
     # Template profiles and compliance policies: every scalar property of an assigned policy, so the facts can read
@@ -266,11 +288,20 @@ function Invoke-PostureIntuneCollection {
 
     Invoke-PostureStep -Label 'BitLocker recovery keys' -Folder $Folder -Script {
         # Key presence per device only; the key material is never read. (verify) scope: BitLockerKey.ReadBasic.All
-        $keys = & $get 'informationProtection/bitlocker/recoveryKeys?$select=id,deviceId,createdDateTime,volumeType'
-        $byDevice = @{}
-        foreach ($k in $keys) { $d = [string](& $v $k 'deviceId'); if ($d) { if (-not $byDevice.ContainsKey($d)) { $byDevice[$d] = 0 }; $byDevice[$d]++ } }
-        & $save @($byDevice.Keys | Sort-Object | ForEach-Object { [ordered]@{ DeviceId = $_; Keys = $byDevice[$_] } }) '08-bitlocker-keys-by-device' $true
-        & $saveOne ([ordered]@{ Keys = $keys.Count; DevicesWithKeys = $byDevice.Count }) '08-bitlocker-keys-summary'
+        # Counted per device as the pages arrive: a device has two or three keys, and only how many is kept. (The
+        # counter is not called $total: the page reader has a variable of that name, and a block it calls sees its.)
+        $byDevice = @{}; $keysSeen = @{ n = 0 }
+        $null = Invoke-PostureGraphRequest -Uri 'informationProtection/bitlocker/recoveryKeys?$select=id,deviceId,createdDateTime,volumeType' -ApiVersion 'v1.0' -Label 'BitLocker recovery keys' -OnPage {
+            param($page)
+            foreach ($k in $page) { $keysSeen.n++; $d = [string](& $v $k 'deviceId'); if ($d) { $byDevice[$d] = 1 + $(if ($byDevice.ContainsKey($d)) { $byDevice[$d] } else { 0 }) } }
+        }
+        $stream = Open-PostureEvidenceStream -Folder $Folder -Name '08-bitlocker-keys-by-device' -Csv -Confirm:$false
+        try {
+            foreach ($d in @($byDevice.get_Keys() | Sort-Object)) { Add-PostureEvidenceRow -Stream $stream -Row ([ordered]@{ DeviceId = $d; Keys = $byDevice[$d] }) }
+            $files.Add((Close-PostureEvidenceStream -Stream $stream))
+        }
+        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        & $saveOne ([ordered]@{ Keys = $keysSeen.n; DevicesWithKeys = $byDevice.get_Count() }) '08-bitlocker-keys-summary'
     } | Out-Null
 
     $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
