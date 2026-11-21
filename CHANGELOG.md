@@ -6,6 +6,16 @@ work landed on main.
 
 ## Unreleased
 
+- The sign-in read keeps no list of who failed from where (2026-11-21). To spot a password spray the collector
+  remembered, for each address, every account that failed from it, up to 1,000 accounts for each of 20,000
+  addresses, and wrote that to its checkpoint on disk every ten pages (276 MB at the ceilings). An account is now
+  remembered by a keyed hash wherever the question is only how many different accounts: per address, per
+  report-only policy, and for the legacy total. The names are in neither the tallies nor the checkpoint, an
+  address keeps 200 accounts at most (`AccountsFailedOrMore` says when it met that), and the accounts listed for
+  legacy sign-ins are bounded. A checkpoint from before this change is converted before the read carries on.
+- A restart of the sign-in read counts no record twice. The ids at the oldest second were kept for the last page
+  only; when more than one page shared that second, a restart counted the earlier pages' records again.
+- The sign-in summary says what it counts (`Scope`): interactive user sign-ins.
 - Azure: every subscription, and a refusal costs one subscription (2026-11-21). The per-subscription reads
   (Defender plans, security contacts, activity log export, classic administrators, budgets, pay-as-you-go spend)
   stopped at the first 200 subscriptions, and one subscription that refused a read failed the whole step, so a

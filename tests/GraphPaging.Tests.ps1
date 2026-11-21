@@ -166,6 +166,87 @@ Describe 'Sign-in log collector' {
         }
     }
 
+    It 'keeps no account name per address or per policy in the checkpoint, and counts the accounts all the same' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            $f = Join-Path $root 'signins-checkpoint-names'; New-Item -ItemType Directory -Path $f | Out-Null
+            # 260 accounts fail from one address and 12 from another; a report-only policy would have blocked each.
+            $records = @(for ($i = 0; $i -lt 272; $i++) {
+                    @{ id = "n$i"; createdDateTime = ([datetime]'2026-11-20T11:00:00Z').AddSeconds(-$i).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); userPrincipalName = "victim$i@contoso.example"
+                        clientAppUsed = 'Browser'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 50126 }; authenticationRequirement = 'singleFactorAuthentication'
+                        ipAddress = $(if ($i -lt 260) { '203.0.113.50' } else { '203.0.113.51' }); location = @{ countryOrRegion = 'US' }; appliedConditionalAccessPolicies = @(@{ id = 'p1'; displayName = 'Block legacy'; result = 'reportOnlyFailure' })
+                    }
+                })
+            # The first page arrives, the second request fails and is not retried: the checkpoint stays on disk.
+            $script:Asked = 0
+            Mock Invoke-MgGraphRequest { $script:Asked++; if ($script:Asked -eq 1) { @{ value = $records; '@odata.nextLink' = 'https://graph.microsoft.com/beta/auditLogs/signIns?skip=1' } } else { throw 'Authorization_RequestDenied: Insufficient privileges' } }
+            { Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z') -CheckpointPages 1 -SelfRetries 0 -SelfRetryWaitSeconds 0 -WarningAction SilentlyContinue } | Should -Throw
+            $text = Get-Content -Raw -LiteralPath (Join-Path $f '.signins-checkpoint.json')
+            $text | Should -Not -Match 'victim\d+@contoso\.example' -Because 'who failed to sign in from where is not written to disk'
+            $state = $text | ConvertFrom-Json -AsHashtable -Depth 10
+            $state['salt'] | Should -Match '^[0-9A-F]{64}$'
+            $state['failedByIp']['203.0.113.50'].get_Count() | Should -Be 200 -Because 'an address keeps 200 different accounts at most'
+            @($state['failedByIp']['203.0.113.51'].get_Keys())[0] | Should -Match '^[0-9A-F]{16}$'
+            $state['reportOnly']['p1']['users'].get_Count() | Should -Be 272
+
+            # The read carries on from that checkpoint and the summary has the counts.
+            Mock Invoke-MgGraphRequest { @{ value = @() } }
+            $null = Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z')
+            $s = Get-Content -Raw (Join-Path $f '06-signins-summary.json') | ConvertFrom-Json -AsHashtable
+            $spray = @($s['SprayAddresses'])
+            @($spray | ForEach-Object { "$($_['IpAddress'])=$($_['AccountsFailed'])/$($_['AccountsFailedOrMore'])" }) | Should -Be @('203.0.113.50=200/True', '203.0.113.51=12/False')
+            @($s['ReportOnlyPolicies'])[0]['UsersAffected'] | Should -Be 272
+            $s['Scope'] | Should -Match '^Interactive user sign-ins'
+            Join-Path $f '.signins-checkpoint.json' | Should -Not -Exist
+        }
+    }
+
+    It 'remembers every record at the oldest second across pages, so a restart from that second counts none of them twice' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            $f = Join-Path $root 'signins-second'; New-Item -ItemType Directory -Path $f | Out-Null
+            # Five sign-ins in the same second, split over two pages; then the read fails.
+            $row = { param([string] $Id) @{ id = $Id; createdDateTime = '2026-11-20T11:00:00Z'; userPrincipalName = "u-$Id@contoso.example"; clientAppUsed = 'Browser'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 0 }; authenticationRequirement = 'singleFactorAuthentication'; location = @{ countryOrRegion = 'US' }; appliedConditionalAccessPolicies = @() } }
+            $script:Asked = 0
+            Mock Invoke-MgGraphRequest {
+                $script:Asked++
+                switch ($script:Asked) {
+                    1 { @{ value = @((& $row 'a'), (& $row 'b'), (& $row 'c')); '@odata.nextLink' = 'https://graph.microsoft.com/beta/auditLogs/signIns?skip=3' } }
+                    2 { @{ value = @((& $row 'd'), (& $row 'e')); '@odata.nextLink' = 'https://graph.microsoft.com/beta/auditLogs/signIns?skip=5' } }
+                    default { throw 'Authorization_RequestDenied: Insufficient privileges' }
+                }
+            }
+            { Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z') -CheckpointPages 1 -SelfRetries 0 -SelfRetryWaitSeconds 0 -WarningAction SilentlyContinue } | Should -Throw
+            $state = Get-Content -Raw -LiteralPath (Join-Path $f '.signins-checkpoint.json') | ConvertFrom-Json -AsHashtable -Depth 10
+            @($state['boundaryIds'] | Sort-Object) | Should -Be @('a', 'b', 'c', 'd', 'e') -Because 'the first page''s records share the second with the second page''s'
+            $state['count'] | Should -Be 5
+        }
+    }
+
+    It 'takes over a checkpoint written with names, replacing them by keys before it reads on' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            $f = Join-Path $root 'signins-old'; New-Item -ItemType Directory -Path $f | Out-Null
+            $old = @{
+                days = 7; windowStartUtc = '2026-11-13T12:00:00.0000000Z'; windowEndUtc = '2026-11-20T12:00:00.0000000Z'; nextLink = $null; oldestUtc = '2026-11-20T10:00:00Z'; boundaryIds = @('x1')
+                pages = 3; count = 40; byClientApp = @{ Browser = 40 }; byCaStatus = @{}; failures = 22; interactive = 40; byDay = @{}; byCountry = @{}; risky = 0; legacy = 2
+                legacyUsers = @{ 'old.imap@contoso.example' = @{ count = 2; apps = @{ IMAP4 = 2 }; last = '2026-11-20T10:30:00Z' } }
+                mfaRequired = 0; completed = $false; reportOnly = @{ p1 = @{ name = 'Block legacy'; wouldBlock = 3; wouldInterrupt = 0; wouldPass = 0; users = @{ 'a@contoso.example' = 1; 'b@contoso.example' = 1 } } }
+                admins = @{}; errorCodes = @{}; ipCapReached = $false
+                failedByIp = @{ '203.0.113.9' = @{} }
+            }
+            foreach ($n in 1..11) { $old.failedByIp['203.0.113.9']["sprayed$n@contoso.example"] = 1 }
+            ConvertTo-Json -InputObject $old -Depth 10 | Set-Content -LiteralPath (Join-Path $f '.signins-checkpoint.json')
+            Mock Invoke-MgGraphRequest { @{ value = @() } }
+            $null = Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z')
+            $s = Get-Content -Raw (Join-Path $f '06-signins-summary.json') | ConvertFrom-Json -AsHashtable
+            $s['SignIns'] | Should -Be 40
+            @($s['SprayAddresses'])[0]['AccountsFailed'] | Should -Be 11
+            @($s['ReportOnlyPolicies'])[0]['UsersAffected'] | Should -Be 2
+            $s['LegacyUsers'] | Should -Be 1
+        }
+    }
+
     It 'carries on by itself after a failure that outlasts the page retries, from where it stopped, counting nothing twice' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             param($root)

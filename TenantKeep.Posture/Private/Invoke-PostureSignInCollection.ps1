@@ -62,8 +62,24 @@ function Invoke-PostureSignInCollection {
     # Everyone who holds a role (directly, as eligible, through a group) from the Entra collector's files in this
     # folder, for the admin tallies.
     $adminSet = (Get-PostureRoleHolder -Folder $Folder).upns
-    foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp', 'caByMfa', 'deviceTrust') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
-    $maxIps = 20000; $maxPolicyUsers = 5000
+    foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp', 'caByMfa', 'deviceTrust', 'legacyKeys') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
+    foreach ($k in 'legacyCapped') { if (-not $state.ContainsKey($k)) { $state[$k] = $false } }
+    # Where the question is only "how many different accounts" (per address for the spray pattern, per report-only
+    # policy, legacy sign-ins in all), an account is remembered by a keyed hash, never by its name. The tallies and
+    # the checkpoint on disk then hold no list of who failed to sign in from where. The key is made for this read
+    # and kept in the checkpoint, so a restart counts the same account once.
+    $carriedNames = -not ($state.ContainsKey('salt') -and $state['salt'])
+    if ($carriedNames) { $bytes = [byte[]]::new(32); [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes); $state['salt'] = [System.Convert]::ToHexString($bytes) }
+    $hasher = [System.Security.Cryptography.HMACSHA256]::new([System.Convert]::FromHexString([string]$state['salt']))
+    $accountKey = { param([string] $Name) [System.Convert]::ToHexString($hasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Name.ToLowerInvariant())), 0, 8) }
+    if ($carriedNames) {
+        # A checkpoint written before 2026-11-21 holds the names: they are replaced by their keys before anything is read.
+        foreach ($ip in @($state.failedByIp.get_Keys())) { $keys = @{}; foreach ($name in @($state.failedByIp[$ip].get_Keys())) { $keys[(& $accountKey ([string]$name))] = 1 }; $state.failedByIp[$ip] = $keys }
+        foreach ($id in @($state.reportOnly.get_Keys())) { $keys = @{}; foreach ($name in @($state.reportOnly[$id]['users'].get_Keys())) { $keys[(& $accountKey ([string]$name))] = 1 }; $state.reportOnly[$id]['users'] = $keys }
+        foreach ($name in @($state.legacyUsers.get_Keys())) { $state.legacyKeys[(& $accountKey ([string]$name))] = 1 }
+    }
+    # Every tally has a ceiling: addresses, accounts per address, accounts per policy, legacy accounts listed and counted.
+    $maxIps = 20000; $maxAccountsPerIp = 200; $maxPolicyUsers = 5000; $maxLegacyListed = 5000; $maxLegacyKeys = 500000
     $saveCheckpoint = { Save-PostureJsonFile -Path $checkpointPath -InputObject $state -Confirm:$false }
     $select = 'id,createdDateTime,userPrincipalName,appDisplayName,clientAppUsed,isInteractive,conditionalAccessStatus,status,authenticationRequirement,riskLevelDuringSignIn,location,ipAddress,appliedConditionalAccessPolicies,deviceDetail'
     $legacySet = [System.Collections.Generic.HashSet[string]]::new([string[]]$script:PostureLegacyClientApps, [System.StringComparer]::OrdinalIgnoreCase)
@@ -76,7 +92,9 @@ function Invoke-PostureSignInCollection {
         param($page, $info)
         $boundary = [System.Collections.Generic.HashSet[string]]::new([string[]]@($state.boundaryIds))
         $oldest = $state.oldestUtc
-        $edge = [System.Collections.Generic.List[string]]::new()
+        # The ids at the oldest second counted so far. They carry over from page to page while that second stays the
+        # oldest: more than one page can share a second, and a restart from it must skip every record already counted.
+        $edge = [System.Collections.Generic.List[string]]::new([string[]]@($state.boundaryIds))
         foreach ($r in $page) {
             if ($boundary.Contains([string]$r['id'])) { continue }   # already counted before a restart at this second
             $state.count++
@@ -101,7 +119,7 @@ function Invoke-PostureSignInCollection {
                     $ip = [string]$r['ipAddress']
                     if ($ip -and ($state.failedByIp.ContainsKey($ip) -or $state.failedByIp.get_Count() -lt $maxIps)) {
                         if (-not $state.failedByIp.ContainsKey($ip)) { $state.failedByIp[$ip] = @{} }
-                        if ($state.failedByIp[$ip].get_Count() -lt 1000) { $state.failedByIp[$ip][$upn] = 1 }
+                        if ($state.failedByIp[$ip].get_Count() -lt $maxAccountsPerIp) { $state.failedByIp[$ip][(& $accountKey $upn)] = 1 }
                     }
                     elseif ($ip) { $state.ipCapReached = $true }
                 }
@@ -124,7 +142,7 @@ function Invoke-PostureSignInCollection {
                 if (-not $state.reportOnly.ContainsKey($policyId)) { $state.reportOnly[$policyId] = @{ name = [string]$pol['displayName']; wouldBlock = 0; wouldInterrupt = 0; wouldPass = 0; users = @{} } }
                 $ro = $state.reportOnly[$policyId]
                 switch ($res) { 'reportOnlyFailure' { $ro.wouldBlock++ } 'reportOnlyInterrupted' { $ro.wouldInterrupt++ } default { $ro.wouldPass++ } }
-                if ($res -ne 'reportOnlySuccess' -and $ro.users.get_Count() -lt $maxPolicyUsers) { $ro.users[$upn] = 1 }
+                if ($res -ne 'reportOnlySuccess' -and $ro.users.get_Count() -lt $maxPolicyUsers) { $ro.users[(& $accountKey $upn)] = 1 }
             }
             if ($adminSet.Contains($upn)) {
                 if (-not $state.admins.ContainsKey($upn)) { $state.admins[$upn] = @{ signIns = 0; singleFactor = 0; failures = 0; last = $created } }
@@ -138,8 +156,12 @@ function Invoke-PostureSignInCollection {
             $risk = [string]$r['riskLevelDuringSignIn']; if ($risk -and $risk -notin 'none', 'hidden', 'unknownFutureValue') { $state.risky++ }
             if ($legacySet.Contains($app)) {
                 $state.legacy++
-                if (-not $state.legacyUsers.ContainsKey($upn)) { $state.legacyUsers[$upn] = @{ count = 0; apps = @{}; last = $created } }
-                $lu = $state.legacyUsers[$upn]; $lu['count']++; & $bump $lu['apps'] $app; if ($created -gt [string]$lu['last']) { $lu['last'] = $created }
+                $legacyKey = & $accountKey $upn
+                if ($state.legacyKeys.ContainsKey($legacyKey) -or $state.legacyKeys.get_Count() -lt $maxLegacyKeys) { $state.legacyKeys[$legacyKey] = 1 } else { $state.legacyCapped = $true }
+                if ($state.legacyUsers.ContainsKey($upn) -or $state.legacyUsers.get_Count() -lt $maxLegacyListed) {
+                    if (-not $state.legacyUsers.ContainsKey($upn)) { $state.legacyUsers[$upn] = @{ count = 0; apps = @{}; last = $created } }
+                    $lu = $state.legacyUsers[$upn]; $lu['count']++; & $bump $lu['apps'] $app; if ($created -gt [string]$lu['last']) { $lu['last'] = $created }
+                }
             }
         }
         $state.oldestUtc = $oldest
@@ -185,14 +207,18 @@ function Invoke-PostureSignInCollection {
     $summary = [ordered]@{
         WindowStartUtc = $state.windowStartUtc; WindowEndUtc = $state.windowEndUtc; Days = $Days; SignIns = [long]$state.count; Interactive = [long]$state.interactive
         Failures = [long]$state.failures; MfaRequired = [long]$state.mfaRequired; Risky = [long]$state.risky
-        LegacySignIns = [long]$state.legacy; LegacyUsers = $state.legacyUsers.get_Count(); Pages = $state.pages
+        # What these counts are counts of. auditLogs/signIns returns interactive user sign-ins unless asked otherwise:
+        # non-interactive and service principal sign-ins are not in them. (verify) live, plan check 2.
+        Scope = 'Interactive user sign-ins, as auditLogs/signIns returns them by default. Non-interactive and service principal sign-ins are not counted.'
+        LegacySignIns = [long]$state.legacy; LegacyUsers = [Math]::Max($state.legacyKeys.get_Count(), $state.legacyUsers.get_Count()); LegacyUsersCapped = [bool]$state.legacyCapped; Pages = $state.pages
         ByClientApp = (& $sorted $state.byClientApp); ByConditionalAccessStatus = (& $sorted $state.byCaStatus)
         ByDay = (& $byKey $state.byDay)
         ByCountry = (& $sorted $state.byCountry)
         FailuresByErrorCode = (& $sorted $state.errorCodes)
         ReportOnlyPolicies = @($state.reportOnly.get_Keys() | ForEach-Object { $ro = $state.reportOnly[$_]; [ordered]@{ Id = $_; Name = $ro.name; WouldBlock = [long]$ro.wouldBlock; WouldInterrupt = [long]$ro.wouldInterrupt; WouldPass = [long]$ro.wouldPass; UsersAffected = $ro.users.get_Count() } } | Sort-Object { - ($_.WouldBlock + $_.WouldInterrupt) })
         AdminSignIns = @($state.admins.get_Keys() | ForEach-Object { $ad = $state.admins[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$ad.signIns; SingleFactor = [long]$ad.singleFactor; Failures = [long]$ad.failures; LastSignIn = $ad.last } } | Sort-Object { - $_.SingleFactor }, { - $_.SignIns })
-        SprayAddresses = @($state.failedByIp.get_Keys() | Where-Object { $state.failedByIp[$_].get_Count() -ge 10 } | ForEach-Object { [ordered]@{ IpAddress = $_; AccountsFailed = $state.failedByIp[$_].get_Count() } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
+        # AccountsFailed is how many different accounts failed from the address; at the ceiling it means that many or more.
+        SprayAddresses = @($state.failedByIp.get_Keys() | Where-Object { $state.failedByIp[$_].get_Count() -ge 10 } | ForEach-Object { $n = $state.failedByIp[$_].get_Count(); [ordered]@{ IpAddress = $_; AccountsFailed = $n; AccountsFailedOrMore = ($n -ge $maxAccountsPerIp) } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
         SprayTrackingCapped = [bool]$state.ipCapReached
         # Successful sign-ins only. CaByMfa keys: caApplied or noCa, then mfa or singleFactor ("caApplied|mfa").
         CaByMfa = (& $byKey $state.caByMfa)
@@ -201,5 +227,6 @@ function Invoke-PostureSignInCollection {
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-summary' -InputObject $summary))
     $files.Add((Write-PostureEvidence -Folder $Folder -Name '06-signins-legacy-users' -InputObject $legacyRows -AsArray -Csv))
     if (Test-Path -LiteralPath $checkpointPath) { Remove-Item -LiteralPath $checkpointPath -Force }
+    $hasher.Dispose()
     return @{ files = $files.ToArray() }
 }

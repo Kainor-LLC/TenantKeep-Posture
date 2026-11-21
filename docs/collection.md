@@ -116,8 +116,23 @@ Connect-ExchangeOnline -UserPrincipalName reader@contoso.example -ShowBanner:$fa
 Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence        # Entra, Intune and Exchange into one folder
 ```
 
-Not yet collected: legacy sign-ins (section 12), inbox rules forwarding externally (spec 4.10, needs an audit search
-at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender effective state (spec 4.11).
+Not yet collected: inbox rules forwarding externally (spec 4.10, needs an audit search at scale) and Maester (A.4).
+
+## What the sign-in read writes
+
+The `SignIns` collector reads the Entra sign-in log for the last 7 days (`-SignInDays`, up to 30) a page at a time
+and keeps counts, never the records. It needs AuditLog.Read.All and Entra ID P1.
+
+| File | Notes |
+|---|---|
+| `06-signins-summary` | Totals, by client app, by Conditional Access status, by day and country, failures by error code, what each report-only policy would have done, administrators' sign-ins, and the addresses many accounts failed from (`SprayAddresses`). `Scope` says what is counted: interactive user sign-ins |
+| `06-signins-legacy-users` (+csv) | The accounts that signed in with a legacy client app, most active first (500 at most; the summary's `LegacyUsers` is the number of different accounts) |
+
+While the read is under way a checkpoint, `.signins-checkpoint.json`, is saved every ten pages so a failure or a
+restart carries on from where it stopped; it is removed when the read ends. Where the question is only how many
+different accounts (per address, per report-only policy, legacy in all), an account is remembered by a keyed hash
+made for that read, so neither the counts nor the checkpoint hold a list of who failed to sign in from where. An
+address keeps 200 accounts at most, and `AccountsFailedOrMore` says when it met that.
 
 `exo-12-remote-powershell-users` (+summary) is about the accounts with Exchange Online PowerShell on (Get-User filtered
 on RemotePowerShellEnabled; left out with -SkipMailboxEnumeration). The setting is on for everyone by default, so the
