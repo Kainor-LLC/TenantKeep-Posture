@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Evidence is written whole or not at all (2026-11-21). Every evidence file is written as `<name>.json.part` and
+  `<name>.csv.part` and takes its name only when it is complete. A run that is killed while a list is being
+  written (the laptop sleeps, the process runs out of memory, an Automation job hits its time limit) used to
+  leave a cut-off CSV that the device, mailbox and site checks read as the whole list; now those checks read
+  "not collected" and name the file. A second attempt at a list no longer leaves the first attempt's file behind
+  when it fails. `profile.json` and `checks.json` go through a temporary file too, so a stop mid-write cannot
+  leave half a profile for the next run.
 - Names from the tenant can no longer act in a spreadsheet or break the page (2026-11-21). A guest chooses their
   own display name, so an affected list can carry `=HYPERLINK(...)`: in `affected/<check>.csv`, `findings.csv`,
   the redaction key and the page's own CSV export, a cell that starts with `=`, `+`, `-`, `@`, a tab or a

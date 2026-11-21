@@ -78,7 +78,7 @@ function Invoke-PostureChecks {
     $outFolder = if ($OutputPath) { $OutputPath } else { (Get-PostureRunLayout -Folder $evidencePath).logs }
     if (-not (Test-Path -LiteralPath $outFolder)) { New-Item -ItemType Directory -Path $outFolder -Force | Out-Null }
     $path = Join-Path (Resolve-Path -LiteralPath $outFolder).Path 'checks.json'
-    [System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
+    Save-PostureJsonFile -Path $path -InputObject $run -Confirm:$false
 
     Clear-PostureEvidenceCache -Confirm:$false
     $c = $run.counts

@@ -246,7 +246,8 @@ function New-PostureProfile {
     if ($PSCmdlet.ShouldProcess($full, 'Write profile.json')) {
         $dir = Split-Path $full -Parent
         if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-        [System.IO.File]::WriteAllText($full, (ConvertTo-Json -InputObject $written -Depth 10), [System.Text.UTF8Encoding]::new($false))
+        # Through a temporary file: a run stopped mid-write must not leave half a profile for the next run to trip over.
+        Save-PostureJsonFile -Path $full -InputObject $written -Confirm:$false
     }
     if ($PassThru) { return $written }
     return $full

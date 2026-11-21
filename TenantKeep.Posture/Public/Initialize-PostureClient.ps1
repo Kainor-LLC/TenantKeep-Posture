@@ -75,7 +75,7 @@ function Initialize-PostureClient {
         $seed = [ordered]@{}
         if ($TenantId) { $seed['tenantId'] = $TenantId }
         if ($ClientName) { $seed['clientName'] = $ClientName }
-        if ($seed.Count -gt 0) { [System.IO.File]::WriteAllText($profilePath, ($seed | ConvertTo-Json) + "`n", [System.Text.UTF8Encoding]::new($false)) }
+        if ($seed.Count -gt 0) { Save-PostureJsonFile -Path $profilePath -InputObject $seed -Confirm:$false }
     }
     elseif ($TenantId) {
         $existing = Get-Content -Raw -LiteralPath $profilePath | ConvertFrom-Json -AsHashtable -Depth 10

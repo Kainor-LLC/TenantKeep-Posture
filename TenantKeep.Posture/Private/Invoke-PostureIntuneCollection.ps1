@@ -203,7 +203,7 @@ function Invoke-PostureIntuneCollection {
     $scalarRows = {
         param($Policies)
         @(foreach ($p in @($Policies | Where-Object { $_ -and @(& $v $_ 'assignments').Count -gt 0 })) {
-                foreach ($k in @($p.Keys | Where-Object { $_ -notin $meta } | Sort-Object)) {
+                foreach ($k in @($p.get_Keys() | Where-Object { $_ -notin $meta } | Sort-Object)) {
                     $val = $p[$k]
                     if ($null -eq $val -or $val -is [string] -or $val -is [bool] -or $val -is [int] -or $val -is [long] -or $val -is [double]) { [ordered]@{ PolicyId = $p.id; PolicyName = (& $v $p 'displayName'); Type = (& $odataType $p); Setting = $k; Value = $val } }
                     elseif ($val -is [System.Collections.IList] -and @($val | Where-Object { $_ -is [System.Collections.IDictionary] }).Count -eq 0) { [ordered]@{ PolicyId = $p.id; PolicyName = (& $v $p 'displayName'); Type = (& $odataType $p); Setting = $k; Value = (@($val) -join '|') } }

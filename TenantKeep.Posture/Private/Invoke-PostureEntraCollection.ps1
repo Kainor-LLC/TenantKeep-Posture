@@ -64,7 +64,9 @@ function Invoke-PostureEntraCollection {
                 }
             })
         $files.Add((Write-PostureEvidence -Folder $Folder -Name '01-subscribed-skus' -InputObject $skus -AsArray))
-        @($flat | ForEach-Object { [pscustomobject]$_ }) | Export-Csv -Path (Join-Path $Folder '01-subscribed-skus.csv') -NoTypeInformation
+        $skuCsv = Join-Path $Folder '01-subscribed-skus.csv'
+        @($flat | ForEach-Object { [pscustomobject]$_ }) | Export-Csv -Path "$skuCsv.part" -NoTypeInformation
+        [System.IO.File]::Move("$skuCsv.part", $skuCsv, $true)
     } | Out-Null
     Invoke-PostureStep -Label 'Hybrid sync features' -Folder $Folder -Script {
         & $save (& $get 'directory/onPremisesSynchronization') '01-onprem-sync-features'

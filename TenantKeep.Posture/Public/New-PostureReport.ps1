@@ -109,7 +109,7 @@ function New-PostureReport {
     $checksPath = Join-Path $checksFolder 'checks.json'
     if ($PSCmdlet.ShouldProcess($checksPath, 'Write checks.json')) {
         foreach ($d in $outFolder, $checksFolder) { if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force -WhatIf:$false | Out-Null } }
-        [System.IO.File]::WriteAllText($checksPath, (ConvertTo-Json -InputObject $run -Depth 20), [System.Text.UTF8Encoding]::new($false))
+        Save-PostureJsonFile -Path $checksPath -InputObject $run -Confirm:$false
         $written.Add($checksPath)
     }
     # Every affected list in full as a CSV per check; the page carries the first 500 of each, so a check with tens

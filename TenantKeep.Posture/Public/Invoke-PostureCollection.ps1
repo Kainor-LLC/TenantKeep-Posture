@@ -254,7 +254,7 @@ function Invoke-PostureCollection {
                 powerShell       = $PSVersionTable.PSVersion.ToString()
                 os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
                 staleDays        = $StaleDays
-                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'run.json') -and -not $_.Name.StartsWith('errors') -and -not $_.Name.StartsWith('.') } | ForEach-Object { $_.Name } | Sort-Object)
+                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'run.json') -and -not $_.Name.StartsWith('errors') -and -not $_.Name.StartsWith('.') -and $_.Extension -ne '.part' } | ForEach-Object { $_.Name } | Sort-Object)
                 errorCount       = $errors.Count
                 errors           = $errors
                 timings          = $allTimings
