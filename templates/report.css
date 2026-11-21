@@ -339,6 +339,15 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .attack-checks { margin: 2px 0 0; line-height: 1.9; }
 .attack-checks .qw-chip { display: inline-block; white-space: nowrap; }
 .attack-list { padding-left: 18px; }
+/* Journeys: a strip of steps that wraps on narrow screens, each a link to its check. */
+.journey { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; counter-reset: step; }
+.journey .step a { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--fg); text-decoration: none; font-size: 13px; }
+.journey .step a:hover { background: var(--soft); }
+.journey .step.off a { border-color: var(--err); }
+.journey .step.unknown a { color: var(--muted); border-style: dashed; }
+.status-list { list-style: none; margin: 0; padding: 0; }
+.status-list li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.status-list li:first-child { border-top: 0; }
 /* Support blocks in Run Health: plain text to copy, wrapped, never wider than the page. */
 pre.support-text { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--soft); padding: 8px 10px; border-radius: 6px; margin: 6px 0; }
 details.support { margin: 6px 0; } details.support summary { cursor: pointer; }

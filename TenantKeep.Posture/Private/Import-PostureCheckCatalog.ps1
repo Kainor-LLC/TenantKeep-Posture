@@ -48,7 +48,7 @@ function Import-PostureCheckCatalog {
 
     $load = {
         param([string] $Folder, [bool] $Custom)
-        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' })) {
+        foreach ($file in (Get-ChildItem -LiteralPath $Folder -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' })) {
             $doc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json -AsHashtable -Depth 20
             $domain = [string](Get-PostureValue $doc 'domain')
             $list = if ($doc -is [System.Collections.IDictionary]) { @($doc['checks']) } else { @($doc) }

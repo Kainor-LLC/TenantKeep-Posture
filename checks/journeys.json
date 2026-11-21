@@ -1,0 +1,48 @@
+{
+  "description": "Journeys: what a person goes through, step by step, with the check behind each step. The report draws each as a strip in the Domains view; a step shows its check's result. Steps name catalog checks; a check missing from the catalog fails the load.",
+  "journeys": [
+    {
+      "id": "JR-001",
+      "name": "A new Windows laptop",
+      "domain": "experience",
+      "why": "From the box to a working desktop: every step that runs on its own is one the person does not have to ask IT for.",
+      "steps": [
+        { "check": "DEV-004", "label": "Arrives through Autopilot" },
+        { "check": "UX-005", "label": "Named by template" },
+        { "check": "UX-003", "label": "Shows setup progress" },
+        { "check": "UX-004", "label": "Restores Windows settings" },
+        { "check": "UX-001", "label": "OneDrive signs in and moves folders" },
+        { "check": "UX-002", "label": "Edge signed in" },
+        { "check": "UX-017", "label": "Restarts with notice" }
+      ]
+    },
+    {
+      "id": "JR-002",
+      "name": "Signing in",
+      "domain": "experience",
+      "why": "How often people are asked, with what, and what happens when they forget.",
+      "steps": [
+        { "check": "UX-013", "label": "Asked to set up Authenticator" },
+        { "check": "UX-011", "label": "Approves with the phone" },
+        { "check": "UX-012", "label": "Strongest method first" },
+        { "check": "UX-014", "label": "Windows without a password" },
+        { "check": "UX-016", "label": "iPhone and Mac sign in once" },
+        { "check": "UX-007", "label": "Not asked again all day" },
+        { "check": "UX-015", "label": "Resets a password alone" }
+      ]
+    },
+    {
+      "id": "JR-003",
+      "name": "Reading and sending mail",
+      "domain": "experience",
+      "why": "The small cues that help people decide what to trust and what to send.",
+      "steps": [
+        { "check": "UX-009", "label": "Sign-in name is the address" },
+        { "check": "UX-021", "label": "Outside mail is marked" },
+        { "check": "UX-022", "label": "Warned before sending outside" },
+        { "check": "UX-023", "label": "Reports phishing in one click" },
+        { "check": "UX-024", "label": "Mailbox never fills" }
+      ]
+    }
+  ]
+}

@@ -186,3 +186,40 @@ function Get-PostureOutcomeResult {
     }
     return @($out)
 }
+
+function Get-PostureJourneyResult {
+    <#
+    .SYNOPSIS
+        checks/journeys.json judged against a run: each journey's steps, in order, with the result of the check behind
+        each. A step is on when its check passes (or is covered or accepted), off when it fails, and not known when it
+        could not be evaluated or does not apply. Every check named must be in the catalog.
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Catalog,
+        [Parameter()] [AllowEmptyCollection()] [object[]] $Result = @(),
+        [string] $Path
+    )
+
+    $ErrorActionPreference = 'Stop'
+    if (-not $Path) {
+        if (-not $Catalog.Contains('path') -or -not $Catalog['path']) { return @() }
+        $Path = Join-Path ([string]$Catalog['path']) 'journeys.json'
+    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return @() }
+    $doc = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -AsHashtable -Depth 10
+    $known = @{}; foreach ($c in $Catalog.checks) { $known[[string]$c['id']] = $true }
+    $status = @{}; foreach ($r in $Result) { $status[[string]$r.id] = [string]$r.status }
+    $out = foreach ($j in @($doc['journeys'])) {
+        $id = [string]$j['id']
+        if ($id -notmatch '^JR-\d{3}$') { throw "journeys.json: journey id '$id' must look like JR-001" }
+        foreach ($s in @($j['steps'])) { if (-not $known.ContainsKey([string]$s['check'])) { throw "journeys.json: $id names '$($s['check'])', which is not in the catalog" } }
+        $steps = @(@($j['steps']) | ForEach-Object {
+                $st = $(if ($status.ContainsKey([string]$_['check'])) { $status[[string]$_['check']] } else { 'notEvaluated' })
+                [ordered]@{ check = [string]$_['check']; label = [string]$_['label']; status = $st; state = $(switch ($st) { { $_ -in 'pass', 'coveredBy', 'acceptedRisk' } { 'on' } 'fail' { 'off' } default { 'unknown' } }) }
+            })
+        [ordered]@{ id = $id; name = [string]$j['name']; domain = [string]$j['domain']; why = [string]$j['why']; steps = $steps; on = @($steps | Where-Object { $_.state -eq 'on' }).Count; known = @($steps | Where-Object { $_.state -ne 'unknown' }).Count }
+    }
+    return @($out)
+}

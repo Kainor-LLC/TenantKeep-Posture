@@ -219,6 +219,45 @@ function Get-PostureChartData {
     $azTop = & $load 'az-02-assessments-top'
     if ($null -ne $azTop -and @($azTop | Where-Object { $_ }).Count) { $out.azureTopRecommendations = [ordered]@{ rows = @(@($azTop) | Where-Object { $_ } | Select-Object -First 10 | ForEach-Object { [ordered]@{ title = [string](& $v $_ 'Recommendation'); severity = [string](& $v $_ 'Severity'); affected = [int](& $v $_ 'Affected') } }) } }
 
+    # Global Secure Access: which traffic goes through it (NET-001 to NET-004).
+    $nw = $(if ($DomainFacts.Contains('network')) { $DomainFacts['network'] } else { $null })
+    if ($nw -and ($nw.Contains('microsoftProfileEnabled') -or $nw.Contains('internetProfileEnabled') -or $nw.Contains('privateProfileEnabled'))) {
+        $flag = { param([string] $k) $nw.Contains($k) -and [bool]$nw[$k] }
+        $out.networkProfiles = [ordered]@{
+            rows     = @(
+                [ordered]@{ label = 'Microsoft 365 traffic'; on = (& $flag 'microsoftProfileEnabled'); detail = 'compliant network check and tenant restrictions' }
+                [ordered]@{ label = 'Internet traffic'; on = (& $flag 'internetProfileEnabled'); detail = "$(if ($nw.Contains('webFilteringPolicies')) { [int]$nw['webFilteringPolicies'] } else { 0 }) web filtering policy(ies)" }
+                [ordered]@{ label = 'Private apps'; on = (& $flag 'privateProfileEnabled'); detail = 'Private Access in place of a VPN' }
+                [ordered]@{ label = 'Original source address'; on = (& $flag 'signalingEnabled'); detail = 'Conditional Access sees the real IP' }
+            )
+            takeaway = "$(@('microsoftProfileEnabled', 'internetProfileEnabled', 'privateProfileEnabled' | Where-Object { & $flag $_ }).Count) of 3 traffic profiles are forwarding through Global Secure Access."
+        }
+    }
+    # Hybrid identity: privileged group sizes, key ages and the AD weaknesses attackers look for first.
+    $hy2 = $(if ($DomainFacts.Contains('hybrid')) { $DomainFacts['hybrid'] } else { $null })
+    $priv = & $load 'ad-03-privileged-groups'
+    if ($null -ne $priv -and @($priv | Where-Object { $_ }).Count) {
+        $byGroup = [ordered]@{}; foreach ($r in @($priv) | Where-Object { $_ }) { $g = [string](& $v $r 'Group'); $byGroup[$g] = 1 + $(if ($byGroup.Contains($g)) { $byGroup[$g] } else { 0 }) }
+        $out.privilegedGroups = [ordered]@{ item = @($byGroup.Keys | ForEach-Object { [ordered]@{ label = $_; value = $byGroup[$_]; tone = 'c1' } } | Sort-Object { - $_.value }); takeaway = "Members of AD's privileged groups, counted through nested groups." }
+    }
+    if ($hy2 -and $hy2.Contains('krbtgtPasswordAgeDays')) {
+        $ages = @([ordered]@{ label = 'krbtgt password'; value = [int]$hy2['krbtgtPasswordAgeDays']; tone = $(if ([int]$hy2['krbtgtPasswordAgeDays'] -gt 180) { 'err' } else { 'ok' }) })
+        if ($hy2.Contains('seamlessSsoKeyAgeDays') -and $null -ne $hy2['seamlessSsoKeyAgeDays']) { $ages += [ordered]@{ label = 'Seamless SSO key'; value = [int]$hy2['seamlessSsoKeyAgeDays']; tone = $(if ([int]$hy2['seamlessSsoKeyAgeDays'] -gt 30) { 'err' } else { 'ok' }) } }
+        $out.keyAges = [ordered]@{ item = $ages; takeaway = 'Days since each key was last changed; red when older than the check allows.' }
+        $risk = { param([string] $label, [string] $k, [string] $why) if ($hy2.Contains($k) -and $null -ne $hy2[$k]) { [ordered]@{ label = $label; value = [int]$hy2[$k]; detail = $why } } }
+        $out.adExposure = [ordered]@{
+            rows     = @(
+                & $risk 'Kerberoastable accounts' 'kerberoastableAccounts' 'service tickets crackable offline'
+                & $risk 'AS-REP roastable accounts' 'asrepRoastableAccounts' 'no pre-authentication'
+                & $risk 'Unconstrained delegation' 'unconstrainedDelegationNonDc' 'computers that can impersonate anyone'
+                & $risk 'GPOs holding passwords' 'gposWithCpassword' 'readable by every user'
+                & $risk 'Stale enabled users' 'staleEnabledUsers' 'accounts nobody watches'
+                & $risk 'Operator group members' 'operatorGroupMembers' 'backup and server operators'
+            ) | Where-Object { $_ }
+            takeaway = 'What attackers look for first in Active Directory; anything above zero is worth a look.'
+        }
+    }
+
     # Who manages the Windows fleet, and how far co-management has gone (DEV-019 to DEV-021).
     $dv = $(if ($DomainFacts.Contains('devices')) { $DomainFacts['devices'] } else { $null })
     if ($dv -and $dv.Contains('windowsIntuneOnly')) {
@@ -247,7 +286,9 @@ function Get-PostureChartData {
     }
     # Where users and groups are managed: AD, Entra after leaving AD, or created in Entra (HY-032, HY-033).
     $hy = $(if ($DomainFacts.Contains('hybrid')) { $DomainFacts['hybrid'] } else { $null })
-    if ($hy -and ($hy.Contains('syncedUsers') -or $hy.Contains('syncedGroups'))) {
+    # Only where something comes from AD: a cloud-only tenant has nothing to show here.
+    $fromAdCount = 0; foreach ($k in 'syncedUsers', 'syncedGroups', 'usersManagedInEntraFromAd', 'groupsManagedInEntraFromAd') { if ($hy -and $hy.Contains($k)) { $fromAdCount += [int]$hy[$k] } }
+    if ($hy -and $fromAdCount -gt 0) {
         $rowsOut = [System.Collections.Generic.List[object]]::new()
         if ($hy.Contains('syncedUsers')) {
             $fromAd = [int]$hy['usersManagedInEntraFromAd']

@@ -232,7 +232,7 @@ function Invoke-AttackData {
     $order = @($tactics | ForEach-Object { $_.key })
 
     $used = [ordered]@{}; $problems = [System.Collections.Generic.List[string]]::new()
-    foreach ($f in Get-ChildItem -Path $dir -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }) {
+    foreach ($f in Get-ChildItem -Path $dir -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' }) {
         foreach ($c in @((Get-Content -Raw $f.FullName | ConvertFrom-Json -AsHashtable -Depth 20).checks)) {
             if (-not $c.Contains('attack')) { continue }
             foreach ($id in @($c.attack)) {
@@ -283,7 +283,7 @@ function Invoke-Catalog {
     $labels = @{}; foreach ($d in @($catalogDoc.domains)) { $labels[[string]$d.key] = [string]$d.label }
     $order = @($catalogDoc.domains | ForEach-Object { [string]$_.key })
     $version = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).version
-    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'layers.json', 'outcomes.json' }
+    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' }
     $byDomain = @{}
     foreach ($f in $files) { $d = Get-Content -Raw $f.FullName | ConvertFrom-Json; $byDomain[[string]$d.domain] = @($d.checks) }
     $md = [System.Collections.Generic.List[string]]::new()

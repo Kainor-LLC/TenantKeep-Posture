@@ -32,7 +32,14 @@ Every check carries, and the catalog test enforces:
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
 (below). `facts.json` holds a plain label for every fact a pass expression reads and every threshold, shown on the
 report's finding cards beside the value ("Administrators without a phishing-resistant method: 2"); a new fact or
-threshold needs a label there or the catalog test fails. `layers.json` holds the defence-in-depth sets the report draws as layered rings, each layer a list of catalog checks. `outcomes.json` holds the board-level outcomes (ransomware readiness, identity hygiene, ...), each scored over the checks it names. `attack.json` holds the name, tactics and link of every ATT&CK technique a check names; it is generated, never edited (below). None of these is a domain file.
+threshold needs a label there or the catalog test fails. `layers.json` holds the defence-in-depth sets the report draws as layered rings, each layer a list of catalog checks. `outcomes.json` holds the board-level outcomes (ransomware readiness, identity hygiene, ...), each scored over the checks it names. `attack.json` holds the name, tactics and link of every ATT&CK technique a check names; it is generated, never edited (below). `journeys.json` holds the user journeys the Domains view draws (below). None of these is a domain file.
+
+## Journeys
+
+`journeys.json` lists what a person goes through, step by step, each step a catalog check and a short label. The
+report draws each journey as a strip in the Domains view, a step on when its check passes, off when it fails, and not
+read yet when it could not be evaluated. A step naming a check the catalog lacks fails the load. Each journey has an
+`id` (`JR-NNN`), a `name`, a `domain`, `why` (one sentence) and its `steps`.
 
 ## MITRE ATT&CK
 

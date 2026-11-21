@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- More of the report drawn (2026-11-20): the Domains view gains User Experience (three journeys, a new laptop,
+  signing in, and mail, each step backed by its check, from the new checks/journeys.json), Network Access (the Global
+  Secure Access traffic profiles) and Hybrid (privileged group sizes, key ages and the AD weaknesses attackers look
+  for first).
 - Azure and Secure Score (2026-11-20): AZ-024 no SSH, RDP or WinRM open to the internet, AZ-025 a budget on every
   subscription, AZ-026 backup vaults with soft delete and immutability, AZ-027 Sentinel receiving Entra, Microsoft 365
   and Defender XDR, AZ-028 Entra Domain Services without NTLMv1, TLS 1.0 or RC4. The Operations view gains Secure Score
