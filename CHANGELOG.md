@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Catalog 2026.11.0, and a trend that knows the catalog changed (2026-11-21). The first report after this update
+  compared with one from before it would have shown checks "started failing" or "resolved" that moved only
+  because the check changed. `checks/catalog.json` now records, per version, the checks whose meaning changed and
+  why. When the two runs were judged with different catalogs the trend says so, says the two scores are not
+  measured the same way, and lists those results under "Changed with the catalog" with the reason, apart from
+  new failures and fixes.
+- A check that could be judged before and has no answer now is listed under "No answer in this run". It used to
+  count as resolved when it had been failing.
 - Everyone who holds a role is counted (2026-11-21). A role assigned to a group names the group, not its people,
   and the report took the group for one administrator: its members were not held to a phishing-resistant method
   (AU-008), not counted as Global Administrators (ID-001), and not in the admins table; an administrator who was

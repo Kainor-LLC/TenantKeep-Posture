@@ -20,6 +20,36 @@ Describe 'Shipped check catalog' {
         }
     }
 
+    It 'says what changed in each catalog version, in plain words, for checks that exist' {
+        InModuleScope TenantKeep.Posture {
+            $c = Import-PostureCheckCatalog
+            $ids = @($c.checks | ForEach-Object { [string]$_['id'] })
+            @($c.changes).Count | Should -BeGreaterThan 0
+            foreach ($entry in $c.changes) {
+                [string]$entry['version'] | Should -Match '^\d{4}\.\d{1,2}\.\d+$'
+                [version]$entry['version'] | Should -BeLessOrEqual ([version]$c.version) -Because 'a change is recorded under the version that carries it'
+                [string]$entry['date'] | Should -Match '^\d{4}-\d{2}-\d{2}$'
+                [string]$entry['summary'] | Should -Not -Match "\u2014|not just" -Because 'user-facing text: plain English'
+                foreach ($k in $entry['checks'].get_Keys()) {
+                    $k | Should -BeIn $ids
+                    [string]$entry['checks'][$k] | Should -Match '\.$' -Because 'a sentence the trend prints as it is'
+                }
+            }
+        }
+    }
+
+    It 'refuses a change that names a check the catalog does not have' {
+        InModuleScope TenantKeep.Posture {
+            $dir = Join-Path $TestDrive 'bad-changes'
+            Copy-Item -Recurse -LiteralPath (Get-PostureDataFolder -Name 'checks') -Destination $dir
+            $file = Join-Path $dir 'catalog.json'
+            $doc = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+            $doc['changes'][0]['checks']['ZZ-999'] = 'No such check.'
+            ConvertTo-Json -InputObject $doc -Depth 10 | Set-Content -LiteralPath $file
+            { Import-PostureCheckCatalog -Path $dir } | Should -Throw "*names 'ZZ-999', which is not a check*"
+        }
+    }
+
     It 'labels every fact a pass expression reads and every threshold, in plain words (checks/facts.json)' {
         InModuleScope TenantKeep.Posture {
             $c = Import-PostureCheckCatalog

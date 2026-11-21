@@ -259,6 +259,50 @@ Describe 'Trend since a previous run' {
         $html | Should -Not -Match 'na-panel">Trend'
     }
 
+    It 'lists a result that moved with the catalog apart from failures and fixes, and does not call a lost answer a fix' {
+        $prevPath = Join-Path $script:Root 'previous-catalog.json'
+        $prev = Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20
+        $changed = @((Get-Content -Raw (Join-Path $PSScriptRoot '..' 'checks' 'catalog.json') | ConvertFrom-Json -AsHashtable -Depth 10)['changes'][0]['checks'].get_Keys())
+        # The earlier run was judged with the catalog before: a check that changed since had the opposite answer,
+        # and two checks with no answer now had one then.
+        $prev.catalogVersion = '2026.10.0'
+        $moved = @($prev.results | Where-Object { $_.id -in $changed -and $_.status -in 'pass', 'fail' })[0]
+        $moved | Should -Not -BeNullOrEmpty -Because 'the fixture evaluates at least one check the catalog change names'
+        $nowStatus = [string]$moved.status
+        $moved.status = $(if ($nowStatus -eq 'fail') { 'pass' } else { 'fail' })
+        $silent = @($prev.results | Where-Object { $_.status -eq 'notEvaluated' -and $_.id -notin $changed })
+        $silent[0].status = 'fail'; $silent[1].status = 'pass'
+        ConvertTo-Json -InputObject $prev -Depth 20 | Set-Content -LiteralPath $prevPath
+        # The same client folder as the earlier run, so nothing moves but what this test rewrote.
+        $r = New-PostureReport -Evidence $script:Ev -Client $script:Client -Previous $prevPath -Format Markdown, Html -OutputPath (Join-Path $script:Root 'trend-catalog') -PassThru
+        $tr = $r.Report.trend
+        $tr.catalogChanged | Should -BeTrue
+        $tr.catalogBefore | Should -Be '2026.10.0'
+        $tr.catalogAfter | Should -Be $r.Report.appendix.catalogVersion
+        @($tr.catalogNotes).Count | Should -Be 1
+        @($tr.logicChanged | ForEach-Object { $_.id }) | Should -Be @($moved.id)
+        $tr.logicChanged[0].detail | Should -Match '\.$'
+        @($tr.newFailures | ForEach-Object { $_.id }) | Should -Not -Contain $moved.id -Because 'the check changed, the tenant did not'
+        @($tr.resolved | ForEach-Object { $_.id }) | Should -Not -Contain $moved.id
+        @($tr.lostAnswer | ForEach-Object { $_.id } | Sort-Object) | Should -Be @($silent[0].id, $silent[1].id | Sort-Object)
+        @($tr.resolved | ForEach-Object { $_.id }) | Should -Not -Contain $silent[0].id -Because 'a check that could not be judged this time was not fixed'
+        $html = Get-Content -Raw -LiteralPath (Join-Path $script:Root 'trend-catalog' 'report.html')
+        $html | Should -Match 'The check catalog changed between these runs \(2026\.10\.0 to 2026\.11\.\d+\)'
+        $html | Should -Match 'Changed with the catalog'
+        $html | Should -Match 'No answer in this run'
+        $md = Get-Content -Raw -LiteralPath (Join-Path $script:Root 'trend-catalog' 'report.md')
+        $md | Should -Match 'Changed with the catalog, not in the tenant'
+    }
+
+    It 'says nothing about the catalog when both runs used the same one' {
+        $prevPath = Join-Path $script:Root 'previous-same.json'
+        Copy-Item -LiteralPath (Join-Path $script:Root 'out' 'checks.json') -Destination $prevPath
+        $tr = (New-PostureReport -Evidence $script:Ev -Client $script:Client -Previous $prevPath -Format Markdown -OutputPath (Join-Path $script:Root 'trend-same') -PassThru).Report.trend
+        $tr.catalogChanged | Should -BeFalse
+        @($tr.logicChanged).Count | Should -Be 0
+        @($tr.lostAnswer).Count | Should -Be 0
+    }
+
     It 'refuses a missing previous run' {
         { New-PostureReport -Evidence $script:Ev -Previous (Join-Path $script:Root 'nope') -OutputPath (Join-Path $script:Root 'trend2') } | Should -Throw '*Previous checks.json not found*'
     }

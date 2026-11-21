@@ -146,14 +146,36 @@ function ConvertTo-PostureReportModel {
         $pe = 0; $pp = 0
         foreach ($pr in $prevScored) { $w = $weight[[string]$pr['severity']]; if (-not $w) { $w = 1 }; $pp += $w; if ([string]$pr['status'] -ne 'fail') { $pe += $w } }
         $prevScore = $(if ($pp -gt 0) { [Math]::Round(100.0 * $pe / $pp) } else { $null })
-        $newFailures = @(); $resolved = @(); $moved = @()
+        # The catalog each run was judged with. When they differ a result can move because the check changed and
+        # the tenant did not: the catalog says which checks and why (catalog.json, changes), and those are listed
+        # apart, never as a new failure or a fix.
+        $catalogBefore = [string]$(if ($Previous.Contains('catalogVersion')) { $Previous['catalogVersion'] })
+        $catalogAfter = [string]$(if ($Run.Contains('catalogVersion')) { $Run['catalogVersion'] })
+        $catalogChanged = [bool]($catalogBefore -and $catalogAfter -and $catalogBefore -ne $catalogAfter)
+        $changedWhy = @{}; $catalogNotes = @()
+        if ($catalogChanged) {
+            $after = { param([string] $a, [string] $b) $x = $null; $y = $null; if ([version]::TryParse($a, [ref]$x) -and [version]::TryParse($b, [ref]$y)) { $x -gt $y } else { $a -ne $b } }
+            foreach ($entry in @($(if ($Catalog.Contains('changes')) { $Catalog['changes'] }) | Where-Object { $_ -and (& $after ([string]$_['version']) $catalogBefore) })) {
+                $catalogNotes += [string]$entry['summary']
+                foreach ($k in $entry['checks'].get_Keys()) { $changedWhy[[string]$k] = [string]$entry['checks'][$k] }
+            }
+        }
+        $newFailures = @(); $resolved = @(); $moved = @(); $logicChanged = @(); $lostAnswer = @()
         foreach ($r in $results) {
             $pr = $prevById[[string]$r.id]
             if (-not $pr) { if ($r.status -eq 'fail') { $newFailures += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = 'new check, failing' } }; continue }
             $was = [string]$pr['status']
-            if ($r.status -eq 'fail' -and $was -ne 'fail') { $newFailures += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = "was $was" } }
+            $countMoved = $r.status -eq 'fail' -and $was -eq 'fail' -and [int]$r.affectedCount -ne [int]$pr['affectedCount']
+            if ($r.status -eq $was -and -not $countMoved) { continue }
+            if ($changedWhy.ContainsKey([string]$r.id)) {
+                $say = { param([string] $status, $count) if ($status -eq 'fail') { "fail ($([int]$count) affected)" } else { $status } }
+                $logicChanged += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; before = (& $say $was $pr['affectedCount']); after = (& $say ([string]$r.status) $r.affectedCount); detail = $changedWhy[[string]$r.id] }
+            }
+            # An answer that is gone is not a fix, and not a failure either.
+            elseif ($r.status -eq 'notEvaluated' -and $was -in 'pass', 'fail') { $lostAnswer += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; was = $was; detail = [string]$r.reason } }
+            elseif ($r.status -eq 'fail' -and $was -ne 'fail') { $newFailures += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = "was $was" } }
             elseif ($r.status -ne 'fail' -and $was -eq 'fail') { $resolved += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; detail = "now $($r.status)" } }
-            elseif ($r.status -eq 'fail' -and [int]$r.affectedCount -ne [int]$pr['affectedCount']) { $moved += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; before = [int]$pr['affectedCount']; after = [int]$r.affectedCount } }
+            elseif ($countMoved) { $moved += , [ordered]@{ id = $r.id; title = $r.title; severity = $r.severity; before = [int]$pr['affectedCount']; after = [int]$r.affectedCount } }
         }
         $domainDeltas = foreach ($d in $domains) {
             $pd = @($prevScored | Where-Object { [string]$_['domain'] -eq $d.key })
@@ -171,6 +193,12 @@ function ConvertTo-PostureReportModel {
             newFailures        = @($newFailures | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
             resolved           = @($resolved | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
             affectedMoved      = @($moved | Sort-Object { -[Math]::Abs($_.after - $_.before) }, { $_.id })
+            catalogBefore      = $catalogBefore
+            catalogAfter       = $catalogAfter
+            catalogChanged     = $catalogChanged
+            catalogNotes       = @($catalogNotes)
+            logicChanged       = @($logicChanged | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
+            lostAnswer         = @($lostAnswer | Sort-Object { -$weight[[string]$_.severity] }, { $_.id })
             domains            = @($domainDeltas)
         }
     }

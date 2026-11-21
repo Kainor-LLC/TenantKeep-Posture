@@ -89,6 +89,9 @@ function ConvertTo-PostureReportMarkdown {
         $signed = { param($d) if ($null -eq $d) { 'n/a' } elseif ($d -ge 0) { "+$d" } else { "$d" } }
         & $line "Score $(& $num $tr.scoreBefore) to $(& $num $tr.scoreAfter) ($(& $signed $tr.scoreDelta)). $(@($tr.newFailures).Count) check(s) started failing, $(@($tr.resolved).Count) resolved, $(@($tr.affectedMoved).Count) moved."
         & $line
+        if ($tr.catalogChanged) { & $line "The check catalog changed between these runs ($($tr.catalogBefore) to $($tr.catalogAfter)), so the two scores are not measured the same way. $(& $esc (@($tr.catalogNotes) -join ' '))"; & $line }
+        if (@($tr.logicChanged).Count -gt 0) { & $line ('**Changed with the catalog, not in the tenant:** ' + (@($tr.logicChanged | ForEach-Object { "$($_.id) $(& $esc $_.title) ($($_.before) to $($_.after): $(& $esc $_.detail))" }) -join '; ')); & $line }
+        if (@($tr.lostAnswer).Count -gt 0) { & $line ('**No answer in this run (neither a fix nor a failure):** ' + (@($tr.lostAnswer | ForEach-Object { "$($_.id) $(& $esc $_.title) (was $($_.was))" }) -join '; ')); & $line }
         if (@($tr.newFailures).Count -gt 0) { & $line ('**Started failing:** ' + (@($tr.newFailures | ForEach-Object { "$($_.id) $(& $esc $_.title) ($($_.detail))" }) -join '; ')); & $line }
         if (@($tr.resolved).Count -gt 0) { & $line ('**Resolved:** ' + (@($tr.resolved | ForEach-Object { "$($_.id) $(& $esc $_.title)" }) -join '; ')); & $line }
         if (@($tr.affectedMoved).Count -gt 0) { & $line ('**Affected counts moved:** ' + (@($tr.affectedMoved | ForEach-Object { "$($_.id) $($_.before) to $($_.after)" }) -join '; ')); & $line }

@@ -1,10 +1,38 @@
 {
-  "version": "2026.10.0",
+  "version": "2026.11.0",
   "attack": {
     "version": "20.1",
     "domain": "enterprise-attack"
   },
-  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only. attack: the MITRE ATT&CK release the checks' technique ids are checked against; build.ps1 -Task AttackData writes checks/attack.json from that release and refuses any other.",
+  "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only. attack: the MITRE ATT&CK release the checks' technique ids are checked against; build.ps1 -Task AttackData writes checks/attack.json from that release and refuses any other. changes: one entry per catalog version whose checks changed meaning, with the checks that can move for a tenant that did not change and why; the trend reads it so a result that moved with the catalog is not called a new failure or a fix.",
+  "changes": [
+    {
+      "version": "2026.11.0",
+      "date": "2026-11-21",
+      "summary": "A check has no answer where its data is missing or was read in part, instead of a pass or a fail. Administrators are counted as people: a role held through a group, or as eligible, counts. Affected counts above 500 are the true number.",
+      "checks": {
+        "ID-001": "Counts the people who hold Global Administrator, the members of a group that holds it included; a group used to count as one.",
+        "ID-002": "Counts permanent roles held through a group.",
+        "ID-003": "Counts synced accounts that hold a role through a group.",
+        "ID-004": "Counts licensed accounts that hold a role through a group.",
+        "AU-008": "Holds administrators who are only eligible, or who hold a role through a group, to a phishing-resistant method.",
+        "EM-025": "Everyone who holds a role counts as an administrator, and the number listed is the true count.",
+        "AZ-003": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "AZ-005": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "AZ-006": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "AZ-017": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "AZ-023": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "AZ-025": "Judges the subscriptions that were read in detail; one that was not read is no longer counted as a gap.",
+        "DEV-019": "The number affected is the true count; it used to stop at 500.",
+        "DEV-020": "The number affected is the true count; it used to stop at 500.",
+        "DEV-021": "The number affected is the true count; it used to stop at 500.",
+        "DEV-023": "The number affected is the true count; it used to stop at 500.",
+        "UX-009": "The number affected is the true count; it used to stop at 500.",
+        "UX-010": "The number affected is the true count; it used to stop at 500.",
+        "HY-032": "Counts every synced group that access depends on; the number used to stop at 500."
+      }
+    }
+  ],
   "domains": [
     {
       "key": "identity",

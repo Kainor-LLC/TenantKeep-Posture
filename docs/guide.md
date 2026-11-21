@@ -275,7 +275,10 @@ New-PostureReport -Evidence $newFolder -Client ~/tenantkeep/clients/contoso -Pre
 ```
 
 The Trend view shows the score and domain deltas, the checks that started or stopped failing, and the affected counts
-that moved. The Conditional Access snapshot in each folder also feeds Compare-PostureCaSnapshot for a policy-level
+that moved. Two things it keeps apart from those. A check that had an answer before and could not be judged this
+time is listed under "No answer in this run": it is neither a fix nor a failure. And when the module was updated
+between the two runs and the check catalog changed with it, the view says so, and lists the results that moved
+because a check changed under "Changed with the catalog", each with what changed. The Conditional Access snapshot in each folder also feeds Compare-PostureCaSnapshot for a policy-level
 diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams or email alert.
 
 ## 9a. Without Azure

@@ -316,10 +316,21 @@ function ConvertTo-PostureReportHtml {
         $signed = { param($d) if ($null -eq $d) { 'n/a' } elseif ($d -ge 0) { "+$d" } else { "$d" } }
         & $w "<section class=`"view`" id=`"trend`"><h2>Trend since $(& $h (& $fmtDate $tr.previousCheckedUtc))</h2>"
         & $w "<p><strong>Score $(& $num $tr.scoreBefore) to $(& $num $tr.scoreAfter)</strong> ($(& $signed $tr.scoreDelta)). $(@($tr.newFailures).Count) check(s) started failing, $(@($tr.resolved).Count) resolved, $(@($tr.affectedMoved).Count) moved.</p>"
+        if ($tr.catalogChanged) { & $w "<p class=`"hint`">The check catalog changed between these runs ($(& $h $tr.catalogBefore) to $(& $h $tr.catalogAfter)), so the two scores are not measured the same way. $(& $h (@($tr.catalogNotes) -join ' '))</p>" }
         foreach ($pair in @(@('Started failing', $tr.newFailures), @('Resolved', $tr.resolved))) {
             if (@($pair[1]).Count -eq 0) { continue }
             & $w "<h3>$($pair[0])</h3><ul>"
             foreach ($x in $pair[1]) { & $w "<li><strong>$(& $h $x.id)</strong> $(& $h $x.title) <span class=`"muted`">($(& $h $x.severity), $(& $h $x.detail))</span></li>" }
+            & $w '</ul>'
+        }
+        if (@($tr.logicChanged).Count -gt 0) {
+            & $w '<h3>Changed with the catalog</h3><p class="hint">The check changed between the two runs. These are not new failures or fixes in the tenant.</p><ul>'
+            foreach ($x in $tr.logicChanged) { & $w "<li><strong>$(& $h $x.id)</strong> $(& $h $x.title) <span class=`"muted`">($(& $h $x.before) to $(& $h $x.after))</span><br>$(& $h $x.detail)</li>" }
+            & $w '</ul>'
+        }
+        if (@($tr.lostAnswer).Count -gt 0) {
+            & $w '<h3>No answer in this run</h3><p class="hint">These had a pass or a fail before and could not be judged this time. That is neither a fix nor a failure.</p><ul>'
+            foreach ($x in $tr.lostAnswer) { & $w "<li><strong>$(& $h $x.id)</strong> $(& $h $x.title) <span class=`"muted`">(was $(& $h $x.was))</span><br>$(& $h $x.detail)</li>" }
             & $w '</ul>'
         }
         if (@($tr.affectedMoved).Count -gt 0) {

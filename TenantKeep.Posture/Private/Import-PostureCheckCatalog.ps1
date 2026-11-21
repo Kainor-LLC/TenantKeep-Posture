@@ -30,11 +30,17 @@ function Import-PostureCheckCatalog {
 
     $version = 'unversioned'
     $domainList = [ordered]@{}
+    $changes = @()
     $versionFile = Join-Path $Path 'catalog.json'
     if (Test-Path -LiteralPath $versionFile) {
         $cj = Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json -AsHashtable
         $version = [string]$cj.version
         foreach ($d in @($(if ($cj.Contains('domains')) { $cj['domains'] }))) { $domainList[[string]$d['key']] = [string]$d['label'] }
+        # What changed in each catalog version: the checks that can move for a tenant that did not, and why.
+        $changes = @($(if ($cj.Contains('changes')) { $cj['changes'] }) | Where-Object { $_ })
+        foreach ($entry in $changes) {
+            if (-not ($entry -is [System.Collections.IDictionary]) -or -not $entry['version'] -or -not $entry['summary'] -or -not ($entry['checks'] -is [System.Collections.IDictionary])) { throw 'catalog.json: every entry of changes needs a version, a summary and checks (check id to what changed).' }
+        }
     }
 
     $required = 'id', 'domain', 'title', 'severityDefault', 'license', 'applicableWhen', 'coveredBy', 'thresholds', 'evidence', 'pass', 'remediation', 'learn', 'deepLink', 'narrative', 'frameworks'
@@ -116,8 +122,13 @@ function Import-PostureCheckCatalog {
         $attack = [ordered]@{ version = [string]$doc['version']; tactics = @($doc['tactics']); techniques = $byId; notice = [string]$doc['notice'] }
     }
 
+    foreach ($entry in $changes) {
+        foreach ($k in $entry['checks'].get_Keys()) { if (-not $seen.ContainsKey([string]$k)) { throw "catalog.json: changes for $($entry['version']) names '$k', which is not a check in the catalog." } }
+    }
+
     return [ordered]@{
         version = $version
+        changes = $changes
         domains = $domainList
         labels  = $labels
         attack  = $attack
