@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- A sign-in under the user name "Count" or "Keys" no longer stops the sign-in log read (2026-11-21). A failed
+  sign-in is logged under whatever name was typed, and the tallies are kept per name; PowerShell answers `.Count`
+  and `.Keys` on such a table with the entry of that name, so one attempt from anywhere on the internet made the
+  step throw, or hid a password spray from the list of addresses. The tallies and the `-Redact` name map now
+  read those members through their methods.
 - Evidence is written whole or not at all (2026-11-21). Every evidence file is written as `<name>.json.part` and
   `<name>.csv.part` and takes its name only when it is complete. A run that is killed while a list is being
   written (the laptop sleeps, the process runs out of memory, an Automation job hits its time limit) used to

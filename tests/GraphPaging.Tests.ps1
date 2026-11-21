@@ -138,6 +138,34 @@ Describe 'Sign-in log collector' {
         }
     }
 
+    It 'counts accounts named Count, Keys and Values like any other: whoever signs in chooses the name' {
+        # A failed sign-in is logged under whatever user name was typed. On a PowerShell dictionary, .Count and .Keys
+        # answer with the entry of that name when there is one, so these names must not hide a spray or break the tallies.
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            param($root)
+            $f = Join-Path $root 'signins-names'; New-Item -ItemType Directory -Path $f | Out-Null
+            $names = @('Count', 'Keys', 'Values') + @(1..12 | ForEach-Object { "user$_@contoso.example" })
+            $records = @(for ($i = 0; $i -lt $names.Count; $i++) {
+                    @{ id = "n$i"; createdDateTime = ([datetime]'2026-11-20T11:00:00Z').AddSeconds(-$i).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); userPrincipalName = $names[$i]
+                        clientAppUsed = 'IMAP4'; isInteractive = $true; conditionalAccessStatus = 'notApplied'; status = @{ errorCode = 50053 }; authenticationRequirement = 'singleFactorAuthentication'
+                        ipAddress = '203.0.113.99'; location = @{ countryOrRegion = 'US' }; appliedConditionalAccessPolicies = @(@{ id = 'p1'; displayName = 'Require MFA for everyone'; result = 'reportOnlyFailure' })
+                    }
+                })
+            Mock Invoke-MgGraphRequest { @{ value = $records } }
+            $null = Invoke-PostureSignInCollection -Folder $f -Days 7 -AsOf ([datetime]'2026-11-20T12:00:00Z')
+            $s = Get-Content -Raw (Join-Path $f '06-signins-summary.json') | ConvertFrom-Json -AsHashtable
+            $s['SignIns'] | Should -Be 15
+            $s['LegacyUsers'] | Should -Be 15
+            $spray = @($s['SprayAddresses'])
+            $spray.Count | Should -Be 1 -Because 'fifteen accounts failed from one address'
+            $spray[0]['AccountsFailed'] | Should -Be 15
+            @($s['ReportOnlyPolicies'])[0]['UsersAffected'] | Should -Be 15
+            $legacy = @(Get-Content -Raw (Join-Path $f '06-signins-legacy-users.json') | ConvertFrom-Json)
+            $legacy.Count | Should -Be 15
+            @($legacy.UserPrincipalName) | Should -Contain 'Count'
+        }
+    }
+
     It 'carries on by itself after a failure that outlasts the page retries, from where it stopped, counting nothing twice' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             param($root)

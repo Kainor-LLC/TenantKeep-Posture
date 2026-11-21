@@ -49,11 +49,11 @@ function ConvertTo-PostureRedactedReport {
     # Site names on the overexposure chart (from the SharePoint Advanced Management import) are the tenant's own.
     if ($Report.Contains('charts') -and $Report.charts -and $Report.charts.Contains('topExposed')) { foreach ($s in @($Report.charts.topExposed.sites)) { & $add ([string]$s.name) 'site' } }
     # Longest first, so a name inside an email or an address inside a longer one is replaced as a whole.
-    foreach ($value in @($map.Keys | Sort-Object { - $_.Length })) {
+    foreach ($value in @($map.get_Keys() | Sort-Object { - $_.Length })) {
         $escaped = (ConvertTo-Json -InputObject ([string]$value) -Compress).Trim('"')
         $pattern = $(if ($map[$value].kind -in 'person', 'object', 'tenant' -and $value -notmatch '^[0-9a-fA-F-]{36}$') { "(?<![A-Za-z0-9])$([regex]::Escape($escaped))(?![A-Za-z0-9])" } else { [regex]::Escape($escaped) })
         $json = [regex]::Replace($json, $pattern, [System.Text.RegularExpressions.MatchEvaluator] { param($m) $map[$value].placeholder })
     }
-    $key = @($map.Keys | ForEach-Object { [pscustomobject]@{ Placeholder = $map[$_].placeholder; Kind = $map[$_].kind; Value = $_ } })
+    $key = @($map.get_Keys() | ForEach-Object { [pscustomobject]@{ Placeholder = $map[$_].placeholder; Kind = $map[$_].kind; Value = $_ } })
     return @{ report = ($json | ConvertFrom-Json -AsHashtable -Depth 40); key = $key }
 }

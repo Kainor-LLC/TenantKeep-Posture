@@ -72,6 +72,9 @@ function Invoke-PostureSignInCollection {
     $legacySet = [System.Collections.Generic.HashSet[string]]::new([string[]]$script:PostureLegacyClientApps, [System.StringComparer]::OrdinalIgnoreCase)
     $bump = { param([hashtable] $Map, [string] $Key) if (-not $Key) { $Key = '(none)' }; $Map[$Key] = 1 + $(if ($Map.ContainsKey($Key)) { [long]$Map[$Key] } else { 0 }) }
 
+    # failedByIp[address], legacyUsers and each report-only policy's users are dictionaries keyed by the user name in the
+    # log, which is whatever was typed at the sign-in. Their members are read through get_Count() and get_Keys():
+    # .Count on a dictionary that holds an entry named Count answers with that entry.
     $onPage = {
         param($page, $info)
         $boundary = [System.Collections.Generic.HashSet[string]]::new([string[]]@($state.boundaryIds))
@@ -99,9 +102,9 @@ function Invoke-PostureSignInCollection {
                 # Many accounts failing from one address is the password spray pattern; tracked for bad password and lockout.
                 if ($code -in 50126, 50053) {
                     $ip = [string]$r['ipAddress']
-                    if ($ip -and ($state.failedByIp.ContainsKey($ip) -or $state.failedByIp.Count -lt $maxIps)) {
+                    if ($ip -and ($state.failedByIp.ContainsKey($ip) -or $state.failedByIp.get_Count() -lt $maxIps)) {
                         if (-not $state.failedByIp.ContainsKey($ip)) { $state.failedByIp[$ip] = @{} }
-                        if ($state.failedByIp[$ip].Count -lt 1000) { $state.failedByIp[$ip][$upn] = 1 }
+                        if ($state.failedByIp[$ip].get_Count() -lt 1000) { $state.failedByIp[$ip][$upn] = 1 }
                     }
                     elseif ($ip) { $state.ipCapReached = $true }
                 }
@@ -124,7 +127,7 @@ function Invoke-PostureSignInCollection {
                 if (-not $state.reportOnly.ContainsKey($policyId)) { $state.reportOnly[$policyId] = @{ name = [string]$pol['displayName']; wouldBlock = 0; wouldInterrupt = 0; wouldPass = 0; users = @{} } }
                 $ro = $state.reportOnly[$policyId]
                 switch ($res) { 'reportOnlyFailure' { $ro.wouldBlock++ } 'reportOnlyInterrupted' { $ro.wouldInterrupt++ } default { $ro.wouldPass++ } }
-                if ($res -ne 'reportOnlySuccess' -and $ro.users.Count -lt $maxPolicyUsers) { $ro.users[$upn] = 1 }
+                if ($res -ne 'reportOnlySuccess' -and $ro.users.get_Count() -lt $maxPolicyUsers) { $ro.users[$upn] = 1 }
             }
             if ($adminSet.Contains($upn)) {
                 if (-not $state.admins.ContainsKey($upn)) { $state.admins[$upn] = @{ signIns = 0; singleFactor = 0; failures = 0; last = $created } }
@@ -139,7 +142,7 @@ function Invoke-PostureSignInCollection {
             if ($legacySet.Contains($app)) {
                 $state.legacy++
                 if (-not $state.legacyUsers.ContainsKey($upn)) { $state.legacyUsers[$upn] = @{ count = 0; apps = @{}; last = $created } }
-                $lu = $state.legacyUsers[$upn]; $lu.count++; & $bump $lu.apps $app; if ($created -gt [string]$lu.last) { $lu.last = $created }
+                $lu = $state.legacyUsers[$upn]; $lu['count']++; & $bump $lu['apps'] $app; if ($created -gt [string]$lu['last']) { $lu['last'] = $created }
             }
         }
         $state.oldestUtc = $oldest
@@ -179,20 +182,20 @@ function Invoke-PostureSignInCollection {
     }
 
     # Results: the tallies, the legacy users (most active first, capped), and the checkpoint removed.
-    $legacyRows = @($state.legacyUsers.Keys | ForEach-Object { $u = $state.legacyUsers[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$u.count; ClientApps = (@($u.apps.Keys | Sort-Object { - [long]$u.apps[$_] }) -join ';'); LastSignIn = $u.last } } | Sort-Object { - $_.SignIns } | Select-Object -First $TopUsers)
-    $sorted = { param([hashtable] $Map) $o = [ordered]@{}; foreach ($k in @($Map.Keys | Sort-Object { - [long]$Map[$_] })) { $o[$k] = [long]$Map[$k] }; $o }
-    $byKey = { param([hashtable] $Map) $o = [ordered]@{}; foreach ($k in @($Map.Keys | Sort-Object)) { $o[$k] = [long]$Map[$k] }; $o }
+    $legacyRows = @($state.legacyUsers.get_Keys() | ForEach-Object { $u = $state.legacyUsers[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$u['count']; ClientApps = (@($u['apps'].get_Keys() | Sort-Object { - [long]$u['apps'][$_] }) -join ';'); LastSignIn = $u['last'] } } | Sort-Object { - $_.SignIns } | Select-Object -First $TopUsers)
+    $sorted = { param([hashtable] $Map) $o = [ordered]@{}; foreach ($k in @($Map.get_Keys() | Sort-Object { - [long]$Map[$_] })) { $o[$k] = [long]$Map[$k] }; $o }
+    $byKey = { param([hashtable] $Map) $o = [ordered]@{}; foreach ($k in @($Map.get_Keys() | Sort-Object)) { $o[$k] = [long]$Map[$k] }; $o }
     $summary = [ordered]@{
         WindowStartUtc = $state.windowStartUtc; WindowEndUtc = $state.windowEndUtc; Days = $Days; SignIns = [long]$state.count; Interactive = [long]$state.interactive
         Failures = [long]$state.failures; MfaRequired = [long]$state.mfaRequired; Risky = [long]$state.risky
-        LegacySignIns = [long]$state.legacy; LegacyUsers = $state.legacyUsers.Count; Pages = $state.pages
+        LegacySignIns = [long]$state.legacy; LegacyUsers = $state.legacyUsers.get_Count(); Pages = $state.pages
         ByClientApp = (& $sorted $state.byClientApp); ByConditionalAccessStatus = (& $sorted $state.byCaStatus)
         ByDay = (& $byKey $state.byDay)
         ByCountry = (& $sorted $state.byCountry)
         FailuresByErrorCode = (& $sorted $state.errorCodes)
-        ReportOnlyPolicies = @($state.reportOnly.Keys | ForEach-Object { $ro = $state.reportOnly[$_]; [ordered]@{ Id = $_; Name = $ro.name; WouldBlock = [long]$ro.wouldBlock; WouldInterrupt = [long]$ro.wouldInterrupt; WouldPass = [long]$ro.wouldPass; UsersAffected = $ro.users.Count } } | Sort-Object { - ($_.WouldBlock + $_.WouldInterrupt) })
-        AdminSignIns = @($state.admins.Keys | ForEach-Object { $ad = $state.admins[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$ad.signIns; SingleFactor = [long]$ad.singleFactor; Failures = [long]$ad.failures; LastSignIn = $ad.last } } | Sort-Object { - $_.SingleFactor }, { - $_.SignIns })
-        SprayAddresses = @($state.failedByIp.Keys | Where-Object { $state.failedByIp[$_].Count -ge 10 } | ForEach-Object { [ordered]@{ IpAddress = $_; AccountsFailed = $state.failedByIp[$_].Count } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
+        ReportOnlyPolicies = @($state.reportOnly.get_Keys() | ForEach-Object { $ro = $state.reportOnly[$_]; [ordered]@{ Id = $_; Name = $ro.name; WouldBlock = [long]$ro.wouldBlock; WouldInterrupt = [long]$ro.wouldInterrupt; WouldPass = [long]$ro.wouldPass; UsersAffected = $ro.users.get_Count() } } | Sort-Object { - ($_.WouldBlock + $_.WouldInterrupt) })
+        AdminSignIns = @($state.admins.get_Keys() | ForEach-Object { $ad = $state.admins[$_]; [ordered]@{ UserPrincipalName = $_; SignIns = [long]$ad.signIns; SingleFactor = [long]$ad.singleFactor; Failures = [long]$ad.failures; LastSignIn = $ad.last } } | Sort-Object { - $_.SingleFactor }, { - $_.SignIns })
+        SprayAddresses = @($state.failedByIp.get_Keys() | Where-Object { $state.failedByIp[$_].get_Count() -ge 10 } | ForEach-Object { [ordered]@{ IpAddress = $_; AccountsFailed = $state.failedByIp[$_].get_Count() } } | Sort-Object { - $_.AccountsFailed } | Select-Object -First 50)
         SprayTrackingCapped = [bool]$state.ipCapReached
         # Successful sign-ins only. CaByMfa keys: caApplied or noCa, then mfa or singleFactor ("caApplied|mfa").
         CaByMfa = (& $byKey $state.caByMfa)
