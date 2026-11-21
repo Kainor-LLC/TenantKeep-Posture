@@ -114,6 +114,12 @@ at scale), Purview (A.2), SharePoint and Teams (A.3), Maester (A.4), Defender ef
 `exo-12-remote-powershell-users` (+summary) lists the accounts with Exchange Online PowerShell on (Get-User filtered on
 RemotePowerShellEnabled, streamed; left out with -SkipMailboxEnumeration). EM-025 compares it with the role holders.
 
+For the user experience checks, the Exchange collector also writes `exo-13-external-in-outlook` (the built-in External
+tag), `exo-13-report-submission` (user reported settings, the Report button), and `exo-01-orgconfig` carries the MailTips
+for outside recipients and large audiences and auto-expanding archiving. The Entra collector writes
+`02-auth-system-preferred` (beta: system-preferred MFA); the Intune collector's app protection policies carry the PIN,
+fingerprint and Face ID settings.
+
 ## What the Defender collector writes
 
 Graph only, on the same session as the Entra collector: advanced hunting is a query-style POST that changes nothing.

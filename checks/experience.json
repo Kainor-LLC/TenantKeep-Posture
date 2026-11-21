@@ -329,6 +329,454 @@
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
       "narrative": "Last, First display names carry no security risk, but Microsoft 365 reads the display name as written: greetings and Copilot use the first word, so people are addressed by their surname, initials avatars come out reversed, @mentions and the people picker read surname first, and the comma breaks CSV exports and some SaaS provisioning.",
       "frameworks": {}
+    },
+    {
+      "id": "UX-011",
+      "domain": "experience",
+      "title": "People can approve sign-ins with their phone, without a password",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authentication-methods-policy.json"
+      ],
+      "pass": "facts.phoneSignInAvailable",
+      "remediation": [
+        "In Entra, Authentication methods, Microsoft Authenticator, set the authentication mode for everyone to Any (push and passwordless) rather than push only.",
+        "Tell people they can choose Use the Microsoft Authenticator app instead at sign-in and approve with the number shown, then turn on phone sign-in in the app."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People who turn it on sign in by matching a number in Authenticator instead of typing a password; nothing changes for anyone who does not."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/howto-authentication-passwordless-phone",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/AdminAuthMethods",
+      "narrative": "Authenticator can do more than approve a second factor: with phone sign-in on, it replaces the password altogether for people who register it. Fewer passwords typed means fewer forgotten, reused and phished ones, and a faster sign-in on every new device.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-012",
+      "domain": "experience",
+      "title": "Everyone is offered their strongest sign-in method first",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-auth-system-preferred.json"
+      ],
+      "pass": "facts.systemPreferredMfaOn",
+      "remediation": [
+        "In Entra, Authentication methods, Settings, set System-preferred multifactor authentication to Enabled (or leave it Microsoft managed) for all users."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People are prompted with their strongest registered method straight away, such as Authenticator or a passkey, instead of the last one they used or a list to pick from."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/concept-system-preferred-multifactor-authentication",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/AdminAuthMethods",
+      "narrative": "Without it, sign-in offers the method a person used last, often a text message, and leaves stronger methods a click away. System-preferred MFA asks for the strongest method the person has registered, which is both safer and one decision fewer at every sign-in.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-013",
+      "domain": "experience",
+      "title": "People are nudged to set up Authenticator when they sign in",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authentication-methods-policy.json"
+      ],
+      "pass": "facts.registrationCampaignOn",
+      "remediation": [
+        "In Entra, Authentication methods, Registration campaign, set the state to Enabled (or Microsoft managed) for all users, with a short snooze limit.",
+        "Exclude only accounts that cannot use a phone, such as shared or service accounts."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People still on text messages are asked once at sign-in to set up Authenticator, with a few snoozes allowed; they do it themselves instead of calling the help desk."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/how-to-mfa-registration-campaign",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/AdminAuthMethods",
+      "narrative": "Moving people off text messages and calls usually stalls on getting each person to install and register Authenticator. The registration campaign asks them at the moment they sign in, walks them through it, and keeps asking until it is done, so the switch happens without a help desk project.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-014",
+      "domain": "experience",
+      "title": "Windows sign-in without a password option",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.windowsPasswordlessExperience",
+      "remediation": [
+        "Once Windows Hello for Business is deployed (EP-012), create a settings catalog profile with Authentication, Enable Passwordless Experience set to Enabled, and assign it to a pilot group, then to Entra joined devices."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "The password option disappears from the Windows sign-in and unlock screens; people use Windows Hello (face, fingerprint or PIN), with recovery through Windows Hello or a Temporary Access Pass."
+      },
+      "learn": "https://learn.microsoft.com/windows/security/identity-protection/passwordless-experience/",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "With Windows Hello in place, the password is still offered on the sign-in screen, so people keep typing it and keep it alive. The passwordless experience removes it from Windows sign-in, which shortens every sign-in and leaves an attacker no password to phish or replay on that device.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-015",
+      "domain": "experience",
+      "title": "Password reset from the Windows sign-in screen, and back to AD for synced users",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-policy-settings.json",
+        "01-onprem-sync-features.json"
+      ],
+      "pass": "facts.passwordResetFromSignInScreen && (!facts.passwordWritebackNeeded || facts.passwordWritebackOn)",
+      "remediation": [
+        "In a settings catalog profile for Windows, set Authentication, Allow Aad Password Reset to Allowed, so the sign-in screen shows Reset password.",
+        "For synced users, turn on password writeback in Entra Connect or Cloud Sync, so a reset in the cloud changes the AD password too."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone locked out of their laptop can reset their password from the Windows sign-in screen with their MFA methods, and for synced users the new password works on-premises too."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/howto-sspr-windows",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "Self-service reset helps only if people can reach it. A person who forgot their password is usually stuck at the Windows sign-in screen, not in a browser; the reset link there turns a help desk call into two minutes. For synced accounts, writeback makes that reset count in AD as well.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-016",
+      "domain": "experience",
+      "title": "iPhones, iPads and Macs sign in once for every work app",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "iOS",
+          "macOS"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "macMdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.appleSsoExtension",
+      "remediation": [
+        "Deploy Microsoft's Enterprise SSO plug-in: a settings catalog profile (or device features profile) with the extensible single sign-on payload for com.microsoft.azureauthenticator.ssoextension on iOS and iPadOS, and Platform SSO with com.microsoft.CompanyPortalMac.ssoextension on macOS (EP-017).",
+        "Assign it to the managed Apple devices, with Authenticator (iOS) or Company Portal (macOS) installed."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People sign in once on the device and then open Outlook, Teams, Edge and other work apps without another prompt."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity-platform/apple-sso-plugin",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "Without the plug-in, each app on an iPhone or Mac asks for its own sign-in and its own MFA. The Enterprise SSO plug-in shares one sign-in across work apps and Safari, which removes a stream of prompts and makes device-based Conditional Access work the same way in every app.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-017",
+      "domain": "experience",
+      "title": "Update restarts give people a day's grace",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {
+        "minUpdateGraceDays": 1
+      },
+      "evidence": [
+        "09-intune-config-profile-settings.json"
+      ],
+      "pass": "facts.updateRingsWithoutGrace == 0",
+      "affected": "facts.updateRingsWithoutGrace",
+      "remediation": [
+        "In each Windows update ring, set Grace period to at least one day (two is common), so a device past its deadline does not restart the moment someone opens it.",
+        "Set active hours (or let Windows learn them) so restarts happen outside the working day."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "A laptop that missed its update deadline while switched off waits a day before restarting, instead of restarting minutes after it is opened."
+      },
+      "learn": "https://learn.microsoft.com/windows/deployment/update/wufb-compliancedeadlines",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "Deadlines keep devices patched, but with no grace period a device that was off over a weekend restarts as soon as it comes back, often in the middle of a meeting. A short grace period keeps the security of the deadline without the surprise restart.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-018",
+      "domain": "experience",
+      "title": "Work apps on phones unlock with Face ID or a fingerprint",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "iOS",
+          "android"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-app-protection-policies.json"
+      ],
+      "pass": "facts.appProtectionWithoutBiometrics == 0",
+      "affected": "facts.appProtectionWithoutBiometrics",
+      "remediation": [
+        "In each iOS and Android app protection policy listed, under Access requirements, allow Touch ID, Face ID and fingerprint instead of the PIN (keep the PIN as the fallback).",
+        "Keep the PIN reset time and the device-level requirements as they are; biometrics replace typing, not the check."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People open Outlook and Teams on their phone with Face ID or a fingerprint instead of typing a separate app PIN several times a day."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/apps/app-protection-policy-settings-ios",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration",
+      "narrative": "An app PIN that must be typed every time Outlook or Teams opens is one of the most complained-about settings in mobile management, and people choose weak PINs to cope. Allowing the phone's biometrics keeps the protection and removes the friction.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-019",
+      "domain": "experience",
+      "title": "Licences assigned through groups",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "07-groups.json"
+      ],
+      "pass": "facts.licensedGroups >= 1",
+      "remediation": [
+        "Create a group per licence package (dynamic on department or job, or fed by HR provisioning) and assign the licences to the group in the Microsoft 365 admin center or Entra.",
+        "Move people over by adding them to the group, then remove the direct assignment."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people already licensed; new starters get their apps on day one because their group brings the licence."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/users/licensing-groups-assign",
+      "deepLink": "https://admin.microsoft.com/#/licenses",
+      "narrative": "Licences assigned one person at a time wait for someone to remember them: new starters sit without Teams or Outlook, leavers keep paid licences. Group-based licensing ties the licence to the group, so joining, moving and leaving take care of it.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-020",
+      "domain": "experience",
+      "title": "Profiles carry job title and department",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minProfileCompletePct": 80
+      },
+      "evidence": [
+        "06-users.json"
+      ],
+      "pass": "facts.profileCompletePct >= thresholds.minProfileCompletePct",
+      "remediation": [
+        "Fill job title and department for every member, from the HR system where one exists (HR-driven provisioning, GV-011) or in Entra or AD for synced users.",
+        "Add the manager attribute at the same time, so org charts and approval routing work."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "People see who someone is and where they sit when they look them up in Outlook or Teams, and the org chart fills in."
+      },
+      "learn": "https://learn.microsoft.com/entra/fundamentals/how-to-manage-user-profile-info",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers",
+      "narrative": "Profile cards in Outlook and Teams, the organisation chart, people search and dynamic groups all read job title and department. Empty fields make colleagues hard to find and leave dynamic groups and access rules with nothing to go on.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-021",
+      "domain": "experience",
+      "title": "Outlook marks mail from outside the organisation",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-13-external-in-outlook.json"
+      ],
+      "pass": "facts.externalSenderTagOn",
+      "remediation": [
+        "Run Set-ExternalInOutlook -Enabled $true in Exchange Online PowerShell; add trusted partner domains with -AllowList if they should not be tagged.",
+        "Then remove any transport rule that adds [EXTERNAL] to subject lines, which breaks threading and search."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Mail from outside carries an External tag in the message list and a banner in Outlook, without anything added to the subject line."
+      },
+      "learn": "https://learn.microsoft.com/powershell/module/exchange/set-externalinoutlook",
+      "deepLink": "https://admin.exchange.microsoft.com/#/",
+      "narrative": "People decide whether to trust a message in a second, and knowing it came from outside is the most useful hint they get. Outlook's built-in tag shows it in every client without rewriting subjects, which subject-line tags do and which break replies, threading and search.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-022",
+      "domain": "experience",
+      "title": "MailTips warn before mail goes outside or to a large audience",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-orgconfig.json"
+      ],
+      "pass": "facts.mailTipsExternalOn",
+      "remediation": [
+        "Run Set-OrganizationConfig -MailTipsAllTipsEnabled $true -MailTipsExternalRecipientsTipsEnabled $true, and set -MailTipsLargeAudienceThreshold to a size that fits the organisation."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Outlook shows a short notice while someone writes to an outside address or a large list, before they press Send."
+      },
+      "learn": "https://learn.microsoft.com/exchange/clients-and-mobile-in-exchange-online/mailtips/mailtips",
+      "deepLink": "https://admin.exchange.microsoft.com/#/",
+      "narrative": "Most data leaks by email are a wrong recipient, not an attack. A MailTip that says an external person is on the thread, or that a list goes to thousands of people, catches the mistake while it can still be fixed.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-023",
+      "domain": "experience",
+      "title": "One-click phishing report in Outlook",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-13-report-submission.json"
+      ],
+      "pass": "facts.reportButtonOn",
+      "remediation": [
+        "In Microsoft Defender, Settings, Email and collaboration, User reported settings, turn on monitoring of reported messages in Outlook with the built-in Report button, sending reports to Microsoft and to a reporting mailbox.",
+        "Tell people where the button is, and use the reports to tune filtering and training (EM-020)."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People get a Report button in Outlook to flag phishing in one click, and a thank-you note when they do."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/submissions-users-report-message-add-in-configure",
+      "deepLink": "https://security.microsoft.com/securitysettings/userSubmission",
+      "narrative": "People who spot a phishing message often do nothing because reporting it is a chore. A Report button built into Outlook makes it a click, sends the message where the security team and Microsoft can act on it, and turns every alert user into an early warning.",
+      "frameworks": {}
+    },
+    {
+      "id": "UX-024",
+      "domain": "experience",
+      "title": "Archives grow on their own",
+      "severityDefault": "Low",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-orgconfig.json"
+      ],
+      "pass": "facts.autoExpandingArchiveOn",
+      "remediation": [
+        "Run Set-OrganizationConfig -AutoExpandingArchive (or Enable-Mailbox -AutoExpandingArchive per mailbox), with archive mailboxes enabled and a retention policy that moves old mail to the archive."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "People with large mailboxes stop getting mailbox-full warnings; older mail moves to the archive and the archive keeps growing as needed."
+      },
+      "learn": "https://learn.microsoft.com/purview/autoexpanding-archiving",
+      "deepLink": "https://admin.exchange.microsoft.com/#/mailboxes",
+      "narrative": "A full mailbox stops mail arriving and sends people deleting things they may need. Auto-expanding archiving, included with Exchange Online Plan 2 and Exchange Online Archiving, adds archive space as it fills, so mailbox size stops being a problem anyone has to manage.",
+      "frameworks": {}
     }
   ]
 }

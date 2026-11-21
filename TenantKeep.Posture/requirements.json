@@ -122,6 +122,19 @@
     },
     {
       "collector": "Entra",
+      "match": "^System-preferred MFA$",
+      "roles": [
+        "Global Reader",
+        "Authentication Policy Administrator"
+      ],
+      "scopes": [
+        "Policy.Read.All"
+      ],
+      "licence": "",
+      "note": "Beta: policies/authenticationMethodsPolicy systemCredentialPreferences."
+    },
+    {
+      "collector": "Entra",
       "match": "^(Risky users|Risk detections)$",
       "roles": [
         "Security Reader",
@@ -348,6 +361,20 @@
       "scopes": [
         "SecurityEvents.Read.All"
       ]
+    },
+    {
+      "collector": "Exchange",
+      "match": "^(External sender tag|User reported settings)$",
+      "roles": [
+        "Global Reader"
+      ],
+      "alsoWorks": [
+        "View-Only Organization Management",
+        "Security Reader"
+      ],
+      "scopes": [],
+      "licence": "",
+      "note": "Get-ExternalInOutlook and Get-ReportSubmissionPolicy, for the user experience checks."
     },
     {
       "collector": "Exchange",

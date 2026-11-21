@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- Fourteen more user experience checks (2026-11-20), each an improvement that leads with what people gain:
+  phone sign-in with Authenticator (UX-011), the strongest method offered first (UX-012), the Authenticator
+  registration campaign (UX-013), Windows sign-in without a password option (UX-014), password reset from the Windows
+  sign-in screen with writeback for synced users (UX-015), the Enterprise SSO plug-in on Apple devices (UX-016), a
+  day's grace before update restarts (UX-017), Face ID or a fingerprint for work apps on phones (UX-018), group-based
+  licensing (UX-019), profiles with job title and department (UX-020), Outlook's External tag instead of subject tags
+  (UX-021), MailTips for outside and large audiences (UX-022), a one-click Report button (UX-023) and auto-expanding
+  archives (UX-024). The mail ones a third-party gateway provides are covered by the email vendor.
 - A third-party email gateway (2026-11-20): EM-026 mail arrives only through the gateway (with MX pointing elsewhere or
   an email vendor in the profile, a partner connector must accept mail only from the gateway, or attackers deliver
   straight to Exchange Online); EM-027 Safe Attachments and Safe Links for SharePoint, OneDrive, Teams and Office apps,

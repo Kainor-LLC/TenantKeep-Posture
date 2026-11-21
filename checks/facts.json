@@ -341,7 +341,23 @@
     "gatewayInFront": "An email gateway sits in front of Microsoft 365",
     "gatewayLockedDown": "Exchange Online accepts mail only from the gateway",
     "gatewayBypass": "Domains whose mail can skip the gateway",
-    "safeLinksTeamsOffice": "Safe Links on for Teams and Office apps"
+    "safeLinksTeamsOffice": "Safe Links on for Teams and Office apps",
+    "phoneSignInAvailable": "Phone sign-in with Authenticator available",
+    "systemPreferredMfaOn": "System-preferred MFA on",
+    "registrationCampaignOn": "Authenticator registration campaign on",
+    "windowsPasswordlessExperience": "Windows passwordless experience on",
+    "passwordResetFromSignInScreen": "Password reset on the Windows sign-in screen",
+    "passwordWritebackNeeded": "Synced users need password writeback",
+    "passwordWritebackOn": "Password writeback on",
+    "appleSsoExtension": "Enterprise SSO plug-in deployed to Apple devices",
+    "updateRingsWithoutGrace": "Update rings with no grace period",
+    "appProtectionWithoutBiometrics": "App protection policies that block Face ID or fingerprint",
+    "licensedGroups": "Groups that assign licences",
+    "profileCompletePct": "Members with job title and department (%)",
+    "externalSenderTagOn": "External sender tag on in Outlook",
+    "mailTipsExternalOn": "MailTips for outside recipients on",
+    "reportButtonOn": "Report button in Outlook on",
+    "autoExpandingArchiveOn": "Auto-expanding archiving on"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -399,6 +415,8 @@
     "maxAdOnlyWindowsPct": "Maximum hybrid-joined Windows devices with no cloud management (%)",
     "maxPartnerHeartbeatDays": "Longest a Mac MDM may go without reporting (days)",
     "minPartnerMacCompliantPct": "Minimum Macs compliant in Entra (%)",
-    "minCloudManagedGroupPct": "Minimum groups from AD managed in Entra (%)"
+    "minCloudManagedGroupPct": "Minimum groups from AD managed in Entra (%)",
+    "minProfileCompletePct": "Minimum members with job title and department (%)",
+    "minUpdateGraceDays": "Minimum grace period after an update deadline (days)"
   }
 }

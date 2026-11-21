@@ -220,7 +220,8 @@ function Invoke-PostureIntuneCollection {
 
     Invoke-PostureStep -Label 'App protection policies' -Folder $Folder -Script {
         $rows = & $get 'deviceAppManagement/managedAppPolicies'
-        & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); IsAssigned = (& $v $_ 'isAssigned'); DeployedAppCount = (& $v $_ 'deployedAppCount'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) '09-intune-app-protection-policies' $true
+        # The PIN and biometric settings on iOS and Android policies, for the user experience check (UX-018).
+        & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); Type = (& $odataType $_); IsAssigned = (& $v $_ 'isAssigned'); DeployedAppCount = (& $v $_ 'deployedAppCount'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime'); PinRequired = (& $v $_ 'pinRequired'); FingerprintBlocked = (& $v $_ 'fingerprintBlocked'); FaceIdBlocked = (& $v $_ 'faceIdBlocked') } }) '09-intune-app-protection-policies' $true
     } | Out-Null
 
     Invoke-PostureStep -Label 'Feature update profiles' -Folder $Folder -Script {

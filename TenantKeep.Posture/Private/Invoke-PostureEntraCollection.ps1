@@ -88,6 +88,13 @@ function Invoke-PostureEntraCollection {
         } | Out-Null
     }
 
+    Invoke-PostureStep -Label 'System-preferred MFA' -Folder $Folder -Script {
+        # Only the beta endpoint returns systemCredentialPreferences (Microsoft offering each person their strongest
+        # registered method first).
+        $p = & $one 'policies/authenticationMethodsPolicy?$select=systemCredentialPreferences' 'beta'
+        & $saveOne ([ordered]@{ State = (& $v $p 'systemCredentialPreferences.state') }) '02-auth-system-preferred'
+    } | Out-Null
+
     Invoke-PostureStep -Label 'Directory settings' -Folder $Folder -Script {
         # Tenant-wide directory settings, among them Entra Password Protection (Password Rule Settings). The custom
         # banned password list is kept as a count: its words are often the organisation's own names.

@@ -73,3 +73,66 @@ Describe 'Get-PostureExperienceFact' {
         $f.notEvaluated['UX-009'] | Should -Match 'collected before'
     }
 }
+
+Describe 'More user experience checks' {
+    BeforeAll {
+        $script:Ux = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-ux2-$([guid]::NewGuid().ToString('n'))"
+        $d = $script:Ux
+        & $script:Write $d '02-authentication-methods-policy' @{
+            registrationEnforcement = @{ authenticationMethodsRegistrationCampaign = @{ state = 'default' } }
+            authenticationMethodConfigurations = @(@{ id = 'MicrosoftAuthenticator'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; authenticationMode = 'push' }) })
+        }
+        & $script:Write $d '02-auth-system-preferred' @{ State = 'disabled' }
+        & $script:Write $d '09-intune-config-profiles-settings-catalog' @(@{ Id = 'win'; Assignments = 1 }, @{ Id = 'ios'; Assignments = 1 })
+        & $script:Write $d '09-intune-policy-settings' @(
+            @{ PolicyId = 'win'; PolicyName = 'Windows sign-in'; SettingDefinitionId = 'device_vendor_msft_policy_config_authentication_allowaadpasswordreset'; Value = 'device_vendor_msft_policy_config_authentication_allowaadpasswordreset_1' }
+            @{ PolicyId = 'ios'; PolicyName = 'iOS SSO'; SettingDefinitionId = 'com.apple.extensiblesso_com.apple.extensiblesso_extensionidentifier'; Value = 'com.microsoft.azureauthenticator.ssoextension' }
+        )
+        & $script:Write $d '01-onprem-sync-features' @(@{ features = @{ passwordWritebackEnabled = $false } })
+        & $script:Write $d '09-intune-config-profile-settings' @(
+            @{ PolicyId = 'ring1'; PolicyName = 'Broad ring'; Type = 'windowsUpdateForBusinessConfiguration'; Setting = 'deadlineGracePeriodInDays'; Value = 0 }
+            @{ PolicyId = 'ring2'; PolicyName = 'Pilot ring'; Type = 'windowsUpdateForBusinessConfiguration'; Setting = 'deadlineGracePeriodInDays'; Value = 2 }
+        )
+        & $script:Write $d '09-intune-app-protection-policies' @(
+            @{ DisplayName = 'iOS apps'; Type = 'iosManagedAppProtection'; IsAssigned = $true; PinRequired = $true; FingerprintBlocked = $false; FaceIdBlocked = $true }
+            @{ DisplayName = 'Android apps'; Type = 'androidManagedAppProtection'; IsAssigned = $true; PinRequired = $true; FingerprintBlocked = $false; FaceIdBlocked = $null }
+        )
+        & $script:Write $d '07-groups' @(@{ Id = 'g1'; DisplayName = 'E5 licence'; Licensed = $true }, @{ Id = 'g2'; DisplayName = 'Team'; Licensed = $false })
+        & $script:Write $d '06-users' @(
+            @{ UserPrincipalName = 'a@contoso.example'; Mail = 'a@contoso.example'; DisplayName = 'Ann A'; Surname = 'A'; UserType = 'Member'; AccountEnabled = $true; Department = 'Sales'; JobTitle = 'Rep' }
+            @{ UserPrincipalName = 'b@contoso.example'; Mail = 'b@contoso.example'; DisplayName = 'Bob B'; Surname = 'B'; UserType = 'Member'; AccountEnabled = $true; Department = ''; JobTitle = 'Engineer' }
+        )
+        & $script:Write $d 'exo-13-external-in-outlook' @(@{ Enabled = $false })
+        & $script:Write $d 'exo-01-orgconfig' @{ Name = 'contoso'; MailTipsAllTipsEnabled = $true; MailTipsExternalRecipientsTipsEnabled = $true; AutoExpandingArchiveEnabled = $false }
+        & $script:Write $d 'exo-13-report-submission' @(@{ EnableReportToMicrosoft = $true })
+        $pf = Join-Path $d 'profile.json'
+        @{ version = 1; identityModel = 'hybrid-connect'; platforms = @('windows', 'iOS', 'android'); licenses = @('Intune', 'P1', 'E3'); thirdParty = @{ email = 'none'; mdm = 'none' } } | ConvertTo-Json -Depth 4 | Set-Content $pf
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+        $r = Invoke-PostureChecks -Evidence $d -Domain experience -ProfilePath $pf -PassThru
+        $script:By = @{}; foreach ($x in $r.results) { $script:By[$x.id] = $x }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Ux -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'gives <Id> status <Status>' -ForEach @(
+        @{ Id = 'UX-011'; Status = 'fail' }   # Authenticator set to push only
+        @{ Id = 'UX-012'; Status = 'fail' }   # system-preferred MFA disabled
+        @{ Id = 'UX-013'; Status = 'pass' }   # Microsoft-managed campaign
+        @{ Id = 'UX-014'; Status = 'fail' }   # no passwordless experience setting
+        @{ Id = 'UX-015'; Status = 'fail' }   # reset link on, but no writeback for a hybrid tenant
+        @{ Id = 'UX-016'; Status = 'pass' }   # Enterprise SSO plug-in deployed
+        @{ Id = 'UX-017'; Status = 'fail' }   # one ring with no grace period
+        @{ Id = 'UX-018'; Status = 'fail' }   # iOS policy blocks Face ID
+        @{ Id = 'UX-019'; Status = 'pass' }   # a group assigns licences
+        @{ Id = 'UX-020'; Status = 'fail' }   # one of two members lacks a department
+        @{ Id = 'UX-021'; Status = 'fail' }   # external tag off
+        @{ Id = 'UX-022'; Status = 'pass' }   # MailTips for outside recipients on
+        @{ Id = 'UX-023'; Status = 'pass' }   # Report button on
+        @{ Id = 'UX-024'; Status = 'fail' }   # auto-expanding archiving off
+    ) { $script:By[$Id].status | Should -Be $Status -Because ($script:By[$Id].reason) }
+
+    It 'names what to fix' {
+        @($script:By['UX-017'].affected.name) | Should -Be @('Broad ring')
+        @($script:By['UX-018'].affected.name) | Should -Be @('iOS apps')
+        $script:By['UX-020'].observed['profileCompletePct'] | Should -Be 50
+    }
+}

@@ -26,7 +26,7 @@ function Invoke-PostureExchangeCollection {
     $flat = { param($Objects, [string[]] $Props) @($Objects | Where-Object { $_ } | ForEach-Object { if ($Props) { $_ | ConvertTo-PostureFlatObject -Property $Props } else { $_ | ConvertTo-PostureFlatObject } }) }
 
     $simple = @(
-        ('Org config', 'Get-OrganizationConfig', 'exo-01-orgconfig', $true, @('Name', 'OAuth2ClientProfileEnabled', 'DefaultAuthenticationPolicy', 'AuditDisabled', 'IsDehydrated', 'SendFromAliasEnabled', 'FocusedInboxOn', 'MailTipsAllTipsEnabled', 'EwsEnabled', 'EwsApplicationAccessPolicy', 'ActivityBasedAuthenticationTimeoutEnabled', 'ActivityBasedAuthenticationTimeoutInterval', 'ArcTrustedSealers', 'SmtpClientAuthenticationDisabled', 'CustomerLockboxEnabled')),
+        ('Org config', 'Get-OrganizationConfig', 'exo-01-orgconfig', $true, @('Name', 'OAuth2ClientProfileEnabled', 'DefaultAuthenticationPolicy', 'AuditDisabled', 'IsDehydrated', 'SendFromAliasEnabled', 'FocusedInboxOn', 'MailTipsAllTipsEnabled', 'MailTipsExternalRecipientsTipsEnabled', 'MailTipsLargeAudienceThreshold', 'AutoExpandingArchiveEnabled', 'EwsEnabled', 'EwsApplicationAccessPolicy', 'ActivityBasedAuthenticationTimeoutEnabled', 'ActivityBasedAuthenticationTimeoutInterval', 'ArcTrustedSealers', 'SmtpClientAuthenticationDisabled', 'CustomerLockboxEnabled')),
         ('Transport config', 'Get-TransportConfig', 'exo-01-transport-config', $true, @('SmtpClientAuthenticationDisabled', 'ExternalPostmasterAddress', 'MaxRecipientEnvelopeLimit', 'DSNConversionMode')),
         ('Authentication policies', 'Get-AuthenticationPolicy', 'exo-01-auth-policies', $false, $null),
         ('Audit config', 'Get-AdminAuditLogConfig', 'exo-01-audit-config', $true, @('UnifiedAuditLogIngestionEnabled', 'UnifiedAuditLogFirstOptInDate', 'AdminAuditLogEnabled')),
@@ -45,6 +45,8 @@ function Invoke-PostureExchangeCollection {
         ('MDO Safe Links', 'Get-SafeLinksPolicy', 'exo-05-mdo-safelinks', $false, $null),
         ('MDO Safe Attachments', 'Get-SafeAttachmentPolicy', 'exo-05-mdo-safeattachments', $false, $null),
         ('MDO global settings', 'Get-AtpPolicyForO365', 'exo-05-mdo-global', $false, $null),
+        ('External sender tag', 'Get-ExternalInOutlook', 'exo-13-external-in-outlook', $false, $null),
+        ('User reported settings', 'Get-ReportSubmissionPolicy', 'exo-13-report-submission', $false, $null),
         ('Quarantine policies', 'Get-QuarantinePolicy', 'exo-05-quarantine-policies', $false, @('Name', 'EndUserQuarantinePermissions', 'ESNEnabled', 'QuarantinePolicyType', 'EndUserQuarantinePermissionsValue')),
         ('Remote domains', 'Get-RemoteDomain', 'exo-06-remote-domains', $false, @('Name', 'DomainName', 'AutoForwardEnabled', 'AutoReplyEnabled', 'AllowedOOFType', 'TNEFEnabled')),
         ('Sharing policies', 'Get-SharingPolicy', 'exo-06-sharing-policies', $false, $null),

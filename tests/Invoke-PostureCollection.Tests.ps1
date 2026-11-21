@@ -31,6 +31,7 @@ BeforeAll {
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
             '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; servicePlanId = 'p-aad'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; servicePlanId = 'p-intune'; provisioningStatus = 'Success' }) }); break }
             '^directory/onPremisesSynchronization$' { & $u @(); break }
+            '^policies/authenticationMethodsPolicy\?\$select=systemCredentialPreferences' { @{ systemCredentialPreferences = @{ state = 'enabled' } }; break }
             '^policies/(authorizationPolicy|identitySecurityDefaultsEnforcementPolicy|authenticationMethodsPolicy|adminConsentRequestPolicy|crossTenantAccessPolicy/default)$' { @{ id = ($path -split '/')[-1]; isEnabled = $false }; break }
             '^policies/authenticationStrengthPolicies$' { & $u @(@{ id = 's-phish'; displayName = 'Phishing-resistant MFA'; allowedCombinations = @('fido2') }); break }
             '^policies/crossTenantAccessPolicy/partners$' { & $u @(); break }

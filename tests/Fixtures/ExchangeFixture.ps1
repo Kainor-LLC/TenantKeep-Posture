@@ -74,6 +74,8 @@ function Get-ExchangeFixtureObject {
             & $o @{ PrimarySmtpAddress = 'billing@contoso.example'; ActiveSyncEnabled = $false; ImapEnabled = $false; PopEnabled = $false; SmtpClientAuthenticationDisabled = $null; OWAEnabled = $true; MAPIEnabled = $true; EwsEnabled = $null }
             & $o @{ PrimarySmtpAddress = 'support@contoso.example'; ActiveSyncEnabled = $false; ImapEnabled = $false; PopEnabled = $false; SmtpClientAuthenticationDisabled = $null; OWAEnabled = $true; MAPIEnabled = $true; EwsEnabled = $null }
         }
+        'Get-ExternalInOutlook' { & $o @{ Identity = 'contoso'; Enabled = $true; AllowList = @() } }
+        'Get-ReportSubmissionPolicy' { & $o @{ Identity = 'DefaultReportSubmissionPolicy'; EnableReportToMicrosoft = $true; ReportPhishToCustomizedAddress = $false; ReportJunkToCustomizedAddress = $false } }
         'Get-User' {
             & $o @{ UserPrincipalName = 'admin1@contoso.example'; RecipientTypeDetails = 'UserMailbox' }
             & $o @{ UserPrincipalName = 'user1@contoso.example'; RecipientTypeDetails = 'UserMailbox' }
