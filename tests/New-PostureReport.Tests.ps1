@@ -70,6 +70,10 @@ Describe 'New-PostureReport' {
             $script:Md | Should -Match '#### CA-002 MFA required for all users\s+Critical, planned change, ca, needs P1'
         }
 
+        It 'gives the first row of the appendix its two cells' {
+            $script:Md | Should -Match '(?m)^\| Catalog version \| \d{4}\.\d+\.\d+ \|$' -Because 'the row used to run its cells together'
+        }
+
         It 'applies the client folder: brand, profile and exceptions' {
             $script:Rep.title | Should -Be 'Microsoft security posture report: Contoso Ltd'
             $script:Md | Should -Match 'Prepared by Example MSP for Contoso Ltd\.'

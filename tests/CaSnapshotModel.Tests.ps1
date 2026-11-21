@@ -124,6 +124,17 @@ Describe 'ConvertTo-PostureCaPolicyModel' {
         }
     }
 
+    It 'reads a nested value by its path, and a key that has a dot in it as it is written' {
+        InModuleScope TenantKeep.Posture {
+            $o = @{ '@odata.type' = '#microsoft.graph.ipNamedLocation'; conditions = @{ users = @{ includeUsers = @('All') } }; 'a.b' = 'literal'; a = @{ b = 'nested' } }
+            Get-PostureValue $o 'conditions.users.includeUsers' | Should -Be 'All'
+            Get-PostureValue $o '@odata.type' | Should -Be '#microsoft.graph.ipNamedLocation'
+            Get-PostureValue $o 'a.b' | Should -Be 'literal' -Because 'a key written with the dot is the key that was asked for'
+            Get-PostureValue $o 'conditions.devices.deviceFilter' | Should -BeNullOrEmpty
+            Get-PostureValue $null 'x.y' | Should -BeNullOrEmpty
+        }
+    }
+
     It 'normalises strings, local DateTimes and DateTimeOffsets to UTC' {
         InModuleScope TenantKeep.Posture {
             (ConvertTo-PostureUtcDateTime '2025-03-04T10:10:00Z').ToString('HH:mm') | Should -Be '10:10'

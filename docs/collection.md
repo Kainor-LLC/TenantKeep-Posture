@@ -211,7 +211,8 @@ account holding SharePoint Administrator (activate it in PIM for the run). Befor
 behind `-Tenant` in Microsoft's public sign-in metadata and refuses anything but `-TenantId`. Only Get-SPO commands run.
 It writes the files the module's SharePoint collector writes, with the same names and properties:
 `spo-tenant-settings.json`, `spo-restricted-search.json`, `spo-sites.csv` and `spo-sites-summary.json` (the site list
-is left out with `-SkipSiteEnumeration`), plus errors.txt, a transcript and bundle.json.
+is left out with `-SkipSiteEnumeration`, and lists the OneDrives only with `-IncludeOneDriveSites`), plus errors.txt, a
+transcript and bundle.json.
 
 Split collection, for example most of a run on a Mac and SharePoint on a Windows cloud PC:
 
@@ -246,7 +247,7 @@ Exchange carries every call.
 |---|---|---|
 | `spo-tenant-settings` | Get-PnPTenant, the audit plan's property list plus a few | Sharing level, link defaults, anonymous link expiry, domain restrictions, Everyone claims, guest expiration, restricted access control, legacy auth |
 | `spo-restricted-search` | Get-PnPTenantRestrictedSearchMode and its allow list | Copilot readiness C9 |
-| `spo-sites` (+csv), `spo-sites-summary` | Get-PnPTenantSite -IncludeOneDriveSites -Detailed | Ownerless, anonymous-capable, labeled and restricted counts; OneDrives apart. `-SkipSiteEnumeration` at 20k OneDrives |
+| `spo-sites` (+csv), `spo-sites-summary` | Get-PnPTenantSite -Detailed | Ownerless, anonymous-capable, labeled and restricted counts. The sites, not the OneDrives: there is one OneDrive per user and no check reads them. `-IncludeOneDriveSites` lists them as well (the summary then counts them apart; without it `OneDrives` is empty, which means not listed). `-SkipSiteEnumeration` leaves the list out |
 | `teams-federation`, `teams-client-config`, `teams-meeting-policy-global`, `teams-guest-messaging` | the Teams tenant configurations and the Global meeting policy | Single objects |
 | `teams-external-access` (+csv), `teams-app-permission-policies` (+csv), `teams-messaging-policies` (+csv) | the policy collections | App permission policies only decide CL-014 on a tenant not yet moved to app centric management |
 | `teams-app-settings`, `teams-app-availability` (+csv) | Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps | App centric management (tenants moved since April 2025): the org-wide default per kind of app, and each app's availability (everyone, named users and groups, no one) and whether it is blocked. CL-014 reads the third-party default (`GlobalApp`) |

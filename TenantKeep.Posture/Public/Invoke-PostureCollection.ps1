@@ -48,7 +48,11 @@ function Invoke-PostureCollection {
     .PARAMETER SkipPerUserMfa
         Skip the per-user MFA state read (one batched Graph read per member; slow at tens of thousands of users).
     .PARAMETER SkipSiteEnumeration
-        Skip Get-PnPTenantSite (30 minutes and more at 20k OneDrives); the ownerless-site check is then not evaluated.
+        Skip the SharePoint site list (Get-PnPTenantSite, the slow read on a tenant with tens of thousands of
+        sites); the checks that read sites are then not evaluated.
+    .PARAMETER IncludeOneDriveSites
+        List every OneDrive in the SharePoint site list as well. No check reads them, and on a large tenant there
+        is one per user, so they are left out unless this is given.
     .PARAMETER SkipMailboxEnumeration
         Skip the Exchange mailbox and CAS mailbox pulls (10 to 20 minutes at 20k mailboxes); the forwarding, shared
         mailbox and per-mailbox protocol checks are then not evaluated.
@@ -102,6 +106,7 @@ function Invoke-PostureCollection {
         [switch] $FullPerUserMfa,
         [switch] $SkipMailboxEnumeration,
         [switch] $SkipSiteEnumeration,
+        [switch] $IncludeOneDriveSites,
         [switch] $PassThru
     )
 
@@ -213,7 +218,7 @@ function Invoke-PostureCollection {
         if ($Collector -contains 'SignIns') { & $timed 'SignIns' { Invoke-PostureStep -Label 'Sign-in log' -Folder $folder -Script { Invoke-PostureSignInCollection -Folder $folder -Days $SignInDays -AsOf $startedUtc } } }
         if ($Collector -contains 'Intune') { & $timed 'Intune' { Invoke-PostureIntuneCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc } }
         if ($run.Exchange) { & $timed 'Exchange' { Invoke-PostureExchangeCollection -Folder $folder -SkipMailboxEnumeration:$SkipMailboxEnumeration } }
-        if ($run.SharePoint) { & $timed 'SharePoint' { Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration } }
+        if ($run.SharePoint) { & $timed 'SharePoint' { Invoke-PostureSharePointCollection -Folder $folder -SkipSiteEnumeration:$SkipSiteEnumeration -IncludeOneDriveSites:$IncludeOneDriveSites } }
         if ($run.Teams) { & $timed 'Teams' { Invoke-PostureTeamsCollection -Folder $folder } }
         if ($run.Purview) { & $timed 'Purview' { Invoke-PosturePurviewCollection -Folder $folder } }
         if ($run.Azure) { & $timed 'Azure' { Invoke-PostureAzureCollection -Folder $folder } }

@@ -104,10 +104,10 @@ function ConvertTo-PostureReportMarkdown {
         & $line
         & $line "Score $(& $num $d.score). $($d.narrative) Pass $($d.counts.pass), fail $($d.counts.fail), accepted risk $($d.counts.acceptedRisk), covered $($d.counts.coveredBy), not evaluated $($d.counts.notEvaluated), not applicable $($d.counts.notApplicable)."
         & $line
-        $rows = foreach ($x in $d.checks) {
-            $detail = if ($x.affectedCount -gt 0) { (@($x.affected | Select-Object -First 5 | ForEach-Object { $_.name }) -join ', ') + $(if ($x.affectedCount -gt 5) { " and $($x.affectedCount - 5) more" }) } elseif ($x.reason) { $x.reason } else { '' }
-            if ($exec) { , @($x.id, $x.title, $statusLabel[$x.status], $x.severity) } else { , @($x.id, $x.title, $statusLabel[$x.status], $x.severity, (@($r.catalogText[$x.id].license) -join ', '), $detail) }
-        }
+        $rows = @(foreach ($x in $d.checks) {
+                $detail = if ($x.affectedCount -gt 0) { (@($x.affected | Select-Object -First 5 | ForEach-Object { $_.name }) -join ', ') + $(if ($x.affectedCount -gt 5) { " and $($x.affectedCount - 5) more" }) } elseif ($x.reason) { $x.reason } else { '' }
+                if ($exec) { , @($x.id, $x.title, $statusLabel[$x.status], $x.severity) } else { , @($x.id, $x.title, $statusLabel[$x.status], $x.severity, (@($r.catalogText[$x.id].license) -join ', '), $detail) }
+            })
         if ($exec) { & $table @('Check', 'Title', 'Status', 'Severity') @($rows) } else { & $table @('Check', 'Title', 'Status', 'Severity', 'License', 'Detail') @($rows) }
     }
     if (@($r.domainsNotCollected).Count -gt 0) {
@@ -231,7 +231,7 @@ function ConvertTo-PostureReportMarkdown {
     & $line '## Appendix'
     & $line
     $a = $r.appendix
-    & $table @('Field', 'Value') @(, @('Catalog version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API versions', ($a.graphApiVersions -join ', ')), @('Module version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))
+    & $table @('Field', 'Value') @(@('Catalog version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API versions', ($a.graphApiVersions -join ', ')), @('Module version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))
     if ($a.profileAnswers) {
         & $line '### Profile'
         & $line

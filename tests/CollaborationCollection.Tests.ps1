@@ -14,7 +14,7 @@ BeforeAll {
     Mock -ModuleName TenantKeep.Posture Stop-Transcript { }
     Mock -ModuleName TenantKeep.Posture Test-PosturePnpSession { $env:TKP_COLLAB_CONNECTED -eq '1' }
     Mock -ModuleName TenantKeep.Posture Test-PostureTeamsSession { $env:TKP_COLLAB_CONNECTED -eq '1' }
-    Mock -ModuleName TenantKeep.Posture Invoke-PosturePnpCommand { . $env:TKP_COLLAB_FIXTURE; $items = @(Get-CollaborationFixtureObject -Name $Name); if ($PesterBoundParameters.ContainsKey('OnItem')) { foreach ($i in $items) { & $PesterBoundParameters['OnItem'] $i }; return }; $items }
+    Mock -ModuleName TenantKeep.Posture Invoke-PosturePnpCommand { . $env:TKP_COLLAB_FIXTURE; $items = @(Get-CollaborationFixtureObject -Name $Name); if ($Name -eq 'Get-PnPTenantSite' -and -not ($Parameters -and $Parameters['IncludeOneDriveSites'])) { $items = @($items | Where-Object { [string]$_.Template -notlike 'SPSPERS*' }) }; if ($PesterBoundParameters.ContainsKey('OnItem')) { foreach ($i in $items) { & $PesterBoundParameters['OnItem'] $i }; return }; $items }
     Mock -ModuleName TenantKeep.Posture Invoke-PostureTeamsCommand { . $env:TKP_COLLAB_FIXTURE; @(Get-CollaborationFixtureObject -Name $Name) }
 }
 
@@ -24,6 +24,20 @@ AfterAll {
 }
 
 Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
+    Context 'with -IncludeOneDriveSites' {
+        It 'lists the OneDrives as well and counts them apart' {
+            $env:TKP_COLLAB_CONNECTED = '1'
+            $folder = Join-Path $script:Root 'run-onedrive'
+            $null = Invoke-PostureCollection -Collector SharePoint -IncludeOneDriveSites -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $s = Get-Content -Raw (Join-Path $folder 'spo-sites-summary.json') | ConvertFrom-Json -AsHashtable
+            $s.Total | Should -Be 4
+            $s.OneDrivesIncluded | Should -BeTrue
+            $s.OneDrives | Should -Be 1
+            $s.Sites | Should -Be 3
+            @(Import-Csv -LiteralPath (Join-Path $folder 'spo-sites.csv') | Where-Object { $_.IsOneDrive -eq 'True' }).Count | Should -Be 1
+        }
+    }
+
     Context 'connected' {
         BeforeAll {
             $env:TKP_COLLAB_CONNECTED = '1'
@@ -47,11 +61,13 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
             $t.ContainsKey('Identity') | Should -BeFalse
         }
 
-        It 'summarises sites: OneDrives apart, ownerless and anonymous sharing counted' {
+        It 'lists the sites and not the OneDrives, with ownerless and anonymous sharing counted' {
             @(& $script:Read 'spo-sites' | Where-Object { $_.Ownerless }).Url | Should -Be 'https://contoso.sharepoint.example/sites/OldProject'
+            @(& $script:Read 'spo-sites' | Where-Object { $_.IsOneDrive }).Count | Should -Be 0 -Because 'a OneDrive per user is not what any check reads'
             $s = & $script:Read 'spo-sites-summary'
-            $s.Total | Should -Be 4
-            $s.OneDrives | Should -Be 1
+            $s.Total | Should -Be 3
+            $s.OneDrivesIncluded | Should -BeFalse
+            $s.OneDrives | Should -BeNullOrEmpty -Because 'not listed is unknown, not zero'
             $s.Sites | Should -Be 3
             $s.Ownerless | Should -Be 1 -Because 'the group-connected site is judged through its group and the search centre is a system site'
             $s.AnonymousSharingAllowed | Should -Be 1

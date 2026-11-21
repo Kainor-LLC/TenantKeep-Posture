@@ -40,6 +40,23 @@ Describe 'New-PostureCaDocument' {
             ($cov.run.results | Where-Object id -eq 'CA-015').affectedCount | Should -Be 2
         }
 
+        It 'draws a table with one row as one row' {
+            # A tenant with exactly one named location, the common case: the row used to come apart into its cells.
+            $one = Join-Path $script:Out 'one-location-snapshot'
+            Copy-Item -Path $script:Sample -Destination $one -Recurse
+            $file = Join-Path $one 'named-locations.json'
+            $locations = @(Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 20)
+            ConvertTo-Json -InputObject @($locations[0]) -Depth 20 | Set-Content -LiteralPath $file
+            $r = New-PostureCaDocument -Snapshot $one -OutputPath (Join-Path $script:Out 'one-location') -Format Markdown -SkipChecks -PassThru -WarningAction SilentlyContinue
+            $md = Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*.md' })
+            $md | Should -Match '(?m)^\| HQ egress \| ipNamedLocation \| yes \| \d+\.\d+\.\d+\.\d+/\d+[^|]* \| [0-9a-f-]{36} \|$' -Because 'one row, with the type of the location and its ranges'
+        }
+
+        It 'shows what kind of location each named location is, and its ranges or countries' {
+            $script:Md | Should -Match '(?m)^\| HQ egress \| ipNamedLocation \| yes \| \d+\.\d+\.\d+\.\d+/\d+'
+            $script:Md | Should -Match '(?m)^\| Allowed countries \| countryNamedLocation \| no \| [A-Z]{2}'
+        }
+
         It 'leaves the page out with -SkipChecks' {
             $r = New-PostureCaDocument -Snapshot $script:Sample -OutputPath (Join-Path $script:Out 'skip') -Format Markdown -SkipChecks -PassThru
             $r.Document.coverage | Should -BeNullOrEmpty

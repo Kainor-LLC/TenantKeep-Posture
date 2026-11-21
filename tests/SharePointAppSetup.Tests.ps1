@@ -31,7 +31,7 @@ BeforeAll {
 
 AfterAll {
     Remove-Item -LiteralPath $script:Root -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item Function:\global:Get-MgContext, Function:\global:Invoke-MgGraphRequest -ErrorAction SilentlyContinue
+    Remove-Item Function:\Get-MgContext, Function:\Invoke-MgGraphRequest -ErrorAction SilentlyContinue
     Remove-Item Env:TKP_SPOAPP_SP -ErrorAction SilentlyContinue
     Remove-Item Env:TKP_SPOAPP_LOG -ErrorAction SilentlyContinue
 }

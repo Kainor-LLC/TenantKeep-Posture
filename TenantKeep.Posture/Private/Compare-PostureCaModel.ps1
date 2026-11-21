@@ -80,14 +80,18 @@ function Compare-PostureCaModel {
             $aCount = if ($as) { Get-PostureValue $as 'memberCount' } else { $null }
             $bHash = if ($bs) { Get-PostureValue $bs 'memberHash' } else { $null }
             $aHash = if ($as) { Get-PostureValue $as 'memberHash' } else { $null }
-            if ($bHash -eq $aHash -and $bCount -eq $aCount) { continue }
+            # A group counted on both sides with no hash on one of them (over the size where it is only counted)
+            # is compared by its count: a hash that was not taken is not a change.
+            $countOnly = [bool]($null -ne $bCount -and $null -ne $aCount -and (-not $bHash -or -not $aHash))
+            $hashChanged = $(if ($countOnly) { $false } else { $bHash -ne $aHash })
+            if (-not $hashChanged -and $bCount -eq $aCount) { continue }
             $ref = Resolve-PostureCaRef -Snapshot $After -Id $gid -ExpectedType 'group'
             if ($ref.deleted -or $ref.type -eq 'unknown') { $ref = Resolve-PostureCaRef -Snapshot $Before -Id $gid -ExpectedType 'group' }
             $entry = [ordered]@{
                 groupId = $gid; name = $ref.name
                 countBefore = $bCount; countAfter = $aCount
                 delta = $(if ($null -ne $bCount -and $null -ne $aCount) { $aCount - $bCount } else { $null })
-                hashChanged = ($bHash -ne $aHash)
+                hashChanged = $hashChanged
                 membersAdded = @(); membersRemoved = @(); memberDetail = $false
             }
             $bm = if ($bs -and $bs.Contains('members')) { @($bs.members) } else { $null }

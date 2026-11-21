@@ -53,6 +53,15 @@ Describe 'Source file <Name>' -ForEach $script:SourceFiles {
         (Get-Content -Path $Path -TotalCount 3) -join "`n" | Should -Match 'Copyright \(c\) 2026 Kainor LLC\. Source-available, see LICENSE\.md\.'
     }
 
+    It 'removes a global stand-in by a path that removes it' {
+        # A test may define a global function to stand in for a command. Asked to remove it by a path that carries
+        # the scope (the word global between Function: and the name), PowerShell removes nothing and says nothing,
+        # and the stand-in leaks into every later test file: Invoke-MgGraphRequest, Get-MgContext and Start-Sleep
+        # did, until 2026-11-21. The path that works is Function:, a backslash, and the name.
+        $withScope = 'Remove-Item[^\r\n]*Function:\\?' + 'global:'
+        (Get-Content -Raw -LiteralPath $Path) | Should -Not -Match "(?i)$withScope" -Because 'that path does not remove a global function'
+    }
+
     It 'has no em dash in user-facing text' {
         Get-Content -Path $Path -Raw | Should -Not -Match ([char]0x2014)
     }

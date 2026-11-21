@@ -13,7 +13,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Item Function:\global:Get-AzContext, Function:\global:Invoke-AzRestMethod, Function:\global:Get-ConnectionInformation -ErrorAction SilentlyContinue
+    Remove-Item Function:\Get-AzContext, Function:\Invoke-AzRestMethod, Function:\Get-ConnectionInformation -ErrorAction SilentlyContinue
 }
 
 Describe 'Session tenant checks' {

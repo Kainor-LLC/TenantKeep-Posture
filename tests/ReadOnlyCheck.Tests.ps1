@@ -17,7 +17,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Item Function:\global:Get-MgContext, Function:\global:Get-ConnectionInformation, Function:\global:Search-UnifiedAuditLog, Function:\global:Invoke-MgGraphRequest -ErrorAction SilentlyContinue
+    Remove-Item Function:\Get-MgContext, Function:\Get-ConnectionInformation, Function:\Search-UnifiedAuditLog, Function:\Invoke-MgGraphRequest -ErrorAction SilentlyContinue
     Remove-Item Env:TKP_RO_AUDIT, Env:TKP_RO_DIRECTORY -ErrorAction SilentlyContinue
 }
 

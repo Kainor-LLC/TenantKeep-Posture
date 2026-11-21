@@ -6,6 +6,20 @@ work landed on main.
 
 ## Unreleased
 
+- SharePoint: the site list is the sites, not the OneDrives (2026-11-21). Both SharePoint collectors listed every
+  OneDrive, one per user, and no check reads them: on a large tenant that was most of the collector's time and
+  the largest file in the run. They are left out now; `-IncludeOneDriveSites` lists them all the same, and the
+  summary says whether they were listed (`OneDrivesIncluded`; `OneDrives` is empty when they were not).
+- Conditional Access group scope without holding the members. The member hash is fed one id at a time, and gives
+  the same hash as before. A group over 50,000 members is counted in one request and not hashed (it was a page
+  per 999 members on every snapshot); the diff compares such a group by its count, and `-HashLargeGroups` hashes
+  it all the same.
+- The named locations table in the CA document shows the type of each location and its IP ranges. Both columns
+  were empty for IP locations: the value reader could not read a key with a dot in it (`@odata.type`).
+- Tables with one row. A Markdown table built from a single row came apart into one row per cell: the named
+  locations of a tenant with one location, a single health flag, a single drifted group, a domain with one check.
+  The first row of the two appendix tables ran its cells together. All fixed, in the CA document, the CA diff
+  and report.md.
 - Measured at 300,000 users (2026-11-21). On the made-up tenant the review used (300,000 users, 300,000
   OneDrives, 50,000 devices, 50,000 groups, 1.1 GB of evidence) the report now peaks at 524 MB and takes 114
   seconds. It peaked at 10.2 GB before the large lists were read a row at a time.

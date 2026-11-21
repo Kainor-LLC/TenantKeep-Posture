@@ -5,8 +5,9 @@ function Get-PostureValue {
         Walks a dotted path through nested hashtables from Graph wire JSON. Returns $null for any missing segment.
     .DESCRIPTION
         Graph omits properties it has no value for, and Set-StrictMode makes a missing member an error. Every read
-        of a nested policy property goes through here so a sparse policy never throws. Keys that themselves contain
-        a dot, such as '@odata.type', must be read with the indexer instead.
+        of a nested policy property goes through here so a sparse policy never throws. A key that itself contains
+        a dot, such as '@odata.type', is found as it is written before the path is walked: asked for by this
+        function it used to come back empty, which left the type and the IP ranges out of the named locations table.
     #>
     [CmdletBinding()]
     [OutputType([object])]
@@ -16,6 +17,7 @@ function Get-PostureValue {
     )
 
     $ErrorActionPreference = 'Stop'
+    if ($Object -is [System.Collections.IDictionary] -and $Path.Contains('.') -and $Object.Contains($Path)) { return $Object[$Path] }
     $current = $Object
     foreach ($segment in $Path.Split('.')) {
         if ($null -eq $current) { return $null }

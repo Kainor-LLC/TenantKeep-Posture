@@ -29,6 +29,9 @@ function Export-PostureCaSnapshot {
         run folder holds every domain's evidence.
     .PARAMETER IncludeMembers
         Also store the transitive member list (id, type, display name, UPN) of every referenced group in group-scope.json.
+    .PARAMETER HashLargeGroups
+        Hash the member list of groups over 50,000 members as well. Without it such a group is counted in one
+        request and not hashed (a page per 999 members otherwise, on every run), and the diff compares it by count.
     .PARAMETER ApiVersion
         Graph API version for the four Conditional Access endpoints. v1.0 (default) or beta. Recorded in metadata.json.
     .PARAMETER PassThru
@@ -53,6 +56,7 @@ function Export-PostureCaSnapshot {
         [Parameter()] [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
         [string] $OutputFolder,
         [switch] $IncludeMembers,
+        [switch] $HashLargeGroups,
         [ValidateSet('v1.0', 'beta')] [string] $ApiVersion = 'v1.0',
         [switch] $PassThru
     )
@@ -109,7 +113,7 @@ function Export-PostureCaSnapshot {
                 continue
             }
             $scope = Invoke-PostureStep -Label "Group members $groupId" -Folder $folder -Script {
-                Get-PostureGroupScope -GroupId $groupId -IncludeMembers:$IncludeMembers
+                Get-PostureGroupScope -GroupId $groupId -IncludeMembers:$IncludeMembers -HashLargeGroups:$HashLargeGroups
             }
             if ($scope) { $scope } else { [ordered]@{ groupId = $groupId; error = $true; memberCount = $null; memberHash = $null } }
         }
@@ -137,6 +141,7 @@ function Export-PostureCaSnapshot {
             authContextCount   = $contexts.Count
             groupCount      = @($groupScope).Count
             includeMembers  = [bool]$IncludeMembers
+            hashLargeGroups = [bool]$HashLargeGroups
             errorCount      = $errorCount
             powerShell      = $PSVersionTable.PSVersion.ToString()
             platform        = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription

@@ -7,13 +7,16 @@ function Invoke-PostureSharePointCollection {
     .DESCRIPTION
         Needs a Connect-PnPOnline session to the tenant admin site, opened with the app registration from
         deploy/setup/New-PostureSharePointApp.ps1 and an account holding SharePoint Administrator. Never connects.
-        -SkipSiteEnumeration leaves out Get-PnPTenantSite, which takes 30 minutes and more at 20k OneDrives.
+        The site list is the sites, not the OneDrives: a tenant has a OneDrive per user, no check reads them, and
+        listing them was most of the time and memory of this collector on a large tenant. -IncludeOneDriveSites
+        lists them all the same. -SkipSiteEnumeration leaves out the site list altogether.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
         [Parameter(Mandatory)] [string] $Folder,
-        [switch] $SkipSiteEnumeration
+        [switch] $SkipSiteEnumeration,
+        [switch] $IncludeOneDriveSites
     )
 
     $ErrorActionPreference = 'Stop'
@@ -45,11 +48,14 @@ function Invoke-PostureSharePointCollection {
         # Streamed: rows written one at a time with the ownerless flag worked out per row and the summary tallied. PnP
         # still hands the whole list over at once (Get-PnPTenantSite has no paging), so this saves the copies, not that one.
         Invoke-PostureStep -Label 'SharePoint sites' -Folder $Folder -Script {
-            $sum = [ordered]@{ Total = 0; OneDrives = 0; Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
+            # OneDrives is a count only when they were listed; without them it is unknown, not zero.
+            $sum = [ordered]@{ Total = 0; OneDrivesIncluded = [bool]$IncludeOneDriveSites; OneDrives = $(if ($IncludeOneDriveSites) { 0 } else { $null }); Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
             $byTemplate = @{}
+            $siteParameters = @{ Detailed = $true }
+            if ($IncludeOneDriveSites) { $siteParameters.IncludeOneDriveSites = $true }
             $stream = Open-PostureEvidenceStream -Folder $Folder -Name 'spo-sites' -Csv -Confirm:$false
             try {
-                Invoke-PosturePnpCommand -Name 'Get-PnPTenantSite' -Parameters @{ IncludeOneDriveSites = $true; Detailed = $true } -OnItem {
+                Invoke-PosturePnpCommand -Name 'Get-PnPTenantSite' -Parameters $siteParameters -OnItem {
                     param($site)
                     if (-not $site) { return }
                     $row = [ordered]@{
@@ -64,7 +70,7 @@ function Invoke-PostureSharePointCollection {
                     $row.Ownerless = (-not $row.IsOneDrive -and -not $row.IsSystem -and -not $row.GroupId -and -not ($row.Owner -or $row.OwnerEmail -or $row.OwnerLoginName -or $row.OwnerName))
                     Add-PostureEvidenceRow -Stream $stream -Row $row
                     $sum.Total++
-                    if ($row.IsOneDrive) { $sum.OneDrives++; return }
+                    if ($row.IsOneDrive) { $sum.OneDrives = 1 + [int]$sum.OneDrives; return }
                     $sum.Sites++
                     $t = $row.Template; $byTemplate[$t] = 1 + $(if ($byTemplate.ContainsKey($t)) { $byTemplate[$t] } else { 0 })
                     if ($row.SharingCapability -eq 'ExternalUserAndGuestSharing') { $sum.AnonymousSharingAllowed++ }

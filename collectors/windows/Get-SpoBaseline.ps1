@@ -28,7 +28,10 @@
 .PARAMETER OutputPath
     Folder to write into. Default: .\spo-baseline-<yyyyMMdd-HHmm>.
 .PARAMETER SkipSiteEnumeration
-    Leaves out the site list (Get-SPOSite), which takes 30 minutes and more at 20,000 OneDrives.
+    Leaves out the site list (Get-SPOSite), the slow read on a tenant with tens of thousands of sites.
+.PARAMETER IncludeOneDriveSites
+    Lists every OneDrive as well. No check reads them and there is one per user, so they are left out unless this
+    is given.
 .EXAMPLE
     .\Get-SpoBaseline.ps1 -Tenant contoso -TenantId 00000000-0000-0000-0000-000000000000 -OutputPath C:\audit\spo
     Then, where the run lives: Import-PostureEvidence -Path C:\audit\spo -Run ~/tenantkeep/evidence/20261120-0957
@@ -39,7 +42,8 @@ param(
     [Parameter(Mandatory)] [ValidatePattern('^[A-Za-z0-9-]+$')] [string] $Tenant,
     [Parameter(Mandatory)] [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $TenantId,
     [string] $OutputPath = (Join-Path (Get-Location) "spo-baseline-$((Get-Date).ToString('yyyyMMdd-HHmm'))"),
-    [switch] $SkipSiteEnumeration
+    [switch] $SkipSiteEnumeration,
+    [switch] $IncludeOneDriveSites
 )
 
 $ErrorActionPreference = 'Stop'
@@ -115,11 +119,12 @@ try {
 
     if (-not $SkipSiteEnumeration) {
         Invoke-Step 'Sites' {
-            $sum = [ordered]@{ Total = 0; OneDrives = 0; Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
+            # OneDrives is a count only when they were listed; without them it is unknown, not zero.
+            $sum = [ordered]@{ Total = 0; OneDrivesIncluded = [bool]$IncludeOneDriveSites; OneDrives = $(if ($IncludeOneDriveSites) { 0 } else { $null }); Sites = 0; AnonymousSharingAllowed = 0; Ownerless = 0; Labeled = 0; RestrictedAccessControl = 0 }
             $byTemplate = @{}
             $system = '^(SRCHCEN|SPSMSITEHOST|APPCATALOG|POINTPUBLISHINGHUB|POINTPUBLISHINGTOPIC|EDISC|REDIRECTSITE|TEAMCHANNEL|SPSPERS|BDR|OFFILE|STS#-1)'
             $csv = Join-Path $out 'spo-sites.csv'
-            $rows = Get-SPOSite -Limit All -IncludePersonalSite $true | ForEach-Object {
+            $rows = Get-SPOSite -Limit All -IncludePersonalSite ([bool]$IncludeOneDriveSites) | ForEach-Object {
                 $site = $_
                 $group = [string](Get-Plain $site 'GroupId'); if ($group -eq [guid]::Empty.ToString()) { $group = '' }
                 $template = [string](Get-Plain $site 'Template')
@@ -133,7 +138,7 @@ try {
                 # Ownerless, as the module's collector decides it: not group-connected, not a system site, no owner at all.
                 $row.Ownerless = (-not $row.IsOneDrive -and -not $row.IsSystem -and -not $row.GroupId -and -not ($row.Owner -or $row.OwnerEmail -or $row.OwnerLoginName -or $row.OwnerName))
                 $sum.Total++
-                if ($row.IsOneDrive) { $sum.OneDrives++ }
+                if ($row.IsOneDrive) { $sum.OneDrives = 1 + [int]$sum.OneDrives }
                 else {
                     $sum.Sites++
                     $byTemplate[$template] = 1 + $(if ($byTemplate.ContainsKey($template)) { $byTemplate[$template] } else { 0 })

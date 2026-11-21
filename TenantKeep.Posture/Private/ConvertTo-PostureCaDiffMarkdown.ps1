@@ -91,18 +91,20 @@ function ConvertTo-PostureCaDiffMarkdown {
     & $line
     if (@($d.scope).Count -eq 0) { & $line 'No referenced group changed.'; & $line }
     else {
-        $rows = foreach ($g in @($d.scope)) {
+        # A list, not the output of the loop: one row alone would come back as its cells, and each cell would be drawn as a row.
+        $rows = [System.Collections.Generic.List[object]]::new()
+        foreach ($g in @($d.scope)) {
             $added = if ($g.memberDetail) { @($g.membersAdded | ForEach-Object { if ($_.userPrincipalName) { $_.userPrincipalName } else { $_.displayName } }) -join ', ' } else { 'n/a (no -IncludeMembers)' }
             $removed = if ($g.memberDetail) { @($g.membersRemoved | ForEach-Object { if ($_.userPrincipalName) { $_.userPrincipalName } else { $_.displayName } }) -join ', ' } else { 'n/a (no -IncludeMembers)' }
             $delta = if ($null -ne $g.delta) { ('{0:+#;-#;0}' -f $g.delta) } else { '?' }
-            , @($g.name, $g.countBefore, $g.countAfter, $delta, $added, $removed)
+            $rows.Add(@($g.name, $g.countBefore, $g.countAfter, $delta, $added, $removed))
         }
-        & $table @('Group', 'Before', 'After', 'Delta', 'Members added', 'Members removed') @($rows)
+        & $table @('Group', 'Before', 'After', 'Delta', 'Members added', 'Members removed') $rows.ToArray()
     }
 
     & $line '## Appendix'
     & $line
-    & $table @('Field', 'Value') @(, @('Before snapshot', $d.before.path), @('After snapshot', $d.after.path), @('Break-glass accounts', $(if ($r.breakGlass) { $r.breakGlass -join ', ' } else { 'name heuristic (break-glass, emergency)' })))
+    & $table @('Field', 'Value') @(@('Before snapshot', $d.before.path), @('After snapshot', $d.after.path), @('Break-glass accounts', $(if ($r.breakGlass) { $r.breakGlass -join ', ' } else { 'name heuristic (break-glass, emergency)' })))
     if ($b.footer) { & $line '---'; & $line; & $line $b.footer }
     return $sb.ToString()
 }

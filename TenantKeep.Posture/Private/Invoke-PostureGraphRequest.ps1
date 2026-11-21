@@ -48,7 +48,9 @@ function Invoke-PostureGraphRequest {
         [switch] $Single,
         [scriptblock] $OnPage,
         [string] $StartAt,
-        [string] $Label
+        [string] $Label,
+        # Request headers, for the few reads that need one (ConsistencyLevel: eventual on a count).
+        [hashtable] $Headers
     )
 
     $ErrorActionPreference = 'Stop'
@@ -62,7 +64,7 @@ function Invoke-PostureGraphRequest {
     $next = $(if ($StartAt) { $StartAt } else { $url })
     $page = 0; [long]$total = 0
     while ($next) {
-        $response = Invoke-PostureGraphPage -Url $next -Method $Method -Body $Body
+        $response = Invoke-PostureGraphPage -Url $next -Method $Method -Body $Body -Headers $Headers
         if ($Single -or -not $response.ContainsKey('value')) { return $response }
         $page++
         $values = @($response.value)
@@ -91,7 +93,8 @@ function Invoke-PostureGraphPage {
     param(
         [Parameter(Mandatory)] [string] $Url,
         [string] $Method = 'GET',
-        [hashtable] $Body
+        [hashtable] $Body,
+        [hashtable] $Headers
     )
 
     $ErrorActionPreference = 'Stop'
@@ -104,6 +107,7 @@ function Invoke-PostureGraphPage {
         $attempt++
         $params = @{ Uri = $Url; Method = $Method; OutputType = 'HashTable'; ErrorAction = 'Stop' }
         if ($Body) { $params.Body = ($Body | ConvertTo-Json -Depth 20 -Compress); $params.ContentType = 'application/json' }
+        if ($Headers -and $Headers.Count -gt 0) { $params.Headers = $Headers }
         Write-Verbose "$Method $Url"
         try { return (Invoke-MgGraphRequest @params) }
         catch {

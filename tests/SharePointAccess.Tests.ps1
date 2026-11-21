@@ -17,7 +17,7 @@ BeforeAll {
 
 AfterAll {
     if (Test-Path $script:Root) { Remove-Item -LiteralPath $script:Root -Recurse -Force }
-    Remove-Item Function:\global:Get-MgContext, Function:\global:Invoke-MgGraphRequest -ErrorAction SilentlyContinue
+    Remove-Item Function:\Get-MgContext, Function:\Invoke-MgGraphRequest -ErrorAction SilentlyContinue
     Remove-Item Env:TKP_SPGRANT_LOG -ErrorAction SilentlyContinue
 }
 

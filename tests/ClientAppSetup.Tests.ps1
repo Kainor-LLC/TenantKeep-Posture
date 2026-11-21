@@ -44,7 +44,7 @@ BeforeAll {
 
 AfterAll {
     Remove-Item -LiteralPath $script:Root -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item Function:\global:Get-MgContext, Function:\global:Invoke-MgGraphRequest, Function:\global:Start-Sleep -ErrorAction SilentlyContinue
+    Remove-Item Function:\Get-MgContext, Function:\Invoke-MgGraphRequest, Function:\Start-Sleep -ErrorAction SilentlyContinue
     Remove-Item Env:TKP_CLIENTAPP_LOG, Env:TKP_CLIENTAPP_EXISTS, Env:TKP_CLIENTAPP_JSON, Env:TKP_CLIENTAPP_VERIFY_404, Env:TKP_CLIENTAPP_SLEPT -ErrorAction SilentlyContinue
 }
 

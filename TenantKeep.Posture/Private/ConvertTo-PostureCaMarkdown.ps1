@@ -46,7 +46,9 @@ function ConvertTo-PostureCaMarkdown {
 
     & $line '## Health flags'
     & $line
-    $flagRows = foreach ($p in $d.policies) { foreach ($f in @($p.healthFlags)) { , @($p.name, $f.code, $f.severity, $f.message) } }
+    # Rows are gathered inside @( ): assigned straight from the loop, one row alone comes back as its cells and each
+    # cell is drawn as a row.
+    $flagRows = @(foreach ($p in $d.policies) { foreach ($f in @($p.healthFlags)) { , @($p.name, $f.code, $f.severity, $f.message) } })
     if (@($flagRows).Count -eq 0) { & $line 'No health flags.'; & $line }
     else { & $table @('Policy', 'Flag', 'Severity', 'Detail') @($flagRows) }
 
@@ -54,7 +56,7 @@ function ConvertTo-PostureCaMarkdown {
     & $line
     $cols = @($d.matrix.columns)
     $headers = @('Policy') + @($cols | ForEach-Object { $_.label })
-    $rows = foreach ($r in $d.matrix.rows) { , (@($r.name) + @($cols | ForEach-Object { $r.cells[$_.key] })) }
+    $rows = @(foreach ($r in $d.matrix.rows) { , (@($r.name) + @($cols | ForEach-Object { $r.cells[$_.key] })) })
     & $table $headers @($rows)
 
     & $line '## Naming convention'
@@ -77,10 +79,10 @@ function ConvertTo-PostureCaMarkdown {
         & $line "Catalog $($run.catalogVersion), baseline $($run.baseline). Pass $($cc.pass), fail $($cc.fail), not evaluated $($cc.notEvaluated), not applicable $($cc.notApplicable), accepted risk $($cc.acceptedRisk), covered by a third party $($cc.coveredBy)."
         & $line
         $statusLabel = @{ pass = 'Pass'; fail = 'Fail'; notEvaluated = 'Not evaluated'; notApplicable = 'Not applicable'; acceptedRisk = 'Accepted risk'; coveredBy = 'Covered by' }
-        $rows = foreach ($r in $run.results) {
-            $detail = if ($r.affectedCount -gt 0) { (@($r.affected | ForEach-Object { $_.name }) -join ', ') } elseif ($r.reason) { $r.reason } else { '' }
-            , @($r.id, $r.title, $statusLabel[$r.status], $r.severity, $detail)
-        }
+        $rows = @(foreach ($r in $run.results) {
+                $detail = if ($r.affectedCount -gt 0) { (@($r.affected | ForEach-Object { $_.name }) -join ', ') } elseif ($r.reason) { $r.reason } else { '' }
+                , @($r.id, $r.title, $statusLabel[$r.status], $r.severity, $detail)
+            })
         & $table @('Check', 'Title', 'Status', 'Severity', 'Detail') @($rows)
         $failed = @($run.results | Where-Object { $_.status -eq 'fail' })
         if ($failed.Count -gt 0) {
@@ -185,11 +187,11 @@ function ConvertTo-PostureCaMarkdown {
     & $line
     if (@($d.namedLocations).Count -eq 0) { & $line 'None.'; & $line }
     else {
-        $rows = foreach ($l in $d.namedLocations) {
-            $type = ([string](Get-PostureValue $l '@odata.type')) -replace '^#microsoft\.graph\.', ''
-            $detail = if ($type -eq 'ipNamedLocation') { @(Get-PostureValue $l 'ipRanges' | ForEach-Object { $_.cidrAddress }) -join ', ' } else { @(Get-PostureValue $l 'countriesAndRegions') -join ', ' }
-            , @($l.displayName, $type, $(if (Get-PostureValue $l 'isTrusted') { 'yes' } else { 'no' }), $detail, $l.id)
-        }
+        $rows = @(foreach ($l in $d.namedLocations) {
+                $type = ([string](Get-PostureValue $l '@odata.type')) -replace '^#microsoft\.graph\.', ''
+                $detail = if ($type -eq 'ipNamedLocation') { @(Get-PostureValue $l 'ipRanges' | ForEach-Object { $_.cidrAddress }) -join ', ' } else { @(Get-PostureValue $l 'countriesAndRegions') -join ', ' }
+                , @($l.displayName, $type, $(if (Get-PostureValue $l 'isTrusted') { 'yes' } else { 'no' }), $detail, $l.id)
+            })
         & $table @('Name', 'Type', 'Trusted', 'Ranges or countries', 'ID') @($rows)
     }
 
