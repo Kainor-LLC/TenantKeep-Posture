@@ -22,7 +22,7 @@ BeforeAll {
             # Every resource exposes every scope the manifest asks for, except one deliberately missing value, so the test sees the warning path.
             $manifest = Get-Content -LiteralPath $env:TKP_CLIENTAPP_JSON -Raw | ConvertFrom-Json -AsHashtable
             $resource = @($manifest['resources'] | Where-Object { $_['appId'] -eq $appId })[0]
-            $scopes = @($resource['scopes'] | Where-Object { $_ -ne 'Reports.Read.All' } | ForEach-Object { @{ id = "id-$_"; value = $_ } })
+            $scopes = @($resource['scopes'] | Where-Object { $_ -ne 'NetworkAccess.Read.All' } | ForEach-Object { @{ id = "id-$_"; value = $_ } })
             return @{ value = @(@{ id = "sp-$appId"; displayName = $resource['label']; oauth2PermissionScopes = $scopes }) }
         }
         if ($u -match "applications\?\`$filter=displayName eq 'TenantKeep Posture'") {
@@ -63,9 +63,27 @@ Describe 'TenantKeep.Posture/app.json' {
         foreach ($scope in @([regex]::Matches($collection, "^\s+'([A-Za-z.]+\.Read[A-Za-z.]*)'\s+= '", 'Multiline') | ForEach-Object { $_.Groups[1].Value })) {
             $graphScopes | Should -Contain $scope
         }
-        foreach ($scope in 'openid', 'profile', 'offline_access', 'User.Read', 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Sites.Read.All', 'Organization.Read.All', 'Application.Read.All', 'Reports.Read.All') {
+        foreach ($scope in 'openid', 'profile', 'offline_access', 'User.Read', 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Organization.Read.All', 'Application.Read.All') {
             $graphScopes | Should -Contain $scope
         }
+    }
+
+    It 'carries no Graph scope that no collector or step uses, and names no scope the consent does not carry' {
+        # requirements.json says which step needs which scope (Run Health quotes it). A scope on the consent screen
+        # that nothing there names is a permission asked for and never used; a scope named there that the consent
+        # does not carry is advice nobody can follow.
+        $graphScopes = @(@($script:Manifest['resources'] | Where-Object { $_['name'] -eq 'graph' })[0]['scopes'])
+        $requirements = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'requirements.json') | ConvertFrom-Json -AsHashtable -Depth 10
+        $used = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($entry in @($requirements['collectors'].Values) + @($requirements['steps'])) {
+            if ($entry.Contains('scopes') -and $entry['scopes']) { foreach ($scope in @($entry['scopes'])) { $null = $used.Add([string]$scope) } }
+        }
+        foreach ($scope in @($graphScopes | Where-Object { $_ -notin 'openid', 'profile', 'offline_access', 'User.Read' })) {
+            $used.Contains($scope) | Should -BeTrue -Because "$scope is on the consent screen, so a collector or a step in requirements.json must need it"
+        }
+        foreach ($scope in $used) { $graphScopes | Should -Contain $scope -Because "requirements.json tells admins the app needs $scope" }
+        $graphScopes | Should -Not -Contain 'Sites.Read.All' -Because 'no collector reads site content'
+        $graphScopes | Should -Not -Contain 'Reports.Read.All' -Because 'no collector reads a usage report'
     }
 
     It 'asks every resource for read-only delegated scopes and nothing that writes' {
@@ -106,8 +124,8 @@ Describe 'New-PostureClientApp.ps1' {
         foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
         @($graphAccess.resourceAccess).id | Should -Contain 'id-Policy.Read.All'
-        @($graphAccess.resourceAccess).id | Should -Not -Contain 'id-Reports.Read.All'
-        @($warnings | Where-Object { $_ -match "no delegated scope 'Reports.Read.All'.*it exposes: .*Policy\.Read\.All" }).Count | Should -Be 1
+        @($graphAccess.resourceAccess).id | Should -Not -Contain 'id-NetworkAccess.Read.All'
+        @($warnings | Where-Object { $_ -match "no delegated scope 'NetworkAccess.Read.All'.*it exposes: .*Policy\.Read\.All" }).Count | Should -Be 1
         $verify = @($requests | Where-Object { $_.Uri -match 'setVerifiedPublisher$' })
         $verify.Count | Should -Be 1
         $verify[0].Body.verifiedPublisherId | Should -Be '1234567'

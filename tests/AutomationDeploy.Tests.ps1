@@ -160,6 +160,8 @@ Describe 'deploy scripts' {
         $warned.Count | Should -BeGreaterThan 15
         foreach ($scope in $warned) { $grant | Should -Match ([regex]::Escape("'$scope'")) -Because "$scope is a collector scope" }
         foreach ($needle in 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access', 'f2ef992c-3afb-46b9-b7cf-a126ee74c451') { $grant | Should -Match ([regex]::Escape($needle)) }
+        # Graph application roles nothing reads with: site content and usage reports.
+        foreach ($unused in 'Sites.Read.All', 'Reports.Read.All') { $grant | Should -Not -Match ([regex]::Escape("'$unused'")) -Because "no collector uses $unused" }
     }
 
     It 'with includePosture the template adds the Purview certificate vault with Secrets User for the identity, and the runbook signs in to Purview with the certificate from it' {

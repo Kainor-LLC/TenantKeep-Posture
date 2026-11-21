@@ -40,10 +40,8 @@
         "ThreatHunting.Read.All",
         "SecurityIncident.Read.All",
         "SecurityEvents.Read.All",
-        "Sites.Read.All",
         "Organization.Read.All",
         "Application.Read.All",
-        "Reports.Read.All",
         "SharePointTenantSettings.Read.All",
         "NetworkAccess.Read.All",
         "BackupRestore-Configuration.Read.All"

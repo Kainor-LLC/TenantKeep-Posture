@@ -7,6 +7,11 @@
       "roles": [
         "Global Reader"
       ],
+      "scopes": [
+        "Policy.Read.All",
+        "Directory.Read.All",
+        "Group.Read.All"
+      ],
       "note": "Global Reader reads every Entra setting the collector uses."
     },
     "SignIns": {
@@ -164,8 +169,8 @@
         "Privileged Role Administrator"
       ],
       "scopes": [
-        "RoleManagementPolicy.Read.Directory",
-        "PrivilegedAccess.Read.AzureADGroup"
+        "RoleManagement.Read.Directory",
+        "PrivilegedEligibilitySchedule.Read.AzureADGroup"
       ],
       "licence": "Microsoft Entra ID P2"
     },
@@ -176,8 +181,7 @@
         "Global Reader"
       ],
       "scopes": [
-        "RoleManagement.Read.Directory",
-        "RoleEligibilitySchedule.Read.Directory"
+        "RoleManagement.Read.Directory"
       ]
     },
     {
@@ -285,6 +289,20 @@
       "scopes": [
         "Application.Read.All",
         "Directory.Read.All"
+      ]
+    },
+    {
+      "collector": "Intune",
+      "match": "^Intune managed devices$",
+      "scopes": [
+        "DeviceManagementManagedDevices.Read.All"
+      ]
+    },
+    {
+      "collector": "Intune",
+      "match": "^(Intune apps|App protection policies)$",
+      "scopes": [
+        "DeviceManagementApps.Read.All"
       ]
     },
     {

@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- Two permissions fewer on the consent screen (2026-11-21): `Sites.Read.All` ("read items in all site collections")
+  and `Reports.Read.All` are gone from the TenantKeep Posture app's manifest and from the managed identity grant
+  script. No collector ever called an API that needs them. A tenant that already consented keeps working; the
+  two stay in its consent record until an admin consents again or removes them. A test now fails when the
+  manifest asks for a Graph permission no collector or step uses, and requirements.json names only permissions
+  the app carries, so Run Health never tells an admin to grant one that the consent cannot give.
 - Commit guards for company information (2026-11-21): the scan that stops credentials now also refuses anything
   named in the developer's local notes or client folders (a deny list built when the hook runs, never stored, a
   hit reported by file and line without its text) and any mail domain or Microsoft tenant name that is not a

@@ -47,7 +47,7 @@ $postureGraphRoles = @(
     'DeviceManagementManagedDevices.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementServiceConfig.Read.All', 'DeviceManagementApps.Read.All',
     'BitLockerKey.ReadBasic.All', 'AttackSimulation.Read.All', 'AccessReview.Read.All', 'EntitlementManagement.Read.All', 'LifecycleWorkflows.Read.All',
     'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All',
-    'Sites.Read.All', 'Organization.Read.All', 'Application.Read.All', 'Reports.Read.All'
+    'Organization.Read.All', 'Application.Read.All'
 )
 if ($IncludePosture) { $roles += $postureGraphRoles }
 
