@@ -326,7 +326,14 @@
     "partnerReportedMacs": "Macs Intune lists as managed by Jamf",
     "macEntraCompliantPct": "Macs in use that Entra shows compliant (%)",
     "macsInEntra": "Macs signed in to Entra recently",
-    "macsNotCompliantInEntra": "Macs not reported compliant in Entra"
+    "macsNotCompliantInEntra": "Macs not reported compliant in Entra",
+    "syncedAccessGroups": "Groups synced from AD that grant cloud access",
+    "syncedGroups": "Groups synced from AD",
+    "groupsManagedInEntraFromAd": "Groups from AD now managed in Entra",
+    "cloudManagedGroupPct": "Groups from AD now managed in Entra (%)",
+    "syncedUsers": "Users synced from AD",
+    "usersManagedInEntraFromAd": "Users from AD now managed in Entra",
+    "cloudOnlyMembers": "Members not synced from AD"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -383,6 +390,7 @@
     "spfRequireHardFail": "SPF must end in -all",
     "maxAdOnlyWindowsPct": "Maximum hybrid-joined Windows devices with no cloud management (%)",
     "maxPartnerHeartbeatDays": "Longest a Mac MDM may go without reporting (days)",
-    "minPartnerMacCompliantPct": "Minimum Macs compliant in Entra (%)"
+    "minPartnerMacCompliantPct": "Minimum Macs compliant in Entra (%)",
+    "minCloudManagedGroupPct": "Minimum groups from AD managed in Entra (%)"
   }
 }

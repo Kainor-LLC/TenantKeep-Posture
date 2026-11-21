@@ -125,7 +125,7 @@ BeforeAll {
             '^security/secureScoreControlProfiles' { & $u @(@{ id = 'MFARegistrationV2'; title = 'Ensure all users can complete MFA'; controlCategory = 'Identity'; maxScore = 9; implementationCost = 'Low'; userImpact = 'Low'; actionType = 'Config'; tier = 'Core'; rank = 1; deprecated = $false; controlStateUpdates = @(@{ state = 'Default' }, @{ state = 'ThirdParty' }); remediation = 'Register everyone.' }, @{ id = 'Old'; title = 'Retired'; deprecated = $true; controlStateUpdates = @() }); break }
             '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
             '^groups\?\$filter=groupTypes' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; createdDateTime = '2024-01-01T00:00:00Z'; visibility = 'Private'; owners = @(@{ id = 'u1' }) }, @{ id = 'grp9'; displayName = 'Orphaned Project'; createdDateTime = '2023-05-01T00:00:00Z'; visibility = 'Private'; owners = @() }); break }
-            '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }); break }
+            '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }, @{ id = 'grp4'; displayName = 'Synced Staff'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; onPremisesSyncEnabled = $true; onPremisesSecurityIdentifier = 'S-1-5-21-1-2-3-1101'; assignedLicenses = @(@{ skuId = 'x' }) }, @{ id = 'grp5'; displayName = 'Moved From AD'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; onPremisesSecurityIdentifier = 'S-1-5-21-1-2-3-1102' }); break }
             '^groups/.*/transitiveMembers' { & $u @(); break }
             '^applications\?' { & $u @(@{ id = 'a1'; appId = 'app-1'; displayName = 'Old App'; signInAudience = 'AzureADMyOrg'; passwordCredentials = @(@{ endDateTime = '2024-01-01T00:00:00Z' }, @{ endDateTime = '2030-01-01T00:00:00Z' }); keyCredentials = @() }); break }
             "^servicePrincipals\?.*appId eq '00000003" { & $u @(@{ id = 'sp-graph'; appId = '00000003-0000-0000-c000-000000000000'; appRoles = @(@{ id = 'role-1'; value = 'Directory.Read.All' }) }); break }
@@ -431,8 +431,10 @@ Describe 'Invoke-PostureCollection' {
 
         It 'classifies groups and flags expired app credentials' {
             $g = & $script:Read '07-groups'
-            @($g | ForEach-Object { $_.Kind }) | Should -Be @('M365', 'DynamicSecurity', 'Security')
+            @($g | ForEach-Object { $_.Kind }) | Should -Be @('M365', 'DynamicSecurity', 'Security', 'Security', 'Security')
             ($g | Where-Object DisplayName -eq 'Dyn').Dynamic | Should -BeTrue
+            @($g | ForEach-Object { $_.Source }) | Should -Be @('Cloud', 'Cloud', 'Cloud', 'ActiveDirectory', 'EntraFromAD') -Because 'sync on is AD; sync empty with an AD identifier is a group whose source of authority moved to Entra'
+            ($g | Where-Object DisplayName -eq 'Synced Staff').Licensed | Should -BeTrue
             $apps = & $script:Read '10-app-registrations'
             $apps[0].Secrets | Should -Be 2
             $apps[0].ExpiredCredentials | Should -Be 1

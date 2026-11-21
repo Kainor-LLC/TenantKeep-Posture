@@ -18,7 +18,7 @@ function Get-PostureHybridFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxDomainAdmins = 5; maxKrbtgtAgeDays = 180; maxAdminPasswordAgeDays = 365; minLapsPct = 95; minPasswordLength = 14; maxSsoKeyAgeDays = 30 }
+    $t = @{ maxDomainAdmins = 5; maxKrbtgtAgeDays = 180; maxAdminPasswordAgeDays = 365; minLapsPct = 95; minPasswordLength = 14; maxSsoKeyAgeDays = 30; minCloudManagedGroupPct = 50 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -52,6 +52,40 @@ function Get-PostureHybridFact {
     else { $facts.federatedDomains = @(& $rows $domains | Where-Object { [string]$_.AuthenticationType -eq 'Federated' }).Count }
     if ($null -eq $health) { $notEvaluated['HY-004'] = 'az-08-entra-connect-health.json was not collected (Azure collector).' }
     else { $h = @(& $rows $health); $facts.connectHealthServices = $h.Count; $facts.connectHealthActiveAlerts = @($h | ForEach-Object { [int]$(if ($null -ne $_.ActiveAlerts) { $_.ActiveAlerts } else { 0 }) } | Measure-Object -Sum).Sum }
+
+    # HY-032 and HY-033: groups managed in AD or in Entra. A group synced from AD is changed in AD, so whoever can edit it
+    # there decides who a Conditional Access policy leaves out or who gets a licence. Read a row at a time.
+    $caRef = @{}
+    $pol = & $load 'policies'
+    $polItems = @($(if ($pol -is [System.Collections.IDictionary] -and $pol.Contains('value')) { $pol['value'] } else { $pol }) | Where-Object { $_ })
+    foreach ($cp in @($polItems | Where-Object { [string](& $v $_ 'state') -eq 'enabled' })) {
+        $name = [string](& $v $cp 'displayName')
+        foreach ($gid in @(& $v $cp 'conditions.users.excludeGroups' | Where-Object { $_ })) { if (-not $caRef.ContainsKey([string]$gid)) { $caRef[[string]$gid] = [System.Collections.Generic.List[string]]::new() }; $caRef[[string]$gid].Add("left out of Conditional Access policy '$name'") }
+        foreach ($gid in @(& $v $cp 'conditions.users.includeGroups' | Where-Object { $_ })) { if (-not $caRef.ContainsKey([string]$gid)) { $caRef[[string]$gid] = [System.Collections.Generic.List[string]]::new() }; $caRef[[string]$gid].Add("in Conditional Access policy '$name'") }
+    }
+    $gs = @{ synced = 0; fromAd = 0; withSource = $false }
+    $accessGroups = [System.Collections.Generic.List[object]]::new()
+    $haveGroups = Read-PostureEvidenceRow -Folder $Evidence -Name '07-groups' -OnRow {
+        param($_row)
+        $source = [string](& $v $_row 'Source')
+        if ($source) { $gs.withSource = $true }
+        if (Test-PostureTrue (& $v $_row 'OnPremisesSyncEnabled')) {
+            $gs.synced++
+            $why = @($(if ($caRef.ContainsKey([string](& $v $_row 'Id'))) { $caRef[[string](& $v $_row 'Id')] }) + @($(if (Test-PostureTrue (& $v $_row 'Licensed')) { 'assigns licences' })))
+            if ($why.Count -and $accessGroups.Count -lt 500) { $accessGroups.Add([ordered]@{ name = [string](& $v $_row 'DisplayName'); detail = "synced from AD, $($why -join '; ')" }) }
+        }
+        elseif ($source -eq 'EntraFromAD') { $gs.fromAd++ }
+    }
+    if (-not $haveGroups) { foreach ($id in 'HY-032', 'HY-033') { $notEvaluated[$id] = '07-groups was not collected (the Entra collector).' } }
+    else {
+        if ($null -eq $pol) { $notEvaluated['HY-032'] = 'policies.json (the Conditional Access snapshot) is not in the folder, so the groups the policies use are unknown.' }
+        else { $facts.syncedAccessGroups = $accessGroups.Count; $affected.syncedAccessGroups = @($accessGroups) }
+        $facts.syncedGroups = $gs.synced
+        if (-not $gs.withSource -and $gs.synced -gt 0) { $notEvaluated['HY-033'] = '07-groups was collected before TenantKeep read where groups are managed. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+        else { $facts.groupsManagedInEntraFromAd = $gs.fromAd; $facts.cloudManagedGroupPct = $(if (($gs.synced + $gs.fromAd) -gt 0) { & $pct $gs.fromAd ($gs.synced + $gs.fromAd) } else { 100 }) }
+    }
+    $usersSummary = & $load '06-users-summary'
+    if ($usersSummary) { $facts.syncedUsers = [int](& $v $usersSummary 'Synced'); $facts.usersManagedInEntraFromAd = [int](& $v $usersSummary 'EntraManagedFromAd'); $facts.cloudOnlyMembers = [int](& $v $usersSummary 'CloudOnlyMembers') }
 
     # AD side
     $adIds = @('HY-010', 'HY-011', 'HY-012', 'HY-013', 'HY-014', 'HY-015', 'HY-016', 'HY-017', 'HY-018', 'HY-019', 'HY-020', 'HY-021', 'HY-022', 'HY-023', 'HY-024', 'HY-025', 'HY-026', 'HY-027', 'HY-028', 'HY-029')

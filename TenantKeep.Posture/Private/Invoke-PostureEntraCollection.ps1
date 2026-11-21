@@ -256,8 +256,8 @@ function Invoke-PostureEntraCollection {
     # account named like one. Small, so the check never needs the full user list.
     $breakGlass = [System.Collections.Generic.List[object]]::new()
     Invoke-PostureStep -Label 'Users' -Folder $Folder -Script {
-        $base = 'id,userPrincipalName,displayName,givenName,surname,mail,accountEnabled,userType,onPremisesSyncEnabled,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
-        $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
+        $base = 'id,userPrincipalName,displayName,givenName,surname,mail,accountEnabled,userType,onPremisesSyncEnabled,onPremisesSecurityIdentifier,createdDateTime,assignedLicenses,department,jobTitle,companyName,usageLocation,creationType,externalUserState'
+        $c = [ordered]@{ Total = 0; Members = 0; Guests = 0; Synced = 0; CloudOnlyMembers = 0; EntraManagedFromAd = 0; Disabled = 0; DisabledWithLicenses = 0; EnabledInactiveMembers = 0; EnabledNeverSignedIn = 0; InactiveGuests = 0; PendingGuestInvites = 0; WithSignIn = 0 }
         # Which service plans each enabled user actually has: a licence's plans minus the ones switched off for that
         # user, so a feature bought but disabled for most people shows as partial. Counts only, from the SKU file.
         $skuPlans = @{}
@@ -280,7 +280,7 @@ function Invoke-PostureEntraCollection {
                         $licences = $(if ($u.ContainsKey('assignedLicenses')) { @($u['assignedLicenses']).Count } else { 0 })
                         $row = [ordered]@{
                             Id = $u['id']; UserPrincipalName = $u['userPrincipalName']; DisplayName = $u['displayName']; GivenName = $u['givenName']; Surname = $u['surname']; Mail = $u['mail']; AccountEnabled = $u['accountEnabled']; UserType = $u['userType']
-                            OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
+                            OnPremisesSyncEnabled = [bool]$u['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $u); CreatedDateTime = $u['createdDateTime']; Department = $u['department']; JobTitle = $u['jobTitle']
                             CompanyName = $u['companyName']; UsageLocation = $u['usageLocation']; CreationType = $u['creationType']; ExternalUserState = $u['externalUserState']
                             LicenseCount = $licences; LastInteractiveSignIn = $last; LastNonInteractiveSignIn = $(if ($sia) { $sia['lastNonInteractiveSignInDateTime'] } else { $null })
                         }
@@ -304,6 +304,7 @@ function Invoke-PostureEntraCollection {
                         if ($member) { $c.Members++; $memberIds.Add(@{ Id = $row.Id; UserPrincipalName = $row.UserPrincipalName }) }
                         if ($guest) { $c.Guests++ }
                         if ($row.OnPremisesSyncEnabled) { $c.Synced++ } elseif ($member) { $c.CloudOnlyMembers++ }
+                        if ($member -and $row.Source -eq 'EntraFromAD') { $c.EntraManagedFromAd++ }
                         if (-not $enabled) { $c.Disabled++; if ($licences -gt 0) { $c.DisabledWithLicenses++ } }
                         if ($enabled -and $member) { if (-not $last) { $c.EnabledNeverSignedIn++ } elseif ($old) { $c.EnabledInactiveMembers++ } }
                         if ($guest -and (-not $last -or $old)) { $c.InactiveGuests++ }
@@ -423,13 +424,13 @@ function Invoke-PostureEntraCollection {
     Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name '07-groups' -Csv -Confirm:$false
         try {
-            $null = Invoke-PostureGraphRequest -Uri 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999' -ApiVersion 'v1.0' -Label 'Groups' -OnPage {
+            $null = Invoke-PostureGraphRequest -Uri 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,onPremisesSecurityIdentifier,assignedLicenses,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999' -ApiVersion 'v1.0' -Label 'Groups' -OnPage {
                 param($page)
                 foreach ($g in $page) {
                     $types = @($g['groupTypes'])
                     $kind = if ($types -contains 'Unified') { 'M365' } elseif ($types -contains 'DynamicMembership') { 'DynamicSecurity' } elseif ($g['mailEnabled'] -and $g['securityEnabled']) { 'MailEnabledSecurity' } elseif ($g['mailEnabled']) { 'Distribution' } else { 'Security' }
                     $row = [ordered]@{
-                        Id = $g['id']; DisplayName = $g['displayName']; OnPremisesSyncEnabled = [bool]$g['onPremisesSyncEnabled']; CreatedDateTime = $g['createdDateTime']
+                        Id = $g['id']; DisplayName = $g['displayName']; OnPremisesSyncEnabled = [bool]$g['onPremisesSyncEnabled']; Source = (Get-PostureObjectSource -Object $g); Licensed = (@($g['assignedLicenses'] | Where-Object { $_ }).Count -gt 0); CreatedDateTime = $g['createdDateTime']
                         Visibility = $g['visibility']; IsAssignableToRole = [bool]$g['isAssignableToRole']; ExpirationDateTime = $g['expirationDateTime']; MembershipRule = $g['membershipRule']
                         Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
                     }

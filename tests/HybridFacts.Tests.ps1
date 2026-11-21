@@ -43,7 +43,7 @@ Describe 'Hybrid checks from the Windows collector files' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates 26 checks' { $script:Run.results.Count | Should -Be 26 }
+    It 'evaluates 28 checks' { $script:Run.results.Count | Should -Be 28 }
 
     It 'gives <Id> status <Status>' -ForEach @(
         @{ Id = 'HY-001'; Status = 'pass' }

@@ -36,6 +36,13 @@ run continues.
 | `policies`, `named-locations`, `auth-strengths`, `auth-context`, `resolved-names`, `group-scope`, `metadata` | Export-PostureCaSnapshot into the same folder | The CA checks and documents read these |
 | `collection` | run manifest: tenant, account, scopes, API versions, files, errors | `metadata.json` stays the CA snapshot's own |
 
+Users and groups carry `Source`: ActiveDirectory (synced), EntraFromAD (came from AD, source of authority switched to
+Entra) or Cloud. Microsoft's own flag for the switch (onPremisesSyncBehavior isCloudManaged) needs a write permission
+even to read, so the collector infers it: after the switch onPremisesSyncEnabled is empty, as for a cloud object, and
+the object keeps its AD security identifier (verify on a tenant that has switched a group). Groups also carry
+`Licensed`. 06-users-summary counts `EntraManagedFromAd`. HY-032 and HY-033 read them with the Conditional Access
+snapshot.
+
 ## What the Intune collector writes
 
 | File | Source | Notes |

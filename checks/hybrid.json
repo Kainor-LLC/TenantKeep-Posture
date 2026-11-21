@@ -1077,6 +1077,94 @@
       "attack": [
         "T1110.001"
       ]
+    },
+    {
+      "id": "HY-032",
+      "domain": "hybrid",
+      "title": "Groups that grant cloud access are managed in Entra, not in AD",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "07-groups.json",
+        "policies.json"
+      ],
+      "pass": "facts.syncedAccessGroups == 0",
+      "affected": "facts.syncedAccessGroups",
+      "remediation": [
+        "Start with the groups left out of Conditional Access policies: switch their source of authority to Entra (Group Source of Authority, in the Entra admin center or through Graph), or replace them with groups created in Entra.",
+        "Where the group still grants access to something on-premises, provision it back to AD with Entra Cloud Sync group provisioning after the switch, so AD keeps a copy that only Entra changes.",
+        "Then do the same for the groups that assign licences, and keep new access groups cloud-native."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for members: the group keeps its name and members; only who can edit it moves from AD to Entra."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/concept-source-of-authority-overview",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups",
+      "narrative": "A group synced from Active Directory is changed in Active Directory. Anyone who can edit it there (a domain admin, an account operator, a delegated OU administrator, or an attacker who reached a domain controller) decides who a Conditional Access policy leaves out or who gets a licence and its apps, and the change reaches the cloud with the next sync. Switching the group's source of authority to Entra keeps the access decision with Entra administrators, and Cloud Sync can still write the group back to AD for on-premises apps.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1098.007",
+        "T1556.009"
+      ]
+    },
+    {
+      "id": "HY-033",
+      "domain": "hybrid",
+      "title": "Groups synced from AD moved to Entra management",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minCloudManagedGroupPct": 50
+      },
+      "evidence": [
+        "07-groups.json"
+      ],
+      "pass": "facts.cloudManagedGroupPct >= thresholds.minCloudManagedGroupPct",
+      "remediation": [
+        "List the synced groups that only serve cloud apps, Teams, SharePoint or licences, and switch their source of authority to Entra a batch at a time.",
+        "For groups that also control on-premises access, switch them and turn on Cloud Sync group provisioning to AD so both sides stay in step.",
+        "Replace groups whose membership follows a rule (department, office, job title) with dynamic groups in Entra, and give group owners the members to manage in My Groups."
+      ],
+      "effort": "L",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Group owners manage members in My Groups or Teams instead of asking IT to change Active Directory, and changes apply at once instead of at the next sync; members notice nothing."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/hybrid/how-to-group-source-of-authority-configure",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups",
+      "narrative": "Much of what Entra does for groups works only on groups it manages: dynamic membership, role-assignable groups, PIM for Groups, access reviews that remove people, access packages that add them, expiration and naming policies, and owners managing their own members. A group still managed in AD gets none of it, and every change waits for a sync. Microsoft now lets a synced group's source of authority move to Entra without recreating it; users can follow the same way (verify: user source of authority is newer than groups).",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

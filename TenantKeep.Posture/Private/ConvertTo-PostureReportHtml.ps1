@@ -200,6 +200,11 @@ function ConvertTo-PostureReportHtml {
         $perm = [int](@($roleSec[0].rows | ForEach-Object { [int]$_.Permanent }) | Measure-Object -Sum).Sum
         $areas.Identity += ConvertTo-PostureChartCard -Title 'Privileged Roles' -Takeaway "$perm permanent privileged assignment(s); eligible ones are activated when needed." -ViewAllDomain 'identity' -Body $body
     }
+    if ($ch.Contains('identitySource') -and @($ch.identitySource.rows).Count) {
+        $legendItems = @(@{ label = 'Managed in AD'; tone = 'c3' }, @{ label = 'Moved from AD to Entra'; tone = 'c2' }, @{ label = 'Created in Entra'; tone = 'c1' })
+        $rowsHtml = @($ch.identitySource.rows | ForEach-Object { $tot = [int](($_.segment | ForEach-Object { $_.value } | Measure-Object -Sum).Sum); '<div class="pillar"><span class="name">' + (& $h $_.label) + '</span><span class="frac">' + $tot + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.label -Segment $_.segment) + '</div>' }) -join ''
+        $areas.Identity += ConvertTo-PostureChartCard -Title 'Who Manages Users and Groups' -Takeaway $ch.identitySource.takeaway -ViewAllDomain 'hybrid' -Body ('<div class="pillars">' + $rowsHtml + '</div>' + (ConvertTo-PostureChartLegend -Item $legendItems))
+    }
     $areas.Identity += & $rank 'Guests by Last Sign-in' 'guestAge' 'identity' -Keep
     $areas.Identity += & $rank 'Risky Users' 'riskyUsers' 'identity' -Keep
     if ($ch.Contains('signInsByDay')) { $areas.Access += ConvertTo-PostureChartCard -Title 'Sign-ins by Day' -Takeaway $ch.signInsByDay.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureLineChart -Name 'Sign-ins by day' -Point @($ch.signInsByDay.point)) }

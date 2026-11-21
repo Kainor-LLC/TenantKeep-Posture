@@ -212,6 +212,20 @@ function Get-PostureChartData {
             }
         }
     }
+    # Where users and groups are managed: AD, Entra after leaving AD, or created in Entra (HY-032, HY-033).
+    $hy = $(if ($DomainFacts.Contains('hybrid')) { $DomainFacts['hybrid'] } else { $null })
+    if ($hy -and ($hy.Contains('syncedUsers') -or $hy.Contains('syncedGroups'))) {
+        $rowsOut = [System.Collections.Generic.List[object]]::new()
+        if ($hy.Contains('syncedUsers')) {
+            $fromAd = [int]$hy['usersManagedInEntraFromAd']
+            $rowsOut.Add([ordered]@{ label = 'Users'; segment = @(@{ label = 'Managed in AD'; value = [int]$hy['syncedUsers']; tone = 'c3' }, @{ label = 'Moved from AD to Entra'; value = $fromAd; tone = 'c2' }, @{ label = 'Created in Entra'; value = [Math]::Max(0, [int]$hy['cloudOnlyMembers'] - $fromAd); tone = 'c1' }) })
+        }
+        if ($hy.Contains('syncedGroups') -and $hy.Contains('groupsManagedInEntraFromAd')) {
+            $rowsOut.Add([ordered]@{ label = 'Groups that came from AD'; segment = @(@{ label = 'Managed in AD'; value = [int]$hy['syncedGroups']; tone = 'c3' }, @{ label = 'Moved from AD to Entra'; value = [int]$hy['groupsManagedInEntraFromAd']; tone = 'c2' }) })
+        }
+        $inAd = $(if ($hy.Contains('syncedGroups')) { [int]$hy['syncedGroups'] } else { 0 })
+        $out.identitySource = [ordered]@{ rows = @($rowsOut); takeaway = $(if ($hy.Contains('syncedAccessGroups') -and [int]$hy['syncedAccessGroups'] -gt 0) { "$($hy['syncedAccessGroups']) group(s) still managed in AD decide cloud access." } else { "$inAd group(s) are still managed in AD." }) }
+    }
     # Macs a partner MDM manages, as Entra sees them (DEV-022, DEV-023).
     if ($dv -and $dv.Contains('macPartnerExpected') -and $dv['macPartnerExpected'] -and $dv.Contains('macsInEntra') -and [int]$dv['macsInEntra'] -gt 0) {
         $okMacs = [int]$dv['macsCompliantInEntra']; $allMacs = [int]$dv['macsInEntra']

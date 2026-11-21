@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Users and groups managed in AD or in Entra (2026-11-20): HY-032 flags groups synced from AD that a live Conditional
+  Access policy uses (exclusions above all) or that assign licences, since whoever can edit them in AD decides cloud
+  access; HY-033 (improvement) measures how many groups from AD have had their source of authority switched to Entra,
+  with the features and user experience that brings. The Entra collector records where each user and group is
+  managed, read-only; the Identity view gains Who Manages Users and Groups.
 - Macs on Jamf or another Mac MDM (2026-11-20): the Intune collector reads the partners connected to Intune (Partner
   compliance management and the older device management partners). DEV-022 asks that the Mac MDM report compliance to
   Intune, live and recent; DEV-023 that its Macs show as compliant in Entra. A new profile vendor, thirdParty.macMdm,
