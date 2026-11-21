@@ -36,17 +36,36 @@ function Get-PostureCollaborationFact {
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
     $missing = { param([string[]] $Ids, [string] $File, [string] $Collector) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector $Collector; check errors.txt)." } }
 
-    $spo = & $load 'spo-tenant-settings'
+    # The SharePoint admin read when it was collected, otherwise the part Graph returns (Read-PostureSharePointSetting).
+    $spoRead = Read-PostureSharePointSetting -Evidence $Evidence
+    $spo = $(if ($spoRead) { $spoRead.settings } else { $null })
+    $graphOnly = $null -ne $spoRead -and $spoRead.source -eq 'graph'
+    $adminOnly = { param([string] $Id, [string] $What) $notEvaluated[$Id] = "Graph's SharePoint settings do not include $What. It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector (collectors/windows/Get-SpoBaseline.ps1) brought in with Import-PostureEvidence." }
     $teamsFed = & $load 'teams-federation'
-    if ($null -eq $spo -and $null -eq $teamsFed) { return @{ available = $false; reason = 'No SharePoint or Teams evidence in the folder (Invoke-PostureCollection -Collector SharePoint, Teams needs Connect-PnPOnline and Connect-MicrosoftTeams sessions).' } }
+    if ($null -eq $spo -and $null -eq $teamsFed) { return @{ available = $false; reason = 'No SharePoint or Teams evidence in the folder (the Entra collector reads Graph''s SharePoint settings; Invoke-PostureCollection -Collector Teams needs a Teams session).' } }
 
-    # SharePoint tenant settings (CL-001 to CL-006, CL-008)
-    if ($null -eq $spo) { & $missing @('CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008', 'CL-016') 'spo-tenant-settings' 'SharePoint' }
+    # SharePoint tenant settings (CL-001 to CL-006, CL-008, CL-016)
+    if ($null -eq $spo) { foreach ($id in 'CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008', 'CL-016') { $notEvaluated[$id] = 'No SharePoint settings were collected: the Entra collector reads them through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
     else {
         $cap = [string](& $v $spo 'SharingCapability')
         $facts.sharingCapability = $cap
         $facts.anyoneLinksAllowed = $cap -eq 'ExternalUserAndGuestSharing'
         $facts.tenantSharingLevelOk = $cap -in @('Disabled', 'ExternalUserSharingOnly', 'ExistingExternalUserSharingOnly')
+        $facts.sharingDomainRestrictionMode = [string](& $v $spo 'SharingDomainRestrictionMode')
+        $facts.sharingDomainRestricted = $facts.sharingDomainRestrictionMode -in @('AllowList', 'BlockList')
+        $facts.legacyAuthProtocolsEnabled = (& $v $spo 'LegacyAuthProtocolsEnabled') -eq $true
+    }
+    # With Graph alone: OneDrive and Anyone links still answer when the tenant level rules Anyone out, since neither
+    # can be more open than the tenant. The rest needs the admin read.
+    if ($graphOnly) {
+        if ($facts.anyoneLinksAllowed) { & $adminOnly 'CL-016' 'the OneDrive sharing level'; & $adminOnly 'CL-002' 'the Anyone link expiry' }
+        else { $facts.oneDriveAnyoneLinks = $false; $facts.anonymousLinksControlled = $true }
+        & $adminOnly 'CL-003' 'the default sharing link'
+        & $adminOnly 'CL-005' 'the Everyone claims in the people picker'
+        & $adminOnly 'CL-006' 'the guest access expiry'
+        & $adminOnly 'CL-008' 'restricted access control'
+    }
+    elseif ($null -ne $spo) {
         # CL-016: OneDrive holds personal working files; Anyone links there are rarely deliberate.
         $facts.oneDriveAnyoneLinks = [string](& $v $spo 'OneDriveSharingCapability') -eq 'ExternalUserAndGuestSharing'
         $days = & $v $spo 'RequireAnonymousLinksExpireInDays'
@@ -55,8 +74,6 @@ function Get-PostureCollaborationFact {
         $facts.defaultSharingLinkType = [string](& $v $spo 'DefaultSharingLinkType')
         $facts.defaultLinkPermission = [string](& $v $spo 'DefaultLinkPermission')
         $facts.defaultLinkSpecificPeopleView = $facts.defaultSharingLinkType -eq 'Direct' -and $facts.defaultLinkPermission -eq 'View'
-        $facts.sharingDomainRestrictionMode = [string](& $v $spo 'SharingDomainRestrictionMode')
-        $facts.sharingDomainRestricted = $facts.sharingDomainRestrictionMode -in @('AllowList', 'BlockList')
         $facts.everyoneClaimsHidden = (& $v $spo 'ShowEveryoneClaim') -ne $true -and (& $v $spo 'ShowEveryoneExceptExternalUsersClaim') -ne $true -and (& $v $spo 'ShowAllUsersClaim') -ne $true
         $affected.everyoneClaimsShown = @(@(@('Everyone', (& $v $spo 'ShowEveryoneClaim')), @('Everyone except external users', (& $v $spo 'ShowEveryoneExceptExternalUsersClaim')), @('All Users', (& $v $spo 'ShowAllUsersClaim'))) | Where-Object { $_[1] -eq $true } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'shown in the people picker' } })
         $exp = & $v $spo 'ExternalUserExpireInDays'
@@ -64,12 +81,11 @@ function Get-PostureCollaborationFact {
         $facts.guestExpireDays = $(if ($null -ne $exp) { [int]$exp } else { -1 })
         $facts.guestExpirationOk = $facts.guestExpirationRequired -and $facts.guestExpireDays -ge 1 -and $facts.guestExpireDays -le [int]$t.maxGuestExpireDays
         $facts.restrictedAccessControlEnabled = (& $v $spo 'EnableRestrictedAccessControl') -eq $true
-        $facts.legacyAuthProtocolsEnabled = (& $v $spo 'LegacyAuthProtocolsEnabled') -eq $true
     }
 
     # Ownerless sites and teams (CL-007)
     $sites = & $load 'spo-sites-summary'; $groups = & $load '07-groups-ownerless'; $groupSummary = & $load '07-groups-ownerless-summary'
-    if ($null -eq $sites) { $notEvaluated['CL-007'] = 'spo-sites-summary.json was not collected (Invoke-PostureCollection -Collector SharePoint without -SkipSiteEnumeration).' }
+    if ($null -eq $sites) { $notEvaluated['CL-007'] = 'The site list was not collected: it comes from the SharePoint admin read (the TenantKeep SharePoint app, or collectors/windows/Get-SpoBaseline.ps1 brought in with Import-PostureEvidence), without -SkipSiteEnumeration.' }
     elseif ($null -eq $groups) { & $missing @('CL-007') '07-groups-ownerless' 'Entra' }
     else {
         # The ownerless sites, a row at a time from the site list.

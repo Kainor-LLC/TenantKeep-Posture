@@ -39,7 +39,8 @@ function Get-PostureCopilotFact {
     $lic = @($OrgProfile['licenses'] | Where-Object { $_ })
     $ops = $(if ($OrgProfile.Contains('operations') -and $OrgProfile['operations']) { $OrgProfile['operations'] } else { @{} })
 
-    $spo = & $load 'spo-tenant-settings'; $audit = & $load 'exo-01-audit-config'; $labels = & $load 'pv-01-sensitivity-labels'
+    $spoRead = Read-PostureSharePointSetting -Evidence $Evidence
+    $spo = $(if ($spoRead) { $spoRead.settings } else { $null }); $audit = & $load 'exo-01-audit-config'; $labels = & $load 'pv-01-sensitivity-labels'
     if ($null -eq $spo -and $null -eq $audit -and $null -eq $labels) { return @{ available = $false; reason = 'No SharePoint, Exchange or Purview evidence in the folder; the Copilot gates read all three.' } }
 
     # C1 audit log
@@ -84,7 +85,15 @@ function Get-PostureCopilotFact {
     }
 
     # C4, C5, C9 from SharePoint
-    if ($null -eq $spo) { foreach ($id in 'CP-004', 'CP-005', 'CP-009') { $notEvaluated[$id] = 'spo-tenant-settings.json was not collected (SharePoint collector).' } }
+    $adminRead = 'It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector (collectors/windows/Get-SpoBaseline.ps1) brought in with Import-PostureEvidence.'
+    if ($null -eq $spo) { foreach ($id in 'CP-004', 'CP-005', 'CP-009') { $notEvaluated[$id] = 'No SharePoint settings were collected: the Entra collector reads them through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
+    elseif ($spoRead.source -eq 'graph') {
+        # Graph has the tenant sharing level, so Anyone links answer when the tenant rules them out; the rest does not.
+        if ([string](& $v $spo 'SharingCapability') -ne 'ExternalUserAndGuestSharing') { $facts.anonymousLinksControlled = $true }
+        else { $notEvaluated['CP-005'] = "Graph's SharePoint settings do not include the Anyone link expiry. $adminRead" }
+        $notEvaluated['CP-004'] = "Graph's SharePoint settings do not include the default sharing link. $adminRead"
+        $notEvaluated['CP-009'] = "Graph does not report Restricted SharePoint Search. $adminRead"
+    }
     else {
         $facts.defaultLinkSpecificPeople = [string](& $v $spo 'DefaultSharingLinkType') -eq 'Direct'
         $cap = [string](& $v $spo 'SharingCapability'); $days = & $v $spo 'RequireAnonymousLinksExpireInDays'

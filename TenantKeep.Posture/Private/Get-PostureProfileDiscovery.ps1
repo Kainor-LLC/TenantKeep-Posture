@@ -83,7 +83,8 @@ function Get-PostureProfileDiscovery {
     }
 
     # External collaboration
-    $users = & $load '06-users-summary'; $spo = & $load 'spo-tenant-settings'; $fed = & $load 'teams-federation'
+    $spoRead = Read-PostureSharePointSetting -Evidence $Evidence
+    $users = & $load '06-users-summary'; $spo = $(if ($spoRead) { $spoRead.settings } else { $null }); $fed = & $load 'teams-federation'
     if ($null -ne $users) {
         $guests = [int](& $v $users 'Guests')
         $sharing = $(if ($null -ne $spo) { [string](& $v $spo 'SharingCapability') } else { $null })
@@ -91,7 +92,7 @@ function Get-PostureProfileDiscovery {
         $fedGoverned = $null -ne $fed -and (& $v $fed 'AllowFederatedUsers') -eq $true -and [string](& $v $fed 'AllowedDomains') -notmatch 'AllowAllKnownDomains'
         $governed = $spoGoverned -or $fedGoverned
         $facts.externalCollaboration = $(if ($guests -eq 0 -and $sharing -eq 'Disabled') { 'locked' } elseif ($guests -gt 0 -and $governed) { 'governed' } elseif ($guests -eq 0 -and $null -eq $spo) { 'locked' } else { 'open' })
-        $sources.externalCollaboration = "06-users-summary.json guests=$guests$(if ($sharing) { ", spo-tenant-settings.json sharing=$sharing" }), governance controls $(if ($governed) { 'present' } else { 'absent' })"
+        $sources.externalCollaboration = "06-users-summary.json guests=$guests$(if ($sharing) { ", SharePoint settings ($($spoRead.source)) sharing=$sharing" }), governance controls $(if ($governed) { 'present' } else { 'absent' })"
     }
 
     # Copilot
