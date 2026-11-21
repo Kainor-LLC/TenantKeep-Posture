@@ -21,7 +21,7 @@ Describe 'Start-PostureRun' {
             $script:TestOutRoot = $outRoot
             $script:TestTid = $tid
             $script:Calls = [System.Collections.Generic.List[string]]::new()
-            Mock Connect-PostureSession { $script:Calls.Add('signin'); @{ tenantId = $script:TestTid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'aaaaaaaa-0000-0000-0000-000000000001'; scopes = @('Policy.Read.All'); expiresUtc = [datetime]::UtcNow.AddHours(1) } }
+            Mock Connect-PostureSession { if ($SharePoint) { $script:Calls.Add('signin:sharepoint'); return @{} }; $script:Calls.Add('signin'); @{ tenantId = $script:TestTid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'aaaaaaaa-0000-0000-0000-000000000001'; scopes = @('Policy.Read.All'); expiresUtc = [datetime]::UtcNow.AddHours(1) } }
             Mock Assert-PostureGraphScope { @{ TenantId = $script:TestTid; Account = 'admin@contoso.example'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'ThreatHunting.Read.All') } }
             Mock Connect-PostureService { $script:Calls.Add("connect:$Name") }
             Mock Get-Module { $true } -ParameterFilter { $ListAvailable }
@@ -35,6 +35,8 @@ Describe 'Start-PostureRun' {
                 [pscustomobject]@{ Folder = $OutputFolder; Errors = @('one'); Files = @() }
             }
             Mock Get-PostureToken { 'tok' }
+            Mock Get-PostureSharePointClientId { 'bbbbbbbb-0000-0000-0000-000000000002' }
+            Mock Test-PostureSharePointAccess { @{ status = 'granted'; reason = '' } }
             Mock Start-PostureChildCollection { $script:Calls.Add("child:$($Request['collectors'] -join '+')"); $script:ChildRequest = $Request; $script:ChildNoWait = [bool]$NoWait; [System.Diagnostics.Process]::new() }
             Mock Wait-PostureChildCollection { $script:Calls.Add('wait'); 0 }
             Mock Enable-PostureKeepAwake { $script:Calls.Add('awake'); @{ method = 'test'; process = $null } }
@@ -69,7 +71,7 @@ Describe 'Start-PostureRun' {
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
-            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
+            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'signin:sharepoint', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
             $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder 'logs' '.progress-child.json')
             @($script:ChildRequest['tokens'].Keys) | Should -Be @('graph') -Because 'Exchange and Purview sign in through the Exchange module in that process'
@@ -142,12 +144,24 @@ Describe 'Start-PostureRun' {
         }
     }
 
+    It 'reads SharePoint through Graph alone, with no second sign-in, when the SharePoint app is not granted to the admin' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            Mock Test-PostureSharePointAccess { @{ status = 'notGranted'; reason = 'The SharePoint app is in this tenant but not granted to the account signed in.' } }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru 6>$null
+            $result.Skipped['SharePoint'] | Should -Match 'not granted to the account signed in'
+            @($script:Calls) | Should -Not -Contain 'signin:sharepoint'
+            @($script:Calls) | Should -Contain 'collect:Teams'
+            Mock Test-PostureSharePointAccess { @{ status = 'granted'; reason = '' } }
+        }
+    }
+
     It 'warns once when a module is older than the tested version and still runs its collector' {
         InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             Mock Get-Module { [pscustomobject]@{ Name = $Name; Version = [version]'1.0.0' } } -ParameterFilter { $ListAvailable }
             $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru -WarningVariable warn 6>$null
-            $result.Skipped.Keys | Should -Not -Contain 'SharePoint'
+            $result.Skipped.Keys | Should -Not -Contain 'SharePoint' -Because "$($result.Skipped['SharePoint'])"
             @($script:Calls) | Should -Contain 'collect:SharePoint+Teams'
             @($script:Calls) | Should -Contain 'child:Exchange+Purview'
             @($warn | Where-Object { "$_" -match '^PnP\.PowerShell 1\.0\.0 is older' }).Count | Should -Be 1

@@ -179,6 +179,20 @@ function Start-PostureRun {
         if ($check.status -eq 'missing') { $skipped[$name] = $check.message; continue }
         $localPlan.Add($name)
     }
+    # The SharePoint admin read has its own app, granted to named admins only. Graph says first whether this admin
+    # holds it, so a tenant that never set it up sees no second browser window; the SharePoint checks then use what
+    # Graph returns (the Entra collector reads it).
+    if ($localPlan.Contains('SharePoint')) {
+        $spClient = Get-PostureSharePointClientId -OrgProfile $(if ($profileParam.ContainsKey('ProfilePath')) { $existing } else { $null })
+        $access = $(if ($spClient) { Test-PostureSharePointAccess -ClientId $spClient } else { @{ status = 'absent'; reason = 'This build carries no app id for TenantKeep Posture for SharePoint.' } })
+        if ($access.status -in 'granted', 'unknown') {
+            $spConnect = @{ SharePoint = $true; ClientId = $spClient }
+            if ($DeviceCode) { $spConnect.DeviceCode = $true } elseif ($NoBrowser) { $spConnect.NoBrowser = $true }
+            try { $null = Connect-PostureSession @spConnect }
+            catch { $skipped['SharePoint'] = "SharePoint admin read not used: $($_.Exception.Message) The SharePoint checks use what Graph returns."; $null = $localPlan.Remove('SharePoint') }
+        }
+        else { $skipped['SharePoint'] = "SharePoint admin read not used: $($access.reason)"; $null = $localPlan.Remove('SharePoint') }
+    }
     $child = @($Collector | Where-Object { $_ -in 'Exchange', 'Purview' })
     if ($child.Count -gt 0) {
         $exo = & $usable 'ExchangeOnlineManagement'

@@ -2,7 +2,8 @@
 function Get-PostureResourceScope {
     <#
     .SYNOPSIS
-        The scope string to request for a named resource from app.json, with {tenant} filled in.
+        The scope string to request for a named resource from app.json (SharePoint from app-sharepoint.json), with
+        {tenant} filled in.
     .DESCRIPTION
         Every resource is requested as <audience>/.default so the token carries exactly the delegated scopes the
         customer's admin consented to for that resource, nothing added at run time. SharePoint's audience is the
@@ -16,7 +17,7 @@ function Get-PostureResourceScope {
     )
 
     $ErrorActionPreference = 'Stop'
-    $manifest = Get-PostureAppManifest
+    $manifest = Get-PostureAppManifest -Name $(if ($Resource -eq 'sharepoint') { 'sharepoint' } else { 'main' })
     if (-not $manifest['byName'].ContainsKey($Resource)) { throw "app.json names no resource '$Resource'. Known: $($manifest['byName'].Keys -join ', ')." }
     $audience = [string]$manifest['byName'][$Resource]['audience']
     if ($audience -like '*{tenant}*') {
@@ -32,7 +33,8 @@ function Get-PostureToken {
         An access token for one resource from the session Connect-PostureSession opened.
     .DESCRIPTION
         Uses the refresh token held in memory to get a token for the resource's audience, and caches it until five
-        minutes before it expires. A new refresh token in the response replaces the old one. Returns the token as a
+        minutes before it expires. A new refresh token in the response replaces the old one. SharePoint comes from its
+        own sign-in (Connect-PostureSession -SharePoint) and its own refresh token. Returns the token as a
         string by default; -AsSecureString for the modules that insist on one. Nothing is written to disk.
     #>
     [CmdletBinding()]
@@ -59,10 +61,16 @@ function Get-PostureToken {
         Write-Verbose "Token for $Resource renewed by the main process, expires $($tokens[$Resource]['expiresUtc'].ToString('u'))."
     }
     else {
+        # SharePoint has its own app and refresh token; everything else rides on the main one.
+        $holder = $session
+        if ($Resource -eq 'sharepoint') {
+            if (-not $session.ContainsKey('sharepoint') -or -not $session['sharepoint']) { throw 'SharePoint is read through its own sign-in: Connect-PostureSession -SharePoint (Start-PostureRun does it when the SharePoint app is granted to you).' }
+            $holder = $session['sharepoint']
+        }
         $scope = Get-PostureResourceScope -Resource $Resource -TenantName $session['tenantName']
-        $form = @{ grant_type = 'refresh_token'; client_id = $session['clientId']; refresh_token = $session['refreshToken']; scope = $scope }
+        $form = @{ grant_type = 'refresh_token'; client_id = $holder['clientId']; refresh_token = $holder['refreshToken']; scope = $scope }
         $response = Invoke-PostureTokenRequest -Endpoint token -TenantId $session['tenantId'] -Form $form
-        if ($response.ContainsKey('refresh_token') -and $response['refresh_token']) { $session['refreshToken'] = [string]$response['refresh_token'] }
+        if ($response.ContainsKey('refresh_token') -and $response['refresh_token']) { $holder['refreshToken'] = [string]$response['refresh_token'] }
         $token = [string]$response['access_token']
         $tokens[$Resource] = @{ accessToken = $token; expiresUtc = $now.AddSeconds([int]$response['expires_in']); scope = [string]$(if ($response.ContainsKey('scope')) { $response['scope'] }) }
         Write-Verbose "Token for $Resource acquired, expires $($tokens[$Resource]['expiresUtc'].ToString('u'))."

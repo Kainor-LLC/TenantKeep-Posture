@@ -176,7 +176,31 @@ active anonymous links, inactive sites) are not collected yet.
 
 ## SharePoint and Teams setup
 
-PnP.PowerShell 3.x signs in through an Entra app registration of your own. `deploy/setup/New-PostureSharePointApp.ps1`
+Without any SharePoint setup the SharePoint checks read Graph's SharePoint settings (the Entra collector, read-only
+SharePointTenantSettings.Read.All): the tenant sharing level, domain restrictions, legacy authentication, and Anyone
+links and OneDrive when the tenant rules Anyone out. The rest (default links, Anyone link expiry, guest expiry, the
+Everyone claims, restricted access control, the site list, restricted search) needs the SharePoint admin read, which
+needs SharePoint Administrator and one of:
+
+- **TenantKeep Posture for SharePoint**, Kainor's second app, the only one asking for SharePoint full control. It is
+  never consented for the organisation. A Global Administrator grants it to named admins and requires assignment:
+
+  ```powershell
+  Connect-MgGraph -TenantId <tenant id> -Scopes Application.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All, AppRoleAssignment.ReadWrite.All, User.Read.All -NoWelcome
+  ./deploy/setup/Grant-PostureSharePointAccess.ps1 -TenantId <tenant id> -Admin spadmin@contoso.com
+  ./deploy/setup/Grant-PostureSharePointAccess.ps1 -TenantId <tenant id> -Disable   # between runs; -Enable before the next
+  ```
+
+  Start-PostureRun asks Graph whether the app is granted to the account signed in; only then does a second browser
+  window open (it goes straight through when that account is already signed in), and the SharePoint collector runs
+  with that sign-in. Otherwise the run notes why in run health and carries on with Graph. By hand:
+  `Connect-PostureSession -SharePoint` after `Connect-PostureSession`.
+- **The Windows collector** (`collectors/windows/Get-SpoBaseline.ps1`) on Microsoft's SharePoint Online Management
+  Shell, run by a SharePoint admin on Windows, with no third-party app at all; bring its folder into the run with
+  `Import-PostureEvidence`.
+- **An app registration of your own**, below.
+
+PnP.PowerShell 3.x can also sign in through an Entra app registration of your own. `deploy/setup/New-PostureSharePointApp.ps1`
 creates it with delegated permissions only (SharePoint AllSites.FullControl, which the tenant admin reads need and
 which delegated means bound by the reader's own rights; Graph User.Read, Sites.Read.All, Group.Read.All), asks for admin consent, writes `sharePointClientId` into profile.json and prints the steps that
 stay manual: consent if it was declined, the SharePoint Administrator role for the reading account, Conditional

@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- SharePoint without full control by default (2026-11-20): the main app no longer asks for SharePoint
+  AllSites.FullControl. The SharePoint checks read Graph's SharePoint settings (read-only) and say exactly which
+  settings need the SharePoint admin read. That read now has its own app, TenantKeep Posture for SharePoint, never
+  consented for the organisation: deploy/setup/Grant-PostureSharePointAccess.ps1 grants it to named admins, requires
+  assignment and turns it off between runs. Start-PostureRun checks through Graph that the app is granted to the admin
+  before opening a second sign-in (Connect-PostureSession -SharePoint by hand). Tenants that consented to the main app
+  before keep that old SharePoint grant until an admin removes it.
 - HY-026 agrees with HY-031 (2026-11-20): people exempt from password expiry fail only while the domain still
   expires passwords; once Maximum password age is 0 (the NIST stance HY-031 asks for) the check passes. Before, a
   domain that followed HY-031 kept failing HY-026.

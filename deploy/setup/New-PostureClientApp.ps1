@@ -3,7 +3,8 @@
 <#
 .SYNOPSIS
     Kainor-side, once: registers the multi-tenant public client that Start-PostureRun signs in to, from the manifest
-    the module ships (TenantKeep.Posture/app.json), and marks it publisher verified.
+    the module ships (TenantKeep.Posture/app.json), and marks it publisher verified. Run it again with
+    -AppJsonPath TenantKeep.Posture/app-sharepoint.json for the optional SharePoint app.
 .DESCRIPTION
     This is the one app registration behind the one sign-in (docs/plan-one-signin.md). It lives in the Kainor tenant
     and is used by every customer tenant after their admin consents once. It is a public client: no secret, no
@@ -88,7 +89,8 @@ $fields = @{
     signInAudience         = 'AzureADMultipleOrgs'
     isFallbackPublicClient = $true
     publicClient           = @{ redirectUris = @([string]$manifest['redirectUri']) }
-    web                    = @{ redirectUris = @([string]$manifest['consentRedirectUri']); implicitGrantSettings = @{ enableAccessTokenIssuance = $false; enableIdTokenIssuance = $false } }
+    # No consent page for an app that is never consented organisation-wide (app-sharepoint.json leaves it empty).
+    web                    = @{ redirectUris = @(@([string]$manifest['consentRedirectUri']) | Where-Object { $_ }); implicitGrantSettings = @{ enableAccessTokenIssuance = $false; enableIdTokenIssuance = $false } }
     requiredResourceAccess = @($required)
     notes                  = [string]$manifest['notes']
     info                   = @{ privacyStatementUrl = 'https://tenantkeep.app/licensing/'; termsOfServiceUrl = 'https://tenantkeep.app/licensing/'; marketingUrl = 'https://tenantkeep.app/' }
@@ -146,9 +148,18 @@ if ($PartnerId -and $app.id) {
     }
 }
 
-Write-Host @"
+if ([string]$manifest['consentRedirectUri']) {
+    Write-Host @"
 
 Done. Customers consent once with an admin account at:
   https://login.microsoftonline.com/organizations/adminconsent?client_id=$($app.appId)&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))
 Start-PostureRun prints that link when a tenant has not consented yet. Nothing else is created anywhere.
 "@
+}
+else {
+    Write-Host @"
+
+Done. $name has no organisation-wide consent link on purpose: a customer's Global Administrator grants it to named
+admins with deploy/setup/Grant-PostureSharePointAccess.ps1. Nothing else is created anywhere.
+"@
+}

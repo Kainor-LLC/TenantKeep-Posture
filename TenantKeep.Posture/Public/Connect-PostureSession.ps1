@@ -13,6 +13,12 @@ function Connect-PostureSession {
         A tenant that has not consented to the app yet is told so, with the admin consent link. A Conditional Access
         policy that blocks the sign-in is reported with the app id, so the admin can allow it; the module does not
         work around it. Pass -TenantId to refuse a sign-in to any other tenant.
+
+        -SharePoint adds the second, optional sign-in for the SharePoint admin read: TenantKeep Posture for SharePoint
+        (app-sharepoint.json), the only app that asks for SharePoint full control. It is never consented for the whole
+        organisation; deploy/setup/Grant-PostureSharePointAccess.ps1 grants it to named admins and requires
+        assignment, so anyone else is refused. It signs in as the account already signed in, to the same tenant.
+        Start-PostureRun does this on its own when the app is granted to that account.
     .PARAMETER TenantId
         Tenant id or a verified domain. Default: organizations, which lets the admin pick the tenant in the browser.
         With a tenant id, the sign-in is refused if the account that signs in belongs to another tenant.
@@ -21,7 +27,10 @@ function Connect-PostureSession {
     .PARAMETER NoBrowser
         Print the sign-in URL instead of opening the browser.
     .PARAMETER ClientId
-        A customer-owned app registration with the same delegated permissions, instead of the Kainor-owned one.
+        A customer-owned app registration with the same delegated permissions, instead of the Kainor-owned one. With
+        -SharePoint, the customer-owned SharePoint registration (deploy/setup/New-PostureSharePointApp.ps1).
+    .PARAMETER SharePoint
+        Sign in to TenantKeep Posture for SharePoint as well, after the main sign-in, for the SharePoint admin read.
     .PARAMETER TimeoutSeconds
         How long to wait for the sign-in to come back. Default 300.
     .EXAMPLE
@@ -29,6 +38,9 @@ function Connect-PostureSession {
         Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
     .EXAMPLE
         Connect-PostureSession -DeviceCode
+    .EXAMPLE
+        Connect-PostureSession -TenantId contoso.onmicrosoft.com
+        Connect-PostureSession -SharePoint
     #>
     [CmdletBinding(DefaultParameterSetName = 'Browser')]
     [OutputType([hashtable])]
@@ -38,11 +50,13 @@ function Connect-PostureSession {
         [Parameter(ParameterSetName = 'DeviceCode')] [switch] $DeviceCode,
         [Parameter(ParameterSetName = 'Browser')] [switch] $NoBrowser,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
-        [ValidateRange(30, 1800)] [int] $TimeoutSeconds = 300
+        [ValidateRange(30, 1800)] [int] $TimeoutSeconds = 300,
+        [switch] $SharePoint
     )
 
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
+    if ($SharePoint) { return (Connect-PostureSharePointSession -ClientId $ClientId -DeviceCode:$DeviceCode -NoBrowser:$NoBrowser -TimeoutSeconds $TimeoutSeconds) }
 
     $manifest = Get-PostureAppManifest
     $clientId = $(if ($ClientId) { $ClientId } else { [string]$manifest['clientId'] })
@@ -50,45 +64,8 @@ function Connect-PostureSession {
     $scope = 'openid profile offline_access https://graph.microsoft.com/.default'
     $consentLink = "https://login.microsoftonline.com/organizations/adminconsent?client_id=$clientId&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))"
 
-    try {
-        if ($DeviceCode) {
-            $dc = Invoke-PostureTokenRequest -Endpoint devicecode -TenantId $TenantId -Form @{ client_id = $clientId; scope = $scope }
-            Write-Host ''
-            Write-Host ([string]$dc['message']) -ForegroundColor Cyan
-            $interval = [int]$(if ($dc.ContainsKey('interval')) { $dc['interval'] } else { 5 })
-            $deadline = [datetime]::UtcNow.AddSeconds([int]$dc['expires_in'])
-            $tokens = $null
-            while (-not $tokens) {
-                if ([datetime]::UtcNow -gt $deadline) { throw 'The device code expired before the sign-in completed. Run the command again.' }
-                Start-Sleep -Seconds $interval
-                $poll = Invoke-PostureTokenRequest -Endpoint token -TenantId $TenantId -Form @{ grant_type = 'urn:ietf:params:oauth:grant-type:device_code'; client_id = $clientId; device_code = [string]$dc['device_code'] }
-                if ($poll.ContainsKey('access_token')) { $tokens = $poll }
-                elseif ([string]$poll['error'] -eq 'slow_down') { $interval += 5 }
-            }
-        }
-        else {
-            $verifierBytes = [byte[]]::new(32)
-            [System.Security.Cryptography.RandomNumberGenerator]::Fill($verifierBytes)
-            $verifier = [Convert]::ToBase64String($verifierBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-            $challenge = [Convert]::ToBase64String([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::ASCII.GetBytes($verifier))).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-            $state = [guid]::NewGuid().ToString('n')
-            $loopback = New-PostureLoopbackListener
-            $query = @(
-                "client_id=$clientId", 'response_type=code', "redirect_uri=$([uri]::EscapeDataString($loopback['redirectUri']))",
-                "scope=$([uri]::EscapeDataString($scope))", "state=$state", "code_challenge=$challenge", 'code_challenge_method=S256', 'prompt=select_account'
-            ) -join '&'
-            $url = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/authorize?$query"
-            $opened = $false
-            if (-not $NoBrowser) {
-                try { Start-Process $url; $opened = $true } catch { Write-Verbose "Browser did not open: $($_.Exception.Message)" }
-            }
-            Write-Host ''
-            if ($opened) { Write-Host 'Sign in to TenantKeep Posture in the browser window that just opened.' -ForegroundColor Cyan }
-            else { Write-Host 'Open this address in a browser and sign in:' -ForegroundColor Cyan; Write-Host "  $url" }
-            $code = Wait-PostureAuthCode -Loopback $loopback -State $state -TimeoutSeconds $TimeoutSeconds
-            $tokens = Invoke-PostureTokenRequest -Endpoint token -TenantId $TenantId -Form @{ grant_type = 'authorization_code'; client_id = $clientId; code = $code; redirect_uri = $loopback['redirectUri']; code_verifier = $verifier; scope = $scope }
-        }
-    }
+    $signIn = @{ ClientId = $clientId; Scope = $scope; TenantId = $TenantId; AppName = 'TenantKeep Posture'; DeviceCode = $DeviceCode; NoBrowser = $NoBrowser; TimeoutSeconds = $TimeoutSeconds }
+    try { $tokens = Invoke-PostureSignIn @signIn }
     catch {
         $text = $_.Exception.Message
         if ($text -match 'AADSTS65001|consent_required|AADSTS650') {

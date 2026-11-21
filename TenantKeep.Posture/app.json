@@ -4,7 +4,7 @@
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "https://tenantkeep.app/consent/",
-  "notes": "TenantKeep Posture: the one sign-in behind Start-PostureRun. Public client, delegated read permissions only, no credentials. Owned by Kainor LLC; the manifest is published in the source repository.",
+  "notes": "TenantKeep Posture: the one sign-in behind Start-PostureRun. Public client, delegated read permissions only, no credentials. Owned by Kainor LLC; the manifest is published in the source repository. SharePoint full control is not here: it lives only in the optional app-sharepoint.json, granted to named admins.",
   "resources": [
     {
       "name": "graph",
@@ -47,15 +47,6 @@
         "SharePointTenantSettings.Read.All",
         "NetworkAccess.Read.All",
         "BackupRestore-Configuration.Read.All"
-      ]
-    },
-    {
-      "name": "sharepoint",
-      "label": "Office 365 SharePoint Online",
-      "appId": "00000003-0000-0ff1-ce00-000000000000",
-      "audience": "https://{tenant}-admin.sharepoint.com",
-      "scopes": [
-        "AllSites.FullControl"
       ]
     },
     {

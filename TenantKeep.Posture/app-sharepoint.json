@@ -1,0 +1,31 @@
+{
+  "displayName": "TenantKeep Posture for SharePoint",
+  "clientId": "",
+  "publisherDomain": "kainor.com",
+  "redirectUri": "http://localhost",
+  "consentRedirectUri": "",
+  "notes": "TenantKeep Posture for SharePoint: the optional second sign-in for the SharePoint admin read (Get-PnPTenant, Get-PnPTenantSite, restricted search). Public client, delegated only, no credentials, owned by Kainor LLC. Never consented organisation-wide: a customer's Global Administrator grants it to named admins with deploy/setup/Grant-PostureSharePointAccess.ps1, which also requires assignment, so nobody else can sign in to it. Every SharePoint call goes through one function that accepts Get-PnP commands only.",
+  "resources": [
+    {
+      "name": "graph",
+      "label": "Microsoft Graph",
+      "appId": "00000003-0000-0000-c000-000000000000",
+      "audience": "https://graph.microsoft.com",
+      "scopes": [
+        "openid",
+        "profile",
+        "offline_access",
+        "User.Read"
+      ]
+    },
+    {
+      "name": "sharepoint",
+      "label": "Office 365 SharePoint Online",
+      "appId": "00000003-0000-0ff1-ce00-000000000000",
+      "audience": "https://{tenant}-admin.sharepoint.com",
+      "scopes": [
+        "AllSites.FullControl"
+      ]
+    }
+  ]
+}
