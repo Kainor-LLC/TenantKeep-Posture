@@ -274,6 +274,8 @@ function Invoke-PostureEntraCollection {
     Invoke-PostureStep -Label 'Auth method registration' -Folder $Folder -Script {
         $c = @{ members = 0; mfa = 0; passwordless = 0; sspr = 0; admins = 0; adminsNotPasswordless = 0; adminsNoMfa = 0; sms = 0; fido = 0; whfb = 0 }
         $strength = [ordered]@{ PhishingResistant = 0; Passwordless = 0; Authenticator = 0; PhoneOnly = 0; None = 0 }
+        # What the report reads from this list, counted here so the report never loads it (Add-PostureRegistrationTally).
+        $tally = @{ Users = 0; SsprEnabled = 0; Phishable = 0; PhishableAdmins = 0 }
         $adminRows = [System.Collections.Generic.List[object]]::new()
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name '05-auth-registration' -Csv -Confirm:$false
         try {
@@ -291,6 +293,7 @@ function Invoke-PostureEntraCollection {
                         MethodsRegistered = ($methods -join ';')
                     }
                     Add-PostureEvidenceRow -Stream $stream -Row $row
+                    Add-PostureRegistrationTally -Tally $tally -Row $row -AdminUpns $adminUpns
                     $isAdmin = [bool]$row.IsAdmin -or $adminUpns.Contains([string]$row.UserPrincipalName)
                     if ($isAdmin) { $adminRows.Add($row) }
                     if ($row.UserType -ne 'member') { continue }
@@ -328,6 +331,7 @@ function Invoke-PostureEntraCollection {
                 UsersWithPasskeyOrFido = $c.fido
                 UsersWithWhfb = $c.whfb
                 StrongestMethod = $strength
+                Tally = [ordered]@{ Users = $tally.Users; SsprEnabled = $tally.SsprEnabled; Phishable = $tally.Phishable; PhishableAdmins = $tally.PhishableAdmins }
             }) '05-auth-registration-summary'
     } | Out-Null
 
@@ -506,6 +510,8 @@ function Invoke-PostureEntraCollection {
     # Streamed; only the role-assignable groups are kept, for the PIM for Groups step.
     $groupRows = [System.Collections.Generic.List[object]]::new()
     Invoke-PostureStep -Label 'Groups' -Folder $Folder -Script {
+        # Counted as the list is written, so the report reads a handful of numbers and never the list.
+        $tally = @{ groups = 0; byKind = [ordered]@{}; roleAssignable = 0; synced = 0; licensed = 0; dynamic = 0 }
         $stream = Open-PostureEvidenceStream -Folder $Folder -Name '07-groups' -Csv -Confirm:$false
         try {
             $null = Invoke-PostureGraphRequest -Uri 'groups?$select=id,displayName,groupTypes,mailEnabled,securityEnabled,onPremisesSyncEnabled,onPremisesSecurityIdentifier,assignedLicenses,membershipRule,membershipRuleProcessingState,createdDateTime,visibility,isAssignableToRole,expirationDateTime&$top=999' -ApiVersion 'v1.0' -Label 'Groups' -OnPage {
@@ -519,12 +525,18 @@ function Invoke-PostureEntraCollection {
                         Kind = $kind; Dynamic = ($types -contains 'DynamicMembership')
                     }
                     Add-PostureEvidenceRow -Stream $stream -Row $row
-                    if ($row.IsAssignableToRole) { $groupRows.Add($row) }
+                    if ($row.IsAssignableToRole) { $groupRows.Add($row); $tally.roleAssignable++ }
+                    $tally.groups++
+                    $tally.byKind[$kind] = 1 + $(if ($tally.byKind.Contains($kind)) { $tally.byKind[$kind] } else { 0 })
+                    if ($row.OnPremisesSyncEnabled) { $tally.synced++ }
+                    if ($row.Licensed) { $tally.licensed++ }
+                    if ($row.Dynamic) { $tally.dynamic++ }
                 }
             }
             $files.Add((Close-PostureEvidenceStream -Stream $stream))
         }
         catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        & $saveOne ([ordered]@{ Groups = $tally.groups; ByKind = $tally.byKind; RoleAssignable = $tally.roleAssignable; Synced = $tally.synced; Licensed = $tally.licensed; Dynamic = $tally.dynamic }) '07-groups-summary'
     } | Out-Null
 
     # ---------- 8. Entra devices ----------

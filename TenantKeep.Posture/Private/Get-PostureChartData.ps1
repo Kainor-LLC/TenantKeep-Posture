@@ -30,18 +30,41 @@ function Get-PostureChartData {
     $tiles = [System.Collections.Generic.List[object]]::new()
     $users = & $load '06-users-summary'
     if ($users) { $tiles.Add([ordered]@{ label = 'Members'; value = (& $num (& $v $users 'Members')); sub = "$(& $fmt (& $num (& $v $users 'Guests'))) guests" }) }
-    $groups = & $load '07-groups'
-    if ($null -ne $groups) { $tiles.Add([ordered]@{ label = 'Groups'; value = [double]@($groups | Where-Object { $_ }).Count; sub = '' }) }
+    # The big lists are counted a row at a time and never loaded: each has a row per group, device, guest or site.
+    $countRows = { param([string] $Name) $n = @{ n = 0 }; if (Read-PostureEvidenceRow -Folder $Evidence -Name $Name -OnRow { param($row) $n.n++ }) { $n.n } else { $null } }
+    $groupsSummary = & $load '07-groups-summary'
+    $groupCount = $(if ($groupsSummary -and $null -ne (& $v $groupsSummary 'Groups')) { [int](& $v $groupsSummary 'Groups') } else { & $countRows '07-groups' })
+    if ($null -ne $groupCount) { $tiles.Add([ordered]@{ label = 'Groups'; value = [double]$groupCount; sub = '' }) }
     $apps = & $load '10-app-registrations'
     if ($null -ne $apps) { $tiles.Add([ordered]@{ label = 'App registrations'; value = [double]@($apps | Where-Object { $_ }).Count; sub = '' }) }
     $joinOs = & $load '08-entra-devices-by-join-os'
     if ($null -ne $joinOs) { $tiles.Add([ordered]@{ label = 'Entra devices'; value = [double](@($joinOs | Where-Object { $_ } | ForEach-Object { & $num (& $v $_ 'Count') }) | Measure-Object -Sum).Sum; sub = '' }) }
-    $managed = & $load '09-intune-managed-devices'
-    $managedRows = @($managed | Where-Object { $_ })
-    if ($null -ne $managed) {
-        $compliant = @($managedRows | Where-Object { [string](& $v $_ 'ComplianceState') -eq 'compliant' }).Count
-        $tiles.Add([ordered]@{ label = 'Managed devices'; value = [double]$managedRows.Count; sub = "$(& $pct $compliant $managedRows.Count)% compliant" })
+    # Managed devices: every chart below that reads the list is tallied here, in one pass.
+    $joinLabel = @{ azureADJoined = 'Entra joined'; hybridAzureADJoined = 'Hybrid joined'; azureADRegistered = 'Registered (personal)' }
+    $compLabel = @{ compliant = 'Compliant'; noncompliant = 'Not compliant' }
+    $md = @{
+        n = 0; compliant = 0; encrypted = 0; plat = [ordered]@{}; pj = @{}; jc = @{}; joins = [ordered]@{}; comps = [ordered]@{}
+        own = @{ company = 0; personal = 0; other = 0 }; age = [ordered]@{ 'Last 7 days' = 0; '8 to 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0 }
     }
+    $utcNow = [datetime]::UtcNow
+    $when = { param($value) try { ConvertTo-PostureUtcDateTime $value } catch { $null } }
+    $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow {
+        param($d)
+        $md.n++
+        $state = [string](& $v $d 'ComplianceState')
+        if ($state -eq 'compliant') { $md.compliant++ }
+        if (Test-PostureTrue (& $v $d 'IsEncrypted')) { $md.encrypted++ }
+        $os = [string](& $v $d 'OperatingSystem'); if (-not $os) { $os = 'Other' }
+        $j = [string](& $v $d 'JoinType'); $j = $(if ($joinLabel.ContainsKey($j)) { $joinLabel[$j] } else { 'Join type not reported' })
+        $cs = $(if ($compLabel.ContainsKey($state)) { $compLabel[$state] } else { 'Unknown or in grace' })
+        $md.plat[$os] = 1 + $(if ($md.plat.Contains($os)) { $md.plat[$os] } else { 0 }); $md.joins[$j] = $true; $md.comps[$cs] = $true
+        $md.pj["$os|$j"] = 1 + $(if ($md.pj.ContainsKey("$os|$j")) { $md.pj["$os|$j"] } else { 0 })
+        $md.jc["$j|$cs"] = 1 + $(if ($md.jc.ContainsKey("$j|$cs")) { $md.jc["$j|$cs"] } else { 0 })
+        $o = [string](& $v $d 'ManagedDeviceOwnerType'); if ($md.own.ContainsKey($o)) { $md.own[$o]++ } else { $md.own.other++ }
+        $t = & $when (& $v $d 'LastSyncDateTime')
+        if ($t) { $days = ($utcNow - $t).TotalDays; $md.age[$(if ($days -le 7) { 'Last 7 days' } elseif ($days -le 30) { '8 to 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++ }
+    }
+    if ($haveManaged) { $tiles.Add([ordered]@{ label = 'Managed devices'; value = [double]$md.n; sub = "$(& $pct $md.compliant $md.n)% compliant" }) }
     $signins = & $load '06-signins-summary'
     if ($signins) { $tiles.Add([ordered]@{ label = 'Sign-ins read'; value = (& $num (& $v $signins 'SignIns')); sub = "last $(& $v $signins 'Days') days" }) }
     $out.tiles = @($tiles)
@@ -95,34 +118,23 @@ function Get-PostureChartData {
     }
 
     # Managed devices: platform, then join type, then compliance.
-    if ($managedRows.Count -gt 0) {
-        $joinLabel = @{ azureADJoined = 'Entra joined'; hybridAzureADJoined = 'Hybrid joined'; azureADRegistered = 'Registered (personal)' }
-        $compLabel = @{ compliant = 'Compliant'; noncompliant = 'Not compliant' }
-        $plat = [ordered]@{}; $pj = @{}; $jc = @{}; $joins = [ordered]@{}; $comps = [ordered]@{}
-        foreach ($d in $managedRows) {
-            $os = [string](& $v $d 'OperatingSystem'); if (-not $os) { $os = 'Other' }
-            $j = [string](& $v $d 'JoinType'); $j = $(if ($joinLabel.ContainsKey($j)) { $joinLabel[$j] } else { 'Join type not reported' })
-            $cs = [string](& $v $d 'ComplianceState'); $cs = $(if ($compLabel.ContainsKey($cs)) { $compLabel[$cs] } else { 'Unknown or in grace' })
-            $plat[$os] = 1 + $(if ($plat.Contains($os)) { $plat[$os] } else { 0 }); $joins[$j] = $true; $comps[$cs] = $true
-            $pj["$os|$j"] = 1 + $(if ($pj.ContainsKey("$os|$j")) { $pj["$os|$j"] } else { 0 })
-            $jc["$j|$cs"] = 1 + $(if ($jc.ContainsKey("$j|$cs")) { $jc["$j|$cs"] } else { 0 })
-        }
+    if ($md.n -gt 0) {
+        $plat = $md.plat; $pj = $md.pj; $jc = $md.jc; $joins = $md.joins; $comps = $md.comps
         # Five platforms at most, each with its own fixed slot; the rest fold into Other.
         $slot = @{ Windows = 'c1'; macOS = 'c2'; iOS = 'c3'; Android = 'c4'; Linux = 'c5' }
         $platNodes = @($plat.Keys | Sort-Object { - $plat[$_] } | ForEach-Object { @{ id = "p-$_"; label = $_; tone = $(if ($slot.ContainsKey($_)) { $slot[$_] } else { 'na' }) } })
         $compTone = @{ 'Compliant' = 'ok'; 'Not compliant' = 'err'; 'Unknown or in grace' = 'na' }
         $flows = @(@($pj.Keys | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "p-$a"; to = "j-$b"; value = $pj[$_] } }) + @($jc.Keys | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "j-$a"; to = "c-$b"; value = $jc[$_] } }))
-        $nComp = @($managedRows | Where-Object { [string](& $v $_ 'ComplianceState') -eq 'compliant' }).Count
+        $nComp = $md.compliant
         $out.devices = [ordered]@{
             column   = @($platNodes, @($joins.Keys | ForEach-Object { @{ id = "j-$_"; label = $_; tone = 'c1' } }), @($comps.Keys | ForEach-Object { @{ id = "c-$_"; label = $_; tone = $compTone[$_] } }))
             flow     = $flows
-            takeaway = "$(& $pct $nComp $managedRows.Count)% of $(& $fmt $managedRows.Count) managed devices are compliant."
+            takeaway = "$(& $pct $nComp $md.n)% of $(& $fmt $md.n) managed devices are compliant."
         }
-        $own = @{ company = 0; personal = 0; other = 0 }
-        foreach ($d in $managedRows) { $o = [string](& $v $d 'ManagedDeviceOwnerType'); if ($own.ContainsKey($o)) { $own[$o]++ } else { $own.other++ } }
+        $own = $md.own
         $out.ownership = [ordered]@{
             segment  = @(@{ label = 'Corporate'; value = $own.company; tone = 'c1' }, @{ label = 'Personal'; value = $own.personal; tone = 'c2' }, @{ label = 'Not reported'; value = $own.other; tone = 'na' })
-            takeaway = "$(& $pct $own.personal $managedRows.Count)% of managed devices are personally owned."
+            takeaway = "$(& $pct $own.personal $md.n)% of managed devices are personally owned."
         }
     }
     $comp = & $load '09-intune-summary-compliance'
@@ -174,16 +186,10 @@ function Get-PostureChartData {
         $bmap = @{}; foreach ($b in @($builds | Where-Object { $_ })) { $bmap[[string](& $v $b 'Name')] = [double](& $v $b 'Count') }
         $out.windowsBuilds = [ordered]@{ item = @(& $topOf $bmap 8); takeaway = "$(@($bmap.Keys).Count) Windows build$(if (@($bmap.Keys).Count -ne 1) { 's' }) in the fleet." }
     }
-    if ($managedRows.Count) {
-        $enc = @($managedRows | Where-Object { (& $v $_ 'IsEncrypted') -eq $true }).Count
-        $out.encryption = [ordered]@{ segment = @(@{ label = 'Encrypted'; value = $enc; tone = 'ok' }, @{ label = 'Not encrypted'; value = $managedRows.Count - $enc; tone = 'err' }); takeaway = "$(& $pct $enc $managedRows.Count)% of managed devices report encryption." }
-        $age = [ordered]@{ 'Last 7 days' = 0; '8 to 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0 }
-        foreach ($d in $managedRows) {
-            $ls = & $v $d 'LastSyncDateTime'; $t = $(if ($ls -is [datetime]) { $ls } else { $p = [datetime]::MinValue; if ([datetime]::TryParse([string]$ls, [cultureinfo]::InvariantCulture, 'AdjustToUniversal', [ref]$p)) { $p } else { $null } })
-            if (-not $t) { continue }
-            $days = ([datetime]::UtcNow - $t.ToUniversalTime()).TotalDays
-            $age[$(if ($days -le 7) { 'Last 7 days' } elseif ($days -le 30) { '8 to 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++
-        }
+    if ($md.n) {
+        $enc = $md.encrypted
+        $out.encryption = [ordered]@{ segment = @(@{ label = 'Encrypted'; value = $enc; tone = 'ok' }, @{ label = 'Not encrypted'; value = $md.n - $enc; tone = 'err' }); takeaway = "$(& $pct $enc $md.n)% of managed devices report encryption." }
+        $age = $md.age
         $out.checkIn = [ordered]@{ item = @($age.Keys | ForEach-Object { [ordered]@{ label = $_; value = $age[$_]; tone = $(if ($_ -eq 'Over 90 days') { 'err' } elseif ($_ -eq '31 to 90 days') { 'warn' } else { 'c1' }) } }); takeaway = "$($age['Over 90 days'] + $age['31 to 90 days']) managed device(s) have not checked in for a month or more." }
     }
     # Microsoft Secure Score: where the points are by category, and the actions worth most (Microsoft's links).
@@ -322,28 +328,40 @@ function Get-PostureChartData {
         foreach ($a in @(& $v $ss 'AverageComparativeScores' | Where-Object { $_ })) { $items += [ordered]@{ label = $(switch ([string](& $v $a 'Basis')) { 'AllTenants' { 'All tenants (average)' } 'TotalSeats' { 'Tenants of a similar size' } default { [string](& $v $a 'Basis') } }); value = [Math]::Round((& $num (& $v $a 'AverageScore'))); tone = 'na' } }
         $out.secureScore = [ordered]@{ item = $items; takeaway = "Microsoft Secure Score $mine% (verify: Microsoft's averages read as percentages)." }
     }
-    $guests = & $load '06-users-guests'
-    if ($null -ne $guests -and @($guests | Where-Object { $_ }).Count) {
-        $g = [ordered]@{ 'Last 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0; 'Never signed in' = 0 }
-        foreach ($u in @($guests | Where-Object { $_ })) {
-            $ls = & $v $u 'LastInteractiveSignIn'
-            if (-not $ls) { $g['Never signed in']++; continue }
-            $t = $(if ($ls -is [datetime]) { $ls } else { $p = [datetime]::MinValue; if ([datetime]::TryParse([string]$ls, [cultureinfo]::InvariantCulture, 'AdjustToUniversal', [ref]$p)) { $p } else { $null } })
-            if (-not $t) { $g['Never signed in']++; continue }
-            $days = ([datetime]::UtcNow - $t.ToUniversalTime()).TotalDays
-            $g[$(if ($days -le 30) { 'Last 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++
-        }
-        $out.guestAge = [ordered]@{ item = @($g.Keys | ForEach-Object { [ordered]@{ label = $_; value = $g[$_]; tone = $(if ($_ -in 'Over 90 days', 'Never signed in') { 'warn' } else { 'c1' }) } }); takeaway = "$($g['Over 90 days'] + $g['Never signed in']) of $(@($guests | Where-Object { $_ }).Count) guests have not signed in for 90 days or ever." }
+    $g = [ordered]@{ 'Last 30 days' = 0; '31 to 90 days' = 0; 'Over 90 days' = 0; 'Never signed in' = 0 }
+    $guestCount = @{ n = 0 }
+    $null = Read-PostureEvidenceRow -Folder $Evidence -Name '06-users-guests' -OnRow {
+        param($u)
+        $guestCount.n++
+        $t = & $when (& $v $u 'LastInteractiveSignIn')
+        if (-not $t) { $g['Never signed in']++; return }
+        $days = ($utcNow - $t).TotalDays
+        $g[$(if ($days -le 30) { 'Last 30 days' } elseif ($days -le 90) { '31 to 90 days' } else { 'Over 90 days' })]++
     }
-    $risky = & $load '11-risky-users'
-    if ($null -ne $risky -and @($risky | Where-Object { $_ }).Count) {
-        $rl = @{}; foreach ($u in @($risky | Where-Object { $_ })) { $k = [string](& $v $u 'RiskLevel'); if (-not $k) { $k = 'unknown' }; $rl[$k] = 1 + $(if ($rl.ContainsKey($k)) { $rl[$k] } else { 0 }) }
+    if ($guestCount.n) {
+        $out.guestAge = [ordered]@{ item = @($g.Keys | ForEach-Object { [ordered]@{ label = $_; value = $g[$_]; tone = $(if ($_ -in 'Over 90 days', 'Never signed in') { 'warn' } else { 'c1' }) } }); takeaway = "$($g['Over 90 days'] + $g['Never signed in']) of $($guestCount.n) guests have not signed in for 90 days or ever." }
+    }
+    $rl = @{}
+    $null = Read-PostureEvidenceRow -Folder $Evidence -Name '11-risky-users' -OnRow { param($u) $k = [string](& $v $u 'RiskLevel'); if (-not $k) { $k = 'unknown' }; $rl[$k] = 1 + $(if ($rl.ContainsKey($k)) { $rl[$k] } else { 0 }) }
+    if ($rl.get_Count()) {
         $out.riskyUsers = [ordered]@{ item = @('high', 'medium', 'low', 'unknown' | Where-Object { $rl.ContainsKey($_) } | ForEach-Object { [ordered]@{ label = $_; value = $rl[$_]; tone = @{ high = 'err'; medium = 'warn'; low = 'c1'; unknown = 'na' }[$_] } }); takeaway = "$(if ($rl.ContainsKey('high')) { $rl['high'] } else { 0 }) user(s) at high risk in Identity Protection." }
     }
-    $sites = & $load 'spo-sites'
-    if ($null -ne $sites -and @($sites | Where-Object { $_ }).Count) {
-        $sharingLabel = @{ Disabled = 'Only people in the organisation'; ExistingExternalUserSharingOnly = 'Existing guests'; ExternalUserSharingOnly = 'New and existing guests'; ExternalUserAndGuestSharing = 'Anyone' }
-        $sc = @{}; foreach ($st in @($sites | Where-Object { $_ -and (& $v $_ 'IsOneDrive') -ne $true })) { $k = [string](& $v $st 'SharingCapability'); $k = $(if ($sharingLabel.ContainsKey($k)) { $sharingLabel[$k] } elseif ($k) { $k } else { 'Not reported' }); $sc[$k] = 1 + $(if ($sc.ContainsKey($k)) { $sc[$k] } else { 0 }) }
+    # Sites, a row at a time: sharing level per site, and label against sharing level for the grid further down.
+    $sharingLabel = @{ Disabled = 'Only people in the organisation'; ExistingExternalUserSharingOnly = 'Existing guests'; ExternalUserSharingOnly = 'New and existing guests'; ExternalUserAndGuestSharing = 'Anyone' }
+    $labelName = @{}; foreach ($l in @(& $load 'pv-01-sensitivity-labels' | Where-Object { $_ })) { $labelName[[string](& $v $l 'Guid')] = [string]$(if (& $v $l 'DisplayName') { & $v $l 'DisplayName' } else { & $v $l 'Name' }) }
+    $sc = @{}; $cells = @{}; $rowsSeen = [ordered]@{}; $siteCount = @{ n = 0 }
+    $null = Read-PostureEvidenceRow -Folder $Evidence -Name 'spo-sites' -OnRow {
+        param($st)
+        $siteCount.n++
+        if (Test-PostureTrue (& $v $st 'IsOneDrive')) { return }
+        $capability = [string](& $v $st 'SharingCapability')
+        $k = $(if ($sharingLabel.ContainsKey($capability)) { $sharingLabel[$capability] } elseif ($capability) { $capability } else { 'Not reported' })
+        $sc[$k] = 1 + $(if ($sc.ContainsKey($k)) { $sc[$k] } else { 0 })
+        $lev = $sharingLabel[$capability]; if (-not $lev) { return }
+        $lab = [string](& $v $st 'SensitivityLabel'); $lab = $(if (-not $lab) { 'No label' } elseif ($labelName.ContainsKey($lab)) { $labelName[$lab] } else { 'Label ' + $lab.Substring(0, [Math]::Min(8, $lab.Length)) })
+        $rowsSeen[$lab] = $true; $cells["$lab|$lev"] = 1 + $(if ($cells.ContainsKey("$lab|$lev")) { $cells["$lab|$lev"] } else { 0 })
+    }
+    if ($siteCount.n) {
         $order = @('Anyone', 'New and existing guests', 'Existing guests', 'Only people in the organisation')
         $out.siteSharing = [ordered]@{ item = @(@($order | Where-Object { $sc.ContainsKey($_) }) + @($sc.Keys | Where-Object { $_ -notin $order }) | ForEach-Object { [ordered]@{ label = $_; value = $sc[$_]; tone = $(if ($_ -eq 'Anyone') { 'err' } elseif ($_ -eq 'New and existing guests') { 'warn' } else { 'c1' }) } }); takeaway = "$(if ($sc.ContainsKey('Anyone')) { $sc['Anyone'] } else { 0 }) site(s) allow Anyone links." }
     }
@@ -355,16 +373,8 @@ function Get-PostureChartData {
     }
     # Sensitivity against exposure: sites by label (rows) and sharing level (columns). Labelled content open to
     # Anyone is the corner to look at first.
-    if ($null -ne $sites -and @($sites | Where-Object { $_ }).Count) {
-        $labelName = @{}; foreach ($l in @(& $load 'pv-01-sensitivity-labels' | Where-Object { $_ })) { $labelName[[string](& $v $l 'Guid')] = [string]$(if (& $v $l 'DisplayName') { & $v $l 'DisplayName' } else { & $v $l 'Name' }) }
+    if ($siteCount.n) {
         $levels = @('Only people in the organisation', 'Existing guests', 'New and existing guests', 'Anyone')
-        $levelOf = @{ Disabled = 'Only people in the organisation'; ExistingExternalUserSharingOnly = 'Existing guests'; ExternalUserSharingOnly = 'New and existing guests'; ExternalUserAndGuestSharing = 'Anyone' }
-        $cells = @{}; $rowsSeen = [ordered]@{}
-        foreach ($st in @($sites | Where-Object { $_ -and (& $v $_ 'IsOneDrive') -ne $true })) {
-            $lab = [string](& $v $st 'SensitivityLabel'); $lab = $(if (-not $lab) { 'No label' } elseif ($labelName.ContainsKey($lab)) { $labelName[$lab] } else { 'Label ' + $lab.Substring(0, [Math]::Min(8, $lab.Length)) })
-            $lev = $levelOf[[string](& $v $st 'SharingCapability')]; if (-not $lev) { continue }
-            $rowsSeen[$lab] = $true; $cells["$lab|$lev"] = 1 + $(if ($cells.ContainsKey("$lab|$lev")) { $cells["$lab|$lev"] } else { 0 })
-        }
         if ($rowsSeen.Count) {
             $labelledAnyone = [int](@($rowsSeen.Keys | Where-Object { $_ -ne 'No label' } | ForEach-Object { if ($cells.ContainsKey("$_|Anyone")) { $cells["$_|Anyone"] } else { 0 } }) + 0 | Measure-Object -Sum).Sum
             $unlabelled = [int](@($levels | ForEach-Object { if ($cells.ContainsKey("No label|$_")) { $cells["No label|$_"] } else { 0 } }) | Measure-Object -Sum).Sum

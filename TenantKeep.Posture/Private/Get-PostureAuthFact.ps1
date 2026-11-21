@@ -33,6 +33,8 @@ function Get-PostureAuthFact {
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
+    # A list of affected accounts holds 500 at most; affectedCounts carries how many there are.
+    $affectedCounts = @{}
 
     $policy = & $load '02-authentication-methods-policy'
     if ($null -eq $policy) {
@@ -87,9 +89,9 @@ function Get-PostureAuthFact {
         $facts.usersWithSms = [int](& $v $summary 'UsersWithSms')
     }
 
-    # The admin-only file the collector writes; the full one for runs made before it existed.
-    $reg = & $load '05-auth-registration-admins'
-    if ($null -eq $reg) { $reg = & $load '05-auth-registration' }
+    # The administrators' rows: the admin-only file the collector writes, or for a run made before it the same
+    # rows read out of the full report a row at a time (Get-PostureAdminRow).
+    $reg = Get-PostureAdminRow -Folder $Evidence -List Registration
     if ($null -eq $reg) { $notEvaluated['AU-008'] = '05-auth-registration.json was not collected.' }
     else {
         # Everyone who holds a role: directly, as eligible, or through a group (04-role-holders). Graph's own flag
@@ -113,7 +115,6 @@ function Get-PostureAuthFact {
     }
 
     $perUser = & $load '05-per-user-mfa-summary'
-    $perUserRows = & $load '05-per-user-mfa'
     if ($null -eq $perUser) { $notEvaluated['AU-009'] = '05-per-user-mfa-summary.json was not collected (skipped with -SkipPerUserMfa, or UserAuthenticationMethod.Read.All missing).' }
     elseif ([int](& $v $perUser 'Users') -gt 0 -and [int](& $v $perUser 'Errors') -ge [int](& $v $perUser 'Users')) {
         $notEvaluated['AU-009'] = "Every per-user MFA read failed ($(& $v $perUser 'FirstError')); the state is unknown."
@@ -122,8 +123,17 @@ function Get-PostureAuthFact {
         $facts.perUserMfaEnforced = [int](& $v $perUser 'Enforced')
         $facts.perUserMfaEnabled = [int](& $v $perUser 'Enabled')
         $facts.perUserMfaReadErrors = [int](& $v $perUser 'Errors')
-        $affected.perUserMfaEnforced = @(@($perUserRows) | Where-Object { $_ -and $_.PerUserMfaState -in @('enforced', 'enabled') } | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "per-user MFA $($_.PerUserMfaState)" } })
+        # The accounts behind those counts, a row at a time: the first 500 are kept for the report.
+        $perUserList = [System.Collections.Generic.List[object]]::new(); $perUserCount = @{ n = 0 }
+        $null = Read-PostureEvidenceRow -Folder $Evidence -Name '05-per-user-mfa' -OnRow {
+            param($row)
+            $state = [string](& $v $row 'PerUserMfaState')
+            if ($state -notin @('enforced', 'enabled')) { return }
+            $perUserCount.n++
+            if ($perUserList.Count -lt 500) { $perUserList.Add([ordered]@{ name = [string](& $v $row 'UserPrincipalName'); detail = "per-user MFA $state" }) }
+        }
+        $affected.perUserMfaEnforced = @($perUserList); $affectedCounts.perUserMfaEnforced = $perUserCount.n
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('02-authentication-methods-policy.json', '05-auth-registration.json', '05-auth-registration-summary.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('02-authentication-methods-policy.json', '05-auth-registration.json', '05-auth-registration-summary.json') }
 }

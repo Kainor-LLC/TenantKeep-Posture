@@ -38,8 +38,9 @@ function Get-PostureDevicesFact {
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Intune; check errors.txt and the scopes)." } }
 
     # Entra devices (08): one pass, a row at a time, every count and affected list built on the way.
-    $keys = & $load '08-bitlocker-keys-by-device'
-    $withKey = @{}; foreach ($k in @($keys | Where-Object { $_ })) { $withKey[[string]$k.DeviceId] = [int]$k.Keys }
+    # Recovery keys by device, read a row at a time into a lookup by device id (the list has a row per Windows device).
+    $withKey = @{}
+    $haveKeys = Read-PostureEvidenceRow -Folder $Evidence -Name '08-bitlocker-keys-by-device' -OnRow { param($k) $withKey[[string](& $v $k 'DeviceId')] = [int](& $v $k 'Keys') }
     $e = @{ enabled = 0; entraJoined = 0; hybridJoined = 0; registered = 0; windows = 0; escrowed = 0 }
     $staleList = [System.Collections.Generic.List[object]]::new(); $noKey = [System.Collections.Generic.List[object]]::new()
     # Hybrid-joined Windows devices in use that nothing in the cloud manages (DEV-020); the Intune pass below takes out
@@ -79,7 +80,7 @@ function Get-PostureDevicesFact {
         if ($e.enabled -eq 0) { $notEvaluated['DEV-003'] = 'No enabled devices in Entra, so there is no join type mix to judge.' }
         $facts.staleEntraDevices = $staleList.Count
         $affected.staleEntraDevices = @($staleList)
-        if ($null -eq $keys) { & $missing @('DEV-005') '08-bitlocker-keys-by-device' }
+        if (-not $haveKeys) { & $missing @('DEV-005') '08-bitlocker-keys-by-device' }
         else {
             $facts.windowsEntraDevices = $e.windows
             $facts.bitlockerEscrowedPct = $(if ($e.windows -gt 0) { & $pct $e.escrowed $e.windows } else { $null })
@@ -145,10 +146,12 @@ function Get-PostureDevicesFact {
         if ($null -eq $facts.intuneCompliancePct) { $notEvaluated['DEV-001'] = 'No Intune managed devices with a compliance state.' }
 
         $facts.windowsManagedDevices = $i.windows
-        $auto = & $load '09-autopilot-devices'
-        if ($null -eq $auto) { & $missing @('DEV-004') '09-autopilot-devices' }
+        # Counted a row at a time: the list has a row per registered device.
+        $autopilot = @{ n = 0 }
+        $haveAutopilot = Read-PostureEvidenceRow -Folder $Evidence -Name '09-autopilot-devices' -OnRow { param($a) $autopilot.n++ }
+        if (-not $haveAutopilot) { & $missing @('DEV-004') '09-autopilot-devices' }
         else {
-            $facts.autopilotRegistered = @($auto | Where-Object { $_ }).Count
+            $facts.autopilotRegistered = $autopilot.n
             $facts.autopilotPct = $(if ($i.windows -gt 0) { & $pct $i.autopilot $i.windows } else { $null })
             if ($null -eq $facts.autopilotPct) { $notEvaluated['DEV-004'] = 'No Windows devices managed by Intune.' }
         }

@@ -261,11 +261,10 @@ function ConvertTo-PostureReportModel {
     # Who are your admins (spec 7.2): roles joined to registration and users.
     $active = & $load '04-role-assignments-active'
     $eligible = & $load '04-role-assignments-pim-eligible'
-    # Admin-only files from the collector; the full lists only for runs made before them.
-    $reg = & $load '05-auth-registration-admins'
-    if ($null -eq $reg) { $reg = & $load '05-auth-registration' }
-    $users = & $load '06-users-admins'
-    if ($null -eq $users) { $users = & $load '06-users' }
+    # The administrators' rows: the collector's admin-only files, or for a run made before them the same rows read
+    # out of the full lists a row at a time (Get-PostureAdminRow).
+    $reg = Get-PostureAdminRow -Folder $Evidence -List Registration
+    $users = Get-PostureAdminRow -Folder $Evidence -List Users
     $regByUpn = @{}; foreach ($r in @($reg | Where-Object { $_ })) { $regByUpn[[string]$r.UserPrincipalName] = $r }
     $userByUpn = @{}; foreach ($u in @($users | Where-Object { $_ })) { $userByUpn[[string]$u.UserPrincipalName] = $u }
     $strongest = {
@@ -356,19 +355,12 @@ function ConvertTo-PostureReportModel {
     foreach ($x in $failingRecs) { $roadmap[(& $laneOf $x)] += , [ordered]@{ id = $x.id; title = $x.title; severity = $x.severity; effort = $x.effort } }
     # Nested by construction: one per-user source and the device-bound list AU-008 uses, so every phishable
     # administrator is also counted among the phishable members.
-    $regRows = & $load '05-auth-registration'
+    # Counted by the collector in its own pass over the registration report, or a row at a time for an older run:
+    # the report has a row per user and is never loaded here (Get-PostureRegistrationTally).
+    $regTally = Get-PostureRegistrationTally -Folder $Evidence
     $funnel = $null
-    if ($null -ne $regRows) {
-        $adminUpnSet = @{}; foreach ($a in @($adminsTable | Where-Object { $_.type -eq 'user' })) { $adminUpnSet[[string]$a.upn] = $true }
-        $memberCount = 0; $phishable = 0; $adminPhishable = 0
-        foreach ($u in @($regRows | Where-Object { $_ })) {
-            if ([string](& $v $u 'UserType') -eq 'guest') { continue }
-            $memberCount++
-            $methods = @(([string](& $v $u 'MethodsRegistered')) -split ';' | Where-Object { $_ })
-            if (@($methods | Where-Object { $_ -in $script:PostureDeviceBoundMethods }).Count) { continue }
-            $phishable++
-            if ((& $v $u 'IsAdmin') -eq $true -or $adminUpnSet.ContainsKey([string](& $v $u 'UserPrincipalName'))) { $adminPhishable++ }
-        }
+    if ($null -ne $regTally) {
+        $memberCount = $regTally.Users; $phishable = $regTally.Phishable; $adminPhishable = $regTally.PhishableAdmins
         $funnel = [ordered]@{ steps = @([ordered]@{ label = 'Members'; value = $memberCount }, [ordered]@{ label = 'Phishable members'; value = $phishable }, [ordered]@{ label = 'Phishable admins'; value = $adminPhishable }); takeaway = "$phishable of $memberCount members have no device-bound phishing-resistant method; $adminPhishable of them $(if ($adminPhishable -eq 1) { 'is an administrator' } else { 'are administrators' }), the shortest path from a stolen password to the tenant." }
     }
     $now = [datetime]::UtcNow

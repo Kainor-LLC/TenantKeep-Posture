@@ -266,7 +266,11 @@ Write-Demo '05-auth-registration' $registration
 $holderUpns = @($holders | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique)
 Write-Demo '05-auth-registration-admins' @($registration | Where-Object { $_.IsAdmin -or $_.UserPrincipalName -in $holderUpns })
 $pct = { param($Rows, [scriptblock] $Test) [math]::Round(100 * @($Rows | Where-Object $Test).Count / [math]::Max(1, @($Rows).Count), 1) }
+# What the report reads from the registration list, counted as the collector counts it: no device-bound method is phishable.
+$deviceBound = 'fido2', 'passKeyDeviceBound', 'passKeyDeviceBoundAuthenticator', 'passKeyDeviceBoundWindowsHello', 'windowsHelloForBusiness', 'x509Certificate', 'x509CertificateMultiFactor'
+$phishableRows = @($registration | Where-Object { @(([string]$_.MethodsRegistered).Split(';') | Where-Object { $_ -in $deviceBound }).Count -eq 0 })
 Write-Demo '05-auth-registration-summary' @{
+    Tally = [ordered]@{ Users = $registration.Count; SsprEnabled = @($registration | Where-Object IsSsprEnabled).Count; Phishable = $phishableRows.Count; PhishableAdmins = @($phishableRows | Where-Object { $_.IsAdmin -or $_.UserPrincipalName -in $holderUpns }).Count }
     TotalMembers = $registration.Count; Admins = @($registration | Where-Object IsAdmin).Count
     MfaRegisteredPct = & $pct $registration { $_.IsMfaRegistered }; PasswordlessCapablePct = & $pct $registration { $_.IsPasswordlessCapable }; SsprRegisteredPct = & $pct $registration { $_.IsSsprRegistered }
     AdminsNotPasswordless = @($registration | Where-Object { $_.IsAdmin -and -not $_.IsPasswordlessCapable }).Count; AdminsNoMfa = 0
@@ -318,6 +322,8 @@ foreach ($p in $projects) { $n++; $groups.Add((& $group (Get-DemoId 'e5000000' $
 foreach ($d in 'Engineering', 'Projects', 'Field Services', 'Finance', 'Operations', 'Sales', 'People', 'IT') { $n++; $groups.Add((& $group (Get-DemoId 'e5000000' $n) $d 'Microsoft 365' $true $false 'Private')) }
 foreach ($d in 'Intune - Windows', 'Intune - macOS', 'Intune - Phones', 'Printers', 'VPN Users') { $n++; $groups.Add((& $group (Get-DemoId 'e5000000' $n) $d 'Security' ($d -like 'Intune*'))) }
 Write-Demo '07-groups' @($groups)
+$byKind = [ordered]@{}; foreach ($x in $groups) { $byKind[[string]$x.Kind] = 1 + $(if ($byKind.Contains([string]$x.Kind)) { $byKind[[string]$x.Kind] } else { 0 }) }
+Write-Demo '07-groups-summary' @{ Groups = $groups.Count; ByKind = $byKind; RoleAssignable = @($groups | Where-Object { $_.IsAssignableToRole }).Count; Synced = @($groups | Where-Object { $_.OnPremisesSyncEnabled }).Count; Licensed = @($groups | Where-Object { $_.Licensed }).Count; Dynamic = @($groups | Where-Object { $_.Dynamic }).Count }
 Write-Demo '07-groups-ownerless' @(@{ Id = (Get-DemoId 'e5000000' 9); DisplayName = 'Project - Rail Crossing'; Kind = 'Microsoft 365'; CreatedDateTime = Get-DemoDate 640 }, @{ Id = (Get-DemoId 'e5000000' 10); DisplayName = 'Project - Data Center'; Kind = 'Microsoft 365'; CreatedDateTime = Get-DemoDate 410 })
 Write-Demo '07-groups-ownerless-summary' @{ UnifiedGroups = 18; Ownerless = 2 }
 

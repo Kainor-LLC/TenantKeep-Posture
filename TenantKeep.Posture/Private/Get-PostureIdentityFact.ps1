@@ -34,6 +34,8 @@ function Get-PostureIdentityFact {
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
+    # A list of affected objects holds 500 at most; affectedCounts carries how many there are.
+    $affectedCounts = @{}
     $missing = { param([string] $Id, [string] $File) $notEvaluated[$Id] = "$File.json was not collected (run Invoke-PostureCollection, check errors.txt and the scopes)." }
 
     $active = & $load '04-role-assignments-active'
@@ -41,12 +43,8 @@ function Get-PostureIdentityFact {
     $usersSummary = & $load '06-users-summary'
     # The collector's slim files (admins, break-glass candidates, guests) instead of every user; the full list only for
     # runs made before them.
-    $adminRows = & $load '06-users-admins'; $bgRows = & $load '06-users-breakglass-candidates'; $guestRows = & $load '06-users-guests'
-    $users = $null
-    if ($null -eq $adminRows -or $null -eq $bgRows -or $null -eq $guestRows) { $users = & $load '06-users' }
-    if ($null -eq $adminRows) { $adminRows = $users }
-    if ($null -eq $bgRows) { $bgRows = $users }
-    if ($null -eq $guestRows -and $null -ne $users) { $guestRows = @($users | Where-Object { $_ -and $_.UserType -eq 'Guest' }) }
+    $adminRows = Get-PostureAdminRow -Folder $Evidence -List Users
+    $bgRows = & $load '06-users-breakglass-candidates'
     $usersByUpn = @{}
     foreach ($u in @($adminRows | Where-Object { $_ })) { if ($u.UserPrincipalName) { $usersByUpn[[string]$u.UserPrincipalName] = $u } }
 
@@ -56,6 +54,11 @@ function Get-PostureIdentityFact {
         param($upn, $name)
         if ($bgNames.Count -gt 0) { return [bool]($bgNames | Where-Object { $_ -eq $upn -or $_ -eq $name }) }
         return ([string]$upn -match '(?i)break.?glass|emergency') -or ([string]$name -match '(?i)break.?glass|emergency')
+    }
+    # A run from before the break-glass candidates file: the accounts that read as break-glass out of all users, a row at a time.
+    if ($null -eq $bgRows) {
+        $found = [System.Collections.Generic.List[object]]::new()
+        if (Read-PostureEvidenceRow -Folder $Evidence -Name '06-users' -OnRow { param($u) if (& $isBreakGlassUser ([string](& $v $u 'UserPrincipalName')) ([string](& $v $u 'DisplayName'))) { $found.Add($u) } }) { $bgRows = $found.ToArray() }
     }
     $privilegedRoles = @('Global Administrator', 'Application Administrator', 'Authentication Administrator', 'Billing Administrator', 'Cloud Application Administrator',
         'Conditional Access Administrator', 'Exchange Administrator', 'Helpdesk Administrator', 'Password Administrator', 'Privileged Authentication Administrator',
@@ -238,14 +241,27 @@ function Get-PostureIdentityFact {
         $affected.highPrivilegeAppPermissions = @($hits | ForEach-Object { [ordered]@{ name = "$($_.PrincipalDisplayName): $($_.Permission)"; detail = "application permission granted $((& $v $_ 'CreatedDateTime'))" } })
     }
 
-    if ($null -eq $usersSummary -or $null -eq $guestRows) { & $missing 'ID-012' '06-users-summary' }
+    # Guests a row at a time: all counted, the first 500 inactive ones kept for the report. A run from before the
+    # guests file reads the guests among all users, still a row at a time.
+    $guestState = @{ n = 0; inactive = 0 }; $inactiveGuests = [System.Collections.Generic.List[object]]::new()
+    $guestCutoff = $AsOf.AddDays(-[int]$t.inactiveGuestDays)
+    $onGuest = {
+        param($g)
+        $guestState.n++
+        $last = & $v $g 'LastInteractiveSignIn'
+        $when = $(if ($last) { ConvertTo-PostureUtcDateTime $last })
+        if ($when -and $when -ge $guestCutoff) { return }
+        $guestState.inactive++
+        if ($inactiveGuests.Count -lt 500) { $inactiveGuests.Add([ordered]@{ name = [string](& $v $g 'UserPrincipalName'); detail = $(if ($when) { "last sign-in $($when.ToString('yyyy-MM-dd'))" } else { 'never signed in' }) }) }
+    }
+    $haveGuests = Read-PostureEvidenceRow -Folder $Evidence -Name '06-users-guests' -OnRow $onGuest
+    if (-not $haveGuests) { $haveGuests = Read-PostureEvidenceRow -Folder $Evidence -Name '06-users' -OnRow { param($u) if ([string](& $v $u 'UserType') -eq 'Guest') { & $onGuest $u } } }
+    if ($null -eq $usersSummary -or -not $haveGuests) { & $missing 'ID-012' '06-users-summary' }
     elseif (-not (& $v $usersSummary 'SignInActivityAvailable')) { $notEvaluated['ID-012'] = 'Sign-in activity was not available (AuditLog.Read.All), so guest inactivity cannot be measured.' }
     else {
-        $cutoff = $AsOf.AddDays(-[int]$t.inactiveGuestDays)
-        $inactive = @($guestRows | Where-Object { $_ -and (-not $_.LastInteractiveSignIn -or (ConvertTo-PostureUtcDateTime $_.LastInteractiveSignIn) -lt $cutoff) })
-        $facts.inactiveGuests = $inactive.Count
-        $facts.guests = @($guestRows | Where-Object { $_ }).Count
-        $affected.inactiveGuests = @($inactive | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = $(if ($_.LastInteractiveSignIn) { "last sign-in $((ConvertTo-PostureUtcDateTime $_.LastInteractiveSignIn).ToString('yyyy-MM-dd'))" } else { 'never signed in' }) } })
+        $facts.inactiveGuests = $guestState.inactive
+        $facts.guests = $guestState.n
+        $affected.inactiveGuests = @($inactiveGuests); $affectedCounts.inactiveGuests = $guestState.inactive
     }
 
     $xtap = & $load '02-cross-tenant-access-defaults'
@@ -263,13 +279,23 @@ function Get-PostureIdentityFact {
     }
     if ($null -eq $xtap) { & $missing 'ID-022' '02-cross-tenant-access-defaults' }
 
-    $risky = & $load '11-risky-users'
-    if ($null -eq $risky) { $notEvaluated['ID-015'] = '11-risky-users.json was not collected (needs Entra ID P2 and IdentityRiskyUser.Read.All).' }
+    # Risky users a row at a time: only those at high risk for longer than the threshold are kept.
+    $riskState = @{ stale = 0 }; $staleRisk = [System.Collections.Generic.List[object]]::new()
+    $riskOld = $AsOf.AddDays(-[int]$t.riskyUserMaxAgeDays)
+    $haveRisky = Read-PostureEvidenceRow -Folder $Evidence -Name '11-risky-users' -OnRow {
+        param($r)
+        if ([string](& $v $r 'RiskLevel') -ne 'high' -or [string](& $v $r 'RiskState') -ne 'atRisk') { return }
+        $updated = & $v $r 'RiskLastUpdatedDateTime'
+        if (-not $updated) { return }
+        $when = ConvertTo-PostureUtcDateTime $updated
+        if ($when -ge $riskOld) { return }
+        $riskState.stale++
+        if ($staleRisk.Count -lt 500) { $staleRisk.Add([ordered]@{ name = [string](& $v $r 'UserPrincipalName'); detail = "high risk since $($when.ToString('yyyy-MM-dd'))" }) }
+    }
+    if (-not $haveRisky) { $notEvaluated['ID-015'] = '11-risky-users.json was not collected (needs Entra ID P2 and IdentityRiskyUser.Read.All).' }
     else {
-        $old = $AsOf.AddDays(-[int]$t.riskyUserMaxAgeDays)
-        $stale = @($risky | Where-Object { $_.RiskLevel -eq 'high' -and $_.RiskState -eq 'atRisk' -and $_.RiskLastUpdatedDateTime -and (ConvertTo-PostureUtcDateTime $_.RiskLastUpdatedDateTime) -lt $old })
-        $facts.highRiskUsersUnaddressed = $stale.Count
-        $affected.highRiskUsersUnaddressed = @($stale | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "high risk since $((ConvertTo-PostureUtcDateTime $_.RiskLastUpdatedDateTime).ToString('yyyy-MM-dd'))" } })
+        $facts.highRiskUsersUnaddressed = $riskState.stale
+        $affected.highRiskUsersUnaddressed = @($staleRisk); $affectedCounts.highRiskUsersUnaddressed = $riskState.stale
     }
 
     # ID-016 from the sign-in log (SignIns collector): who still signs in over a legacy protocol.
@@ -298,5 +324,5 @@ function Get-PostureIdentityFact {
         }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
 }

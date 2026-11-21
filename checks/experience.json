@@ -252,7 +252,14 @@
         "minSsprEnabledPct": 95
       },
       "evidence": [
-        "05-auth-registration.json"
+        "05-auth-registration.json",
+        "05-auth-registration-summary.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "05-auth-registration.json",
+          "05-auth-registration-summary.json"
+        ]
       ],
       "pass": "facts.ssprEnabledPct >= thresholds.minSsprEnabledPct",
       "remediation": [

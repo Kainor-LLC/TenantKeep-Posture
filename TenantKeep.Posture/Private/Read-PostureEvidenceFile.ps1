@@ -1,13 +1,17 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
-# Parsed evidence files, shared by every fact provider and the report model in one evaluation, so a large file
-# (06-users.json for a tenant of hundreds of thousands) is read and parsed once instead of once per domain.
+# Parsed evidence files, shared by every fact provider and the report model in one evaluation, so a file several
+# domains read is parsed once. Only files up to PostureEvidenceCacheLimit are kept: a list with a row per user,
+# device or site is read a row at a time (Read-PostureEvidenceRow), and if something does load one whole it must
+# not stay in memory for the rest of the run.
 $script:PostureEvidenceCache = @{}
+$script:PostureEvidenceCacheLimit = 8MB
 
 function Read-PostureEvidenceFile {
     <#
     .SYNOPSIS
         One evidence file, parsed (hashtables, depth 20): $null when it is missing, an empty array when it is empty.
-        Cached by path, size and write time until Clear-PostureEvidenceCache.
+        Cached by path, size and write time until Clear-PostureEvidenceCache, unless the file is larger than
+        PostureEvidenceCacheLimit (8 MB): that one is parsed again each time it is asked for, and never kept.
     #>
     [CmdletBinding()]
     param(
@@ -25,7 +29,7 @@ function Read-PostureEvidenceFile {
     $text = $null
     # An empty JSON array parses to nothing; keep it distinct from a missing file.
     if ($null -eq $parsed) { $parsed = @() }
-    $script:PostureEvidenceCache[$key] = $parsed
+    if ($item.Length -le $script:PostureEvidenceCacheLimit) { $script:PostureEvidenceCache[$key] = $parsed }
     return , $parsed
 }
 

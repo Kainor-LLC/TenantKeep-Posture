@@ -265,8 +265,16 @@ function Get-PostureEmailFact {
     else {
         $facts.smtpClientAuthDisabled = [bool]((& $v $tc 'SmtpClientAuthenticationDisabled') -eq $true)
         $facts.mailboxesWithPop = [int](& $v $cas 'PopEnabled'); $facts.mailboxesWithImap = [int](& $v $cas 'ImapEnabled'); $facts.mailboxesWithSmtpAuthOverride = [int](& $v $cas 'SmtpAuthExplicitlyEnabled')
-        $casRows = & $load 'exo-10-cas-mailboxes'
-        $affected.legacyProtocolMailboxes = @(& $rows $casRows | Where-Object { $_.PopEnabled -eq $true -or $_.ImapEnabled -eq $true -or $_.SmtpClientAuthenticationDisabled -eq $false } | ForEach-Object { [ordered]@{ name = [string]$_.PrimarySmtpAddress; detail = (@($(if ($_.PopEnabled) { 'POP' }), $(if ($_.ImapEnabled) { 'IMAP' }), $(if ($_.SmtpClientAuthenticationDisabled -eq $false) { 'SMTP AUTH override' })) | Where-Object { $_ }) -join ', ' } })
+        # The mailboxes behind those counts, a row at a time: the first 500 are kept for the report.
+        $legacy = @{ n = 0 }; $legacyList = [System.Collections.Generic.List[object]]::new()
+        $null = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-10-cas-mailboxes' -OnRow {
+            param($m)
+            $pop = Test-PostureTrue (& $v $m 'PopEnabled'); $imap = Test-PostureTrue (& $v $m 'ImapEnabled'); $smtp = [string](& $v $m 'SmtpClientAuthenticationDisabled') -eq 'False'
+            if (-not ($pop -or $imap -or $smtp)) { return }
+            $legacy.n++
+            if ($legacyList.Count -lt 500) { $legacyList.Add([ordered]@{ name = [string](& $v $m 'PrimarySmtpAddress'); detail = (@($(if ($pop) { 'POP' }), $(if ($imap) { 'IMAP' }), $(if ($smtp) { 'SMTP AUTH override' })) | Where-Object { $_ }) -join ', ' }) }
+        }
+        $affected.legacyProtocolMailboxes = @($legacyList); $affectedCounts.legacyProtocolMailboxes = $legacy.n
     }
 
     # Audit (EM-019)

@@ -7,8 +7,9 @@
 # holds the difference in peak memory to a budget. A second pass runs the fact providers one by one and holds what
 # each leaves in memory to a budget of its own, so a failure names the provider.
 #
-# The budgets are ceilings, not targets. They were set from the measurements of 2026-11-21 (peak 374 MB on the
-# demo and 709 MB at 20,000 users; the experience provider keeping 70 MB) and come down as the whole-file reads go.
+# Measured 2026-11-21. Before the large lists were read a row at a time: peak 374 MB on the demo and 709 MB at
+# 20,000 users, the experience provider keeping 70 MB. After: 373 MB and 368 MB, no provider keeping more than
+# 7 MB. The budgets leave room for the difference between machines and runs, not for a list loaded whole.
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
     . (Join-Path $PSScriptRoot 'Fixtures' 'New-PostureScaleEvidence.ps1')
@@ -17,7 +18,7 @@ BeforeAll {
     $script:Users = 20000
     # Megabytes. PeakGrowth: how much higher the report's peak may be at 20,000 users than on the demo.
     # ProviderKeeps: how much one fact provider may leave in memory after it returns.
-    $script:Budget = @{ PeakGrowth = 450; ProviderKeeps = 100 }
+    $script:Budget = @{ PeakGrowth = 100; ProviderKeeps = 25 }
 
     $script:Small = & (Join-Path $PSScriptRoot '..' 'samples' 'demo' 'New-PostureDemoRun.ps1') -Path (Join-Path $script:Root 'small')
     $script:Big = New-PostureScaleEvidence -Path (Join-Path $script:Root 'big') -Users $script:Users

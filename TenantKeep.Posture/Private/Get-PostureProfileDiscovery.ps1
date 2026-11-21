@@ -53,13 +53,14 @@ function Get-PostureProfileDiscovery {
     }
 
     # Platforms
-    $managed = & $load '09-intune-managed-devices'; $entra = & $load '08-entra-devices'
-    if ($null -ne $managed -or $null -ne $entra) {
-        $map = { param([string] $os) switch -Regex ($os) { '^(Windows|WindowsMDM)' { 'windows'; break } '^(macOS|MacMDM|Mac)' { 'macOS'; break } '^(iOS|iPadOS|IPhone|iPhone|iPad)' { 'iOS'; break } '^Android' { 'android'; break } '(?i)linux|ubuntu' { 'linux'; break } default { $null } } }
-        $counts = @{}
-        $all = @(@(& $rows $managed) + @(& $rows $entra))
-        foreach ($d in $all) { $p = & $map ([string](& $v $d 'OperatingSystem')); if ($p) { $counts[$p] = 1 + $(if ($counts.ContainsKey($p)) { $counts[$p] } else { 0 }) } }
-        $total = [Math]::Max(1, $all.Count)
+    # Counted a row at a time: both lists have a row per device.
+    $map = { param([string] $os) switch -Regex ($os) { '^(Windows|WindowsMDM)' { 'windows'; break } '^(macOS|MacMDM|Mac)' { 'macOS'; break } '^(iOS|iPadOS|IPhone|iPhone|iPad)' { 'iOS'; break } '^Android' { 'android'; break } '(?i)linux|ubuntu' { 'linux'; break } default { $null } } }
+    $counts = @{}; $seen = @{ n = 0; personal = 0 }
+    $onDevice = { param($d) $seen.n++; $p = & $map ([string](& $v $d 'OperatingSystem')); if ($p) { $counts[$p] = 1 + $(if ($counts.ContainsKey($p)) { $counts[$p] } else { 0 }) } }
+    $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow { param($d) & $onDevice $d; if ([string](& $v $d 'ManagedDeviceOwnerType') -eq 'personal') { $seen.personal++ } }
+    $haveEntra = Read-PostureEvidenceRow -Folder $Evidence -Name '08-entra-devices' -OnRow $onDevice
+    if ($haveManaged -or $haveEntra) {
+        $total = [Math]::Max(1, $seen.n)
         $facts.platforms = @($counts.Keys | Where-Object { $counts[$_] -ge 5 -or $counts[$_] -ge 0.02 * $total } | Sort-Object)
         $sources.platforms = "09-intune-managed-devices.json and 08-entra-devices.json: $(@($counts.Keys | Sort-Object | ForEach-Object { "$_ $($counts[$_])" }) -join ', ')"
     }
@@ -75,8 +76,8 @@ function Get-PostureProfileDiscovery {
 
     # BYOD
     $mam = & $load '09-intune-app-protection-policies'
-    if ($null -ne $managed -or $null -ne $mam) {
-        $personal = @(& $rows $managed | Where-Object { [string](& $v $_ 'ManagedDeviceOwnerType') -eq 'personal' }).Count
+    if ($haveManaged -or $null -ne $mam) {
+        $personal = $seen.personal
         $assigned = @(& $rows $mam | Where-Object { (& $v $_ 'IsAssigned') -eq $true }).Count
         $facts.byod = $(if ($personal -ge 5) { 'mdm' } elseif ($assigned -gt 0) { 'mam' } else { 'none' })
         $sources.byod = "09-intune-managed-devices.json personal=$personal, 09-intune-app-protection-policies.json assigned=$assigned (mam means a policy is assigned, not that every phone has it)"

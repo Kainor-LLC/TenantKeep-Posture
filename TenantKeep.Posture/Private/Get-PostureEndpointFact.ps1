@@ -38,6 +38,8 @@ function Get-PostureEndpointFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # A list of affected devices holds 500 at most; affectedCounts carries how many there are.
+    $affectedCounts = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Intune; check errors.txt and the scopes)." } }
 
     $catalog = & $load '09-intune-config-profiles-settings-catalog'
@@ -176,51 +178,72 @@ function Get-PostureEndpointFact {
 
     # ---------- Defender effective state (spec 4.11, the other half): what devices are doing, from advanced hunting ----------
     $defMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Defender; needs ThreatHunting.Read.All and Defender for Endpoint)." } }
-    $def = & $load 'def-01-devices'
     # The collector's own record of whether Defender returned every row it has (def-01-devices-summary, since 2026-11-21).
     $short = { param([string] $Summary) $x = & $load $Summary; [bool]($null -ne $x -and (& $v $x 'Truncated') -eq $true) }
     $shortReason = { param([string] $Summary) $x = & $load $Summary; "Defender returned $(& $v $x 'RowsRead') of $(& $v $x 'RowsExpected') device rows, so the list is cut short and devices are missing from it. Collect Defender again (Resume-PostureRun -Collector Defender)." }
-    if ($null -eq $def) { & $defMissing @('EP-019', 'EP-020') 'def-01-devices' }
+    # Defender's device list a row at a time: the onboarded devices by their Entra device id, and the sensors that
+    # are not healthy. The list has a row per device and is never loaded whole.
+    $mde = @{ n = 0; onboarded = 0; unhealthy = 0 }
+    $byAad = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $unhealthy = [System.Collections.Generic.List[object]]::new()
+    $haveDef = Read-PostureEvidenceRow -Folder $Evidence -Name 'def-01-devices' -OnRow {
+        param($x)
+        $mde.n++
+        if ([string](& $v $x 'OnboardingStatus') -ne 'Onboarded') { return }
+        $mde.onboarded++
+        $k = [string](& $v $x 'AadDeviceId'); if ($k) { $null = $byAad.Add($k) }
+        if ([string](& $v $x 'SensorHealthState') -in @('Inactive', 'ImpairedCommunication', 'NoSensorData')) {
+            $mde.unhealthy++
+            if ($unhealthy.Count -lt 500) { $unhealthy.Add([ordered]@{ name = [string](& $v $x 'DeviceName'); detail = "$(& $v $x 'OSPlatform'), sensor $(& $v $x 'SensorHealthState'), last seen $([string](& $v $x 'LastSeen'))" }) }
+        }
+    }
+    if (-not $haveDef) { & $defMissing @('EP-019', 'EP-020') 'def-01-devices' }
     elseif (& $short 'def-01-devices-summary') { foreach ($id in 'EP-019', 'EP-020') { $notEvaluated[$id] = & $shortReason 'def-01-devices-summary' } }
     else {
-        $d = @(& $rows $def)
-        $onboarded = @($d | Where-Object { [string]$_.OnboardingStatus -eq 'Onboarded' })
-        $facts.mdeDevices = $d.Count
-        $facts.mdeOnboarded = $onboarded.Count
+        $facts.mdeDevices = $mde.n
+        $facts.mdeOnboarded = $mde.onboarded
         # Onboarding coverage against the Intune fleet: an Intune device with no onboarded Defender record is the gap. (verify) the join key AadDeviceId = azureADDeviceId
-        $byAad = @{}; foreach ($x in $onboarded) { $k = [string]$x.AadDeviceId; if ($k) { $byAad[$k.ToLowerInvariant()] = $true } }
-        # The Intune fleet a row at a time; only the devices with no onboarded Defender record are kept.
-        $fleet = @{ n = 0 }; $notOnboarded = [System.Collections.Generic.List[object]]::new()
+        # The Intune fleet a row at a time; only the first 500 devices with no onboarded Defender record are kept, and all are counted.
+        $fleet = @{ n = 0; notOnboarded = 0 }; $notOnboarded = [System.Collections.Generic.List[object]]::new()
         $haveManaged = Read-PostureEvidenceRow -Folder $Evidence -Name '09-intune-managed-devices' -OnRow {
             param($_row)
             if ([string]$_row.OperatingSystem -notin @('Windows', 'macOS', 'Linux')) { return }
             $fleet.n++
             $aad = [string]$_row.AzureAdDeviceId
-            if (-not ($aad -and $byAad.ContainsKey($aad.ToLowerInvariant()))) { $notOnboarded.Add($_row) }
+            if ($aad -and $byAad.Contains($aad)) { return }
+            $fleet.notOnboarded++
+            if ($notOnboarded.Count -lt 500) { $notOnboarded.Add([ordered]@{ name = [string]$_row.DeviceName; detail = "$($_row.OperatingSystem), Intune-managed, no onboarded Defender record" }) }
         }
         if ($haveManaged) {
             $facts.mdeFleet = $fleet.n
-            $facts.mdeOnboardedPct = $(if ($fleet.n -gt 0) { [Math]::Round(100.0 * ($fleet.n - $notOnboarded.Count) / $fleet.n, 1) } else { $null })
-            $affected.devicesNotOnboarded = @($notOnboarded | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "$($_.OperatingSystem), Intune-managed, no onboarded Defender record" } })
+            $facts.mdeOnboardedPct = $(if ($fleet.n -gt 0) { [Math]::Round(100.0 * ($fleet.n - $fleet.notOnboarded) / $fleet.n, 1) } else { $null })
+            $affected.devicesNotOnboarded = @($notOnboarded); $affectedCounts.devicesNotOnboarded = $fleet.notOnboarded
             if ($null -eq $facts.mdeOnboardedPct) { $notEvaluated['EP-019'] = 'No Intune-managed Windows, macOS or Linux devices to compare against.' }
         }
         else { $notEvaluated['EP-019'] = '09-intune-managed-devices.json was not collected; the fleet to compare against is unknown.' }
-        $unhealthy = @($onboarded | Where-Object { [string]$_.SensorHealthState -in @('Inactive', 'ImpairedCommunication', 'NoSensorData') })
-        $facts.mdeSensorUnhealthy = $unhealthy.Count
-        $affected.mdeSensorUnhealthy = @($unhealthy | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "$($_.OSPlatform), sensor $($_.SensorHealthState), last seen $([string]$_.LastSeen)" } })
+        $facts.mdeSensorUnhealthy = $mde.unhealthy
+        $affected.mdeSensorUnhealthy = @($unhealthy); $affectedCounts.mdeSensorUnhealthy = $mde.unhealthy
     }
 
-    $av = & $load 'def-02-av-state'
-    if ($null -eq $av) { & $defMissing @('EP-021') 'def-02-av-state' }
+    # Antivirus state, a row at a time. (verify) AvMode: 0 active, 1 passive, 2 disabled, 4 EDR block mode
+    $avState = @{ n = 0; notActive = 0; signatureOld = 0 }; $avNotActive = [System.Collections.Generic.List[object]]::new()
+    $haveAv = Read-PostureEvidenceRow -Folder $Evidence -Name 'def-02-av-state' -OnRow {
+        param($x)
+        $avState.n++
+        $mode = [string](& $v $x 'AvMode')
+        if ($mode -ne '0' -and $mode -ne '') {
+            $avState.notActive++
+            if ($avNotActive.Count -lt 500) { $avNotActive.Add([ordered]@{ name = [string](& $v $x 'DeviceName'); detail = "antivirus mode $mode ($(switch ($mode) { '1' { 'passive' } '2' { 'disabled' } '4' { 'EDR block mode' } default { 'unknown' } }))" }) }
+        }
+        if ([string](& $v $x 'AvIsSignatureUpToDate') -eq 'false') { $avState.signatureOld++ }
+    }
+    if (-not $haveAv) { & $defMissing @('EP-021') 'def-02-av-state' }
     elseif (& $short 'def-02-av-state-summary') { $notEvaluated['EP-021'] = & $shortReason 'def-02-av-state-summary' }
     else {
-        # (verify) AvMode: 0 active, 1 passive, 2 disabled, 4 EDR block mode
-        $a = @(& $rows $av)
-        $notActive = @($a | Where-Object { [string]$_.AvMode -ne '0' -and [string]$_.AvMode -ne '' })
-        $facts.avDevicesReporting = $a.Count
-        $facts.avNotActive = $notActive.Count
-        $affected.avNotActive = @($notActive | ForEach-Object { [ordered]@{ name = [string]$_.DeviceName; detail = "antivirus mode $($_.AvMode) ($(switch ([string]$_.AvMode) { '1' { 'passive' } '2' { 'disabled' } '4' { 'EDR block mode' } default { 'unknown' } }))" } })
-        $facts.avSignatureOutOfDate = @($a | Where-Object { [string]$_.AvIsSignatureUpToDate -eq 'false' }).Count
+        $facts.avDevicesReporting = $avState.n
+        $facts.avNotActive = $avState.notActive
+        $affected.avNotActive = @($avNotActive); $affectedCounts.avNotActive = $avState.notActive
+        $facts.avSignatureOutOfDate = $avState.signatureOld
     }
 
     $cfg = & $load 'def-03-secure-config'
@@ -250,5 +273,5 @@ function Get-PostureEndpointFact {
     if ($null -eq $inc) { & $defMissing @('EP-025') 'def-05-incidents-summary' }
     else { $facts.incidentsActive = [int](& $v $inc 'Active'); $facts.incidentsOpenOver7Days = [int](& $v $inc 'OpenOver7Days'); $facts.incidentsOpenOver7DaysUnassigned = [int](& $v $inc 'OpenOver7DaysUnassigned') }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('09-intune-config-profiles-settings-catalog.json', '09-intune-policy-settings.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('09-intune-config-profiles-settings-catalog.json', '09-intune-policy-settings.json') }
 }

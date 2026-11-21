@@ -98,13 +98,13 @@ function Get-PostureExperienceFact {
     }
 
     # Self-service password reset: members the policy lets reset their own password.
-    $reg = & $load '05-auth-registration'
+    # Counted by the collector in its own pass over the report, or a row at a time for an older run; the report
+    # itself is never loaded (Get-PostureRegistrationTally).
+    $reg = Get-PostureRegistrationTally -Folder $Evidence
     if ($null -eq $reg) { & $missing @('UX-008') '05-auth-registration' 'Entra' }
     else {
-        $members = @(& $rows $reg | Where-Object { [string](& $v $_ 'UserType') -ne 'guest' })
-        $enabled = @($members | Where-Object { Test-PostureTrue (& $v $_ 'IsSsprEnabled') }).Count
-        $facts.ssprEnabledPct = $(if ($members.Count) { [Math]::Round(100.0 * $enabled / $members.Count, 1) } else { $null })
-        if (-not $members.Count) { $notEvaluated['UX-008'] = 'The registration report lists no members, so there is no rate to judge.' }
+        $facts.ssprEnabledPct = $(if ($reg.Users) { [Math]::Round(100.0 * $reg.SsprEnabled / $reg.Users, 1) } else { $null })
+        if (-not $reg.Users) { $notEvaluated['UX-008'] = 'The registration report lists no members, so there is no rate to judge.' }
     }
 
     # The directory as people read it: sign-in name and email the same, display names First Last. A row at a time.

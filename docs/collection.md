@@ -9,7 +9,10 @@ for the manual path, where you open each session yourself.
 original scripts. Read-only. Every step is independent: a permission failure is one line in `errors.txt` and the
 run continues.
 
-A list marked (+csv) is written twice, as a JSON array and as a CSV with the same rows. Dates in the CSV are ISO
+A list marked (+csv) is written twice, as a JSON array and as a CSV with the same rows. Everything that runs
+after collection reads the lists with a row per user, device, group, mailbox or site from the CSV, a row at a
+time, or reads a summary the collector counted while writing the list; none of them is loaded whole, which keeps
+the report's memory about the same on a tenant of 300 users and one of 300,000. Dates in the CSV are ISO
 8601 in UTC (`2026-11-15T02:03:22Z`), the same instant the JSON carries. CSV files written before 2026-11-21 carry
 dates with no zone (`11/15/2026 02:03:22`); those are UTC too, and are read as UTC.
 
@@ -22,11 +25,11 @@ dates with no zone (`11/15/2026 02:03:22`); those are UTC too, and are read as U
 | `04-role-definitions`, `04-role-assignments-active` (+csv), `04-role-assignments-pim-eligible` (+csv), `04-role-assignments-summary` | PIM schedule instances; plain role assignments when PIM is unavailable | Needs RoleManagement.Read.Directory for PIM |
 | `04-role-holders` (+csv), `04-role-holders-summary` | groups/{id}/transitiveMembers for each group that holds a role; PIM for Groups eligibilitySchedules for the same groups where the tenant has PIM | One row per person and role: `Held` is Direct, Eligible, Group or EligibleGroup, with the group and the kind of membership. Every admin set (registration, users, sign-in tallies, the checks, the admins table) reads it. A group that could not be opened is named in the summary (`GroupsNotRead`, `EligibleMembersNotRead`), the step is logged as failed, and the checks that count administrators say what they did not see. Needs Group.Read.All and, for who can join, PrivilegedEligibilitySchedule.Read.AzureADGroup (verify: a Global Reader can read the members of a role-assignable group) |
 | `04-pim-role-policies` (+csv) | roleManagementPolicyAssignments with rules | Activation MFA, justification, max duration, approval per role; feeds ID-006 |
-| `05-auth-registration` (+csv), `05-auth-registration-summary` | userRegistrationDetails report | Needs AuditLog.Read.All and UserAuthenticationMethod.Read.All |
+| `05-auth-registration` (+csv), `05-auth-registration-summary` | userRegistrationDetails report | Needs AuditLog.Read.All and UserAuthenticationMethod.Read.All. The summary carries `Tally` (users, self-service reset enabled, phishable, phishable administrators), counted in the same pass, so the report reads the counts and never the list |
 | `05-per-user-mfa` (+csv), `05-per-user-mfa-summary` | users/{id}/authentication/requirements, batched 20 per request | Legacy per-user MFA state; feeds AU-009. `-SkipPerUserMfa` on very large tenants |
 | `08-entra-devices` (+csv), `08-entra-devices-by-join-os`, `08-entra-devices-stale` | devices | Join type and staleness against StaleDays; feeds the devices domain |
 | `06-users` (+csv), `06-users-summary` | users with signInActivity; retried without it when AuditLog.Read.All is missing | `SignInActivityAvailable` in the summary says which |
-| `07-groups` (+csv) | groups with Kind and Dynamic | |
+| `07-groups` (+csv), `07-groups-summary` | groups with Kind and Dynamic | The summary is counted as the list is written: groups, by kind, role-assignable, synced, licensed, dynamic |
 | `10-app-registrations`, `10-service-principals`, `10-graph-app-permissions`, `10-oauth2-delegated-grants` (+csv) | applications, servicePrincipals, Graph appRoleAssignedTo, oauth2PermissionGrants | Credential expiry and SAML certificate expiry computed |
 | `11-risky-users`, `11-risk-detections-30d` (+csv) | Identity Protection | P2; denied without it and logged |
 | `gov-01-access-reviews` (+csv) | identityGovernance/accessReviews/definitions | Scope queries joined, recurrence; needs AccessReview.Read.All |

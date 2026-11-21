@@ -6,6 +6,18 @@ work landed on main.
 
 ## Unreleased
 
+- The report costs the same memory on a large tenant as on a small one (2026-11-21). Every list with a row per
+  user, device, group, mailbox or site was loaded whole somewhere after collection, and kept in a cache: the
+  report peaked at 10 GB on a made-up tenant of 300,000 users. Each of those reads is now a pass over the CSV a
+  row at a time, or a summary the collector counted while it wrote the list (`05-auth-registration-summary`
+  gains `Tally`, `07-groups-summary` is new, the Defender device lists are written as their shards arrive). At
+  20,000 users the report now peaks where the demo does (368 MB against 373 MB; it was 709 MB), and no fact
+  provider keeps more than 7 MB (the worst kept 70 MB). The scale test's budgets were tightened to hold that, the
+  evidence cache no longer keeps a file over 8 MB, and a test reads the source and fails the build on a
+  whole-file read of one of these lists.
+- More true counts. The lists of devices not onboarded to Defender, unhealthy sensors, antivirus not active,
+  inactive guests, unaddressed high-risk users, legacy protocol mailboxes and per-user MFA accounts keep the
+  first 500 rows; the count beside each is of all of them.
 - Dates in CSV evidence no longer shift with the machine's time zone (2026-11-21). The CSV twin of a list carried
   dates as plain text with no zone, and the reader took them for local time: the same folder read six hours off
   in Chicago and eleven in Sydney, which moved the dates shown in affected lists. The CSV now carries ISO 8601 in
