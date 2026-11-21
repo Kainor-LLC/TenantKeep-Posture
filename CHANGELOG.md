@@ -6,6 +6,14 @@ work landed on main.
 
 ## Unreleased
 
+- The Entra collector holds none of its long lists (2026-11-21). App registrations, service principals, delegated
+  grants, risk detections and ownerless groups are written as their pages arrive. Risky users are the users at
+  risk now: the list used to be everyone who ever had a risk, dismissed and remediated included. PIM for Groups
+  is read twenty groups to a request.
+- A fallback only for the reason it exists. Two reads fall back to a lesser one: users without sign-in activity,
+  and plain role assignments without PIM. They did so on any error, so a timeout wrote the roles with no eligible
+  assignments and the checks read a tenant with none. They now fall back on a refusal or a missing licence and
+  fail the step, with its cause, on anything else.
 - Per-user MFA on a large tenant is a sample, and says so (2026-11-21). Above 5,000 members the collector reads
   every administrator and 1,000 other members at random. When one of them had per-user MFA it then read everyone,
   a request per account, with no checkpoint: hours on a tenant of hundreds of thousands. The sample is now the

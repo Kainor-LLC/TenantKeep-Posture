@@ -37,6 +37,7 @@ BeforeAll {
             '^policies/crossTenantAccessPolicy/partners$' { & $u @(); break }
             '^roleManagement/directory/roleDefinitions' { & $u @(@{ id = 'r-ga'; displayName = 'Global Administrator'; isBuiltIn = $true; isPrivileged = $true; templateId = 'r-ga' }, @{ id = 'r-sec'; displayName = 'Security Administrator'; isBuiltIn = $true; isPrivileged = $true; templateId = 'r-sec' }); break }
             '^roleManagement/directory/roleAssignmentScheduleInstances' {
+                if ($env:TKP_TEST_PIM -eq 'broken') { throw 'Request_BadRequest: Could not find a property named principal on type microsoft.graph.unifiedRoleAssignmentScheduleInstance.' }
                 if ($env:TKP_TEST_PIM -ne 'ok') { throw 'Request_UnsupportedQuery: PIM is not licensed' }
                 & $u @(
                     @{ roleDefinitionId = 'r-ga'; assignmentType = 'Assigned'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'u1'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin One'; userPrincipalName = 'admin1@contoso.example'; onPremisesSyncEnabled = $false } }
@@ -68,7 +69,12 @@ BeforeAll {
             }
             '^\$batch$' {
                 $reqs = ($Body | ConvertFrom-Json -AsHashtable).requests
-                @{ responses = @($reqs | ForEach-Object { @{ id = $_.id; status = 200; body = @{ perUserMfaState = $(if ($_.url -like '*/u2/*') { 'enforced' } else { 'disabled' }) } } }) }; break
+                # PIM for Groups goes through $batch too: one eligible member in the admins group.
+                @{ responses = @($reqs | ForEach-Object {
+                            if ($_.url -like '*privilegedAccess/group/eligibilitySchedules*') { @{ id = $_.id; status = 200; body = @{ value = @(@{ id = 'es1'; groupId = 'grp-admins'; accessId = 'member'; principalId = 'u1'; status = 'Provisioned'; memberType = 'Direct' }) } } }
+                            else { @{ id = $_.id; status = 200; body = @{ perUserMfaState = $(if ($_.url -like '*/u2/*') { 'enforced' } else { 'disabled' }) } } }
+                        })
+                }; break
             }
             '^devices\?' {
                 & $u @(
@@ -333,6 +339,15 @@ Describe 'Invoke-PostureCollection' {
             @(& $script:Read '05-auth-registration-admins' | ForEach-Object { $_.UserPrincipalName }) | Should -Be @('admin1@contoso.example', 'admin2@contoso.example', 'user1@contoso.example') -Because 'User One is in the group that holds Security Administrator'
         }
 
+        It 'asks Identity Protection for the users at risk now, not for everyone who ever was' {
+            @($script:R.Errors | Where-Object { $_ -like "Risky users ::*riskyUsers*riskState eq 'atRisk'*" }).Count | Should -Be 1 -Because 'the synthetic tenant refuses the read, and the refusal names the request'
+        }
+
+        It 'reads PIM for Groups for every role-assignable group in one batch' {
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 1 -Exactly -Scope Context -ParameterFilter { $Uri -eq 'https://graph.microsoft.com/v1.0/$batch' -and $Method -eq 'POST' -and ([string]$Body -match 'eligibilitySchedules') }
+            (& $script:Read 'gov-04-pim-groups-summary').GroupsRead | Should -Be (& $script:Read 'gov-04-pim-groups-summary').RoleAssignableGroups
+        }
+
         It 'collects the governance reads: reviews with their scope queries, packages, workflows, PIM groups, administrative units' {
             $ar = @(& $script:Read 'gov-01-access-reviews')
             $ar.Count | Should -Be 3
@@ -547,6 +562,22 @@ Describe 'Invoke-PostureCollection' {
                 $s.eligible | Should -Be 0
                 $r.Collectors | Should -Be @('Entra')
                 Join-Path $r.Folder 'policies.json' | Should -Not -Exist
+            }
+            finally { $env:TKP_TEST_PIM = 'ok' }
+        }
+    }
+
+    Context 'the role read fails for a reason that is not a refusal or a licence' {
+        It 'fails the step with its cause, and does not fall back to a list without the eligible assignments' {
+            # An error is not "this tenant has no PIM": falling back would write the roles without the eligible ones
+            # and every check on them would read a tenant with none.
+            $env:TKP_TEST_PIM = 'broken'
+            try {
+                $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'pimbroken') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue
+                @($r.Errors | Where-Object { $_ -like 'Role assignments :: Request_BadRequest*' }).Count | Should -Be 1
+                Join-Path $r.Folder '04-role-assignments-active.json' | Should -Not -Exist
+                Join-Path $r.Folder '04-role-assignments-summary.json' | Should -Not -Exist
+                Join-Path $r.Folder '04-role-holders.json' | Should -Not -Exist -Because 'there are no assignments to open'
             }
             finally { $env:TKP_TEST_PIM = 'ok' }
         }

@@ -29,6 +29,25 @@ function Invoke-PostureEntraCollection {
     $save = { param($Data, [string] $Name, [bool] $Csv = $false) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data -AsArray -Csv:$Csv)) }
     $saveOne = { param($Data, [string] $Name) $files.Add((Write-PostureEvidence -Folder $Folder -Name $Name -InputObject $Data)) }
     $get = { param([string] $Uri, [string] $Api = 'v1.0') @(Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api) }
+    # A list written a row at a time as its pages arrive, so none of it is held: -Row turns one Graph item ($_) into
+    # the row to write, or into nothing to leave the item out. Returns how many rows were written.
+    $streamed = {
+        param([string] $Uri, [string] $Name, [scriptblock] $Row, [string] $Api = 'v1.0')
+        $written = @{ n = 0 }
+        $stream = Open-PostureEvidenceStream -Folder $Folder -Name $Name -Csv -Confirm:$false
+        try {
+            $null = Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api -Label $Name -OnPage {
+                param($page)
+                foreach ($item in $page) { $r = ForEach-Object -InputObject $item -Process $Row; if ($r) { Add-PostureEvidenceRow -Stream $stream -Row $r; $written.n++ } }
+            }
+            $files.Add((Close-PostureEvidenceStream -Stream $stream))
+        }
+        catch { Stop-PostureEvidenceStream -Stream $stream -Confirm:$false; throw }
+        $written.n
+    }
+    # A refusal or a licence the tenant does not have: the two reasons a read falls back to a lesser one. Anything
+    # else (a timeout, throttling that outlasted the retries, a server error) is the step's failure, with its cause.
+    $refusal = { param($e) (Get-PostureHttpStatus -ErrorRecord $e) -eq 403 -or [string]$e.Exception.Message -match '(?i)Authorization_RequestDenied|Forbidden|AccessDenied|insufficient privileges|PermissionScopeNotGranted|licen[cs]e|not licensed|premium|RequestFromNonPremiumTenant' }
     $one = { param([string] $Uri, [string] $Api = 'v1.0') Invoke-PostureGraphRequest -Uri $Uri -ApiVersion $Api -Single }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $cutoff = $AsOf.AddDays(-$StaleDays)
@@ -153,6 +172,7 @@ function Invoke-PostureEntraCollection {
             $eligibleRows = & $get 'roleManagement/directory/roleEligibilityScheduleInstances?$expand=principal'
         }
         catch {
+            if (-not (& $refusal $_)) { throw }
             Write-Warning "PIM schedule instances unavailable ($($_.Exception.Message)); falling back to roleAssignments (no eligibility data)."
             $active = & $get 'roleManagement/directory/roleAssignments?$expand=principal'
             $eligibleRows = @(); $source = 'roleAssignments'
@@ -407,6 +427,7 @@ function Invoke-PostureEntraCollection {
         }
         try { & $read "$base,signInActivity" }
         catch {
+            if (-not (& $refusal $_)) { throw }
             Write-Warning "Users with signInActivity failed ($($_.Exception.Message)); reading them again without it (needs AuditLog.Read.All and Entra ID P1)."
             foreach ($k in @($c.Keys)) { $c[$k] = 0 }
             $planUse.Clear(); $licensing.enabled = 0
@@ -508,10 +529,13 @@ function Invoke-PostureEntraCollection {
 
     Invoke-PostureStep -Label 'Ownerless Microsoft 365 groups' -Folder $Folder -Script {
         # Owners expanded with ids only; a group with none is a team or site nobody can administer.
-        $unified = & $get 'groups?$filter=groupTypes/any(c:c eq ''Unified'')&$select=id,displayName,createdDateTime,visibility&$expand=owners($select=id)'
-        $rows = @($unified | Where-Object { @(& $v $_ 'owners').Count -eq 0 } | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); CreatedDateTime = (& $v $_ 'createdDateTime'); Visibility = (& $v $_ 'visibility') } })
-        & $save $rows '07-groups-ownerless' $true
-        & $saveOne ([ordered]@{ UnifiedGroups = @($unified).Count; Ownerless = $rows.Count }) '07-groups-ownerless-summary'
+        # Paged; a group with owners is counted and let go.
+        $seen = @{ unified = 0 }
+        $ownerless = & $streamed 'groups?$filter=groupTypes/any(c:c eq ''Unified'')&$select=id,displayName,createdDateTime,visibility&$expand=owners($select=id)' '07-groups-ownerless' {
+            $seen.unified++
+            if (@(& $v $_ 'owners').Count -eq 0) { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); CreatedDateTime = (& $v $_ 'createdDateTime'); Visibility = (& $v $_ 'visibility') } }
+        }
+        & $saveOne ([ordered]@{ UnifiedGroups = $seen.unified; Ownerless = $ownerless }) '07-groups-ownerless-summary'
     } | Out-Null
 
     # Streamed; only the role-assignable groups are kept, for the PIM for Groups step.
@@ -580,34 +604,30 @@ function Invoke-PostureEntraCollection {
 
     # ---------- 10. Applications and service principals ----------
     Invoke-PostureStep -Label 'App registrations' -Folder $Folder -Script {
-        $apps = & $get 'applications?$select=id,appId,displayName,signInAudience,createdDateTime,passwordCredentials,keyCredentials,publisherDomain&$top=999'
-        $flat = @($apps | ForEach-Object {
-                $ends = @(@(& $v $_ 'passwordCredentials') + @(& $v $_ 'keyCredentials') | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ })
-                [ordered]@{
-                    Id = $_.id; AppId = $_.appId; DisplayName = (& $v $_ 'displayName'); SignInAudience = (& $v $_ 'signInAudience'); PublisherDomain = (& $v $_ 'publisherDomain'); CreatedDateTime = (& $v $_ 'createdDateTime')
-                    Secrets = @(& $v $_ 'passwordCredentials').Count; Certs = @(& $v $_ 'keyCredentials').Count
-                    EarliestExpiry = $(if ($ends.Count -gt 0) { ($ends | Sort-Object | Select-Object -First 1).ToString('o') } else { $null })
-                    ExpiredCredentials = @($ends | Where-Object { $_ -lt $AsOf }).Count
-                }
-            })
-        & $save $flat '10-app-registrations' $true
+        $null = & $streamed 'applications?$select=id,appId,displayName,signInAudience,createdDateTime,passwordCredentials,keyCredentials,publisherDomain&$top=999' '10-app-registrations' {
+            $ends = @(@(& $v $_ 'passwordCredentials') + @(& $v $_ 'keyCredentials') | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ })
+            [ordered]@{
+                Id = $_.id; AppId = $_.appId; DisplayName = (& $v $_ 'displayName'); SignInAudience = (& $v $_ 'signInAudience'); PublisherDomain = (& $v $_ 'publisherDomain'); CreatedDateTime = (& $v $_ 'createdDateTime')
+                Secrets = @(& $v $_ 'passwordCredentials').Count; Certs = @(& $v $_ 'keyCredentials').Count
+                EarliestExpiry = $(if ($ends.Count -gt 0) { ($ends | Sort-Object | Select-Object -First 1).ToString('o') } else { $null })
+                ExpiredCredentials = @($ends | Where-Object { $_ -lt $AsOf }).Count
+            }
+        }
     } | Out-Null
     Invoke-PostureStep -Label 'Service principals' -Folder $Folder -Script {
         $tenantId = [string](Get-MgContext).TenantId
-        $sps = & $get 'servicePrincipals?$select=id,appId,displayName,accountEnabled,servicePrincipalType,appOwnerOrganizationId,preferredSingleSignOnMode,signInAudience,tags,keyCredentials,passwordCredentials,createdDateTime,appRoleAssignmentRequired&$expand=owners($select=id)&$top=999'
-        $flat = @($sps | ForEach-Object {
-                $ends = @(@(& $v $_ 'passwordCredentials') + @(& $v $_ 'keyCredentials') | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ })
-                $saml = @(@(& $v $_ 'keyCredentials') | Where-Object { (& $v $_ 'usage') -eq 'Verify' } | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ } | Sort-Object | Select-Object -First 1)
-                [ordered]@{
-                    Id = $_.id; AppId = $_.appId; DisplayName = (& $v $_ 'displayName'); AccountEnabled = (& $v $_ 'accountEnabled'); ServicePrincipalType = (& $v $_ 'servicePrincipalType')
-                    AppOwnerOrganizationId = (& $v $_ 'appOwnerOrganizationId'); PreferredSingleSignOnMode = (& $v $_ 'preferredSingleSignOnMode'); SignInAudience = (& $v $_ 'signInAudience')
-                    AppRoleAssignmentRequired = (& $v $_ 'appRoleAssignmentRequired'); CreatedDateTime = (& $v $_ 'createdDateTime')
-                    HomeTenantApp = ([string](& $v $_ 'appOwnerOrganizationId') -eq $tenantId); IsEnterpriseAppListed = (@(& $v $_ 'tags') -contains 'WindowsAzureActiveDirectoryIntegratedApp')
-                    SamlCertExpiry = $(if ($saml.Count -gt 0) { $saml[0].ToString('o') } else { $null }); HasExpiredCreds = (@($ends | Where-Object { $_ -lt $AsOf }).Count -gt 0)
-                    OwnerCount = @(@(& $v $_ 'owners') | Where-Object { $_ }).Count   # owners expanded with ids only (Graph caps it at 20); an absent property is zero, not a one-element array of null
-                }
-            })
-        & $save $flat '10-service-principals' $true
+        $null = & $streamed 'servicePrincipals?$select=id,appId,displayName,accountEnabled,servicePrincipalType,appOwnerOrganizationId,preferredSingleSignOnMode,signInAudience,tags,keyCredentials,passwordCredentials,createdDateTime,appRoleAssignmentRequired&$expand=owners($select=id)&$top=999' '10-service-principals' {
+            $ends = @(@(& $v $_ 'passwordCredentials') + @(& $v $_ 'keyCredentials') | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ })
+            $saml = @(@(& $v $_ 'keyCredentials') | Where-Object { (& $v $_ 'usage') -eq 'Verify' } | ForEach-Object { & $date (& $v $_ 'endDateTime') } | Where-Object { $_ } | Sort-Object | Select-Object -First 1)
+            [ordered]@{
+                Id = $_.id; AppId = $_.appId; DisplayName = (& $v $_ 'displayName'); AccountEnabled = (& $v $_ 'accountEnabled'); ServicePrincipalType = (& $v $_ 'servicePrincipalType')
+                AppOwnerOrganizationId = (& $v $_ 'appOwnerOrganizationId'); PreferredSingleSignOnMode = (& $v $_ 'preferredSingleSignOnMode'); SignInAudience = (& $v $_ 'signInAudience')
+                AppRoleAssignmentRequired = (& $v $_ 'appRoleAssignmentRequired'); CreatedDateTime = (& $v $_ 'createdDateTime')
+                HomeTenantApp = ([string](& $v $_ 'appOwnerOrganizationId') -eq $tenantId); IsEnterpriseAppListed = (@(& $v $_ 'tags') -contains 'WindowsAzureActiveDirectoryIntegratedApp')
+                SamlCertExpiry = $(if ($saml.Count -gt 0) { $saml[0].ToString('o') } else { $null }); HasExpiredCreds = (@($ends | Where-Object { $_ -lt $AsOf }).Count -gt 0)
+                OwnerCount = @(@(& $v $_ 'owners') | Where-Object { $_ }).Count   # owners expanded with ids only (Graph caps it at 20); an absent property is zero, not a one-element array of null
+            }
+        }
     } | Out-Null
     Invoke-PostureStep -Label 'Graph application permissions' -Folder $Folder -Script {
         $graphSp = @(& $get "servicePrincipals?`$filter=appId eq '00000003-0000-0000-c000-000000000000'&`$select=id,appRoles")[0]
@@ -617,22 +637,19 @@ function Invoke-PostureEntraCollection {
         & $save $flat '10-graph-app-permissions' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Delegated OAuth2 grants' -Folder $Folder -Script {
-        $grants = & $get 'oauth2PermissionGrants?$top=999'
-        $flat = @($grants | ForEach-Object { [ordered]@{ ClientId = (& $v $_ 'clientId'); ConsentType = (& $v $_ 'consentType'); PrincipalId = (& $v $_ 'principalId'); ResourceId = (& $v $_ 'resourceId'); Scope = (& $v $_ 'scope') } })
-        & $save $flat '10-oauth2-delegated-grants' $true
+        # Every delegated grant, hundreds of thousands where user consent was ever open: written as the pages arrive.
+        $null = & $streamed 'oauth2PermissionGrants?$top=999' '10-oauth2-delegated-grants' { [ordered]@{ ClientId = (& $v $_ 'clientId'); ConsentType = (& $v $_ 'consentType'); PrincipalId = (& $v $_ 'principalId'); ResourceId = (& $v $_ 'resourceId'); Scope = (& $v $_ 'scope') } }
     } | Out-Null
 
     # ---------- 11. Identity Protection (P2; fails gracefully) ----------
     Invoke-PostureStep -Label 'Risky users' -Folder $Folder -Script {
-        $rows = & $get 'identityProtection/riskyUsers?$top=500'
-        $flat = @($rows | ForEach-Object { [ordered]@{ UserPrincipalName = (& $v $_ 'userPrincipalName'); RiskLevel = (& $v $_ 'riskLevel'); RiskState = (& $v $_ 'riskState'); RiskDetail = (& $v $_ 'riskDetail'); RiskLastUpdatedDateTime = (& $v $_ 'riskLastUpdatedDateTime'); IsDeleted = (& $v $_ 'isDeleted'); IsProcessing = (& $v $_ 'isProcessing') } })
-        & $save $flat '11-risky-users' $true
+        # The users at risk now, not everyone who ever had a risk: the list is the open cases, which is what ID-015
+        # and the chart read. Remediated and dismissed users stay out of it.
+        $null = & $streamed "identityProtection/riskyUsers?`$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'&`$top=500" '11-risky-users' { [ordered]@{ UserPrincipalName = (& $v $_ 'userPrincipalName'); RiskLevel = (& $v $_ 'riskLevel'); RiskState = (& $v $_ 'riskState'); RiskDetail = (& $v $_ 'riskDetail'); RiskLastUpdatedDateTime = (& $v $_ 'riskLastUpdatedDateTime'); IsDeleted = (& $v $_ 'isDeleted'); IsProcessing = (& $v $_ 'isProcessing') } }
     } | Out-Null
     Invoke-PostureStep -Label 'Risk detections' -Folder $Folder -Script {
         $since = $AsOf.AddDays(-$RiskDetectionDays).ToString('yyyy-MM-ddTHH:mm:ssZ')
-        $rows = & $get "identityProtection/riskDetections?`$filter=activityDateTime ge $since&`$top=500"
-        $flat = @($rows | ForEach-Object { [ordered]@{ UserPrincipalName = (& $v $_ 'userPrincipalName'); RiskEventType = (& $v $_ 'riskEventType'); RiskLevel = (& $v $_ 'riskLevel'); RiskState = (& $v $_ 'riskState'); RiskDetail = (& $v $_ 'riskDetail'); DetectionTimingType = (& $v $_ 'detectionTimingType'); ActivityDateTime = (& $v $_ 'activityDateTime'); IPAddress = (& $v $_ 'ipAddress'); Country = (& $v $_ 'location.countryOrRegion') } })
-        & $save $flat "11-risk-detections-$($RiskDetectionDays)d" $true
+        $null = & $streamed "identityProtection/riskDetections?`$filter=activityDateTime ge $since&`$top=500" "11-risk-detections-$($RiskDetectionDays)d" { [ordered]@{ UserPrincipalName = (& $v $_ 'userPrincipalName'); RiskEventType = (& $v $_ 'riskEventType'); RiskLevel = (& $v $_ 'riskLevel'); RiskState = (& $v $_ 'riskState'); RiskDetail = (& $v $_ 'riskDetail'); DetectionTimingType = (& $v $_ 'detectionTimingType'); ActivityDateTime = (& $v $_ 'activityDateTime'); IPAddress = (& $v $_ 'ipAddress'); Country = (& $v $_ 'location.countryOrRegion') } }
     } | Out-Null
 
     $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'
@@ -674,10 +691,15 @@ function Invoke-PostureEntraCollection {
         # limit is 500 per tenant (verify)). Every one is read; the summary says how many, so a short read is never
         # taken for all.
         $candidates = @($groupRows | Where-Object { $_ -and $_.IsAssignableToRole -eq $true })
-        $sched = @(foreach ($g in $candidates) { & $get "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$($g.Id)'&`$select=id,groupId,accessId,principalId,status,memberType" })
+        # Twenty groups to a request ($batch). A group whose read is refused counts as not read, and the step fails
+        # after the others are written, so one group never costs the rest.
+        $answers = @(Invoke-PostureGraphBatch -Url @($candidates | ForEach-Object { "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$($_.Id)'&`$select=id,groupId,accessId,principalId,status,memberType" }) -ApiVersion 'v1.0' -Label 'PIM for Groups')
+        $refused = @($answers | Where-Object { $_.status -ge 400 -or $_.status -eq 0 })
+        $sched = @($answers | Where-Object { $_.status -gt 0 -and $_.status -lt 400 } | ForEach-Object { @(Get-PostureValue $_.body 'value') } | Where-Object { $_ })
         $rows = @($sched | ForEach-Object { [ordered]@{ Id = $_.id; GroupId = (& $v $_ 'groupId'); AccessId = (& $v $_ 'accessId'); PrincipalId = (& $v $_ 'principalId'); Status = (& $v $_ 'status'); MemberType = (& $v $_ 'memberType') } })
         & $save $rows 'gov-04-pim-groups' $true
-        & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count; RoleAssignableGroups = $candidates.Count; GroupsRead = $candidates.Count }) 'gov-04-pim-groups-summary'
+        & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count; RoleAssignableGroups = $candidates.Count; GroupsRead = $candidates.Count - $refused.Count }) 'gov-04-pim-groups-summary'
+        if ($refused.Count -gt 0) { throw "PIM for Groups could not be read for $($refused.Count) of $($candidates.Count) role-assignable groups: $($refused[0].status) $($refused[0].error)" }
     } | Out-Null
     Invoke-PostureStep -Label 'Administrative units' -Folder $Folder -Script {
         # AdministrativeUnit.Read.All
