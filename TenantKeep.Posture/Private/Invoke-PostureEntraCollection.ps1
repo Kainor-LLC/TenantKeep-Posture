@@ -90,8 +90,8 @@ function Invoke-PostureEntraCollection {
 
     Invoke-PostureStep -Label 'System-preferred MFA' -Folder $Folder -Script {
         # Only the beta endpoint returns systemCredentialPreferences (Microsoft offering each person their strongest
-        # registered method first).
-        $p = & $one 'policies/authenticationMethodsPolicy?$select=systemCredentialPreferences' 'beta'
+        # registered method first). The whole policy, not $select: Graph answered 400 to the $select on Kainor, 2026-11-21.
+        $p = & $one 'policies/authenticationMethodsPolicy' 'beta'
         & $saveOne ([ordered]@{ State = (& $v $p 'systemCredentialPreferences.state') }) '02-auth-system-preferred'
     } | Out-Null
 
