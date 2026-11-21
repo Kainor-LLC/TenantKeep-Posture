@@ -23,7 +23,12 @@ function Get-PostureEntitlement {
     )
     $ErrorActionPreference = 'Stop'
     $override = Get-Variable -Name PostureEntitlementOverride -Scope Script -ValueOnly -ErrorAction SilentlyContinue
-    if ($override) { return @{ licensed = $true; tier = [string]$override.tier; domains = '*'; reason = "Entitlement override: $($override.source)"; source = 'override'; licence = $null } }
+    if ($override) {
+        $given = { param([string] $Key) if ($override -is [System.Collections.IDictionary] -and $override.Contains($Key)) { [string]$override[$Key] } else { $null } }
+        # The demo build names a customer and an expiry for the report header; the tests name neither.
+        $shown = $(if (& $given 'customer') { @{ customer = (& $given 'customer'); expiresUtc = (& $given 'expiresUtc'); licenceId = (& $given 'licenceId') } } else { $null })
+        return @{ licensed = $true; tier = [string]$override.tier; domains = '*'; reason = "Entitlement override: $($override.source)"; source = 'override'; licence = $shown }
+    }
 
     $read = { param([string] $Name) $f = Join-Path $Evidence "$Name.json"; if (Test-Path -LiteralPath $f) { try { Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $null } } }
     $meta = & $read 'collection'; if (-not $meta) { $meta = & $read 'metadata' }

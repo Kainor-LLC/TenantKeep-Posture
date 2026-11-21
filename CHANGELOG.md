@@ -6,6 +6,16 @@ work landed on main.
 
 ## Unreleased
 
+- A sample report from a made-up tenant (2026-11-21): `samples/demo/New-PostureDemoRun.ps1` writes a complete run for
+  Fernquill Engineering, an invented 400-person cloud-only E5 organisation (reserved example domains, a seeded
+  generator, the anonymized Conditional Access sample), with its client profile and one accepted risk.
+  `build.ps1 -Task Demo` renders its report and the website's screenshots with headless Edge or Chrome; public
+  screenshots come from here and nowhere else. A new test runs every fact provider over it, so a provider that stops
+  on a missing field fails the build.
+- The security review no longer says releases are Authenticode-signed (2026-11-21): they carry the signed integrity
+  manifest, and Authenticode follows once the signing account is validated; until then the zip is named unsigned.
+- Flow charts size their label columns from the longest label (2026-11-21): a label such as "Passkey, key or Windows
+  Hello 348" was cut off at the right edge.
 - Weekly upkeep (2026-11-20): `build.ps1 -Task Upkeep` reports what has gone stale in the shipped data (Microsoft's
   licensing list against bundles.json, a newer ATT&CK release or a withdrawn mapped technique, newer versions of the
   modules the collectors were tested with, catalog Learn links that no longer answer, licensing files past their review

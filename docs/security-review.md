@@ -13,7 +13,7 @@ run afterwards in your own logs. Everything here can be confirmed in the source,
 | Does it store credentials? | No. It signs in as the administrator running it, with delegated permissions, and keeps the tokens in memory for the run. The apps it signs in to have no secrets or certificates. |
 | Can it act on its own? | No. Every token belongs to the signed-in administrator and is bounded by that person's own roles. The optional Azure Automation deployment runs as a managed identity in your subscription. |
 | Can we read the code? | Yes. The repository is public under PolyForm Shield 1.0.0: read it, run it, change it. |
-| Is the release what Kainor published? | Releases are Authenticode-signed by Kainor LLC through Azure Artifact Signing and carry a signed integrity manifest the module checks when it loads. The report header says whether the running copy is a signed release, a development copy or a modified one. |
+| Is the release what Kainor published? | Every release carries an integrity manifest signed with Kainor's key, listing every file with its hash; the module checks it when it loads, and the report header says whether the running copy is a release, a development copy or a modified one. Authenticode signing through Azure Artifact Signing starts once Microsoft finishes validating Kainor's signing account; until then the release zip says unsigned in its name. |
 
 ## How a run works
 
@@ -62,8 +62,9 @@ run) and what the record shows afterwards (below).
   POSTs that are reads with the question in the body, each marked in the code: Graph batches of reads, advanced
   hunting queries, directory lookups by id, and the Cost Management cost query. The same tests fail on a SharePoint,
   Teams or Exchange command that is not a read, and on any connection made outside the sign-in code.
-- **Releases are signed and checked.** The integrity manifest lists every file with its hash, signed with Kainor's key;
-  the module checks it when it loads and the report says what it found.
+- **Releases are checked when they load.** The integrity manifest lists every file with its hash, signed with Kainor's
+  key; the module checks it when it loads and the report says what it found. Authenticode signatures on every file
+  follow once the signing account is validated (until then the zip is named unsigned).
 - **The only tenant writes in the repository** are the customer-side setup scripts under `deploy/setup/` (adding the
   apps, granting roles). Your administrator runs them knowingly; the module never does.
 

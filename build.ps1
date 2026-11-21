@@ -8,7 +8,8 @@
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
   (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), Upkeep (a
   report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Learn links; run weekly on
-  GitHub by .github/workflows/upkeep.yml, never by the module). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
+  GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
+  Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
   manifest is required either way. Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
@@ -23,6 +24,9 @@
   ./build.ps1 -Task AttackData -AttackStix ./enterprise-attack-20.1.json
   # MITRE's STIX bundle for the version checks/catalog.json pins, from github.com/mitre-attack/attack-stix-data
 .EXAMPLE
+  ./build.ps1 -Task Demo
+  # out/demo/fernquill (run folder and report) and out/demo/screens/*.png; screenshots need Edge or Chrome
+.EXAMPLE
   ./build.ps1 -Task Package -CertificatePath ./signing.pfx
   # password from TENANTKEEP_SIGNING_PASSWORD
 .EXAMPLE
@@ -34,7 +38,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'Upkeep')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'Upkeep', 'Demo')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -372,6 +376,41 @@ function Invoke-Upkeep {
     Write-Host "Upkeep: $($findings.Count) finding(s) -> $target"
 }
 
+function Invoke-Demo {
+    # The sample report and the website's screenshots, from the made-up tenant in samples/demo. Never a real tenant:
+    # public screenshots come from here only. The demo carries no licence file, so the full tier is set for the render
+    # alone, the way the tests do, and the header says the data is made up.
+    Write-Task 'Demo'
+    $demo = Join-Path $OutRoot 'demo'
+    if (Test-Path -LiteralPath $demo) { Remove-Item -LiteralPath $demo -Recurse -Force }
+    $run = Join-Path $demo 'fernquill'
+    $made = & (Join-Path $Root 'samples' 'demo' 'New-PostureDemoRun.ps1') -Path $run
+    Import-Module $Manifest -Force
+    & (Get-Module $ModuleName) {
+        $script:PostureEntitlementOverride = @{ licensed = $true; tier = 'full'; customer = 'Fernquill Engineering (demo)'; licenceId = 'demo'; expiresUtc = '2027-12-31T00:00:00Z'; source = 'demo tenant, made-up data' }
+        $script:PostureBuildState = @{ state = 'demo'; detail = 'Sample report: Fernquill Engineering is a made-up tenant and every value in it is invented.'; version = $script:ModuleVersion; changed = @() }
+    }
+    try { $null = New-PostureReport -Evidence $run -Client $made.Client }
+    finally { Remove-Module $ModuleName -Force -ErrorAction SilentlyContinue }
+    $report = Join-Path $run 'report.html'
+    Write-Host "Demo report: $report ($($made.Files) evidence files, $($made.Users) users, $($made.Devices) devices)"
+
+    # Screenshots: headless Edge or Chrome, light theme, one per view.
+    $browser = @($env:TENANTKEEP_BROWSER, '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe', 'C:\Program Files\Google\Chrome\Application\chrome.exe', '/usr/bin/microsoft-edge', '/usr/bin/google-chrome', '/usr/bin/chromium') |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+    if (-not $browser) { Write-Warning 'No Edge or Chrome found (set TENANTKEEP_BROWSER): the report is written, the screenshots are not.'; return }
+    $screens = Join-Path $demo 'screens'
+    New-Item -ItemType Directory -Path $screens -Force | Out-Null
+    # A file URL by hand: [uri] reads a bare Unix path as relative. Each segment escaped, a Windows drive kept as is.
+    $url = 'file:///' + ((($report -replace '\\', '/').TrimStart('/') -split '/' | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [uri]::EscapeDataString($_) } }) -join '/')
+    foreach ($view in 'overview', 'recommendations', 'domains', 'ca', 'attack', 'copilot') {
+        $png = Join-Path $screens "$view.png"
+        & $browser --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferredColorScheme=1 --force-device-scale-factor=2 '--window-size=1280,860' "--screenshot=$png" "$url#$view" 2>$null | Out-Null
+        if (Test-Path -LiteralPath $png) { Write-Host "  $view.png" } else { Write-Warning "No screenshot for $view." }
+    }
+}
+
 function Invoke-Catalog {
     # The public catalog page for the website (CLAUDE.md, Licensing): ids, titles, the narrative and the licence required.
     # No pass logic, no remediation, no framework mappings: those are the product.
@@ -590,7 +629,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -605,6 +644,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Clean', 'Analyze', 'T
         'LicensingData' { Invoke-LicensingData }
         'AttackData' { Invoke-AttackData }
         'Upkeep' { Invoke-Upkeep }
+        'Demo' { Invoke-Demo }
         'Publish' { Invoke-Publish -Stage $stage }
     }
 }

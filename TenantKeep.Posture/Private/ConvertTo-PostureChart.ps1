@@ -134,11 +134,15 @@ function ConvertTo-PostureSankeyChart {
         if ($sum -gt 0) { $scale = [Math]::Min($scale, ($usable - $pad * [Math]::Max(0, $live.Count - 1)) / $sum) }
     }
     if ($scale -eq [double]::MaxValue) { $scale = 0 }
-    $labelW = 190
+    # Room for the first column's labels on the left and the last column's on the right, from their longest
+    # label and count at the 12px label size (about 7px a character), so a long label never runs off the edge.
     $stages = $Column.Count
-    $span = $Width - 2 * $labelW - $nodeW
+    $labelRoom = { param($col) $w = 120; foreach ($n in $col) { $v = & $valueOf $node[[string]$n.id]; if ($v -gt 0) { $w = [Math]::Max($w, 16 + 7 * ("$($n.label) $(Format-PostureChartNumber $v)").Length) } }; [Math]::Min($w, [int]($Width / 3)) }
+    $leftW = & $labelRoom $Column[0]
+    $rightW = & $labelRoom $Column[$stages - 1]
+    $span = $Width - $leftW - $rightW - $nodeW
     for ($i = 0; $i -lt $stages; $i++) {
-        $x = $labelW + $(if ($stages -gt 1) { $span * $i / ($stages - 1) } else { 0 })
+        $x = $leftW + $(if ($stages -gt 1) { $span * $i / ($stages - 1) } else { 0 })
         $y = [double]$top
         foreach ($n in $Column[$i]) {
             $nd = $node[[string]$n.id]; $v = & $valueOf $nd
