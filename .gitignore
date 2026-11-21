@@ -42,3 +42,4 @@ docs/*
 !docs/collection.md
 !docs/scheduling.md
 !docs/profile.md
+!docs/security-review.md

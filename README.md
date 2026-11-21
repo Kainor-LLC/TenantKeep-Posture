@@ -50,7 +50,8 @@ Get-PostureRequirement | Format-Table Name, Installed, Tested, Status      # ser
 Nothing leaves the customer's environment: the licence is a signed file verified offline
 ([docs/licensing.md](docs/licensing.md)), there is no telemetry, and the scheduled deployment runs as a managed
 identity in the customer's own subscription ([docs/scheduling.md](docs/scheduling.md),
-[docs/footprint.md](docs/footprint.md)). How the parts fit: [docs/architecture.md](docs/architecture.md).
+[docs/footprint.md](docs/footprint.md)). How the parts fit: [docs/architecture.md](docs/architecture.md). For a security team deciding whether
+to allow it: [docs/security-review.md](docs/security-review.md).
 
 ## Develop
 

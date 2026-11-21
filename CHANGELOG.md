@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- For a cautious security team (2026-11-20): every request a run sends is counted in logs/calls.json and shown in
+  Run Health under What This Run Did, with a verdict that every call was a read. deploy/verify/Test-PostureReadOnly.ps1
+  checks the tenant's own audit logs (unified audit log, Entra directory audits and sign-ins) for anything the run
+  account changed during the run, without loading the module. docs/security-review.md answers the usual questions:
+  what is read and as whom, where results go, how read-only is enforced, how to check a run, and how to set up the
+  account that runs it.
 - SharePoint without full control by default (2026-11-20): the main app no longer asks for SharePoint
   AllSites.FullControl. The SharePoint checks read Graph's SharePoint settings (read-only) and say exactly which
   settings need the SharePoint admin read. That read now has its own app, TenantKeep Posture for SharePoint, never
