@@ -9,6 +9,10 @@ for the manual path, where you open each session yourself.
 original scripts. Read-only. Every step is independent: a permission failure is one line in `errors.txt` and the
 run continues.
 
+A list marked (+csv) is written twice, as a JSON array and as a CSV with the same rows. Dates in the CSV are ISO
+8601 in UTC (`2026-11-15T02:03:22Z`), the same instant the JSON carries. CSV files written before 2026-11-21 carry
+dates with no zone (`11/15/2026 02:03:22`); those are UTC too, and are read as UTC.
+
 ## What the Entra collector writes
 
 | File | Source | Notes |

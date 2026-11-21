@@ -45,8 +45,14 @@ function Write-PostureEvidence {
         if ($withCsv) {
             if ($items.Count -eq 0) { [System.IO.File]::WriteAllText("$csvPath.part", '', $utf8) }
             else {
-                # Export-Csv wants objects with properties; dictionaries make it throw a null reference.
-                @($items | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]$_ } else { $_ } }) | Export-Csv -Path "$csvPath.part" -NoTypeInformation
+                # Export-Csv wants objects with properties; dictionaries make it throw a null reference. Dates go in
+                # as ISO 8601 UTC text (ConvertTo-PostureCsvDate): Export-Csv would write them with no zone.
+                @(foreach ($item in $items) {
+                        if ($item -isnot [System.Collections.IDictionary]) { $item; continue }
+                        $copy = [ordered]@{}
+                        foreach ($k in $item.get_Keys()) { $val = $item[$k]; $copy[[string]$k] = $(if ($val -is [datetime] -or $val -is [System.DateTimeOffset]) { ConvertTo-PostureCsvDate -Value $val } else { $val }) }
+                        [pscustomobject]$copy
+                    }) | Export-Csv -Path "$csvPath.part"
             }
             [System.IO.File]::Move("$csvPath.part", $csvPath, $true)
         }
@@ -93,6 +99,21 @@ function Open-PostureEvidenceStream {
     return @{ name = $Name; path = $path; csvPath = $csvPath; json = $json; csv = $csvWriter; columns = $null; count = [long]0 }
 }
 
+function ConvertTo-PostureCsvDate {
+    <#
+    .SYNOPSIS
+        A date as the CSV evidence carries it: ISO 8601 in UTC with the Z, to the fraction of a second it has.
+    .DESCRIPTION
+        A date written as plain text has no zone ("11/15/2026 02:03:22"), and whoever reads it back has to guess
+        one. The JSON twin always had the zone; the CSV now says the same thing.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [object] $Value)
+
+    return (ConvertTo-PostureUtcDateTime $Value).ToString('yyyy-MM-ddTHH:mm:ss.FFFFFFFZ', [cultureinfo]::InvariantCulture)
+}
+
 function Add-PostureEvidenceRow {
     <#
     .SYNOPSIS
@@ -108,7 +129,7 @@ function Add-PostureEvidenceRow {
     $Stream.json.Write("`n")
     $Stream.json.Write((ConvertTo-Json -InputObject $Row -Depth 20 -Compress))
     if ($Stream.csv) {
-        $quote = { param($value) $s = $(if ($null -eq $value) { '' } elseif ($value -is [bool]) { $(if ($value) { 'True' } else { 'False' }) } else { [string]$value }); '"' + $s.Replace('"', '""') + '"' }
+        $quote = { param($value) $s = $(if ($null -eq $value) { '' } elseif ($value -is [bool]) { $(if ($value) { 'True' } else { 'False' }) } elseif ($value -is [datetime] -or $value -is [System.DateTimeOffset]) { ConvertTo-PostureCsvDate -Value $value } else { [string]$value }); '"' + $s.Replace('"', '""') + '"' }
         if (-not $Stream.columns) {
             # get_Keys(), not .Keys: on a dictionary PowerShell answers .Keys with the entry named Keys when the row has one.
             $Stream.columns = @($Row.get_Keys())

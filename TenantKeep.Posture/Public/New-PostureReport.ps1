@@ -121,7 +121,7 @@ function New-PostureReport {
         foreach ($r in $withAffected) {
             # People open these in a spreadsheet, and the names come from the tenant (a guest picks their own): no cell may start a formula.
             @($r.affected | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]@{ Name = (ConvertTo-PostureCsvSafeText ([string]$_['name'])); Detail = (ConvertTo-PostureCsvSafeText ([string]$_['detail'])) } } else { [pscustomobject]@{ Name = (ConvertTo-PostureCsvSafeText ([string]$_)); Detail = '' } } }) |
-                Export-Csv -LiteralPath (Join-Path $affectedFolder "$($r.id).csv") -NoTypeInformation -Encoding utf8
+                Export-Csv -LiteralPath (Join-Path $affectedFolder "$($r.id).csv") -Encoding utf8
         }
     }
     $formats = [System.Collections.Generic.List[string]]::new([string[]]$Format)
@@ -152,7 +152,7 @@ function New-PostureReport {
             New-Item -ItemType Directory -Path $shareFolder -Force | Out-Null
             $null = & $render $redacted.report $shareFolder
             $keyPath = Join-Path $checksFolder 'redaction-key.csv'
-            $redacted.key | ConvertTo-PostureCsvSafeRow | Export-Csv -LiteralPath $keyPath -NoTypeInformation -Encoding utf8
+            $redacted.key | ConvertTo-PostureCsvSafeRow | Export-Csv -LiteralPath $keyPath -Encoding utf8
             $written.Add($keyPath)
         }
     }

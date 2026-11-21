@@ -6,6 +6,16 @@ work landed on main.
 
 ## Unreleased
 
+- Dates in CSV evidence no longer shift with the machine's time zone (2026-11-21). The CSV twin of a list carried
+  dates as plain text with no zone, and the reader took them for local time: the same folder read six hours off
+  in Chicago and eleven in Sydney, which moved the dates shown in affected lists. The CSV now carries ISO 8601 in
+  UTC, as the JSON always did, and text with no zone is read as UTC, which also corrects the files already on disk.
+- A scale test on every build. The made-up demo tenant is grown to 20,000 users with the module's own writers,
+  the report runs on both in a fresh process, and the difference in peak memory is held to a budget; a second
+  pass holds what each fact provider leaves in memory to a budget of its own. The budgets start at today's
+  numbers (the report peaks 335 MB higher at 20,000 users than on the demo) and come down as the whole-file reads
+  are removed.
+- No more "Parameter 'NoTypeInformation' is obsolete" warnings on PowerShell 7.7.
 - Catalog 2026.11.0, and a trend that knows the catalog changed (2026-11-21). The first report after this update
   compared with one from before it would have shown checks "started failing" or "resolved" that moved only
   because the check changed. `checks/catalog.json` now records, per version, the checks whose meaning changed and

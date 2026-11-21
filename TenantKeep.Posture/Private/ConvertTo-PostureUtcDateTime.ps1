@@ -7,6 +7,10 @@ function ConvertTo-PostureUtcDateTime {
         ConvertFrom-Json turns ISO 8601 strings into DateTime objects (Kind Local) before module code sees them,
         and raw Graph hashtables keep them as strings. Every date in a document goes through here so it is
         rendered in UTC regardless of the machine's time zone. Returns $null for empty input.
+
+        Text with no zone in it is read as UTC. Every date this module writes is UTC, and the CSV evidence written
+        before 2026-11-21 carries them without a zone ("11/15/2026 02:03:22"): read in the machine's own zone,
+        those shifted by its offset, six hours in Chicago and eleven in Sydney.
     #>
     [CmdletBinding()]
     [OutputType([datetime])]
@@ -24,5 +28,5 @@ function ConvertTo-PostureUtcDateTime {
             default { return [datetime]::SpecifyKind($Value, [System.DateTimeKind]::Utc) }
         }
     }
-    return [System.DateTimeOffset]::Parse([string]$Value, [cultureinfo]::InvariantCulture).UtcDateTime
+    return [System.DateTimeOffset]::Parse([string]$Value, [cultureinfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal).UtcDateTime
 }

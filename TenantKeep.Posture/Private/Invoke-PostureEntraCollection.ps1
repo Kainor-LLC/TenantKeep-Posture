@@ -65,7 +65,7 @@ function Invoke-PostureEntraCollection {
             })
         $files.Add((Write-PostureEvidence -Folder $Folder -Name '01-subscribed-skus' -InputObject $skus -AsArray))
         $skuCsv = Join-Path $Folder '01-subscribed-skus.csv'
-        @($flat | ForEach-Object { [pscustomobject]$_ }) | Export-Csv -Path "$skuCsv.part" -NoTypeInformation
+        @($flat | ForEach-Object { [pscustomobject]$_ }) | Export-Csv -Path "$skuCsv.part"
         [System.IO.File]::Move("$skuCsv.part", $skuCsv, $true)
     } | Out-Null
     Invoke-PostureStep -Label 'Hybrid sync features' -Folder $Folder -Script {
