@@ -391,6 +391,12 @@ function ConvertTo-PostureReportModel {
     foreach ($f in $runHealth.failures) { $runHealth.byCause[$f.causeLabel] = 1 + $(if ($runHealth.byCause.Contains($f.causeLabel)) { $runHealth.byCause[$f.causeLabel] } else { 0 }) }
     $runHealth.retryable = @($runHealth.failures | Where-Object { $_.cause -in 'permission', 'token', 'throttled', 'network', 'unknown', 'module' }).Count
 
+    # The tiers (docs/licensing.md): without the full tier only the Conditional Access domain is assessed, so nothing
+    # drawn straight from the evidence (charts, the inventory beyond CA, administrators, headline figures, Copilot,
+    # licensing) appears either; the checks are limited the same way above.
+    $fullTier = ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')
+    $allowedDomains = @($Entitlement['domains'])
+    if (-not $fullTier) { foreach ($k in @($headline.Keys)) { $headline[$k] = $null } }
     return [ordered]@{
         title        = "Microsoft Security Posture Report: $clientName"
         clientName   = $clientName
@@ -418,11 +424,11 @@ function ConvertTo-PostureReportModel {
         journeys        = @(Get-PostureJourneyResult -Catalog $Catalog -Result @($results))
         doToday         = $doToday
         story           = $story
-        inventory       = @(Get-PostureInventory -Evidence $Evidence)
-        charts          = (Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable) -DomainFacts $(if ($Run.Contains('domains')) { $f = [ordered]@{}; foreach ($k in $Run.domains.Keys) { $f[$k] = $Run.domains[$k].facts }; $f } else { @{} }))
-        admins       = $adminsTable
+        inventory       = @(Get-PostureInventory -Evidence $Evidence | Where-Object { $fullTier -or [string]$_.domain -in $allowedDomains })
+        charts          = $(if (-not $fullTier) { [ordered]@{} } else { Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable) -DomainFacts $(if ($Run.Contains('domains')) { $f = [ordered]@{}; foreach ($k in $Run.domains.Keys) { $f[$k] = $Run.domains[$k].facts }; $f } else { @{} }) })
+        admins       = @(if ($fullTier) { $adminsTable })
         ca           = $ca
-        copilot      = $copilot
+        copilot      = $(if ($fullTier) { $copilot } else { $null })
         trend        = $trend
         crosswalk    = $crosswalk
         attack       = (Get-PostureAttackCoverage -Catalog $Catalog -Result @($results))
@@ -430,8 +436,8 @@ function ConvertTo-PostureReportModel {
         catalogText  = $catalogText
         labels       = $(if ($Catalog.Contains('labels') -and $Catalog['labels']) { $Catalog['labels'] } else { @{ facts = @{}; thresholds = @{} } })
         runHealth    = $runHealth
-        licensing    = $licensing
-        licenseAdvice = $licenseAdvice
+        licensing    = $(if ($fullTier) { $licensing } else { $null })
+        licenseAdvice = $(if ($fullTier) { $licenseAdvice } else { $null })
         runAs        = $runAs
         appendix     = [ordered]@{
             catalogVersion = $Run.catalogVersion; baseline = $Run.baseline; profile = $Run.profile; profilePresent = [bool]$OrgProfile.present

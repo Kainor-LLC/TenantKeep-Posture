@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Tiers enforced across the whole report (2026-11-20): without the full tier, the charts, headline figures,
+  administrators table, Copilot and licensing pages and the non-CA inventory no longer render from the evidence; only
+  the Conditional Access domain is shown, as docs/licensing.md says. Before, the checks were limited but the
+  evidence-driven views were not.
 - More of the report drawn (2026-11-20): the Domains view gains User Experience (three journeys, a new laptop,
   signing in, and mail, each step backed by its check, from the new checks/journeys.json), Network Access (the Global
   Secure Access traffic profiles) and Hybrid (privileged group sizes, key ages and the AD weaknesses attackers look

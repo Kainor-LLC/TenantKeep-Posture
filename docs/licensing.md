@@ -13,7 +13,9 @@ the module does with it.
 | TenantKeep Posture | Every domain in the report, the findings list, the trend, the framework crosswalks | `full` |
 
 Without a valid Full licence the report still generates: the Conditional Access domain is evaluated, every other
-check reads as not evaluated with the licence reason, and the report's header says so.
+check reads as not evaluated with the licence reason, and the report's header says so. Nothing drawn straight from
+the evidence outside Conditional Access appears either: no charts, no headline figures, no administrators table, no
+Copilot or licensing pages, and the Inventory lists the Conditional Access policies only.
 
 
 ### Trial
