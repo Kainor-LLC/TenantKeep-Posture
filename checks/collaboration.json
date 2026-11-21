@@ -476,7 +476,7 @@
       },
       "learn": "https://learn.microsoft.com/microsoftteams/app-centric-management",
       "deepLink": "https://admin.teams.microsoft.com/policies/manage-apps",
-      "narrative": "A Teams app is an OAuth grant plus a surface inside every chat. Allowing all third-party apps lets any user consent to any of them. (verify) app centric management replaces this policy on newer tenants.",
+      "narrative": "A Teams app is an OAuth grant plus a surface inside every chat. Allowing all third-party apps lets any user consent to any of them. Microsoft has been moving tenants to app centric management since April 2025, where each app has its own availability and this policy no longer applies; on those tenants, review in Manage apps which third-party apps are available to everyone.",
       "frameworks": {
         "nist-csf-2": "GV.SC-04",
         "iso27001": "A.5.19",

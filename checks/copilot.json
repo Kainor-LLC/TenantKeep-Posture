@@ -55,7 +55,7 @@
         "code": "C2",
         "hard": true
       },
-      "remediation": "SharePoint Advanced Management comes with Microsoft 365 Copilot licences (verify current bundling) or as an add-on; it carries the oversharing reports and restricted access control.",
+      "remediation": "SharePoint Advanced Management comes with Microsoft 365 Copilot licences or as an add-on; it carries the oversharing reports and restricted access control.",
       "effort": "L",
       "category": "fix",
       "userImpact": {
@@ -522,7 +522,7 @@
       },
       "learn": "https://learn.microsoft.com/purview/dlp-microsoft365-copilot-location-learn-about",
       "deepLink": "https://purview.microsoft.com/dlp/policies",
-      "narrative": "The Copilot DLP location stops Copilot summarising or quoting files that carry the excluded labels. (verify) how the policy exposes that location in PowerShell.",
+      "narrative": "The Copilot DLP location stops Copilot summarising or quoting files that carry the excluded labels. It is the Microsoft 365 Copilot location, offered in custom DLP policies.",
       "frameworks": {
         "nist-csf-2": "PR.DS-01",
         "iso27001": "A.8.12",
@@ -616,7 +616,7 @@
       },
       "learn": "https://learn.microsoft.com/copilot/microsoft-365/microsoft-365-copilot-page",
       "deepLink": "https://admin.microsoft.com/#/copilot",
-      "narrative": "Web grounding, agents and connectors each widen what Copilot can reach. The decisions belong recorded; the API to read them is not there yet (verify).",
+      "narrative": "Web grounding, agents and connectors each widen what Copilot can reach. Microsoft has started to expose these settings to read, in a beta API that covers only a few of them, so the decisions are recorded here until it covers them.",
       "frameworks": {
         "nist-csf-2": "GV.PO-01",
         "iso27001": "A.5.1",

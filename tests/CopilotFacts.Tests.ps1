@@ -77,6 +77,23 @@ Describe 'Restricted SharePoint Search (CP-009)' {
     }
 }
 
+Describe 'DLP for the Copilot location (CP-013)' {
+    It 'gives <Status> for <Case>' -ForEach @(
+        @{ Case = 'the Copilot location id'; Row = @{ Name = 'Copilot'; Enabled = $true; Mode = 'Enable'; Workload = 'Applications'; Locations = '[{"Workload":"Applications","Location":"470f2276-e011-4e9d-a6ec-20768be3a4b0"}]' }; Status = 'pass' }
+        @{ Case = 'the CopilotExperiences plane'; Row = @{ Name = 'Copilot'; Enabled = $true; Mode = 'Enable'; Workload = 'Applications'; EnforcementPlanes = @('CopilotExperiences') }; Status = 'pass' }
+        @{ Case = 'another app location'; Row = @{ Name = 'Apps'; Enabled = $true; Mode = 'Enable'; Workload = 'Applications'; Locations = '[{"Workload":"Applications","Location":"11111111-2222-3333-4444-555555555555"}]' }; Status = 'fail' }
+        @{ Case = 'older evidence with the Applications workload only'; Row = @{ Name = 'Copilot'; Enabled = $true; Mode = 'Enable'; Workload = 'Applications' }; Status = 'pass' }
+        @{ Case = 'a policy in simulation'; Row = @{ Name = 'Copilot'; Enabled = $true; Mode = 'TestWithNotifications'; Workload = 'Applications'; EnforcementPlanes = @('CopilotExperiences') }; Status = 'fail' }
+    ) {
+        $ev = Join-Path $script:Root "ev-dlp-$([guid]::NewGuid().ToString('n'))"
+        Copy-Item -LiteralPath $script:Ev -Destination $ev -Recurse
+        ConvertTo-Json -InputObject @($Row) -Depth 5 | Set-Content -LiteralPath (Join-Path $ev 'pv-02-dlp-policies.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+        $run = Invoke-PostureChecks -Evidence $ev -ProfilePath $script:ProfilePath -Domain copilot -PassThru
+        @($run.results | Where-Object { $_.id -eq 'CP-013' })[0].status | Should -Be $Status
+    }
+}
+
 Describe 'Copilot readiness page' {
     It 'leads with Blocked while a hard gate is not evaluated, lists the gates and the stopgap narrative' {
         $r = New-PostureReport -Evidence $script:Ev -ProfilePath $script:ProfilePath -Format Html, Markdown -OutputPath (Join-Path $script:Root 'out') -PassThru

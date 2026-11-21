@@ -161,8 +161,16 @@ function Get-PostureCopilotFact {
     $dlp = & $load 'pv-02-dlp-policies'
     if ($null -eq $dlp) { $notEvaluated['CP-013'] = 'pv-02-dlp-policies.json was not collected (Purview collector).' }
     else {
-        # The Copilot location shows as the Applications workload on a live tenant (2026-10-15); a value naming Copilot counts too.
-        $copilotDlp = @(& $rows $dlp | Where-Object { $_.Enabled -ne $false -and [string]$_.Mode -match '(?i)^Enable' } | Where-Object { [string]$_.Workload -match '(?i)Applications' -or (@($_.Values | ForEach-Object { [string]$_ }) -join ' ') -match '(?i)copilot' })
+        # Microsoft Learn (New-DlpCompliancePolicy, 2026-11-21): the Copilot location is workload Applications, location
+        # 470f2276-e011-4e9d-a6ec-20768be3a4b0, enforcement plane CopilotExperiences. The location id or the plane decides when
+        # the evidence carries them (verify that Get-DlpCompliancePolicy returns Locations and EnforcementPlanes); older
+        # evidence falls back to the Applications workload, seen on a live tenant 2026-10-15, or a value naming Copilot.
+        $copilotId = '470f2276-e011-4e9d-a6ec-20768be3a4b0'
+        $copilotDlp = @(& $rows $dlp | Where-Object { $_.Enabled -ne $false -and [string]$_.Mode -match '(?i)^Enable' } | Where-Object {
+                $located = (@(Get-PostureValue $_ 'Locations') -join ' ') + ' ' + (@(Get-PostureValue $_ 'EnforcementPlanes') -join ' ')
+                if ($located.Trim()) { $located -match "(?i)$copilotId|CopilotExperiences" }
+                else { [string]$_.Workload -match '(?i)Applications' -or (@($_.Values | ForEach-Object { [string]$_ }) -join ' ') -match '(?i)copilot' }
+            })
         $facts.dlpPoliciesForCopilot = $copilotDlp.Count
     }
 

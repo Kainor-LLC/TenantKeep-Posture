@@ -126,7 +126,7 @@
       ],
       "pass": "facts.windowsRestoreOn",
       "remediation": [
-        "In Intune, Devices, Enrollment, Windows, turn on Show restore page for Windows settings backup and restore (verify the label).",
+        "In Intune, Devices, Enrollment, Windows, select Windows Backup and Restore and set Show restore page to On.",
         "Allow Windows backup on devices through the settings catalog so there is something to restore.",
         "Use user-driven Autopilot; restore does not run in self-deploying mode or on hybrid joined devices."
       ],

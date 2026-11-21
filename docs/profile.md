@@ -16,7 +16,7 @@ New-PostureProfile -Path ~/tenantkeep/clients/contoso/profile.json -Evidence $fo
 
 | Discovered | From | Rule |
 |---|---|---|
-| `licenses` | 01-subscribed-skus | service plans and SKUs, mapped by licensing/features.json and bundles.json; suspended subscriptions do not count; Copilot implies SAM (verify) |
+| `licenses` | 01-subscribed-skus | service plans and SKUs, mapped by licensing/features.json and bundles.json; suspended subscriptions do not count; Copilot implies SAM |
 | `platforms` | 09-intune-managed-devices, 08-entra-devices | a platform with 5 or more devices, or 2% of the fleet (verify the floor) |
 | `identityModel` | 01-organization, 01-domains | sync on means hybrid; a federated domain means hybrid-adfs; Cloud Sync reads as hybrid-connect (verify) |
 | `byod` | 09-intune-managed-devices, 09-intune-app-protection-policies | 5 or more personal devices means mdm; an assigned app protection policy means mam; else none |

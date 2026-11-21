@@ -1158,7 +1158,7 @@
       },
       "learn": "https://learn.microsoft.com/entra/identity/hybrid/how-to-group-source-of-authority-configure",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/AllGroups",
-      "narrative": "Much of what Entra does for groups works only on groups it manages: dynamic membership, role-assignable groups, PIM for Groups, access reviews that remove people, access packages that add them, expiration and naming policies, and owners managing their own members. A group still managed in AD gets none of it, and every change waits for a sync. Microsoft now lets a synced group's source of authority move to Entra without recreating it; users can follow the same way (verify: user source of authority is newer than groups).",
+      "narrative": "Much of what Entra does for groups works only on groups it manages: dynamic membership, role-assignable groups, PIM for Groups, access reviews that remove people, access packages that add them, expiration and naming policies, and owners managing their own members. A group still managed in AD gets none of it, and every change waits for a sync. Microsoft now lets a synced group's source of authority move to Entra without recreating it, and users the same way (Connect Sync 2.5.76.0 or Cloud Sync 1.1.1370.0 and later).",
       "frameworks": {
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.18",

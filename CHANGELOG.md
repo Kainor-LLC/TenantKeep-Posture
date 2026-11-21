@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Six checks checked against Microsoft Learn (2026-11-21), their "(verify)" tags gone from what customers read:
+  SharePoint Advanced Management comes with Copilot licences (CP-002); app centric management replaces Teams app
+  permission policies on tenants Microsoft has moved since April 2025 (CL-014); the Intune label is Windows Backup and
+  Restore, Show restore page (UX-004); users can move their source of authority to Entra like groups, with the sync
+  client versions that allow it (HY-033); Copilot settings have only a beta read API so far (CP-015). CP-013 now
+  recognises the Copilot DLP location by its location id or the CopilotExperiences enforcement plane, which the
+  Purview collector now keeps, instead of any policy on the Applications workload.
 - AZ-026, AZ-027 and AZ-028 no longer pass on nothing (2026-11-21): a subscription without backup vaults, a Sentinel
   workspace or Entra Domain Services now reads as not evaluated with the reason, as AZ-021 does for SQL. Found on the
   first live Azure run.

@@ -328,7 +328,7 @@
       "impliedBy": [
         "copilot"
       ],
-      "note": "(verify) No SharePoint Advanced Management service plan appears in Microsoft's list as of 2026-11-20; Microsoft 365 Copilot licences include it, so Copilot implies it. Add the plan name here once seen on a live tenant.",
+      "note": "No SharePoint Advanced Management service plan appears in Microsoft's list as of 2026-11-20; Microsoft 365 Copilot licences include it (Microsoft Learn, Copilot licence feature overview, checked 2026-11-21), so Copilot implies it. Add the plan name here once seen on a live tenant.",
       "kind": "security"
     },
     {
