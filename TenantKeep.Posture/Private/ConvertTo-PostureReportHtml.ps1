@@ -568,6 +568,18 @@ function ConvertTo-PostureReportHtml {
             & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)<details class=`"tech`"><summary>Microsoft's message</summary><code>$(& $h $f.message)</code></details></td></tr>"
         }
         & $w '</tbody></table>'
+        # For support: each failure as text with the tenant's names taken out, one at a time or all together.
+        $supportBlocks = @($rh.failures | Where-Object { $_.Contains('support') -and $_.support } | ForEach-Object { [string]$_.support })
+        if ($supportBlocks.Count) {
+            & $w '<h3>Send a Failure for Support</h3><p class="hint">Each block says where the step stopped, the request it was making, and Microsoft''s message, with names, addresses and ids taken out. Read it before sending. For every log in the run at once, redacted the same way: <code>Export-PostureDiagnostics</code>.</p>'
+            & $w ('<div class="cmd"><code id="cmd-diagnostics">' + (& $h $rh.diagnostics) + '</code><button type="button" data-copy="cmd-diagnostics">Copy</button></div>')
+            & $w ('<pre class="support-text" id="support-all" hidden>' + (& $h ($supportBlocks -join "`n`n")) + '</pre><p><button type="button" data-copy="support-all">Copy All ' + $supportBlocks.Count + ' for Support</button></p>')
+            $i = 0
+            foreach ($f in @($rh.failures | Where-Object { $_.Contains('support') -and $_.support })) {
+                $i++
+                & $w ('<details class="support"><summary>' + (& $h "$(if ($f.collector) { $f.collector } else { 'Run' }): $($f.step)") + '</summary><pre class="support-text" id="support-' + $i + '">' + (& $h $f.support) + '</pre><button type="button" data-copy="support-' + $i + '">Copy for Support</button></details>')
+            }
+        }
     }
     if ($rh -and $rh.Contains('calls') -and $rh.calls) {
         $cs = $rh.calls

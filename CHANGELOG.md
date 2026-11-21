@@ -6,6 +6,10 @@ work landed on main.
 
 ## Unreleased
 
+- Logs to send for support (2026-11-20): each failed step now records the request it was making, where in the module
+  it stopped, and the module, PowerShell and OS versions. Run Health has a Copy for Support button per failure and
+  for all of them, with names, addresses and ids taken out. Export-PostureDiagnostics zips a run's logs, redacted the
+  same way and without any evidence, into the run's share/ folder.
 - For a cautious security team (2026-11-20): every request a run sends is counted in logs/calls.json and shown in
   Run Health under What This Run Did, with a verdict that every call was a read. deploy/verify/Test-PostureReadOnly.ps1
   checks the tenant's own audit logs (unified audit log, Entra directory audits and sign-ins) for anything the run

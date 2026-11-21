@@ -21,6 +21,7 @@
         'Connect-PostureSession',
         'Disconnect-PostureSession',
         'Export-PostureCaSnapshot',
+        'Export-PostureDiagnostics',
         'Export-PostureFindings',
         'Get-PostureLicense',
         'Get-PostureCheckCatalog',

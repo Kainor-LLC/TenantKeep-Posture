@@ -374,10 +374,13 @@ function ConvertTo-PostureReportModel {
     $failures = @($(try { Read-PostureRunFailure -Folder $Evidence } catch { @() }))
     $runHealth = [ordered]@{
         failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {
-                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message'] }
+                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
+                    support = (Get-PostureSupportDetail -Failure $_ -RunName (Split-Path $runLayout.root -Leaf) -Build ([string]$buildState.detail) -Name @($tenantName, $clientName, $(if ($runAs) { [string](Get-PostureValue $runAs 'account') })))
+                }
             })
         byCause  = [ordered]@{}
         resume   = "Resume-PostureRun -Path '$((Get-PostureRunLayout -Folder $Evidence).root -replace "'", "''")'"
+        diagnostics = "Export-PostureDiagnostics -Run '$((Get-PostureRunLayout -Folder $Evidence).root -replace "'", "''")'"
         # Every request the run sent, counted (logs/calls.json), and anything that was not a read.
         calls    = $(try { Get-PostureCallSummary -Folder $Evidence } catch { $null })
         # Evidence brought in from another machine (Import-PostureEvidence): what, from where, and how it was checked.

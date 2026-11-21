@@ -241,6 +241,19 @@ A failure that needs a licence or role the tenant does not have (a Purview featu
 for example) is left alone, since collecting again would say the same; after granting it, `-Collector Purview`
 names that domain. `-Path <run folder>` resumes an older run. The Run Health view copies the exact command.
 
+When a failure needs someone else to look at it, Run Health has a Copy for Support button on each failure (and one
+for all of them): a block of text with the module, PowerShell and OS versions, the step and its cause, the request it
+was making, Microsoft's message and where in the module it stopped, with names, addresses and ids taken out. For the
+whole run's logs at once:
+
+```powershell
+Export-PostureDiagnostics -Run ~/tenantkeep/evidence/20261120-0957
+```
+
+It writes `share/diagnostics-<stamp>.zip` in the run folder: summary.txt with every failure, plus errors, run plan,
+call ledger, collection record and transcript, each redacted the same way. No evidence, report, checks or redaction
+key goes in. Read summary.txt before sending; the redaction is by pattern and by the names the run knows.
+
 ## 8d. For tools and AI
 
 findings.json at the top of the run is the assessment as one document: a summary, then every failing check ranked

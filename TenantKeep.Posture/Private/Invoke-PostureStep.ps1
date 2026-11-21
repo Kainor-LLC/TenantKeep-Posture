@@ -17,6 +17,7 @@ function Invoke-PostureStep {
 
     $ErrorActionPreference = 'Stop'
     Step-PostureProgress -Label $Label
+    $script:PostureLastCall = ''
 
     try {
         return & $Script
@@ -28,7 +29,9 @@ function Invoke-PostureStep {
         Write-Verbose "$Label failed at $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())`n$($_.ScriptStackTrace)"
         Write-Warning "$Label failed: $message"
         Invoke-PostureFolderLock -Folder $Folder -Script { Add-Content -Path (Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt') -Value "$Label :: $message" }
-        Write-PostureStepFailure -Folder $Folder -Label $Label -Message $message -Confirm:$false
+        # Where it stopped and the request it was making, for whoever is asked to look (Get-PostureSupportDetail).
+        $where = @(([string]$_.ScriptStackTrace) -split "`n" | Where-Object { $_ } | Select-Object -First 4 | ForEach-Object { $_.Trim().Replace([string]$script:ModuleRoot, '<module>') })
+        Write-PostureStepFailure -Folder $Folder -Label $Label -Message $message -Where $where -Request ([string]$script:PostureLastCall) -Confirm:$false
         return
     }
 }

@@ -339,6 +339,9 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 .attack-checks { margin: 2px 0 0; line-height: 1.9; }
 .attack-checks .qw-chip { display: inline-block; white-space: nowrap; }
 .attack-list { padding-left: 18px; }
+/* Support blocks in Run Health: plain text to copy, wrapped, never wider than the page. */
+pre.support-text { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--soft); padding: 8px 10px; border-radius: 6px; margin: 6px 0; }
+details.support { margin: 6px 0; } details.support summary { cursor: pointer; }
 .attack-list li { margin: 3px 0; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .lane { background: var(--soft); border-radius: 8px; padding: 10px 12px; }

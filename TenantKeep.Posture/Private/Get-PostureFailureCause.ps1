@@ -79,7 +79,10 @@ function Write-PostureStepFailure {
         [Parameter(Mandatory)] [string] $Folder,
         [Parameter(Mandatory)] [string] $Label,
         [Parameter(Mandatory)] [AllowEmptyString()] [string] $Message,
-        [string] $Collector = $script:PostureCurrentCollector
+        [string] $Collector = $script:PostureCurrentCollector,
+        # Where in the module it stopped and the request it was making, for support.
+        [string[]] $Where = @(),
+        [string] $Request = ''
     )
 
     $ErrorActionPreference = 'Stop'
@@ -87,6 +90,8 @@ function Write-PostureStepFailure {
     $entry = [ordered]@{
         timeUtc = [datetime]::UtcNow.ToString('o'); collector = $Collector; step = $Label; cause = (Get-PostureFailureCause -Message $Message)
         roles = @($need.roles); scopes = @($need.scopes); licence = $need.licence; note = $need.note; message = $Message
+        request = $Request; where = @($Where); moduleVersion = [string]$script:ModuleVersion; powershell = [string]$PSVersionTable.PSVersion
+        os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
     }
     if (-not $PSCmdlet.ShouldProcess((Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.jsonl'), "Record the $Label failure")) { return }
     $line = $entry | ConvertTo-Json -Compress -Depth 5

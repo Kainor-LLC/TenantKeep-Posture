@@ -2,6 +2,8 @@
 # The call ledger: every request the module sends to the tenant, counted by service, method and target, so a run can
 # show exactly what it did. Kept in memory per process and merged into logs/calls.json in the run folder.
 $script:PostureCallLedger = [System.Collections.Generic.Dictionary[string, int]]::new()
+# The last request sent, so a failed step can say which request it was (Invoke-PostureStep clears it per step).
+$script:PostureLastCall = ''
 
 function ConvertTo-PostureCallTarget {
     <#
@@ -35,7 +37,9 @@ function Add-PostureCallRecord {
         [Parameter(Mandatory)] [AllowEmptyString()] [string] $Target
     )
 
-    $key = "$Service`t$($Method.ToUpperInvariant())`t$(ConvertTo-PostureCallTarget -Target $Target)"
+    $clean = ConvertTo-PostureCallTarget -Target $Target
+    $script:PostureLastCall = "$Service $($Method.ToUpperInvariant()) $clean"
+    $key = "$Service`t$($Method.ToUpperInvariant())`t$clean"
     $current = 0
     $null = $script:PostureCallLedger.TryGetValue($key, [ref]$current)
     $script:PostureCallLedger[$key] = $current + 1
