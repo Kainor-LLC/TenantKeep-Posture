@@ -143,10 +143,36 @@ collectors/windows/Get-ADBaseline.ps1 is Windows-only and runs outside the modul
 with RSAT (ActiveDirectory; GroupPolicy for the GPO inventory), as a domain user. It writes ad-01 to ad-10 (forest and
 domain, trusts, domain controllers, privileged groups and admin accounts, krbtgt and built-in accounts, delegation,
 Kerberoastable and AS-REP roastable accounts, LAPS coverage and computers, users, GPOs with a cpassword scan, AD CS
-templates with ESC1 candidates, the seamless SSO and cloud Kerberos accounts) plus errors.txt and a transcript. Copy
-the folder into the run's evidence folder; the hybrid checks evaluate from it next to the Entra-side facts (sync
-features, federation, Connect Health) the cloud collectors already wrote. Nothing is installed or scheduled; the Hybrid
-Runbook Worker option in deploy/ is the v1.1 path for monthly runs.
+templates with ESC1 candidates, the seamless SSO and cloud Kerberos accounts) plus errors.txt, a transcript and
+bundle.json (every file with its SHA-256). Bring the folder into the run with `Import-PostureEvidence -Path <folder>
+-Run <run folder>`; the hybrid checks evaluate from it next to the Entra-side facts (sync features, federation,
+Connect Health) the cloud collectors already wrote. Nothing is installed or scheduled; the Hybrid Runbook Worker option
+in deploy/ is the v1.1 path for monthly runs.
+
+## What the Windows SharePoint collector writes
+
+collectors/windows/Get-SpoBaseline.ps1 is the SharePoint admin read without any third-party app: Windows-only, outside
+the module, on Microsoft's SharePoint Online Management Shell (Microsoft.Online.SharePoint.PowerShell), run by an
+account holding SharePoint Administrator (activate it in PIM for the run). Before reading it looks up the tenant id
+behind `-Tenant` in Microsoft's public sign-in metadata and refuses anything but `-TenantId`. Only Get-SPO commands run.
+It writes the files the module's SharePoint collector writes, with the same names and properties:
+`spo-tenant-settings.json`, `spo-restricted-search.json`, `spo-sites.csv` and `spo-sites-summary.json` (the site list
+is left out with `-SkipSiteEnumeration`), plus errors.txt, a transcript and bundle.json.
+
+Split collection, for example most of a run on a Mac and SharePoint on a Windows cloud PC:
+
+```powershell
+# On the cloud PC, as the SharePoint admin
+.\Get-SpoBaseline.ps1 -Tenant contoso -TenantId <tenant id> -OutputPath C:\audit\spo
+# Where the run lives, after copying the folder (or a .zip of it) across
+Import-PostureEvidence -Path ./spo -Run ~/tenantkeep/evidence/<stamp>
+New-PostureReport -Evidence ~/tenantkeep/evidence/<stamp>
+```
+
+Import-PostureEvidence checks every file against bundle.json, refuses SharePoint evidence from another tenant, copies
+only the evidence files the checks read, refuses to overwrite a different file already in the run unless `-Force`,
+adds the collector's errors.txt to the run's errors and records the import, which Run Health lists. It also takes the
+evidence folder of a SharePoint-only run made with the module on another machine (the tenant comes from that run).
 
 ## What the Purview collector writes
 

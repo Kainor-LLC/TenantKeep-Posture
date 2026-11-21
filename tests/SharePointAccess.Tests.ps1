@@ -194,3 +194,24 @@ Describe 'Grant-PostureSharePointAccess.ps1' {
         { & $script:GrantScript -TenantId '44444444-4444-4444-4444-444444444444' -ClientId 'bbbbbbbb-0000-0000-0000-000000000002' -Disable 6>$null } | Should -Throw '*only runs in 4444*'
     }
 }
+
+Describe 'The Windows SharePoint collector script' {
+    It 'parses, reads with Get-SPO commands only, pins the tenant, and writes the files and properties the module collector writes' {
+        $path = Join-Path $PSScriptRoot '..' 'collectors' 'windows' 'Get-SpoBaseline.ps1'
+        $tokens = $null; $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+        @($errors).Count | Should -Be 0
+        $commands = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true) | ForEach-Object { $_.GetCommandName() } | Where-Object { $_ -match '-SPO' } | Sort-Object -Unique)
+        foreach ($c in $commands) { $c | Should -Match '^(Get-SPO[A-Za-z]+|Connect-SPOService|Disconnect-SPOService)$' -Because 'the collector reads only' }
+        $commands | Should -Contain 'Get-SPOTenant'
+        $src = Get-Content -Raw $path
+        $src | Should -Match '\.well-known/openid-configuration' -Because 'the tenant id is checked before anything is read'
+        $src | Should -Match "kind = 'sharepoint'"
+        foreach ($n in 'spo-tenant-settings', 'spo-restricted-search', 'spo-sites-summary') { $src | Should -Match ([regex]::Escape("'$n'")) }
+        $src | Should -Match "spo-sites\.csv"
+        # The tenant property list is the module collector's, so the checks read the same names from either.
+        $grab = { param([string] $Text) [regex]::Match($Text, "\`$props = @\(([^)]*)\)").Groups[1].Value -replace '\s', '' }
+        $module = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'Private' 'Invoke-PostureSharePointCollection.ps1')
+        (& $grab $src) | Should -Be (& $grab $module)
+    }
+}

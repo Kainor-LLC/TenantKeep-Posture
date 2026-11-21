@@ -569,6 +569,11 @@ function ConvertTo-PostureReportHtml {
         }
         & $w '</tbody></table>'
     }
+    if ($rh -and $rh.Contains('imports') -and @($rh.imports).Count) {
+        & $w '<h3>Evidence Brought In From Another Machine</h3><table><thead><tr><th>What</th><th>Collector</th><th>Collected</th><th>By</th><th>Files</th><th>Checked</th></tr></thead><tbody>'
+        foreach ($i in $rh.imports) { & $w "<tr><td>$(& $h $i.label)</td><td>$(& $h $i.collector)</td><td>$(& $h $i.collectedUtc)</td><td>$(& $h $i.account)</td><td>$($i.files)</td><td>$(& $h $(if ($i.checked -eq 'sha256') { 'Every file against its SHA-256' } else { 'File names only' }))</td></tr>" }
+        & $w '</tbody></table>'
+    }
     & $w '</section>'
     & $w '<section class="view" id="appendix"><h2>Appendix</h2><table><tbody>'
     foreach ($pair in @(@('Catalog Version', $a.catalogVersion), @('Baseline', $a.baseline), @('Profile', $a.profile), @('Evidence Folder', $a.evidence), @('Collectors', ($r.collectors -join ', ')), @('Scopes', ($a.scopes -join ', ')), @('Graph API Versions', ($a.graphApiVersions -join ', ')), @('Module Version', $a.moduleVersion), @('Build', $a.build), @('Licence', $a.licence))) { & $w "<tr><th>$(& $h $pair[0])</th><td>$(& $h $pair[1])</td></tr>" }

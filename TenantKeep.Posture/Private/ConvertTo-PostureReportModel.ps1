@@ -378,6 +378,10 @@ function ConvertTo-PostureReportModel {
             })
         byCause  = [ordered]@{}
         resume   = "Resume-PostureRun -Path '$((Get-PostureRunLayout -Folder $Evidence).root -replace "'", "''")'"
+        # Evidence brought in from another machine (Import-PostureEvidence): what, from where, and how it was checked.
+        imports  = @($(try { $il = Join-Path $runLayout.logs 'imports.json'; if (Test-Path -LiteralPath $il) { @(Get-Content -Raw -LiteralPath $il | ConvertFrom-Json -AsHashtable -Depth 6) } } catch { @() }) | Where-Object { $_ } | ForEach-Object {
+                [ordered]@{ label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count }
+            })
     }
     foreach ($f in $runHealth.failures) { $runHealth.byCause[$f.causeLabel] = 1 + $(if ($runHealth.byCause.Contains($f.causeLabel)) { $runHealth.byCause[$f.causeLabel] } else { 0 }) }
     $runHealth.retryable = @($runHealth.failures | Where-Object { $_.cause -in 'permission', 'token', 'throttled', 'network', 'unknown', 'module' }).Count

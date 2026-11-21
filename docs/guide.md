@@ -103,7 +103,26 @@ wrote into the client folder's `hybrid/`; every later run picks them up. A domai
 script needs; a workstation needs the Active Directory and Group Policy RSAT tools (on Windows Server:
 `Install-WindowsFeature GPMC`; on Windows 10 or 11: `Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`,
 then a new PowerShell window), and without Group Policy the GPO checks are reported as not evaluated. The LAPS check
-reads the schema first, so an unextended schema is reported, not an error.
+reads the schema first, so an unextended schema is reported, not an error. To add AD files to one run only, use
+`Import-PostureEvidence -Path <folder> -Run <run folder>`, which also checks them against the collector's bundle.json.
+
+## 4a. SharePoint without full control
+
+Out of the box the SharePoint checks read Graph's read-only SharePoint settings, and the report names each check that
+needs more. For the rest, the SharePoint admin read, pick one:
+
+- Grant the TenantKeep Posture for SharePoint app to the admins who run the report
+  (`deploy/setup/Grant-PostureSharePointAccess.ps1`, docs/collection.md); Start-PostureRun then signs in to it as
+  well. It is never consented for the organisation, and only assigned admins can sign in to it.
+- Or run `collectors/windows/Get-SpoBaseline.ps1` on a Windows machine (a cloud PC is fine) as the SharePoint admin,
+  on Microsoft's own SharePoint shell with no third-party app, and bring the folder into the run:
+
+  ```powershell
+  Import-PostureEvidence -Path ./spo-baseline-20261120-1015 -Run ~/tenantkeep/evidence/20261120-0957
+  New-PostureReport -Evidence ~/tenantkeep/evidence/20261120-0957
+  ```
+
+  This goes into one run on purpose: sharing settings change, so a later run should not quietly reuse an old read.
 
 ## 5. The same run, step by step
 

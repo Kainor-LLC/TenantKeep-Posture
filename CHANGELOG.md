@@ -13,6 +13,11 @@ work landed on main.
   assignment and turns it off between runs. Start-PostureRun checks through Graph that the app is granted to the admin
   before opening a second sign-in (Connect-PostureSession -SharePoint by hand). Tenants that consented to the main app
   before keep that old SharePoint grant until an admin removes it.
+- Split collection (2026-11-20): collectors/windows/Get-SpoBaseline.ps1 does the SharePoint admin read on Microsoft's
+  own SharePoint Online Management Shell, with no third-party app, on Windows (a cloud PC works). Import-PostureEvidence
+  brings its folder, the AD collector's folder or another machine's SharePoint-only run into a run: every file checked
+  against the collector's bundle.json, the tenant checked, only evidence files copied, and the import listed in Run
+  Health. Both Windows collectors now write bundle.json.
 - HY-026 agrees with HY-031 (2026-11-20): people exempt from password expiry fail only while the domain still
   expires passwords; once Maximum password age is 0 (the NIST stance HY-031 asks for) the check passes. Before, a
   domain that followed HY-031 kept failing HY-026.

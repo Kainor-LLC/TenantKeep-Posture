@@ -3,8 +3,9 @@
 <#
 .SYNOPSIS
     Windows-only, read-only Active Directory collector for the hybrid domain (spec 4.14, audit plan Appendix B). Run
-    it once on any domain-joined Windows machine with RSAT, copy the output folder into the run's evidence folder,
-    and the hybrid checks evaluate from it. Nothing is installed, nothing is changed, nothing is scheduled.
+    it once on any domain-joined Windows machine with RSAT, bring the output folder into the run with
+    Import-PostureEvidence, and the hybrid checks evaluate from it. Nothing is installed, nothing is changed, nothing
+    is scheduled. bundle.json lists every file with its SHA-256, which the import checks.
 .DESCRIPTION
     Needs the ActiveDirectory module (RSAT); GroupPolicy adds the GPO inventory when present. On Windows Server install it
     with Install-WindowsFeature GPMC (Add-WindowsCapability reports success there but installs nothing); on Windows 10 or 11
@@ -26,7 +27,7 @@
     A domain controller to query. Default: the discovered one.
 .EXAMPLE
     .\Get-ADBaseline.ps1 -OutputPath C:\audit\ad-20261015
-    Then copy C:\audit\ad-20261015\* into the evidence folder on the machine that runs the report.
+    Then, where the run lives: Import-PostureEvidence -Path C:\audit\ad-20261015 -Run <run folder>
 #>
 [CmdletBinding()]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive jump-box script; the console is the only host and the output is a progress listing')]
@@ -48,6 +49,7 @@ New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 $out = (Resolve-Path -LiteralPath $OutputPath).Path
 $errorsPath = Join-Path $out 'errors.txt'
 $now = (Get-Date).ToUniversalTime()
+$written = New-Object System.Collections.Generic.List[string]
 $srv = @{}
 if ($Server) { $srv.Server = $Server }
 
@@ -59,7 +61,8 @@ function Save-Evidence {
         $data = $(if ($Single) { $(if ($items.Count -gt 0) { $items[0] } else { @{} }) } else { $items.ToArray() })
         $json = ConvertTo-Json -InputObject $data -Depth 10
         [System.IO.File]::WriteAllText((Join-Path $out "$Name.json"), $json, [System.Text.UTF8Encoding]::new($false))
-        if ($Csv -and $items.Count -gt 0) { $items | Export-Csv -Path (Join-Path $out "$Name.csv") -NoTypeInformation -Encoding UTF8 }
+        $written.Add("$Name.json")
+        if ($Csv -and $items.Count -gt 0) { $items | Export-Csv -Path (Join-Path $out "$Name.csv") -NoTypeInformation -Encoding UTF8; $written.Add("$Name.csv") }
         Write-Host ("{0,-40} {1,6}" -f "$Name.json", $items.Count)
     }
 }
@@ -234,5 +237,10 @@ try {
 finally {
     Stop-Transcript | Out-Null
 }
-Write-Host "`nDone. Copy the folder $out into the run's evidence folder next to the cloud files."
+# bundle.json: what Import-PostureEvidence checks before it copies a file into a run.
+$domainName = $(try { (Get-ADDomain @srv).DNSRoot } catch { '' })
+$files = @($written | Select-Object -Unique | ForEach-Object { [ordered]@{ name = $_; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $out $_)).Hash.ToLowerInvariant() } })
+$bundle = [ordered]@{ kind = 'ad'; collector = 'Get-ADBaseline.ps1'; schema = 1; domain = $domainName; collectedUtc = $now.ToString('o'); account = [string]$env:USERNAME; powershell = [string]$PSVersionTable.PSVersion; files = $files }
+[System.IO.File]::WriteAllText((Join-Path $out 'bundle.json'), (ConvertTo-Json -InputObject $bundle -Depth 5), [System.Text.UTF8Encoding]::new($false))
+Write-Host "`nDone: $out. Bring it into the run: Import-PostureEvidence -Path '$out' -Run <run folder>"
 if (Test-Path $errorsPath) { Write-Warning "Some steps failed; see $errorsPath" }
