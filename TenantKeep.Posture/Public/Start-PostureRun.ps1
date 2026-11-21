@@ -173,11 +173,12 @@ function Start-PostureRun {
     $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath (Get-PostureRunLayout -Folder $into).evidence -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
     $need = @{ SharePoint = 'PnP.PowerShell'; Teams = 'MicrosoftTeams' }
     $localPlan = [System.Collections.Generic.List[string]]::new()
-    foreach ($name in 'SharePoint', 'Teams') {
-        if ($name -notin $Collector) { continue }
-        $check = & $usable $need[$name]
-        if ($check.status -eq 'missing') { $skipped[$name] = $check.message; continue }
-        $localPlan.Add($name)
+    # $svc, never $name: PowerShell variables ignore case, so a loop over $name would overwrite -Name.
+    foreach ($svc in 'SharePoint', 'Teams') {
+        if ($svc -notin $Collector) { continue }
+        $check = & $usable $need[$svc]
+        if ($check.status -eq 'missing') { $skipped[$svc] = $check.message; continue }
+        $localPlan.Add($svc)
     }
     # The SharePoint admin read has its own app, granted to named admins only. Graph says first whether this admin
     # holds it, so a tenant that never set it up sees no second browser window; the SharePoint checks then use what
@@ -235,9 +236,9 @@ function Start-PostureRun {
         if ($child.Count -gt 0) {
             $tokens = @{}
             # Graph only: Exchange and Purview sign in through the Exchange module's own app in that process.
-            foreach ($name in @('graph')) {
-                $null = Get-PostureToken -Resource $name -Force
-                $tokens[$name] = @{ accessToken = $script:PostureSession['tokens'][$name]['accessToken']; expiresUtc = $script:PostureSession['tokens'][$name]['expiresUtc'].ToString('o') }
+            foreach ($svc in @('graph')) {
+                $null = Get-PostureToken -Resource $svc -Force
+                $tokens[$svc] = @{ accessToken = $script:PostureSession['tokens'][$svc]['accessToken']; expiresUtc = $script:PostureSession['tokens'][$svc]['expiresUtc'].ToString('o') }
             }
             $childEstimates = @{}
             foreach ($n in $child) { if ($estimates.ContainsKey($n)) { $childEstimates[$n] = $estimates[$n] } }
@@ -257,9 +258,9 @@ function Start-PostureRun {
         # older Microsoft.Graph.Core, so it comes after every Graph read).
         if ($main.Count -gt 0) { $null = Invoke-PostureCollection -OutputFolder $folder -Collector $main -SkipCaSnapshot:$caDone -SignInDays $SignInDays -FullPerUserMfa:$FullPerUserMfa -PassThru @profileParam }
         $local = [System.Collections.Generic.List[string]]::new()
-        foreach ($name in $localPlan) {
-            try { Connect-PostureService -Name $name.ToLowerInvariant(); $local.Add($name) }
-            catch { $skipped[$name] = "$name sign-in failed: $($_.Exception.Message)" }
+        foreach ($svc in $localPlan) {
+            try { Connect-PostureService -Name $svc.ToLowerInvariant(); $local.Add($svc) }
+            catch { $skipped[$svc] = "$svc sign-in failed: $($_.Exception.Message)" }
         }
         if ($local.Count -gt 0) {
             try { Invoke-PostureCollection -Collector @($local) -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null }

@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- `Start-PostureRun -Name` works (2026-11-21): a loop over the SharePoint and Teams sign-ins reused `$name`, which
+  PowerShell treats as the same variable as `-Name`, so every run folder was called "Teams" (then "Teams-2"). A test
+  now fails on any function that loops over a variable named like one of its own parameters.
 - Sessions pinned to the run's tenant (2026-11-21): `Invoke-PostureCollection` uses an Exchange, Purview or Azure
   session only when it is in the Graph session's tenant, so a context saved from another tenant (Az keeps one between
   sessions) is skipped with the command to fix it instead of being read into the wrong run. The module's own Azure

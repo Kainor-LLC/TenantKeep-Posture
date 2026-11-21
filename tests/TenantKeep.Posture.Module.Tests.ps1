@@ -56,6 +56,21 @@ Describe 'Source file <Name>' -ForEach $script:SourceFiles {
     It 'has no em dash in user-facing text' {
         Get-Content -Path $Path -Raw | Should -Not -Match ([char]0x2014)
     }
+
+    It 'never loops over a variable named like its function''s own parameter' {
+        # PowerShell variables ignore case: foreach ($name ...) inside a function with -Name overwrites the parameter
+        # (Start-PostureRun named every run folder "Teams" that way).
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
+        $clashes = foreach ($fn in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
+            $declared = @(@(if ($fn.Body.ParamBlock) { $fn.Body.ParamBlock.Parameters }) + @(if ($fn.Parameters) { $fn.Parameters }) | Where-Object { $_ })
+            $params = @($declared | ForEach-Object { $_.Name.VariablePath.UserPath.ToLowerInvariant() })
+            if (-not $params) { continue }
+            $fn.Body.FindAll({ $args[0] -is [System.Management.Automation.Language.ForEachStatementAst] }, $true) |
+                Where-Object { $params -contains $_.Variable.VariablePath.UserPath.ToLowerInvariant() } |
+                ForEach-Object { "$($fn.Name) line $($_.Extent.StartLineNumber): foreach (`$$($_.Variable.VariablePath.UserPath))" }
+        }
+        $clashes | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'Public cmdlet <Name>' -ForEach $script:PublicNames -AllowNullOrEmptyForEach {
