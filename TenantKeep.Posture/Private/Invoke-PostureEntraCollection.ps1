@@ -163,6 +163,83 @@ function Invoke-PostureEntraCollection {
         & $saveOne ([ordered]@{ source = $source; active = $a.Count; eligible = $e.Count; permanentGlobalAdmins = @($a | Where-Object { $_.Role -eq 'Global Administrator' -and $_.AssignmentType -ne 'Activated' }).Count; roleDefinitions = $defs.Count }) '04-role-assignments-summary'
     } | Out-Null
 
+    # ---------- 4a. Everyone who holds a role ----------
+    # A role is held directly, as eligible, or through a group that holds it: as a member, or as someone PIM for
+    # Groups lets become a member or an owner. The assignments above name the group, never its people. This step
+    # reads who is in each group that holds a role and writes one row per person and role, so every admin set
+    # (registration, users, sign-in tallies, the checks, the admins table) counts people.
+    Invoke-PostureStep -Label 'Role holders' -Folder $Folder -Script {
+        # Nothing to open when the role step did not write its file; its own error is already logged.
+        if (-not (Test-Path -LiteralPath (Join-Path $Folder '04-role-assignments-active.json'))) { return }
+        $assignments = @(@(& $load '04-role-assignments-active') + @(& $load '04-role-assignments-pim-eligible') | Where-Object { $_ })
+        $pim = [string](& $v (& $load '04-role-assignments-summary') 'source') -eq 'pim'
+        $userSelect = '$select=id,userPrincipalName,displayName,accountEnabled,onPremisesSyncEnabled&$top=999'
+        $groups = @{}; $firstError = $null
+        $notRead = [System.Collections.Generic.List[string]]::new(); $eligibleNotRead = [System.Collections.Generic.List[string]]::new()
+        $oneLine = { param($e) (([string]$e.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim() }
+        foreach ($a in @($assignments | Where-Object { [string]$_['PrincipalType'] -eq 'group' })) {
+            $gid = [string]$a['PrincipalId']
+            if (-not $gid -or $groups.ContainsKey($gid)) { continue }
+            $g = @{ id = $gid; name = [string]$a['PrincipalName']; people = [System.Collections.Generic.List[object]]::new() }
+            $groups[$gid] = $g
+            # Members, nested groups included (Group.Read.All or Directory.Read.All). When this fails the people in
+            # the group are unknown: the summary says so, the other groups are still read, and the step fails at the end.
+            try { foreach ($u in (& $get "groups/$gid/transitiveMembers/microsoft.graph.user?$userSelect")) { $g.people.Add(@{ user = $u; membership = 'Member' }) } }
+            catch { $g.people = $null; $notRead.Add($g.name); if (-not $firstError) { $firstError = & $oneLine $_ }; continue }
+            # PIM for Groups, where the tenant has PIM: whoever can make themselves a member, or an owner who can
+            # add members (PrivilegedEligibilitySchedule.Read.AzureADGroup). The principal is a person or a group.
+            # (verify) live: directoryObjects/{id} answers with the derived type and its default properties.
+            if (-not $pim) { continue }
+            try {
+                foreach ($s in (& $get "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$gid'&`$select=id,groupId,accessId,principalId,status,memberType")) {
+                    $membership = $(if ([string](& $v $s 'accessId') -eq 'owner') { 'EligibleOwner' } else { 'EligibleMember' })
+                    $principalId = [string](& $v $s 'principalId')
+                    if (-not $principalId) { continue }
+                    $p = @(& $get "directoryObjects/$principalId")[0]
+                    # Read by its key: the name has a dot in it, which Get-PostureValue would take for a path.
+                    $type = [string]$(if ($p -is [System.Collections.IDictionary]) { $p['@odata.type'] })
+                    if ($type -match 'group$') { foreach ($u in (& $get "groups/$principalId/transitiveMembers/microsoft.graph.user?$userSelect")) { $g.people.Add(@{ user = $u; membership = $membership }) } }
+                    elseif ($type -match 'user$') { $g.people.Add(@{ user = $p; membership = $membership }) }
+                }
+            }
+            catch { $eligibleNotRead.Add($g.name); if (-not $firstError) { $firstError = & $oneLine $_ } }
+        }
+        $rows = [System.Collections.Generic.List[object]]::new()
+        $holder = {
+            param($User, $Assignment, [string] $Held, [string] $Membership, $Group)
+            if (-not (& $v $User 'userPrincipalName')) { return }
+            $rows.Add([ordered]@{
+                    UserId = [string](& $v $User 'id'); UserPrincipalName = (& $v $User 'userPrincipalName'); DisplayName = (& $v $User 'displayName')
+                    AccountEnabled = (& $v $User 'accountEnabled'); Synced = (& $v $User 'onPremisesSyncEnabled')
+                    Role = $Assignment['Role']; RoleDefinitionId = $Assignment['RoleDefinitionId']; DirectoryScopeId = $Assignment['DirectoryScopeId']; AssignmentType = $Assignment['AssignmentType']
+                    Held = $Held; GroupId = $(if ($Group) { [string]$Group.id }); GroupName = $(if ($Group) { [string]$Group.name }); Membership = $Membership
+                })
+        }
+        foreach ($a in $assignments) {
+            $eligible = [string]$a['AssignmentType'] -eq 'Eligible'
+            switch ([string]$a['PrincipalType']) {
+                'user' { & $holder @{ id = $a['PrincipalId']; userPrincipalName = $a['PrincipalUpn']; displayName = $a['PrincipalName']; onPremisesSyncEnabled = $a['PrincipalSynced'] } $a $(if ($eligible) { 'Eligible' } else { 'Direct' }) '' $null }
+                'group' {
+                    $g = $groups[[string]$a['PrincipalId']]
+                    if ($g -and $null -ne $g.people) { foreach ($m in $g.people) { & $holder $m.user $a $(if ($eligible -or $m.membership -ne 'Member') { 'EligibleGroup' } else { 'Group' }) $m.membership $g } }
+                }
+            }
+        }
+        $all = $rows.ToArray()
+        $people = { param([string[]] $Held) @($all | Where-Object { $_.Held -in $Held } | ForEach-Object { [string]$_.UserPrincipalName } | Sort-Object -Unique) }
+        $standing = @(& $people @('Direct', 'Group'))
+        & $save $all '04-role-holders' $true
+        & $saveOne ([ordered]@{
+                Holders = @(& $people @('Direct', 'Group', 'Eligible', 'EligibleGroup')).Count
+                Direct = @(& $people @('Direct')).Count; ThroughGroup = @(& $people @('Group')).Count
+                EligibleOnly = @(& $people @('Eligible', 'EligibleGroup') | Where-Object { $_ -notin $standing }).Count
+                GroupsHoldingRoles = $groups.get_Count(); GroupsRead = $groups.get_Count() - $notRead.Count; GroupsNotRead = @($notRead); EligibleMembersNotRead = @($eligibleNotRead)
+            }) '04-role-holders-summary'
+        # Both files are written; the step still counts as failed so Run Health shows what was not read.
+        if ($notRead.Count -gt 0) { throw "The members of $($notRead.Count) group(s) that hold a role could not be read, so the people who hold it through them are unknown: $firstError" }
+        if ($eligibleNotRead.Count -gt 0) { throw "Who can join $($eligibleNotRead.Count) group(s) that hold a role through PIM for Groups could not be read: $firstError" }
+    } | Out-Null
+
     # ---------- 4b. PIM role management policies (ID-006) ----------
     Invoke-PostureStep -Label 'PIM role policies' -Folder $Folder -Script {
         # Policy assignments map a role to its policy; the rules carry activation MFA, justification, duration and approval. (verify) scope: RoleManagement.Read.Directory
@@ -187,12 +264,10 @@ function Invoke-PostureEntraCollection {
         & $save $flat '04-pim-role-policies' $true
     } | Out-Null
 
-    # Admins (active and eligible role holders), from the role step's files: the registration and users passes
-    # write admin-only files from them, so the report and the facts never reload the full lists to find admins.
-    $adminUpns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($name in '04-role-assignments-active', '04-role-assignments-pim-eligible') {
-        foreach ($a in @(& $load $name)) { if ($a -and $a['PrincipalUpn']) { $null = $adminUpns.Add([string]$a['PrincipalUpn']) } }
-    }
+    # Admins: everyone who holds a role, directly, as eligible or through a group (04-role-holders). The
+    # registration and users passes write admin-only files from the set, so the report and the facts never reload
+    # the full lists to find admins.
+    $adminUpns = (Get-PostureRoleHolder -Folder $Folder).upns
 
     # ---------- 5. Authentication method registration ----------
     # One streaming pass: rows written as they come, the summary and the strongest-method counts tallied, admin rows kept.

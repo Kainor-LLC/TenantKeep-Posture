@@ -103,7 +103,8 @@ $admins = @(
     @{ Id = 'a0000000-0000-4000-8000-000000000004'; Upn = "morgan.fairbanks@$domain"; Name = 'Morgan Fairbanks'; Dept = 'Finance' }
 )
 foreach ($a in $admins) { $users.Add((& $newUser $a.Id $a.Upn $a.Name 'Member' 2 0.2 $a.Dept)) }
-$seen = @{}
+# The named administrators' sign-in names are taken: a generated person of the same name gets a number.
+$seen = @{}; foreach ($a in $admins) { $seen[$a.Upn] = $true }
 for ($i = 1; $users.Count -lt 386; $i++) {
     $f = Get-DemoPick $first; $l = Get-DemoPick $last
     $upn = "$($f.ToLower()).$($l.ToLower())@$domain"
@@ -122,7 +123,13 @@ $members = @($users | Where-Object { $_.UserType -eq 'Member' })
 $guests = @($users | Where-Object { $_.UserType -eq 'Guest' })
 Write-Demo '06-users' @($users)
 Write-Demo '06-users-guests' @($guests)
-Write-Demo '06-users-admins' @($users | Where-Object { $_.Id -like 'a0000000-*' -or $_.Id -like '11111111-*' })
+# Three people outside the named administrators hold a role all the same: one through the admin group, one as
+# eligible only, one as someone PIM for Groups lets join the admin group. The collector's admin files include them.
+$viaGroup = @($users | Where-Object { $_.Id -eq (Get-DemoId 'b1000000' 1) })[0]
+$eligibleOnly = @($users | Where-Object { $_.Id -eq (Get-DemoId 'b1000000' 2) })[0]
+$canJoin = @($users | Where-Object { $_.Id -eq (Get-DemoId 'b1000000' 4) })[0]
+$alsoHoldRoles = @($viaGroup.Id, $eligibleOnly.Id, $canJoin.Id)
+Write-Demo '06-users-admins' @($users | Where-Object { $_.Id -like 'a0000000-*' -or $_.Id -like '11111111-*' -or $_.Id -in $alsoHoldRoles })
 Write-Demo '06-users-breakglass-candidates' @($users | Where-Object { $_.Id -like '11111111-*' })
 Write-Demo '06-users-summary' @{
     Total = $users.Count; Members = $members.Count; Guests = $guests.Count; Synced = 0; CloudOnlyMembers = $members.Count
@@ -146,17 +153,50 @@ $active = @(
     (& $role 'Billing Administrator' 'b0f54661-2d74-4c50-afa3-1ec803f12efe' 'Assigned' $admins[3])
     (& $role 'Intune Administrator' '3a2c62db-5318-420d-8d74-23affee5d9d5' 'Activated' $admins[2])
     (& $role 'Application Administrator' '9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3' 'Assigned' @{ Id = 'd4000000-0000-4000-8000-000000000009'; Name = 'Drawing Vault Sync'; Upn = $null } 'servicePrincipal')
+    # A role assigned to a group: whoever is in it holds the role, and the assignment names only the group.
+    (& $role 'Helpdesk Administrator' '729827e3-9c14-49f7-bb1b-9608f156bbb8' 'Assigned' @{ Id = '22222222-2222-2222-2222-222222222202'; Name = 'Admins-Privileged'; Upn = $null } 'group')
 )
 Write-Demo '04-role-assignments-active' $active
-Write-Demo '04-role-assignments-pim-eligible' @(
+$eligibleRoles = @(
     (& $role 'Global Administrator' $ga 'Eligible' $admins[1])
     (& $role 'Security Administrator' '194ae4cb-b126-40b2-bd5b-6091b380977d' 'Eligible' $admins[0])
     (& $role 'Security Administrator' '194ae4cb-b126-40b2-bd5b-6091b380977d' 'Eligible' $admins[2])
     (& $role 'Intune Administrator' '3a2c62db-5318-420d-8d74-23affee5d9d5' 'Eligible' $admins[2])
     (& $role 'Conditional Access Administrator' 'b1be1c3e-b65d-4f19-8427-f6fa0d97feb9' 'Eligible' $admins[0])
     (& $role 'SharePoint Administrator' 'f28a1f50-f6e7-4571-818b-6a12f2af6b6c' 'Eligible' $admins[1])
+    # Eligible for a role and nothing else: an administrator all the same.
+    (& $role 'User Administrator' 'fe930be7-5e62-47db-91af-98c3a49a38b1' 'Eligible' @{ Id = $eligibleOnly.Id; Name = $eligibleOnly.DisplayName; Upn = $eligibleOnly.UserPrincipalName })
 )
-Write-Demo '04-role-assignments-summary' @{ source = 'pim'; active = $active.Count; eligible = 6; permanentGlobalAdmins = 3; roleDefinitions = 112 }
+Write-Demo '04-role-assignments-pim-eligible' $eligibleRoles
+Write-Demo '04-role-assignments-summary' @{ source = 'pim'; active = $active.Count; eligible = $eligibleRoles.Count; permanentGlobalAdmins = 3; roleDefinitions = 112 }
+# Everyone who holds a role, one row per person and role, as the collector's role holders step writes it: the
+# people the assignments name, the members of the group that holds a role, and the people PIM for Groups lets join it.
+$asWho = { param($u) @{ Id = $u.Id; Name = $u.DisplayName; Upn = $u.UserPrincipalName } }
+$groupPeople = @(
+    @{ Who = $admins[2]; Membership = 'Member' }, @{ Who = (& $asWho $viaGroup); Membership = 'Member' }
+    @{ Who = $admins[0]; Membership = 'EligibleMember' }, @{ Who = $admins[1]; Membership = 'EligibleMember' }, @{ Who = (& $asWho $canJoin); Membership = 'EligibleMember' }
+)
+$holderRow = {
+    param($Assignment, [hashtable] $Who, [string] $Held, [string] $Membership = '')
+    [ordered]@{
+        UserId = $Who.Id; UserPrincipalName = $Who.Upn; DisplayName = $Who.Name; AccountEnabled = $true; Synced = $false
+        Role = $Assignment.Role; RoleDefinitionId = $Assignment.RoleDefinitionId; DirectoryScopeId = '/'; AssignmentType = $Assignment.AssignmentType
+        Held = $Held; GroupId = $(if ($Membership) { $Assignment.PrincipalId }); GroupName = $(if ($Membership) { $Assignment.PrincipalName }); Membership = $Membership
+    }
+}
+$holders = @(foreach ($a in @($active) + @($eligibleRoles)) {
+        if ($a.PrincipalType -eq 'user') { & $holderRow $a @{ Id = $a.PrincipalId; Name = $a.PrincipalName; Upn = $a.PrincipalUpn } $(if ($a.AssignmentType -eq 'Eligible') { 'Eligible' } else { 'Direct' }) }
+        elseif ($a.PrincipalType -eq 'group') { foreach ($m in $groupPeople) { & $holderRow $a $m.Who $(if ($m.Membership -eq 'Member' -and $a.AssignmentType -ne 'Eligible') { 'Group' } else { 'EligibleGroup' }) $m.Membership } }
+    })
+Write-Demo '04-role-holders' $holders
+$standing = @($holders | Where-Object { $_.Held -in 'Direct', 'Group' } | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique)
+Write-Demo '04-role-holders-summary' @{
+    Holders = @($holders | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique).Count
+    Direct = @($holders | Where-Object { $_.Held -eq 'Direct' } | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique).Count
+    ThroughGroup = @($holders | Where-Object { $_.Held -eq 'Group' } | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique).Count
+    EligibleOnly = @($holders | Where-Object { $_.Held -in 'Eligible', 'EligibleGroup' } | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique | Where-Object { $_ -notin $standing }).Count
+    GroupsHoldingRoles = 1; GroupsRead = 1; GroupsNotRead = @(); EligibleMembersNotRead = @()
+}
 Write-Demo '04-pim-role-policies' @(
     @{ Role = 'Global Administrator'; RoleDefinitionId = $ga; PolicyId = 'p-ga'; MaxActivationHours = 4; ActivationExpirationRequired = $true; ActivationMfaRequired = $true; ActivationJustificationRequired = $true; ActivationTicketRequired = $false; ApprovalRequired = $true }
     @{ Role = 'Privileged Role Administrator'; RoleDefinitionId = 'e8611ab8-c189-46e8-94e1-60213ab1f814'; PolicyId = 'p-pra'; MaxActivationHours = 4; ActivationExpirationRequired = $true; ActivationMfaRequired = $true; ActivationJustificationRequired = $true; ActivationTicketRequired = $false; ApprovalRequired = $true }
@@ -223,7 +263,8 @@ $registration = foreach ($u in $members) {
 }
 $registration = @($registration)
 Write-Demo '05-auth-registration' $registration
-Write-Demo '05-auth-registration-admins' @($registration | Where-Object { $_.IsAdmin })
+$holderUpns = @($holders | ForEach-Object { $_.UserPrincipalName } | Sort-Object -Unique)
+Write-Demo '05-auth-registration-admins' @($registration | Where-Object { $_.IsAdmin -or $_.UserPrincipalName -in $holderUpns })
 $pct = { param($Rows, [scriptblock] $Test) [math]::Round(100 * @($Rows | Where-Object $Test).Count / [math]::Max(1, @($Rows).Count), 1) }
 Write-Demo '05-auth-registration-summary' @{
     TotalMembers = $registration.Count; Admins = @($registration | Where-Object IsAdmin).Count
@@ -586,7 +627,9 @@ Write-Demo 'gov-01-access-reviews' @(
 )
 Write-Demo 'gov-02-access-packages-summary' @{ Packages = 2; Catalogs = 1; ConnectedOrganizations = 1 }
 Write-Demo 'gov-03-lifecycle-workflows' @(@{ DisplayName = 'Joiner - first day'; Category = 'joiner'; IsEnabled = $true }, @{ DisplayName = 'Leaver - last day'; Category = 'leaver'; IsEnabled = $true })
-Write-Demo 'gov-04-pim-groups-summary' @{ EligibleAssignments = 3; Groups = 1; RoleAssignableGroups = 2; GroupsRead = 2 }
+$pimGroupRows = @($groupPeople | Where-Object { $_.Membership -eq 'EligibleMember' } | ForEach-Object { [ordered]@{ Id = "pg-$($_.Who.Id)"; GroupId = '22222222-2222-2222-2222-222222222202'; AccessId = 'member'; PrincipalId = $_.Who.Id; Status = 'Provisioned'; MemberType = 'Direct' } })
+Write-Demo 'gov-04-pim-groups' $pimGroupRows
+Write-Demo 'gov-04-pim-groups-summary' @{ EligibleAssignments = $pimGroupRows.Count; Groups = 1; RoleAssignableGroups = 2; GroupsRead = 2 }
 Write-Demo 'gov-05-administrative-units' @()
 Write-Demo 'az-11-m365-backup' @{ ServiceStatus = 'enabled'; SharePointPolicies = 1; OneDrivePolicies = 1; ExchangePolicies = 1 }
 

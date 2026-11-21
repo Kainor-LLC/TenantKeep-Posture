@@ -14,7 +14,13 @@
         "maxGlobalAdmins": 5
       },
       "evidence": [
-        "04-role-assignments-active.json"
+        "04-role-assignments-active.json",
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
+      ],
+      "evidenceOptional": [
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
       ],
       "pass": "facts.globalAdmins >= thresholds.minGlobalAdmins && facts.globalAdmins <= thresholds.maxGlobalAdmins",
       "affected": "facts.globalAdmins",
@@ -55,7 +61,13 @@
       "thresholds": {},
       "evidence": [
         "04-role-assignments-active.json",
-        "04-role-assignments-pim-eligible.json"
+        "04-role-assignments-pim-eligible.json",
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
+      ],
+      "evidenceOptional": [
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
       ],
       "pass": "facts.permanentPrivilegedOutsideBreakGlass == 0",
       "affected": "facts.permanentPrivilegedOutsideBreakGlass",
@@ -93,7 +105,13 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "04-role-assignments-active.json"
+        "04-role-assignments-active.json",
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
+      ],
+      "evidenceOptional": [
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
       ],
       "pass": "facts.adminsSyncedFromOnPrem == 0",
       "affected": "facts.adminsSyncedFromOnPrem",
@@ -134,7 +152,13 @@
       "evidence": [
         "04-role-assignments-active.json",
         "06-users-admins.json",
-        "06-users.json"
+        "06-users.json",
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
+      ],
+      "evidenceOptional": [
+        "04-role-holders.json",
+        "04-role-holders-summary.json"
       ],
       "evidenceAnyOf": [
         [

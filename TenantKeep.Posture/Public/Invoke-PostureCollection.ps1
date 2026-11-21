@@ -137,7 +137,7 @@ function Invoke-PostureCollection {
         'AccessReview.Read.All'                   = 'Access review definitions'
         'EntitlementManagement.Read.All'          = 'Access packages, catalogs, connected organizations'
         'LifecycleWorkflows.Read.All'             = 'Lifecycle workflows'
-        'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups'
+        'PrivilegedEligibilitySchedule.Read.AzureADGroup' = 'PIM for Groups, Role holders (who can join a group that holds a role)'
         'AdministrativeUnit.Read.All'             = 'Administrative units'
         'NetworkAccess.Read.All'                  = 'Global Secure Access (only where licensed)'
         'BackupRestore-Configuration.Read.All'    = 'Microsoft 365 Backup (with the Azure collector)'

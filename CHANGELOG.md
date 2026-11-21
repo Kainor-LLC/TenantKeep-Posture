@@ -6,6 +6,23 @@ work landed on main.
 
 ## Unreleased
 
+- Everyone who holds a role is counted (2026-11-21). A role assigned to a group names the group, not its people,
+  and the report took the group for one administrator: its members were not held to a phishing-resistant method
+  (AU-008), not counted as Global Administrators (ID-001), and not in the admins table; an administrator who was
+  only eligible was not counted by AU-008 either. The Entra collector now reads the members of every group that
+  holds a role, and who PIM for Groups lets join it, into `04-role-holders`: one row per person and role, held
+  directly, as eligible, through a group, or as eligible through a group. The registration and users files, the
+  sign-in tallies, AU-008, ID-001 to ID-004, EM-025 and the admins table all read that list. Expect ID-001,
+  ID-002, ID-004 and AU-008 to move on a tenant that assigns roles to groups: the numbers are people now.
+- A group nobody opened is not "no one". When the members of a group that holds a role could not be read, or the
+  run is from before they were, the checks that count administrators say so: a gap they saw is still a finding,
+  with "Judged on the role holders that were read" as its reason; with none seen there is no answer, and the
+  count of Global Administrators stays out of the headline.
+- The authentication methods policy without its methods is no answer. A `02-authentication-methods-policy` file
+  with no method configurations used to stop every authentication check with an error; AU-001 to AU-005 now say
+  the policy was not read whole.
+- The demo tenant has a group that holds a role, an administrator who is only eligible and one who can join the
+  admin group through PIM for Groups. A generated person no longer shares a sign-in name with a named administrator.
 - No finding from a cap (2026-11-21). Three reads stop short on a large tenant, and what they did not read used
   to count against the tenant. The Azure collector reads Defender plans, security contacts, activity log exports,
   classic administrators and budgets on the first 200 subscriptions; the other subscriptions were reported as

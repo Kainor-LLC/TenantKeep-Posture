@@ -59,12 +59,9 @@ function Invoke-PostureSignInCollection {
             mfaRequired = 0; completed = $false; reportOnly = @{}; admins = @{}; errorCodes = @{}; failedByIp = @{}; ipCapReached = $false
         }
     }
-    # Role holders (active and eligible) from the Entra collector's files in this folder, for the admin tallies.
-    $adminSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($name in '04-role-assignments-active', '04-role-assignments-pim-eligible') {
-        $f = Join-Path $Folder "$name.json"
-        if (Test-Path -LiteralPath $f) { foreach ($a in @(Get-Content -Raw -LiteralPath $f | ConvertFrom-Json -AsHashtable)) { if ($a -and $a['PrincipalUpn']) { $null = $adminSet.Add([string]$a['PrincipalUpn']) } } }
-    }
+    # Everyone who holds a role (directly, as eligible, through a group) from the Entra collector's files in this
+    # folder, for the admin tallies.
+    $adminSet = (Get-PostureRoleHolder -Folder $Folder).upns
     foreach ($k in 'reportOnly', 'admins', 'errorCodes', 'failedByIp', 'caByMfa', 'deviceTrust') { if (-not $state.ContainsKey($k)) { $state[$k] = @{} } }
     $maxIps = 20000; $maxPolicyUsers = 5000
     $saveCheckpoint = { Save-PostureJsonFile -Path $checkpointPath -InputObject $state -Confirm:$false }

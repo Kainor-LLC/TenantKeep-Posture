@@ -42,6 +42,8 @@ BeforeAll {
                     @{ roleDefinitionId = 'r-ga'; assignmentType = 'Assigned'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'u1'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin One'; userPrincipalName = 'admin1@contoso.example'; onPremisesSyncEnabled = $false } }
                     @{ roleDefinitionId = 'r-ga'; assignmentType = 'Assigned'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'u2'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin Two'; userPrincipalName = 'admin2@contoso.example'; onPremisesSyncEnabled = $true } }
                     @{ roleDefinitionId = 'r-ga'; assignmentType = 'Activated'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'u3'; principal = @{ '@odata.type' = '#microsoft.graph.user'; displayName = 'Admin Three'; userPrincipalName = 'admin3@contoso.example' } }
+                    # A role assigned to a group: User One holds it as a member, Admin One can join through PIM for Groups.
+                    @{ roleDefinitionId = 'r-sec'; assignmentType = 'Assigned'; memberType = 'Direct'; directoryScopeId = '/'; principalId = 'grp-admins'; principal = @{ '@odata.type' = '#microsoft.graph.group'; displayName = 'Tier 0 Admins' } }
                 )
                 break
             }
@@ -129,6 +131,11 @@ BeforeAll {
             '^groupLifecyclePolicies' { & $u @(@{ id = 'lc1'; groupLifetimeInDays = 180; managedGroupTypes = 'All'; alternateNotificationEmails = 'it@contoso.example' }); break }
             '^groups\?\$filter=groupTypes' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; createdDateTime = '2024-01-01T00:00:00Z'; visibility = 'Private'; owners = @(@{ id = 'u1' }) }, @{ id = 'grp9'; displayName = 'Orphaned Project'; createdDateTime = '2023-05-01T00:00:00Z'; visibility = 'Private'; owners = @() }); break }
             '^groups\?' { & $u @(@{ id = 'grp1'; displayName = 'All Staff'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false }, @{ id = 'grp2'; displayName = 'Dyn'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; membershipRule = 'user.department -eq "x"' }, @{ id = 'grp3'; displayName = 'Sec'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; isAssignableToRole = $true }, @{ id = 'grp4'; displayName = 'Synced Staff'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; onPremisesSyncEnabled = $true; onPremisesSecurityIdentifier = 'S-1-5-21-1-2-3-1101'; assignedLicenses = @(@{ skuId = 'x' }) }, @{ id = 'grp5'; displayName = 'Moved From AD'; groupTypes = @(); mailEnabled = $false; securityEnabled = $true; onPremisesSecurityIdentifier = 'S-1-5-21-1-2-3-1102' }); break }
+            '^groups/grp-admins/transitiveMembers/microsoft\.graph\.user' {
+                if ($env:TKP_TEST_ROLEGROUP -eq 'denied') { throw 'Authorization_RequestDenied: Insufficient privileges to complete the operation.' }
+                & $u @(@{ id = 'u5'; userPrincipalName = 'user1@contoso.example'; displayName = 'User One'; accountEnabled = $true; onPremisesSyncEnabled = $false }); break
+            }
+            '^directoryObjects/u1$' { @{ '@odata.type' = '#microsoft.graph.user'; id = 'u1'; displayName = 'Admin One'; userPrincipalName = 'admin1@contoso.example'; onPremisesSyncEnabled = $false }; break }
             '^groups/.*/transitiveMembers' { & $u @(); break }
             '^applications\?' { & $u @(@{ id = 'a1'; appId = 'app-1'; displayName = 'Old App'; signInAudience = 'AzureADMyOrg'; passwordCredentials = @(@{ endDateTime = '2024-01-01T00:00:00Z' }, @{ endDateTime = '2030-01-01T00:00:00Z' }); keyCredentials = @() }); break }
             "^servicePrincipals\?.*appId eq '00000003" { & $u @(@{ id = 'sp-graph'; appId = '00000003-0000-0000-c000-000000000000'; appRoles = @(@{ id = 'role-1'; value = 'Directory.Read.All' }) }); break }
@@ -300,6 +307,32 @@ Describe 'Invoke-PostureCollection' {
             $by['EP-018'].status | Should -Be 'pass' -Because 'iOS has an assigned app protection policy and jailbreak detection; Android is out of scope'
         }
 
+        It 'writes everyone who holds a role: directly, as eligible, as a member of a group that does, and as someone who can join it' {
+            $h = @(& $script:Read '04-role-holders')
+            $how = @($h | ForEach-Object { "$($_.UserPrincipalName)|$($_.Role)|$($_.Held)|$($_.Membership)|$($_.GroupName)" })
+            $how | Should -Be @(
+                'admin1@contoso.example|Global Administrator|Direct||'
+                'admin2@contoso.example|Global Administrator|Direct||'
+                'admin3@contoso.example|Global Administrator|Direct||'
+                'user1@contoso.example|Security Administrator|Group|Member|Tier 0 Admins'
+                'admin1@contoso.example|Security Administrator|EligibleGroup|EligibleMember|Tier 0 Admins'
+                'admin3@contoso.example|Security Administrator|Eligible||'
+            )
+            ($h | Where-Object { $_.Held -eq 'Direct' -and $_.UserPrincipalName -eq 'admin3@contoso.example' }).AssignmentType | Should -Be 'Activated'
+            $s = & $script:Read '04-role-holders-summary'
+            $s.Holders | Should -Be 4
+            $s.Direct | Should -Be 3
+            $s.ThroughGroup | Should -Be 1
+            $s.EligibleOnly | Should -Be 0
+            $s.GroupsHoldingRoles | Should -Be 1
+            $s.GroupsRead | Should -Be 1
+            @($s.GroupsNotRead).Count | Should -Be 0
+        }
+
+        It 'counts the person who holds a role through a group among the administrators' {
+            @(& $script:Read '05-auth-registration-admins' | ForEach-Object { $_.UserPrincipalName }) | Should -Be @('admin1@contoso.example', 'admin2@contoso.example', 'user1@contoso.example') -Because 'User One is in the group that holds Security Administrator'
+        }
+
         It 'collects the governance reads: reviews with their scope queries, packages, workflows, PIM groups, administrative units' {
             $ar = @(& $script:Read 'gov-01-access-reviews')
             $ar.Count | Should -Be 3
@@ -364,7 +397,8 @@ Describe 'Invoke-PostureCollection' {
 
         It 'flattens roles with names and counts permanent Global Administrators' {
             $a = & $script:Read '04-role-assignments-active'
-            $a.Count | Should -Be 3
+            $a.Count | Should -Be 4
+            ($a | Where-Object PrincipalType -eq 'group').PrincipalName | Should -Be 'Tier 0 Admins'
             ($a | Where-Object PrincipalUpn -eq 'admin2@contoso.example').Role | Should -Be 'Global Administrator'
             ($a | Where-Object PrincipalUpn -eq 'admin2@contoso.example').PrincipalSynced | Should -BeTrue
             $e = & $script:Read '04-role-assignments-pim-eligible'
@@ -550,6 +584,31 @@ Describe 'Invoke-PostureCollection' {
                 $by[$id].status | Should -Be 'notEvaluated' -Because "$id would count devices over a list that is cut short"
                 $by[$id].reason | Should -Match 'Defender returned 2 of 9 device rows'
             }
+        }
+    }
+
+    Context 'a group that holds a role cannot be opened' {
+        It 'keeps everyone it could read, names the group in the summary, and logs the step as failed' {
+            $env:TKP_TEST_ROLEGROUP = 'denied'
+            try { $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'rolegroup') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue }
+            finally { Remove-Item Env:TKP_TEST_ROLEGROUP -ErrorAction SilentlyContinue }
+            $s = Get-Content -Raw (Join-Path $r.Folder '04-role-holders-summary.json') | ConvertFrom-Json
+            @($s.GroupsNotRead) | Should -Be @('Tier 0 Admins')
+            $s.GroupsRead | Should -Be 0
+            @(Get-Content -Raw (Join-Path $r.Folder '04-role-holders.json') | ConvertFrom-Json).Count | Should -Be 4 -Because 'the people the assignments name are still written'
+            @($r.Errors | Where-Object { $_ -like 'Role holders ::*members of 1 group(s) that hold a role could not be read*' }).Count | Should -Be 1
+
+            # The checks that count administrators say what they could not see.
+            $run = Invoke-PostureChecks -Evidence $r.Folder -Domain auth, identity -PassThru
+            $by = @{}; foreach ($x in $run.results) { $by[$x.id] = $x }
+            $by['AU-008'].status | Should -Be 'fail' -Because 'Admin Two has nothing registered, whatever the group holds'
+            $by['AU-008'].reason | Should -Match 'the members of 1 group\(s\) that hold a role were not read \(Tier 0 Admins\)'
+            $by['ID-003'].status | Should -Be 'fail' -Because 'Admin Two is synced'
+            $by['ID-003'].reason | Should -Match 'Judged on the role holders that were read'
+            $by['ID-001'].status | Should -Be 'pass' -Because 'the group holds Security Administrator, not Global Administrator: the count is whole'
+            # The synthetic tenant answers the methods policy without its methods: that is no answer, not "every method off".
+            $by['AU-001'].status | Should -Be 'notEvaluated'
+            $by['AU-001'].reason | Should -Match 'lists no authentication methods'
         }
     }
 

@@ -33,7 +33,7 @@ function Get-PostureIdentityFact {
         return $parsed
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
-    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
     $missing = { param([string] $Id, [string] $File) $notEvaluated[$Id] = "$File.json was not collected (run Invoke-PostureCollection, check errors.txt and the scopes)." }
 
     $active = & $load '04-role-assignments-active'
@@ -65,27 +65,61 @@ function Get-PostureIdentityFact {
         foreach ($id in 'ID-001', 'ID-002', 'ID-003', 'ID-004', 'ID-007') { & $missing $id '04-role-assignments-active' }
     }
     else {
+        # People, not assignment rows: someone holds a role when it is assigned to them or to a group they are in
+        # (04-role-holders). "Standing" is held now and for good: Direct or Group, and not a PIM activation that
+        # ends by itself. A group whose members were not read is not a person, and the checks below say so.
+        $holders = Get-PostureRoleHolder -Folder $Evidence
+        # One entry per person and role; held directly wins over held through a group as well.
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $standing = @(foreach ($person in $holders.people.get_Values()) {
+                foreach ($r in @($person.roles | Sort-Object { $_.held -ne 'Direct' })) {
+                    if ($r.held -in 'Direct', 'Group' -and $r.assignmentType -ne 'Activated' -and $seen.Add("$($person.upn)|$($r.role)")) { @{ person = $person; role = $r.role; group = $r.groupName; assignmentType = $r.assignmentType } }
+                }
+            })
+        $how = { param($x) if ($x.group) { "through the group $($x.group)" } else { [string]$x.assignmentType } }
         $permanent = @($active | Where-Object { $_.AssignmentType -ne 'Activated' })
-        $ga = @($permanent | Where-Object { $_.Role -eq 'Global Administrator' })
-        $facts.globalAdmins = $ga.Count
-        $affected.globalAdmins = @($ga | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName)"; detail = "$($_.PrincipalType) $($_.PrincipalUpn) ($($_.AssignmentType))" } })
+        # A role held by something that is neither a person nor a group (a service principal) counts as before.
+        $others = @($permanent | Where-Object { $_.PrincipalType -notin 'user', 'group' })
+        $partial = {
+            param([string] $Id, [int] $Gaps, [string] $What, [string[]] $Role = @())
+            $gap = Get-PostureRoleHolderGap -Holder $holders -Role $Role -Standing
+            if (-not $gap) { return }
+            if ($Gaps -gt 0) { $notes[$Id] = "Judged on the role holders that were read; $gap." }
+            else { $notEvaluated[$Id] = "No $What among the role holders that were read, but $gap. Collect Entra again (Resume-PostureRun -Collector Entra)." }
+        }
 
-        $outside = @($permanent | Where-Object { $_.Role -in $privilegedRoles -and $_.PrincipalType -eq 'user' -and -not (& $isBreakGlassUser $_.PrincipalUpn $_.PrincipalName) })
+        $gaPeople = @($standing | Where-Object { $_.role -eq 'Global Administrator' })
+        $gaOthers = @($others | Where-Object { $_.Role -eq 'Global Administrator' })
+        $facts.globalAdmins = $gaPeople.Count + $gaOthers.Count
+        $affected.globalAdmins = @(@($gaPeople | ForEach-Object { [ordered]@{ name = "$($_.person.name)"; detail = "user $($_.person.upn) ($(& $how $_))" } }) +
+            @($gaOthers | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName)"; detail = "$($_.PrincipalType) $($_.PrincipalUpn) ($($_.AssignmentType))" } }))
+        # The count is a floor while a group that holds the role is unopened: over the limit already is a finding,
+        # anything else has no answer.
+        $gaGap = Get-PostureRoleHolderGap -Holder $holders -Role 'Global Administrator' -Standing
+        if ($gaGap -and $facts.globalAdmins -gt [int]$t.maxGlobalAdmins) { $notes['ID-001'] = "At least $($facts.globalAdmins): $gaGap." }
+        elseif ($gaGap) { $notEvaluated['ID-001'] = "$($facts.globalAdmins) Global Administrator(s) among the role holders that were read, but $gaGap, so the number is not known. Collect Entra again (Resume-PostureRun -Collector Entra)." }
+
+        $outside = @($standing | Where-Object { $_.role -in $privilegedRoles -and -not (& $isBreakGlassUser $_.person.upn $_.person.name) })
         $facts.permanentPrivilegedOutsideBreakGlass = $outside.Count
         # Unknown, not zero, when the eligible assignments were not collected.
         $facts.eligiblePrivileged = $(if ($null -eq $eligible) { $null } else { @($eligible | Where-Object { $_ -and $_.Role -in $privilegedRoles }).Count })
-        $affected.permanentPrivilegedOutsideBreakGlass = @($outside | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = "permanent $($_.Role) for $($_.PrincipalUpn)" } })
+        $affected.permanentPrivilegedOutsideBreakGlass = @($outside | ForEach-Object { [ordered]@{ name = "$($_.person.name): $($_.role)"; detail = "permanent $($_.role) for $($_.person.upn)$(if ($_.group) { " through the group $($_.group)" })" } })
+        & $partial 'ID-002' $outside.Count 'permanent privileged assignment outside break-glass' $privilegedRoles
 
-        $synced = @($permanent | Where-Object { $_.PrincipalSynced -eq $true })
-        $facts.adminsSyncedFromOnPrem = $synced.Count
-        $affected.adminsSyncedFromOnPrem = @($synced | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = 'synced from on-premises AD' } })
+        $syncedPeople = @($standing | Where-Object { $_.person.synced -eq $true })
+        $syncedOthers = @($permanent | Where-Object { $_.PrincipalType -ne 'user' -and $_.PrincipalSynced -eq $true })
+        $facts.adminsSyncedFromOnPrem = $syncedPeople.Count + $syncedOthers.Count
+        $affected.adminsSyncedFromOnPrem = @(@($syncedPeople | ForEach-Object { [ordered]@{ name = "$($_.person.name): $($_.role)"; detail = "synced from on-premises AD$(if ($_.group) { ", holds the role through the group $($_.group)" })" } }) +
+            @($syncedOthers | ForEach-Object { [ordered]@{ name = "$($_.PrincipalName): $($_.Role)"; detail = 'synced from on-premises AD' } }))
+        & $partial 'ID-003' $facts.adminsSyncedFromOnPrem 'administrator synced from on-premises AD'
 
-        $adminUsers = @($permanent | Where-Object { $_.PrincipalType -eq 'user' -and $_.PrincipalUpn } | ForEach-Object { $_.PrincipalUpn } | Sort-Object -Unique)
+        $adminUsers = @($standing | ForEach-Object { [string]$_.person.upn } | Where-Object { $_ } | Sort-Object -Unique)
         if ($null -eq $adminRows) { & $missing 'ID-004' '06-users' }
         else {
             $licensed = @($adminUsers | Where-Object { $usersByUpn.ContainsKey($_) -and [int]$usersByUpn[$_].LicenseCount -gt 0 -and -not (& $isBreakGlassUser $_ $usersByUpn[$_].DisplayName) })
             $facts.adminsWithLicenses = $licensed.Count
             $affected.adminsWithLicenses = @($licensed | ForEach-Object { [ordered]@{ name = $_; detail = "$($usersByUpn[$_].LicenseCount) license(s); an admin account should be a separate, unlicensed identity" } })
+            & $partial 'ID-004' $licensed.Count 'licensed administrator account'
         }
 
         $spRoles = @($permanent | Where-Object { $_.PrincipalType -eq 'servicePrincipal' })
@@ -264,5 +298,5 @@ function Get-PostureIdentityFact {
         }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
 }

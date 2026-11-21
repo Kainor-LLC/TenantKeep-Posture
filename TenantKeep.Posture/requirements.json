@@ -186,6 +186,18 @@
     },
     {
       "collector": "Entra",
+      "match": "^Role holders$",
+      "roles": [
+        "Global Reader"
+      ],
+      "scopes": [
+        "Group.Read.All",
+        "PrivilegedEligibilitySchedule.Read.AzureADGroup"
+      ],
+      "note": "The members of the groups that hold a role, and who PIM for Groups lets join them."
+    },
+    {
+      "collector": "Entra",
       "match": "^Auth method registration$",
       "roles": [
         "Reports Reader",

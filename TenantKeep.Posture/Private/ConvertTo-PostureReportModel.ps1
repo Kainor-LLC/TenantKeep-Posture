@@ -93,10 +93,13 @@ function ConvertTo-PostureReportModel {
     $idFacts = if ($Run.domains['identity']) { $Run.domains['identity'].facts } else { @{} }
     $devFacts = if ($Run.domains['devices']) { $Run.domains['devices'].facts } else { @{} }
     $admins = [double](& $v $authFacts 'admins'); $without = [double](& $v $authFacts 'adminsWithoutPhishingResistant')
+    # A number the check itself could not stand behind (a group that holds a role was not opened, so the count is
+    # a floor) is not a headline.
+    $noAnswer = @{}; foreach ($x in @($results | Where-Object { $_.id -in 'AU-008', 'ID-001' -and $_.status -eq 'notEvaluated' })) { $noAnswer[[string]$x.id] = $true }
     $headline = [ordered]@{
         mfaRegisteredPct         = & $v $authFacts 'mfaRegisteredPct'
-        adminsPhishingResistantPct = $(if ($admins -gt 0) { [Math]::Round(100.0 * ($admins - $without) / $admins, 1) } else { $null })
-        permanentGlobalAdmins    = & $v $idFacts 'globalAdmins'
+        adminsPhishingResistantPct = $(if ($admins -gt 0 -and -not $noAnswer.ContainsKey('AU-008')) { [Math]::Round(100.0 * ($admins - $without) / $admins, 1) } else { $null })
+        permanentGlobalAdmins    = $(if ($noAnswer.ContainsKey('ID-001')) { $null } else { & $v $idFacts 'globalAdmins' })
         intuneCompliancePct      = & $v $devFacts 'intuneCompliancePct'
         externalExposure         = $null
         copilotReadinessPct      = $null
@@ -258,16 +261,38 @@ function ConvertTo-PostureReportModel {
             $adminRows[$key] = [ordered]@{
                 name = $a.PrincipalName; upn = $upn; type = $a.PrincipalType; roles = @(); permanent = @(); eligible = @()
                 strongestMethod = $(if ($rg) { & $strongest ([string]$rg.MethodsRegistered) } elseif ($a.PrincipalType -eq 'user') { 'Unknown' } else { 'n/a' })
-                lastSignIn = $(if ($u -and $u.LastInteractiveSignIn) { (ConvertTo-PostureUtcDateTime $u.LastInteractiveSignIn).ToString('yyyy-MM-dd') } else { $null })
+                lastSignIn = $(if ($u -and (& $v $u 'LastInteractiveSignIn')) { (ConvertTo-PostureUtcDateTime (& $v $u 'LastInteractiveSignIn')).ToString('yyyy-MM-dd') } else { $null })
                 synced = [bool]($a.PrincipalSynced -eq $true)
-                licenses = $(if ($u) { [int]$u.LicenseCount } else { $null })
+                licenses = $(if ($u -and $null -ne (& $v $u 'LicenseCount')) { [int](& $v $u 'LicenseCount') } else { $null })
             }
         }
         $row = $adminRows[$key]
         $row.roles = @($row.roles + $a.Role | Select-Object -Unique)
         if ($a.AssignmentType -eq 'Eligible') { $row.eligible = @($row.eligible + $a.Role | Select-Object -Unique) } else { $row.permanent = @($row.permanent + $a.Role | Select-Object -Unique) }
     }
-    $adminsTable = @($adminRows.Values | Sort-Object { -($_.permanent -contains 'Global Administrator') }, { $_.name })
+    # People who hold a role through a group get a row of their own beside the group's: the group's row says what
+    # was assigned, theirs says who can use it. "Role (through Group)" keeps the two apart in the same columns.
+    $roleHolders = Get-PostureRoleHolder -Folder $Evidence
+    foreach ($person in $roleHolders.people.get_Values()) {
+        foreach ($hr in @($person.roles | Where-Object { $_.held -in 'Group', 'EligibleGroup' })) {
+            $key = "user|$($person.id)"
+            if (-not $adminRows.ContainsKey($key)) {
+                $u = $userByUpn[[string]$person.upn]; $rg = $regByUpn[[string]$person.upn]
+                $adminRows[$key] = [ordered]@{
+                    name = $person.name; upn = [string]$person.upn; type = 'user'; roles = @(); permanent = @(); eligible = @()
+                    strongestMethod = $(if ($rg) { & $strongest ([string]$rg.MethodsRegistered) } else { 'Unknown' })
+                    lastSignIn = $(if ($u -and (& $v $u 'LastInteractiveSignIn')) { (ConvertTo-PostureUtcDateTime (& $v $u 'LastInteractiveSignIn')).ToString('yyyy-MM-dd') } else { $null })
+                    synced = [bool]($person.synced -eq $true)
+                    licenses = $(if ($u -and $null -ne (& $v $u 'LicenseCount')) { [int](& $v $u 'LicenseCount') } else { $null })
+                }
+            }
+            $row = $adminRows[$key]
+            $label = "$($hr.role) (through $($hr.groupName))"
+            $row.roles = @($row.roles + $hr.role | Select-Object -Unique)
+            if ($hr.held -eq 'Group') { $row.permanent = @($row.permanent + $label | Select-Object -Unique) } else { $row.eligible = @($row.eligible + $label | Select-Object -Unique) }
+        }
+    }
+    $adminsTable = @($adminRows.Values | Sort-Object { -(@($_.permanent | Where-Object { $_ -like 'Global Administrator*' }).Count -gt 0) }, { $_.name })
 
     # Conditional Access pages from the snapshot in the same folder, when present.
     $ca = $null

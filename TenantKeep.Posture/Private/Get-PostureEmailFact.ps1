@@ -33,7 +33,7 @@ function Get-PostureEmailFact {
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
-    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
     # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
     $affectedCounts = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Exchange; check errors.txt)." } }
@@ -311,9 +311,10 @@ function Get-PostureEmailFact {
     $exoApp = $(if ($tools) { @($tools | Where-Object { $_.appId -eq 'fb78d390-0c51-40cd-8e17-fdbfab77341b' })[0] } else { $null })
     # Unknown when the service principals were not collected, or when only a Conditional Access policy could close the app and the snapshot is missing.
     $facts.exoPowerShellAppRestricted = $(if ($null -eq $tools -or -not $exoApp) { $null } else { $exoApp.restricted })
-    $admins = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    # Administrators: everyone who holds a role, directly, as eligible or through a group (04-role-holders).
     $roleRows = & $load '04-role-assignments-active'
-    foreach ($a in @($roleRows | Where-Object { $_ })) { $u = [string](& $v $a 'PrincipalUpn'); if ($u) { $null = $admins.Add($u) } }
+    $roleHolders = Get-PostureRoleHolder -Folder $Evidence
+    $admins = $roleHolders.upns
     $psUsers = [System.Collections.Generic.List[object]]::new(); $psCount = @{ n = 0 }
     $havePs = Read-PostureEvidenceRow -Folder $Evidence -Name 'exo-12-remote-powershell-users' -OnRow {
         param($_row)
@@ -329,7 +330,10 @@ function Get-PostureEmailFact {
         $facts.nonAdminRemotePowerShell = $(if (-not $havePs -or ($null -eq $roleRows -and $psCount.n -gt 0)) { $null } else { $psCount.n })
         $affected.nonAdminRemotePowerShell = @($(if ($null -ne $roleRows) { $psUsers }))
         if ($null -ne $roleRows) { $affectedCounts.nonAdminRemotePowerShell = $psCount.n }
+        # With a group that holds a role unopened, some of the accounts listed may be administrators.
+        $roleGap = Get-PostureRoleHolderGap -Holder $roleHolders
+        if ($roleGap -and $null -ne $roleRows -and $psCount.n -gt 0) { $notes['EM-025'] = "Some of the accounts listed may be administrators: $roleGap." }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
 }

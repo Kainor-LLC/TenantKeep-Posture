@@ -32,14 +32,18 @@ function Get-PostureAuthFact {
         return $parsed
     }
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
-    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
 
     $policy = & $load '02-authentication-methods-policy'
     if ($null -eq $policy) {
         foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005') { $notEvaluated[$id] = '02-authentication-methods-policy.json was not collected.' }
     }
+    elseif (@(& $v $policy 'authenticationMethodConfigurations' | Where-Object { $_ }).Count -eq 0) {
+        # The policy always lists its methods. A file without them is not a tenant with every method off.
+        foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005') { $notEvaluated[$id] = '02-authentication-methods-policy.json lists no authentication methods, so the policy was not read whole. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+    }
     else {
-        $configs = @(& $v $policy 'authenticationMethodConfigurations')
+        $configs = @(& $v $policy 'authenticationMethodConfigurations' | Where-Object { $_ })
         $cfg = { param([string] $Id) @($configs | Where-Object { [string]$_.id -eq $Id }) | Select-Object -First 1 }
         $enabledForAll = {
             param($c)
@@ -86,12 +90,14 @@ function Get-PostureAuthFact {
     # The admin-only file the collector writes; the full one for runs made before it existed.
     $reg = & $load '05-auth-registration-admins'
     if ($null -eq $reg) { $reg = & $load '05-auth-registration' }
-    $active = & $load '04-role-assignments-active'
     if ($null -eq $reg) { $notEvaluated['AU-008'] = '05-auth-registration.json was not collected.' }
     else {
+        # Everyone who holds a role: directly, as eligible, or through a group (04-role-holders). Graph's own flag
+        # as well, which covers a folder without the role files.
+        $holders = Get-PostureRoleHolder -Folder $Evidence
         $adminUpns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($u in $holders.upns) { $null = $adminUpns.Add($u) }
         foreach ($r in @($reg | Where-Object { $_ -and $_.IsAdmin -eq $true })) { $null = $adminUpns.Add([string]$r.UserPrincipalName) }
-        foreach ($a in @($active | Where-Object { $_ -and $_.PrincipalType -eq 'user' -and $_.PrincipalUpn })) { $null = $adminUpns.Add([string]$a.PrincipalUpn) }
         $phishing = $script:PostureDeviceBoundMethods
         $without = @($reg | Where-Object { $_ -and $adminUpns.Contains([string]$_.UserPrincipalName) } | Where-Object {
                 $methods = @(([string]$_.MethodsRegistered) -split ';' | Where-Object { $_ })
@@ -100,6 +106,10 @@ function Get-PostureAuthFact {
         $facts.admins = $adminUpns.Count
         $facts.adminsWithoutPhishingResistant = $without.Count
         $affected.adminsWithoutPhishingResistant = @($without | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "registered: $(if ($_.MethodsRegistered) { $_.MethodsRegistered } else { 'nothing' })" } })
+        # A group that holds a role and was not opened: its people are administrators nobody looked at.
+        $gap = Get-PostureRoleHolderGap -Holder $holders
+        if ($gap -and $without.Count -gt 0) { $notes['AU-008'] = "Judged on the $($adminUpns.Count) administrators that were read; $gap." }
+        elseif ($gap) { $notEvaluated['AU-008'] = "No administrator without a phishing-resistant method among the $($adminUpns.Count) that were read, but $gap. Collect Entra again (Resume-PostureRun -Collector Entra)." }
     }
 
     $perUser = & $load '05-per-user-mfa-summary'
@@ -115,5 +125,5 @@ function Get-PostureAuthFact {
         $affected.perUserMfaEnforced = @(@($perUserRows) | Where-Object { $_ -and $_.PerUserMfaState -in @('enforced', 'enabled') } | ForEach-Object { [ordered]@{ name = $_.UserPrincipalName; detail = "per-user MFA $($_.PerUserMfaState)" } })
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('02-authentication-methods-policy.json', '05-auth-registration.json', '05-auth-registration-summary.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('02-authentication-methods-policy.json', '05-auth-registration.json', '05-auth-registration-summary.json') }
 }
