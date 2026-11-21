@@ -61,17 +61,9 @@ function Import-PostureSharingReport {
     foreach ($p in $Path) {
         $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($p)
         if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "File not found: $full" }
-        $info = Test-PostureSharingReport -Path $full
-        if (-not $info.valid) { throw "$full is not the Site permissions across your organization report: no $($info.missing | ForEach-Object { "'$($script:PostureSharingColumns[$_])'" }) column. In the SharePoint admin center choose Reports, Data access governance, Site permissions across your organization, then Download CSV." }
-        if ($info.empty) { throw "$full has a header and no sites. Download it again once the report shows as ready." }
-        if ($tenant -and $info.tenantId -and $info.tenantId -ne $tenant) { throw "$full is for tenant $($info.tenantId), not $tenant. Nothing was filed." }
-        $stamp = $(if ($info.reportDate) { $info.reportDate.ToString('yyyy-MM-dd') } else { [datetime]::UtcNow.ToString('yyyy-MM-dd') })
-        $workload = $(if ((Import-Csv -LiteralPath $full | Select-Object -First 1).'Site URL' -match '-my\.sharepoint\.') { 'onedrive' } else { 'sharepoint' })
-        $target = Join-Path $imports "site-permissions-$workload-$stamp.csv"
-        if ($PSCmdlet.ShouldProcess($target, "File $full")) {
-            New-Item -ItemType Directory -Path $imports -Force | Out-Null
-            Copy-Item -LiteralPath $full -Destination $target -Force
-            $filed += $target
+        if ($PSCmdlet.ShouldProcess($full, 'File the site permissions report')) {
+            $target = Add-PostureSharingReportFile -Client $folder -Path $full -TenantId $tenant -Strict -Confirm:$false
+            if ($target) { $filed += $target }
         }
     }
     if ($filed.Count -eq 0) { return }

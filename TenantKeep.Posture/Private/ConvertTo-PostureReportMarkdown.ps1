@@ -97,6 +97,13 @@ function ConvertTo-PostureReportMarkdown {
         if (@($tr.affectedMoved).Count -gt 0) { & $line ('**Affected counts moved:** ' + (@($tr.affectedMoved | ForEach-Object { "$($_.id) $($_.before) to $($_.after)" }) -join '; ')); & $line }
         & $table @('Domain', 'Before', 'After', 'Delta') @($tr.domains | ForEach-Object { , @((& $esc $_.label), (& $num $_.before), (& $num $_.after), (& $signed $_.delta)) })
     }
+    if ($r.Contains('completion') -and @($r.completion).Count -gt 0) {
+        & $line '## To complete this assessment'
+        & $line
+        & $line "$(@($r.completion).Count) piece$(if (@($r.completion).Count -ne 1) { 's are' } else { ' is' }) not in this run. The checks that wait for each say not evaluated."
+        & $line
+        & $table @('What is missing', 'Checks waiting', 'Who', 'Where', 'Command', 'Then') @(foreach ($t in $r.completion) { , @($(if ($t.note) { "$($t.title) ($($t.note))" } else { $t.title }), $(if ($null -ne $t.checks) { [string]$t.checks } else { '' }), $t.who, $t.where, $t.get, $t.bring) })
+    }
     & $line '## Domain scorecards'
     & $line
     foreach ($d in $r.domains) {

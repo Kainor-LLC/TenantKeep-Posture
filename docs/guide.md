@@ -235,6 +235,12 @@ Right after the sign-in, the run checks your account's directory roles against w
 one line per domain: covered, missing (with the role to grant), or checked when it connects (Exchange and Purview
 role groups and Azure roles, which Graph cannot see). PIM roles count once activated. The run goes on either way.
 
+The report's overview opens with what the assessment still lacks, when it lacks anything: one row for each missing
+piece (the Active Directory read, the SharePoint admin read, the site permissions report, a domain that was skipped,
+steps that failed), with how many checks wait for it, who can add it, where, the command, and the command that
+brings it back. The run prints the same rows when it ends. A site permissions report can also just be saved into the
+client folder's `imports/`: the next run checks it is that report and this tenant's, and files it.
+
 A step that fails is recorded with its cause: needs a role, needs a licence, sign-in ran out, throttled, network,
 or not set up in this tenant. The console ends with the failures grouped by cause and what to do, the report opens
 with a banner, and its Run Health view lists each step with the role, delegated permission or licence it needs

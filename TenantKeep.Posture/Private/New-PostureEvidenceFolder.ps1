@@ -21,6 +21,7 @@ function New-PostureEvidenceFolder {
     $folder = Join-Path $root $(if ($Suffix) { "$stamp-$Suffix" } else { $stamp })
     if ($PSCmdlet.ShouldProcess($folder, 'Create evidence folder')) {
         New-Item -ItemType Directory -Path $folder -Force | Out-Null
+        $null = Set-PostureFolderPrivate -Path $folder -Confirm:$false
         if (-not $NoTranscript) {
             try { Start-Transcript -Path (Join-Path $folder 'transcript.txt') -Append | Out-Null }
             catch { Write-Verbose "Transcript not started: $($_.Exception.Message)" }

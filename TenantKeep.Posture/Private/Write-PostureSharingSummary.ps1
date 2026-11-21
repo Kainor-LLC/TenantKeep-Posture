@@ -37,6 +37,47 @@ function Test-PostureSharingReport {
     return @{ valid = $missing.Count -eq 0; missing = $missing; reportDate = $date; tenantId = $tenant; empty = $first.Count -eq 0 }
 }
 
+function Add-PostureSharingReportFile {
+    <#
+    .SYNOPSIS
+        Files one "Site permissions across your organization" CSV in the client folder's imports/sam-dag, named by
+        workload and report date. Returns where it went.
+    .DESCRIPTION
+        The checks, before anything is copied: the file is that report (its columns), it has sites, and it is this
+        tenant's when both the file and the caller say which. With -Strict a file that is not the report throws
+        with where to get it, which is right for a file the admin named. Without it such a file returns nothing:
+        a CSV of something else saved in imports/ is not an error. Either way the report of another tenant, or
+        one with no sites, throws. Without -Strict a report already filed, byte for byte, also returns nothing.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string] $Client,
+        [Parameter(Mandatory)] [string] $Path,
+        [string] $TenantId,
+        [switch] $Strict
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $full = $Path
+    $info = Test-PostureSharingReport -Path $full
+    if (-not $info.valid) {
+        if (-not $Strict) { return $null }
+        throw "$full is not the Site permissions across your organization report: no $($info.missing | ForEach-Object { "'$($script:PostureSharingColumns[$_])'" }) column. In the SharePoint admin center choose Reports, Data access governance, Site permissions across your organization, then Download CSV."
+    }
+    if ($info.empty) { throw "$full has a header and no sites. Download it again once the report shows as ready." }
+    if ($TenantId -and $info.tenantId -and $info.tenantId -ne $TenantId) { throw "$full is for tenant $($info.tenantId), not $TenantId. Nothing was filed." }
+    $stamp = $(if ($info.reportDate) { $info.reportDate.ToString('yyyy-MM-dd') } else { [datetime]::UtcNow.ToString('yyyy-MM-dd') })
+    $workload = $(if ((Import-Csv -LiteralPath $full | Select-Object -First 1).'Site URL' -match '-my\.sharepoint\.') { 'onedrive' } else { 'sharepoint' })
+    $imports = Join-Path $Client 'imports' 'sam-dag'
+    $target = Join-Path $imports "site-permissions-$workload-$stamp.csv"
+    if (-not $Strict -and (Test-Path -LiteralPath $target -PathType Leaf) -and (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash -eq (Get-FileHash -Algorithm SHA256 -LiteralPath $full).Hash) { return $null }
+    if (-not $PSCmdlet.ShouldProcess($target, "File $full")) { return $null }
+    New-Item -ItemType Directory -Path $imports -Force | Out-Null
+    Copy-Item -LiteralPath $full -Destination $target -Force
+    return $target
+}
+
 function Write-PostureSharingSummary {
     <#
     .SYNOPSIS

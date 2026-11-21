@@ -472,6 +472,16 @@ function ConvertTo-PostureReportModel {
     $fullTier = ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')
     $allowedDomains = @($Entitlement['domains'])
     if (-not $fullTier) { foreach ($k in @($headline.Keys)) { $headline[$k] = $null } }
+    # What the assessment still lacks, as rows someone can act on (the completion block of checks/catalog.json).
+    # Only where every domain is assessed: in the Conditional Access tier the other domains are not waiting for evidence.
+    $completion = @()
+    if ($fullTier) {
+        $completionArgs = @{ Catalog = $Catalog; Result = @($results); Evidence = $Evidence; Failure = @($failures) }
+        if ($plan -is [System.Collections.IDictionary]) { $completionArgs.Plan = $plan }
+        if ($collection -is [System.Collections.IDictionary]) { $completionArgs.Collection = $collection }
+        $completion = @($(try { Get-PostureCompletion @completionArgs } catch { Write-Verbose "What the assessment lacks was not worked out: $($_.Exception.Message)"; @() }))
+    }
+
     return [ordered]@{
         title        = "Microsoft Security Posture Report: $clientName"
         clientName   = $clientName
@@ -511,6 +521,7 @@ function ConvertTo-PostureReportModel {
         catalogText  = $catalogText
         labels       = $(if ($Catalog.Contains('labels') -and $Catalog['labels']) { $Catalog['labels'] } else { @{ facts = @{}; thresholds = @{} } })
         runHealth    = $runHealth
+        completion   = $completion
         licensing    = $(if ($fullTier) { $licensing } else { $null })
         licenseAdvice = $(if ($fullTier) { $licenseAdvice } else { $null })
         runAs        = $runAs

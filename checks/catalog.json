@@ -94,5 +94,169 @@
       "key": "hybrid",
       "label": "Hybrid identity and on-premises AD"
     }
+  ],
+  "completion": [
+    {
+      "id": "active-directory",
+      "title": "Active Directory (the on-premises domain)",
+      "evidence": [
+        "ad-"
+      ],
+      "who": "Someone with an account in the domain",
+      "where": "A domain-joined Windows machine with the Active Directory tools",
+      "get": "Export-PostureCollector -Kind ActiveDirectory -Run {run}",
+      "bring": "Import-PostureEvidence -Path <the folder the script wrote> -Run {run} -Client {client}"
+    },
+    {
+      "id": "sharing-report",
+      "title": "SharePoint site permissions report",
+      "evidence": [
+        "spo-dag-",
+        "sam-dag-"
+      ],
+      "who": "A SharePoint Administrator",
+      "where": "SharePoint admin center, Reports, Data access governance, Site permissions across your organization: run the report, then Download CSV",
+      "get": "Save the CSV in {imports}",
+      "bring": "Nothing more: the next run, or Import-PostureSharingReport -Client {client} -Path <the CSV> now, reads it."
+    },
+    {
+      "id": "sharepoint-admin",
+      "collector": "SharePoint",
+      "title": "SharePoint admin read (site list, sharing defaults Graph does not carry)",
+      "evidence": [
+        "spo-sites",
+        "spo-sites-summary",
+        "spo-restricted-search",
+        "spo-tenant-settings"
+      ],
+      "who": "A SharePoint Administrator",
+      "where": "A Windows machine with Microsoft's SharePoint Online Management Shell (or here, once the TenantKeep Posture for SharePoint app is granted to you)",
+      "get": "Export-PostureCollector -Kind SharePoint -Run {run}",
+      "bring": "Import-PostureEvidence -Path <the folder the script wrote> -Run {run}"
+    },
+    {
+      "id": "conditional-access",
+      "title": "Conditional Access snapshot",
+      "evidence": [
+        "policies",
+        "named-locations",
+        "auth-strengths",
+        "auth-context",
+        "resolved-names",
+        "group-scope"
+      ],
+      "who": "The admin who ran the assessment, with Global Reader",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Entra",
+      "bring": "Nothing to bring back: the snapshot is taken with the collection when the run has none, and the report is rebuilt."
+    },
+    {
+      "id": "exchange",
+      "collector": "Exchange",
+      "title": "Exchange Online",
+      "evidence": [
+        "exo-",
+        "dns-"
+      ],
+      "who": "The admin who ran the assessment, with Exchange read access (Global Reader, or View-Only Organization Management)",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Exchange",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "purview",
+      "collector": "Purview",
+      "title": "Microsoft Purview",
+      "evidence": [
+        "pv-"
+      ],
+      "who": "The admin who ran the assessment, with Purview read access (Global Reader for most of it)",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Purview",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "teams",
+      "collector": "Teams",
+      "title": "Microsoft Teams",
+      "evidence": [
+        "teams-"
+      ],
+      "who": "The admin who ran the assessment, with Teams read access (Global Reader)",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Teams",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "azure",
+      "collector": "Azure",
+      "title": "Azure",
+      "evidence": [
+        "az-"
+      ],
+      "who": "The admin who ran the assessment, with Reader and Security Reader on the subscriptions",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Azure",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "defender",
+      "collector": "Defender",
+      "title": "Microsoft Defender",
+      "evidence": [
+        "def-"
+      ],
+      "who": "The admin who ran the assessment, with Security Reader",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Defender",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "intune",
+      "collector": "Intune",
+      "title": "Intune",
+      "evidence": [
+        "09-"
+      ],
+      "who": "The admin who ran the assessment, with Intune read access (Global Reader)",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Intune",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "signins",
+      "collector": "SignIns",
+      "title": "Sign-in log",
+      "evidence": [
+        "06-signins-"
+      ],
+      "who": "The admin who ran the assessment, with Reports Reader or Security Reader, in a tenant with Entra ID P1",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector SignIns",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "entra",
+      "collector": "Entra",
+      "title": "Entra ID",
+      "evidence": [
+        "01-",
+        "02-",
+        "04-",
+        "05-",
+        "06-",
+        "07-",
+        "08-",
+        "10-",
+        "11-",
+        "gov-",
+        "gsa-",
+        "spo-tenant-settings-graph"
+      ],
+      "who": "The admin who ran the assessment, with Global Reader",
+      "where": "Here, on the machine that has the run",
+      "get": "Resume-PostureRun -Path {run} -Collector Entra",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    }
   ]
 }

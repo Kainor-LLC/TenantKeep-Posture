@@ -6,6 +6,20 @@ work landed on main.
 
 ## Unreleased
 
+- "To complete this assessment" (2026-11-21). A run that lacked a piece said so check by check, in forty reasons
+  that each named a script path. The report's overview now opens with one row for each missing piece (the Active
+  Directory read, the SharePoint admin read, the site permissions report, a domain that was skipped, steps that
+  failed and the permissions the sign-in lacks): how many checks wait for it, who can add it, where, the command
+  with this run's paths in it, and the command that brings the result back. The run prints the same rows when it
+  ends. The rows are data in checks/catalog.json (`completion`), so a new check adds no code to the report.
+- A site permissions report saved straight into the client folder's `imports/` is filed by the next run, with
+  the checks `Import-PostureSharingReport` makes. A CSV of something else there is left alone.
+- A run says how big the tenant is before it collects: users, devices and groups from three small reads, and for
+  a large tenant how many requests the long lists are, that per-user MFA is read as a sample, that OneDrive
+  sites are not listed, and that the run can be stopped and resumed.
+- Run and client folders are the owner's alone on macOS and Linux (mode 700). They were created readable by every
+  account on the machine. docs/footprint.md says what is in them and what Windows does.
+
 - `Export-PostureCollector` (2026-11-21). The two scripts that run on a Windows machine, the Active Directory read
   and the SharePoint admin read on Microsoft's own shell, lived in the repository and had to be found there. They
   now ship inside the module, and `Export-PostureCollector -Kind ActiveDirectory|SharePoint -Run <run>` writes one

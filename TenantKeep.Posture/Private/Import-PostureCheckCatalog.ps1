@@ -31,6 +31,7 @@ function Import-PostureCheckCatalog {
     $version = 'unversioned'
     $domainList = [ordered]@{}
     $changes = @()
+    $completion = @()
     $versionFile = Join-Path $Path 'catalog.json'
     if (Test-Path -LiteralPath $versionFile) {
         $cj = Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json -AsHashtable
@@ -40,6 +41,20 @@ function Import-PostureCheckCatalog {
         $changes = @($(if ($cj.Contains('changes')) { $cj['changes'] }) | Where-Object { $_ })
         foreach ($entry in $changes) {
             if (-not ($entry -is [System.Collections.IDictionary]) -or -not $entry['version'] -or -not $entry['summary'] -or -not ($entry['checks'] -is [System.Collections.IDictionary])) { throw 'catalog.json: every entry of changes needs a version, a summary and checks (check id to what changed).' }
+        }
+    }
+
+    # The pieces of an assessment that can be missing from a run, for the report's "To complete this assessment":
+    # which evidence each provides (a name, or a prefix ending in a dash), who adds it, where and how.
+    if ((Test-Path -LiteralPath $versionFile) -and $cj.Contains('completion')) {
+        $completion = @($cj['completion'] | Where-Object { $_ })
+        $completionIds = @{}
+        foreach ($entry in $completion) {
+            if (-not ($entry -is [System.Collections.IDictionary])) { throw 'catalog.json: every entry of completion is an object.' }
+            foreach ($field in 'id', 'title', 'who', 'where', 'get') { if (-not $entry.Contains($field) -or -not [string]$entry[$field]) { throw "catalog.json: a completion entry ($([string]$entry['id'])) has no $field." } }
+            if (@($entry['evidence'] | Where-Object { $_ }).Count -eq 0) { throw "catalog.json: the completion entry $($entry['id']) names no evidence." }
+            if ($completionIds.ContainsKey([string]$entry['id'])) { throw "catalog.json: two completion entries are called $($entry['id'])." }
+            $completionIds[[string]$entry['id']] = $true
         }
     }
 
@@ -129,6 +144,7 @@ function Import-PostureCheckCatalog {
     return [ordered]@{
         version = $version
         changes = $changes
+        completion = $completion
         domains = $domainList
         labels  = $labels
         attack  = $attack

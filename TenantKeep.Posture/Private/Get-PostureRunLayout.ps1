@@ -48,6 +48,8 @@ function New-PostureRunFolder {
     while (Test-Path -LiteralPath $path) { $path = Join-Path $root "$base-$n"; $n++ }
     if (-not $PSCmdlet.ShouldProcess($path, 'Create the run folder')) { return $null }
     foreach ($part in 'evidence', 'errors', 'logs') { New-Item -ItemType Directory -Path (Join-Path $path $part) -Force | Out-Null }
+    # A run holds every user, device, mailbox and site of the tenant: the folder is the owner's alone.
+    $null = Set-PostureFolderPrivate -Path $path -Confirm:$false
     return (Get-PostureRunLayout -Folder $path)
 }
 

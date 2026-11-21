@@ -133,6 +133,7 @@ function Start-PostureRun {
     }
     $Client = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Client)
     New-Item -ItemType Directory -Path $Client, (Join-Path $Client 'imports'), (Join-Path $Client 'hybrid') -Force | Out-Null
+    $null = Set-PostureFolderPrivate -Path $Client -Confirm:$false
     $profilePath = Join-Path $Client 'profile.json'
     $profileParam = @{}
     if (Test-Path -LiteralPath $profilePath) {
@@ -217,14 +218,20 @@ function Start-PostureRun {
     $folder = $null
     $runLayout = $null
     $tokenServer = $null
-    $reportFile = $null
-    $adFiles = @()
+    $reportFile = $null; $report = $null
+    $hybridImport = $null
     try {
         # $folder is where evidence goes (what the collectors and the report read); $runLayout has the rest.
         $runLayout = $(if ($into) { Get-PostureRunLayout -Folder $into } else { New-PostureRunFolder -OutRoot $OutRoot -Name $Name -Confirm:$false })
         $folder = $runLayout.evidence
         try { Start-Transcript -Path (Join-Path $runLayout.logs 'transcript.txt') -Append | Out-Null } catch { Write-Verbose "Transcript not started: $($_.Exception.Message)" }
         Write-Host "Run folder:    $($runLayout.root)"
+        # How big the tenant is and what that means for this run, before anything long starts. Three small reads;
+        # a count Graph will not give is said as unknown.
+        if ($main.Count -gt 0) {
+            $previewArgs = @{ Size = (Get-PostureTenantSize); Collector = @(@($main) + @($localPlan) + @($child)); FullPerUserMfa = [bool]$FullPerUserMfa }
+            foreach ($line in @(Get-PostureRunPreview @previewArgs)) { Write-Host $line }
+        }
         $runAs = [ordered]@{ account = [string]$session.account; roles = @($heldRoles); checkedUtc = [datetime]::UtcNow.ToString('o'); coverage = @($coverage | ForEach-Object { [ordered]@{ collector = $_.Collector; status = $_.Status; detail = $_.Detail } }) }
         Write-PostureRunPlan -Folder $runLayout.root -TenantId ([string]$session.tenantId) -Client $Client -Collector (@($main) + @($localPlan) + @($child)) -Skipped $skipped -RunAs $runAs -Resume:([bool]$into) -Confirm:$false
         $estimates = Get-PostureRunEstimate -OutRoot $OutRoot -TenantId ([string]$session.tenantId)
@@ -280,13 +287,20 @@ function Start-PostureRun {
         $hybridFolder = Join-Path $Client 'hybrid'
         if (@(Get-ChildItem -LiteralPath $hybridFolder -Filter 'ad-*' -File -ErrorAction SilentlyContinue).Count -gt 0) {
             Get-ChildItem -LiteralPath $folder -File -Filter 'ad-*' | Where-Object { $_.Name -match '^ad-\d{2}-[a-z0-9-]+\.(json|csv)$' } | Remove-Item -Force
-            try { $null = Import-PostureEvidence -Path $hybridFolder -Run $runLayout.root -NoReport -Confirm:$false }
+            try { $hybridImport = Import-PostureEvidence -Path $hybridFolder -Run $runLayout.root -NoReport -Confirm:$false }
             catch {
                 $message = "The Active Directory evidence in $hybridFolder was not used: $((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim())"
                 Write-Warning $message
                 Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path (Join-Path $runLayout.errors 'errors.txt') -Value "Active Directory evidence :: $message" }
                 Write-PostureStepFailure -Folder $folder -Label 'Active Directory evidence' -Message $message -Collector 'Hybrid' -Confirm:$false
             }
+        }
+        # A site permissions report the admin saved straight into imports/ is filed first, with the same checks as
+        # Import-PostureSharingReport (it is that report, it has sites, it is this tenant's); a file that is
+        # anything else is left where it is and not read.
+        foreach ($dropped in @(Get-ChildItem -LiteralPath (Join-Path $Client 'imports') -Filter '*.csv' -File -ErrorAction SilentlyContinue)) {
+            try { $filedReport = Add-PostureSharingReportFile -Client $Client -Path $dropped.FullName -TenantId ([string]$session.tenantId) -Confirm:$false; if ($filedReport) { Write-Host "Site permissions report filed from imports/: $($dropped.Name)" } }
+            catch { Write-Warning "imports/$($dropped.Name) was not used: $((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim())" }
         }
         # The newest SharePoint site permissions report filed with Import-PostureSharingReport, summarised into this run.
         $null = Write-PostureSharingSummary -Client $Client -Folder $folder -Confirm:$false
@@ -325,7 +339,7 @@ function Start-PostureRun {
     if (Test-Path -LiteralPath $errorsFile) { $errorCount = @(Get-Content -LiteralPath $errorsFile | Where-Object { $_.Trim() }).Count }
     Write-Host ''
     Write-Host "Finished in $(Format-PostureDuration $clock.Elapsed.TotalSeconds)." -ForegroundColor Green
-    if ($adFiles.Count -gt 0) { Write-Host "Hybrid: $($adFiles.Count) ad-* files copied in" }
+    if ($hybridImport) { Write-Host "Hybrid: $(@($hybridImport.Files).Count + @($hybridImport.Unchanged).Count) Active Directory files brought in from the client folder ($($hybridImport.Checked); tenant $($hybridImport.TenantCheck))" }
     Write-Host "Run folder: $($runLayout.root)"
     $versions = Get-PostureModuleVersionUsed
     Write-Host "PowerShell $($PSVersionTable.PSVersion); modules: $(@($versions.Keys | ForEach-Object { "$_ $(if ($versions[$_]) { $versions[$_] } else { 'not installed' })" }) -join ', ')"
@@ -343,6 +357,18 @@ function Start-PostureRun {
         Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
     }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
+    # What the assessment still lacks, the same rows the report's overview shows.
+    $todo = @($(if ($report -and $report.Report -and $report.Report.Contains('completion')) { $report.Report.completion }))
+    if ($todo.Count -gt 0) {
+        Write-Host ''
+        Write-Host 'To complete this assessment:' -ForegroundColor Cyan
+        foreach ($t in $todo) {
+            Write-Host "  $($t.title)$(if ($null -ne $t.checks -and $t.checks -gt 0) { ": $($t.checks) check$(if ($t.checks -ne 1) { 's' }) waiting" })$(if ($t.note) { " ($($t.note))" })"
+            Write-Host "      Who: $($t.who). Where: $($t.where)." -ForegroundColor DarkGray
+            Write-Host "      $($t.get)"
+            if ($t.bring) { Write-Host "      Then: $($t.bring)" -ForegroundColor DarkGray }
+        }
+    }
     # No network call here or anywhere: the trial is requested in the browser, by the admin, if they choose to.
     $licPath = Join-Path $Client 'tenantkeep.lic'
     $licArgs = @{ TenantId = [string]$session.tenantId }

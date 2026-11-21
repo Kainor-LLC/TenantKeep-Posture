@@ -97,6 +97,22 @@ function ConvertTo-PostureReportHtml {
         $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
         & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
     }
+    # What the assessment still lacks, each piece with who can add it and how. The rows are data (the completion
+    # block of checks/catalog.json through Get-PostureCompletion); nothing here knows a check or a collector.
+    $todo = @($(if ($r.Contains('completion')) { $r.completion }))
+    if ($todo.Count -gt 0) {
+        & $w '<details class="complete" open><summary><strong>To Complete This Assessment</strong></summary>'
+        & $w "<p class=`"hint`">$($todo.Count) piece$(if ($todo.Count -ne 1) { 's are' } else { ' is' }) not in this run. The checks that wait for each say not evaluated; nothing is guessed. Each row says who can add it and how.</p>"
+        & $w '<table><thead><tr><th>What Is Missing</th><th>Checks Waiting</th><th>Who</th><th>Where</th><th>How</th></tr></thead><tbody>'
+        $n = 0
+        foreach ($t in $todo) {
+            $n++
+            $what = (& $h $t.title) + $(if ($t.note) { '<br><span class="hint">' + (& $h $t.note) + '</span>' } else { '' })
+            $how = '<div class="cmd"><code id="cmd-complete-' + $n + '">' + (& $h $t.get) + '</code><button type="button" data-copy="cmd-complete-' + $n + '">Copy</button></div>' + $(if ($t.bring) { '<span class="hint">Then: ' + (& $h $t.bring) + '</span>' } else { '' })
+            & $w ('<tr><td>' + $what + '</td><td>' + $(if ($null -ne $t.checks) { [string]$t.checks } else { '' }) + '</td><td>' + (& $h $t.who) + '</td><td>' + (& $h $t.where) + '</td><td>' + $how + '</td></tr>')
+        }
+        & $w '</tbody></table></details>'
+    }
     # The score as a ring with its change, target and projection; its history; open findings by severity; the attack
     # path; the accepted-risk ledger.
     $st = $(if ($r.Contains('story') -and $r.story) { $r.story } else { [ordered]@{} })

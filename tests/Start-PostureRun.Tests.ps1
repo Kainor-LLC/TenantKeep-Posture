@@ -24,6 +24,8 @@ Describe 'Start-PostureRun' {
             Mock Connect-PostureSession { if ($SharePoint) { $script:Calls.Add('signin:sharepoint'); return @{} }; $script:Calls.Add('signin'); @{ tenantId = $script:TestTid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'aaaaaaaa-0000-0000-0000-000000000001'; scopes = @('Policy.Read.All'); expiresUtc = [datetime]::UtcNow.AddHours(1) } }
             Mock Assert-PostureGraphScope { @{ TenantId = $script:TestTid; Account = 'admin@contoso.example'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'ThreatHunting.Read.All') } }
             Mock Connect-PostureService { $script:Calls.Add("connect:$Name") }
+            # The size of the tenant, asked before collecting: a large one, so the preview has something to say.
+            Mock Get-PostureTenantSize { @{ users = 312400; devices = 48200; groups = $null } }
             Mock Get-Module { $true } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }   # nothing loaded: the run manifest records the installed version
             $script:NextStamp = '20261022-1200'
@@ -97,6 +99,22 @@ Describe 'Start-PostureRun' {
             Test-Path (Join-Path $result.Evidence 'ad-01-forest.json') | Should -BeTrue
             Should -Invoke New-PostureProfile -Times 1 -Exactly -ParameterFilter { $ProfilePath -eq $null -and -not $PSBoundParameters.ContainsKey('ClientName') }
             Should -Invoke Start-Process -Times 0 -Exactly
+        }
+    }
+
+    It 'says before collecting how big the tenant is and what that means for the run' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            $script:NextStamp = '20261124-1200'
+            $said = @(Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra -NoBrowser -AllowSleep 6>&1 | ForEach-Object { [string]$_ })
+            $said | Should -Contain 'Tenant size:   312,400 users, 48,200 devices, an unknown number of groups.'
+            @($said | Where-Object { $_ -match 'The user list is about 2,604 requests and the registration report about 313' }).Count | Should -Be 1
+            @($said | Where-Object { $_ -match 'Per-user MFA is read for a sample' }).Count | Should -Be 1
+            @($said | Where-Object { $_ -match 'At this size the run takes hours\. It can be stopped and resumed' }).Count | Should -Be 1
+            # Said before the collection starts.
+            $sizeAt = [array]::IndexOf($said, 'Tenant size:   312,400 users, 48,200 devices, an unknown number of groups.')
+            $sizeAt | Should -BeGreaterThan -1
+            Should -Invoke Get-PostureTenantSize -Times 1 -Exactly
         }
     }
 
@@ -195,6 +213,7 @@ Describe 'Start-PostureRun and the trial' {
         InModuleScope TenantKeep.Posture -Parameters @{ client = (Join-Path $script:Client 'trial') ; outRoot = $script:OutRoot; tid = $script:Tid } {
             Mock Connect-PostureSession { @{ tenantId = $tid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'x' } }
             Mock Assert-PostureGraphScope { @{ TenantId = $tid; Scopes = @('Policy.Read.All') } }
+            Mock Get-PostureTenantSize { @{ users = 40; devices = 12; groups = 9 } }
             Mock Get-Module { $false } -ParameterFilter { $ListAvailable }
             Mock Get-Module { @() } -ParameterFilter { -not $ListAvailable }
             Mock New-PostureRunFolder { $f = Join-Path $outRoot '20261027-0900'; foreach ($p in 'evidence', 'errors', 'logs') { New-Item -ItemType Directory -Path (Join-Path $f $p) -Force | Out-Null }; Get-PostureRunLayout -Folder $f }

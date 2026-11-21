@@ -20,6 +20,16 @@ consent record for the one app the sign-in goes through.
 Azure is optional here. With `azure: none` in the profile, the Azure collector is skipped and the Azure domain reads
 as not applicable; no Azure role is needed.
 
+What is on the admin's machine is the tenant's whole directory in files: every user, device, group, mailbox and site,
+the report, and for a hybrid tenant the domain's accounts. The run and client folders the module creates are the
+owner's alone on macOS and Linux (mode 700, so no other account on the machine can list or read them). On Windows the
+module changes no permissions: a folder under your profile (the default, `~/tenantkeep`) is already limited to you,
+SYSTEM and Administrators by the profile's own permissions, and a folder you choose elsewhere keeps what its parent
+grants, so choose one that is yours. While a list is being read there are also `.part` files and, in `logs/`, a
+cursor for a list that stopped part way; both hold rows of that list and go when it finishes. The sign-in read's
+checkpoint holds no account names, only keyed hashes. Nothing is encrypted at rest by the module: use the disk's own
+encryption (FileVault, BitLocker), and delete a run folder when its report has been delivered.
+
 ## Running it on a schedule (the customer's own Azure subscription)
 
 The deployment puts one small resource group in the customer's subscription. It is the only Azure footprint, and it

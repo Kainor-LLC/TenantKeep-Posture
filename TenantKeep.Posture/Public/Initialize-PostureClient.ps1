@@ -64,6 +64,8 @@ function Initialize-PostureClient {
     $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     if (-not $PSCmdlet.ShouldProcess($Path, 'Create the client folder')) { return }
     New-Item -ItemType Directory -Path $Path, (Join-Path $Path 'imports'), (Join-Path $Path 'hybrid') -Force | Out-Null
+    # The client folder holds the profile, the licence and what the admin files there: the owner's alone.
+    $null = Set-PostureFolderPrivate -Path $Path -Confirm:$false
 
     # 3. The licence copy, the profile seed. Existing files are left alone.
     $licenceTarget = Join-Path $Path 'tenantkeep.lic'
