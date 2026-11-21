@@ -62,7 +62,9 @@ co-management workloads Intune holds (compliance policies, device configuration,
 protection, resource access, client apps, Office Click-to-Run, inventory), from Graph's
 configurationManagerClientEnabledFeatures (verify on a co-managed tenant). `09-intune-comanagement` counts them across
 the co-managed devices. With the Entra device list, the devices checks tell Intune alone, co-managed, Configuration
-Manager alone (tenant attach) and hybrid-joined devices that nothing in the cloud manages (DEV-019 to DEV-021).
+Manager alone (tenant attach) and hybrid-joined devices that nothing in the cloud manages (DEV-019 to DEV-021). With
+the AD collector's `ad-06-computers`, DEV-020 also counts workstations in use in AD (not servers or domain controllers)
+whose names Entra does not know at all; the collector's summary now carries `ActiveWindowsWorkstations`.
 
 ## What the Exchange collector writes
 

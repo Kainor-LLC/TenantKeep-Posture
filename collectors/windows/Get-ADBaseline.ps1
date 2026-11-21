@@ -177,7 +177,7 @@ try {
         $rows | Save-Evidence -Name 'ad-06-computers' -Csv
         $windows = @($rows | Where-Object { -not $_.IsDomainController -and -not $_.Stale -and [string]$_.OperatingSystem -match 'Windows' })
         [ordered]@{
-            EnabledComputers = $rows.Count; ActiveWindowsNonDc = $windows.Count
+            EnabledComputers = $rows.Count; ActiveWindowsNonDc = $windows.Count; ActiveWindowsWorkstations = @($windows | Where-Object { -not $_.IsServer }).Count
             WindowsLaps = @($windows | Where-Object { $_.WindowsLaps }).Count; LegacyLaps = @($windows | Where-Object { $_.LegacyLaps -and -not $_.WindowsLaps }).Count
             ByOperatingSystem = @($rows | Group-Object { [string]$_.OperatingSystem } | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count })
             StaleComputers = @($rows | Where-Object { $_.Stale }).Count; WindowsLapsSchema = $hasWindowsLaps; LegacyLapsSchema = $hasLegacyLaps

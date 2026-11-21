@@ -316,7 +316,9 @@
     "windowsCoManaged": "Windows devices co-managed with Configuration Manager",
     "windowsSecuritySettingsOnly": "Windows devices with only Defender security settings management",
     "coManagedDevices": "Co-managed devices",
-    "coManagementWorkloads": "Co-management workloads on Intune"
+    "coManagementWorkloads": "Co-management workloads on Intune",
+    "hybridUnmanagedWindows": "Hybrid-joined Windows devices in use not managed by Intune",
+    "adWorkstationsNotInEntra": "Workstations in use in Active Directory that Entra does not know"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

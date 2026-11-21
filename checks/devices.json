@@ -797,7 +797,8 @@
       },
       "evidence": [
         "08-entra-devices.json",
-        "09-intune-managed-devices.json"
+        "09-intune-managed-devices.json",
+        "ad-06-computers.json"
       ],
       "pass": "facts.adOnlyWindowsPct <= thresholds.maxAdOnlyWindowsPct",
       "affected": "facts.adOnlyWindowsDevices",
@@ -814,7 +815,7 @@
       },
       "learn": "https://learn.microsoft.com/windows/client-management/enroll-a-windows-10-device-automatically-using-group-policy",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
-      "narrative": "These Windows devices are joined to Active Directory and registered in Entra, but nothing in the cloud manages them: Group Policy, or Configuration Manager without tenant attach, is all they get. They report no compliance, so Conditional Access either blocks them or, more often, a policy leaves them out. Patching, encryption and Defender settings depend on the device reaching a domain controller over the office network or a VPN, and a lost laptop cannot be wiped from the cloud. Managed by Intune, people also gain self-service apps, updates wherever they work and Windows Hello sign-in.",
+      "narrative": "These Windows devices are joined to Active Directory and nothing in the cloud manages them: some are registered in Entra but not enrolled in Intune, and, with the AD collector's files, some are not registered in Entra at all. Group Policy, or Configuration Manager without tenant attach, is all they get. They report no compliance, so Conditional Access either blocks them or, more often, a policy leaves them out. Patching, encryption and Defender settings depend on the device reaching a domain controller over the office network or a VPN, and a lost laptop cannot be wiped from the cloud. Managed by Intune, people also gain self-service apps, updates wherever they work and Windows Hello sign-in.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
         "iso27001": "A.8.1",

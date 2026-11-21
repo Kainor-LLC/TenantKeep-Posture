@@ -10,7 +10,8 @@ work landed on main.
   hybrid-joined Windows devices in use managed by Intune and not by Group Policy alone (5% allowed by default),
   DEV-021 co-management workloads moved to Intune. Each says what people notice and how to move. The Intune collector
   reads which workloads Intune holds on co-managed devices; the Devices view gains Windows Devices by Who Manages Them
-  and Co-management Workloads.
+  and Co-management Workloads. With the AD collector's files, DEV-020 also counts workstations in AD that Entra does not
+  know at all (matched by name; servers and domain controllers left out).
 - Logs to send for support (2026-11-20): each failed step now records the request it was making, where in the module
   it stopped, and the module, PowerShell and OS versions. Run Health has a Copy for Support button per failure and
   for all of them, with names, addresses and ids taken out. Export-PostureDiagnostics zips a run's logs, redacted the

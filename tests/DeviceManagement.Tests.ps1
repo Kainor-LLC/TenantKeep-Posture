@@ -45,6 +45,24 @@ Describe 'Who manages the Windows fleet' {
         @($r.by['DEV-021'].affected)[0].detail | Should -Be 'on Configuration Manager: Windows Update policies, endpoint protection'
     }
 
+    It 'adds the workstations in AD that Entra does not know at all, leaving out servers, domain controllers and old ones' {
+        $d = Join-Path $TestDrive 'with-ad'
+        & $script:Write $d '08-entra-devices' $script:Entra
+        & $script:Write $d '09-intune-managed-devices' $script:Managed
+        & $script:Write $d 'ad-06-computers' @(
+            @{ Name = 'GP-ONLY-1'; OperatingSystem = 'Windows 11 Enterprise'; IsServer = $false; IsDomainController = $false; Stale = $false }
+            @{ Name = 'DESK-NOENTRA'; OperatingSystem = 'Windows 11 Enterprise'; IsServer = $false; IsDomainController = $false; Stale = $false }
+            @{ Name = 'SRV-1'; OperatingSystem = 'Windows Server 2022 Standard'; IsServer = $true; IsDomainController = $false; Stale = $false }
+            @{ Name = 'DC01'; OperatingSystem = 'Windows Server 2022 Standard'; IsServer = $true; IsDomainController = $true; Stale = $false }
+            @{ Name = 'DESK-OLD'; OperatingSystem = 'Windows 10 Pro'; IsServer = $false; IsDomainController = $false; Stale = $true }
+        )
+        $r = & $script:Checks $d
+        $o = $r.by['DEV-020'].observed
+        $r.run.domains['devices'].facts['adWorkstationsNotInEntra'] | Should -Be 1
+        $o['adOnlyWindowsPct'] | Should -Be 60 -Because 'three of five workstations in use: two hybrid and unmanaged, one Entra never heard of'
+        @($r.by['DEV-020'].affected.name) | Should -Contain 'DESK-NOENTRA'
+    }
+
     It 'passes when Intune manages everything, and says plainly when the evidence predates the workload read' {
         $d = Join-Path $TestDrive 'clean'
         & $script:Write $d '08-entra-devices' @($script:Entra[2])

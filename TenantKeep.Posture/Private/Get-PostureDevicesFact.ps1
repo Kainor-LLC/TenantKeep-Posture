@@ -43,6 +43,8 @@ function Get-PostureDevicesFact {
     # Hybrid-joined Windows devices in use that nothing in the cloud manages (DEV-020); the Intune pass below takes out
     # the ones Configuration Manager reports through tenant attach.
     $hybridActive = @{ count = 0 }; $unmanagedHybrid = [System.Collections.Generic.List[object]]::new()
+    # Every Windows device name Entra knows, so the AD collector's workstations can be matched by name (DEV-020).
+    $entraWindowsNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $haveEntra = Read-PostureEvidenceRow -Folder $Evidence -Name '08-entra-devices' -OnRow {
         param($_row)
         $row = $_row
@@ -50,6 +52,7 @@ function Get-PostureDevicesFact {
         $e.enabled++
         switch ([string]$row.JoinType) { 'EntraJoined' { $e.entraJoined++ } 'HybridJoined' { $e.hybridJoined++ } 'Registered' { $e.registered++ } }
         if (Test-PostureTrue $row.Stale) { $staleList.Add([ordered]@{ name = $row.DisplayName; detail = "$($row.JoinType), $($row.OperatingSystem), last sign-in $(if ($row.ApproximateLastSignInDateTime) { (ConvertTo-PostureUtcDateTime $row.ApproximateLastSignInDateTime).ToString('yyyy-MM-dd') } else { 'never' })" }) }
+        if ([string]$row.OperatingSystem -eq 'Windows') { $null = $entraWindowsNames.Add([string]$row.DisplayName) }
         if ([string]$row.OperatingSystem -eq 'Windows' -and [string]$row.JoinType -eq 'HybridJoined' -and -not (Test-PostureTrue $row.Stale)) {
             $hybridActive.count++
             if (-not (Test-PostureTrue (& $v $row 'IsManaged'))) { $unmanagedHybrid.Add([ordered]@{ id = [string](& $v $row 'DeviceId'); name = [string]$row.DisplayName }) }
@@ -162,10 +165,21 @@ function Get-PostureDevicesFact {
     if (-not $haveEntra -or -not $haveManaged) { $notEvaluated['DEV-020'] = 'It needs both device lists: 08-entra-devices (the Entra collector) and 09-intune-managed-devices (the Intune collector).' }
     else {
         $adOnly = @($unmanagedHybrid | Where-Object { -not ($_.id -and $inIntune.Contains($_.id)) })
+        # With the AD collector's files: workstations in use in AD (not servers, not domain controllers) that Entra
+        # does not know at all, matched by name. Invisible from the cloud, so Group Policy is all they get.
+        $notInEntra = [System.Collections.Generic.List[object]]::new()
+        $haveAd = Read-PostureEvidenceRow -Folder $Evidence -Name 'ad-06-computers' -OnRow {
+            param($_row)
+            if ((Test-PostureTrue (& $v $_row 'IsDomainController')) -or (Test-PostureTrue (& $v $_row 'IsServer')) -or (Test-PostureTrue (& $v $_row 'Stale'))) { return }
+            if ([string](& $v $_row 'OperatingSystem') -notmatch 'Windows') { return }
+            if (-not $entraWindowsNames.Contains([string](& $v $_row 'Name'))) { $notInEntra.Add([ordered]@{ name = [string](& $v $_row 'Name'); detail = 'in Active Directory, signed in recently, not registered in Entra' }) }
+        }
         $facts.hybridWindowsInUse = $hybridActive.count
-        $facts.adOnlyWindowsDevices = $adOnly.Count
-        $facts.adOnlyWindowsPct = $(if ($hybridActive.count -gt 0) { & $pct $adOnly.Count $hybridActive.count } else { 0 })
-        $affected.adOnlyWindowsDevices = @($adOnly | Select-Object -First 500 | ForEach-Object { [ordered]@{ name = $_.name; detail = 'hybrid joined, signed in recently, not managed by Intune' } })
+        $facts.hybridUnmanagedWindows = $adOnly.Count
+        $facts.adWorkstationsNotInEntra = $(if ($haveAd) { $notInEntra.Count } else { $null })
+        $facts.adOnlyWindowsDevices = $adOnly.Count + $notInEntra.Count
+        $facts.adOnlyWindowsPct = $(if (($hybridActive.count + $notInEntra.Count) -gt 0) { & $pct ($adOnly.Count + $notInEntra.Count) ($hybridActive.count + $notInEntra.Count) } else { 0 })
+        $affected.adOnlyWindowsDevices = @(@($adOnly | ForEach-Object { [ordered]@{ name = $_.name; detail = 'hybrid joined, signed in recently, not managed by Intune' } }) + @($notInEntra) | Select-Object -First 500)
     }
 
     # Apple certificates
