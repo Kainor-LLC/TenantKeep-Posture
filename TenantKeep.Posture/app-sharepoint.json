@@ -1,6 +1,6 @@
 {
   "displayName": "TenantKeep Posture for SharePoint",
-  "clientId": "",
+  "clientId": "cdaccdaa-b23f-444d-9b60-97fd62b5f0cf",
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "",
