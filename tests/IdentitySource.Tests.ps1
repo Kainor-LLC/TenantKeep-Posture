@@ -60,6 +60,17 @@ Describe 'Users and groups managed in AD or in Entra' {
         }
     }
 
+    It 'counts every synced group that access depends on when there are more than the 500 it lists' {
+        $d = Join-Path $TestDrive 'many-groups'
+        & $script:Fixture $d
+        & $script:Write $d '07-groups' @(1..620 | ForEach-Object { @{ Id = "g$_"; DisplayName = "Licence group $_"; OnPremisesSyncEnabled = $true; Source = 'ActiveDirectory'; Licensed = $true } })
+        $r = (& $script:Checks $d).by['HY-032']
+        $r.status | Should -Be 'fail'
+        $r.observed['syncedAccessGroups'] | Should -Be 620 -Because 'the number found is of the tenant, not of the rows kept for the report'
+        $r.affectedCount | Should -Be 620
+        $r.affectedListed | Should -Be 500
+    }
+
     It 'reads older evidence for HY-032 and asks for a new collection for HY-033' {
         $d = Join-Path $TestDrive 'old'
         & $script:Fixture $d -NoSource

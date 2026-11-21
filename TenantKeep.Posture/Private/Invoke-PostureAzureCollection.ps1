@@ -32,12 +32,17 @@ function Invoke-PostureAzureCollection {
                     $chainObjects = @(& $v $_ 'chain')
                     $chain = @($chainObjects | ForEach-Object { [string](& $v $_ 'displayName') } | Where-Object { $_ })
                     $chainNames = @($chainObjects | ForEach-Object { [string](& $v $_ 'name') } | Where-Object { $_ })
-                    [ordered]@{ SubscriptionId = (& $str $_.subscriptionId); Name = (& $str $_.name); State = (& $str $_.state); ManagementGroupChain = ($chain -join ' / '); ManagementGroupNames = $chainNames; AtTenantRoot = ($chain.Count -le 1) }
+                    [ordered]@{ SubscriptionId = (& $str $_.subscriptionId); Name = (& $str $_.name); State = (& $str $_.state); ManagementGroupChain = ($chain -join ' / '); ManagementGroupNames = $chainNames; AtTenantRoot = ($chain.Count -le 1); DetailRead = $false }
                 })
+            # The per-subscription reads below (Defender plans, contacts, activity log export, classic administrators,
+            # budgets, spend) cover the first 200 enabled subscriptions. DetailRead says which, so the checks judge
+            # those and say how many were left out, never count an unread subscription as a gap.
+            $covered = [System.Collections.Generic.HashSet[string]]::new([string[]]@($flat | Where-Object { $_.State -eq 'Enabled' } | ForEach-Object { [string]$_.SubscriptionId } | Select-Object -First 200))
+            foreach ($row in $flat) { $row.DetailRead = $covered.Contains([string]$row.SubscriptionId) }
             & $save $flat 'az-01-subscriptions' $true
             $flat
         })
-    $subIds = @($subs | Where-Object { $_ -and $_.State -eq 'Enabled' } | ForEach-Object { $_.SubscriptionId } | Select-Object -First 200)
+    $subIds = @($subs | Where-Object { $_ -and $_.State -eq 'Enabled' -and $_.DetailRead } | ForEach-Object { $_.SubscriptionId })
     Invoke-PostureStep -Label 'Azure management groups' -Folder $Folder -Script {
         $rows = & $q "resourcecontainers | where type == 'microsoft.management/managementgroups' | project name, displayName = tostring(properties.displayName), parent = tostring(properties.details.parent.name)"
         & $save @($rows | ForEach-Object { [ordered]@{ Name = (& $str $_.name); DisplayName = (& $str $_.displayName); Parent = (& $str $_.parent) } }) 'az-01-management-groups' $true

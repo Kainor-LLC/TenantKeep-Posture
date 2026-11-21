@@ -72,6 +72,18 @@ Describe 'Get-PostureExperienceFact' {
         $f = & $script:Facts $old
         $f.notEvaluated['UX-009'] | Should -Match 'collected before'
     }
+
+    It 'counts every mismatch when there are more than the 500 it lists' {
+        $d = Join-Path $script:Root 'users-many'
+        & $script:Write $d '06-users' @(1..620 | ForEach-Object { @{ UserPrincipalName = "u$_@contoso.onmicrosoft.com"; Mail = "user.$_@contoso.example"; DisplayName = "Person, Number$_"; GivenName = "Number$_"; Surname = 'Person'; UserType = 'Member'; AccountEnabled = $true } })
+        $by = & $script:Checks $d
+        foreach ($id in 'UX-009', 'UX-010') {
+            $by[$id].status | Should -Be 'fail'
+            $by[$id].affectedCount | Should -Be 620 -Because 'the count is of the tenant, not of the rows kept for the report'
+            $by[$id].affectedListed | Should -Be 500
+            @($by[$id].affected).Count | Should -Be 500
+        }
+    }
 }
 
 Describe 'More user experience checks' {

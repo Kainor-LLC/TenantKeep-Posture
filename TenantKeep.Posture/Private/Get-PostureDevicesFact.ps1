@@ -33,6 +33,8 @@ function Get-PostureDevicesFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $pct = { param([double] $n, [double] $d) if ($d -le 0) { $null } else { [Math]::Round(100.0 * $n / $d, 1) } }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
+    $affectedCounts = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Intune; check errors.txt and the scopes)." } }
 
     # Entra devices (08): one pass, a row at a time, every count and affected list built on the way.
@@ -162,10 +164,10 @@ function Get-PostureDevicesFact {
 
         # DEV-019 and DEV-021: Configuration Manager alone, and co-managed devices with workloads still on it.
         $facts.windowsIntuneOnly = $agents.intune; $facts.windowsCoManaged = $agents.coManaged; $facts.windowsConfigMgrOnly = $agents.configMgr; $facts.windowsSecuritySettingsOnly = $agents.securityOnly
-        $affected.windowsConfigMgrOnly = @($configMgrOnly | Select-Object -First 500)
+        $affected.windowsConfigMgrOnly = @($configMgrOnly | Select-Object -First 500); $affectedCounts.windowsConfigMgrOnly = $configMgrOnly.Count
         if ($agents.coManaged -eq 0) { $facts.coManagedWorkloadsOnConfigMgr = 0 }
         elseif (-not $co.known) { $notEvaluated['DEV-021'] = '09-intune-managed-devices was collected before TenantKeep read the co-management workloads. Collect Intune again (Resume-PostureRun -Collector Intune).' }
-        else { $facts.coManagedWorkloadsOnConfigMgr = $co.behind; $affected.coManagedWorkloadsOnConfigMgr = @($coBehind) }
+        else { $facts.coManagedWorkloadsOnConfigMgr = $co.behind; $affected.coManagedWorkloadsOnConfigMgr = @($coBehind); $affectedCounts.coManagedWorkloadsOnConfigMgr = $co.behind }
         $comgmt = & $load '09-intune-comanagement'
         if ($comgmt) { $facts.coManagementWorkloads = @(@(& $v $comgmt 'Workloads') | Where-Object { $_ } | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); onIntune = [int](& $v $_ 'OnIntune') } }); $facts.coManagedDevices = [int](& $v $comgmt 'CoManagedDevices') }
     }
@@ -190,6 +192,7 @@ function Get-PostureDevicesFact {
         $facts.adOnlyWindowsDevices = $adOnly.Count + $notInEntra.Count
         $facts.adOnlyWindowsPct = $(if (($hybridActive.count + $notInEntra.Count) -gt 0) { & $pct ($adOnly.Count + $notInEntra.Count) ($hybridActive.count + $notInEntra.Count) } else { 0 })
         $affected.adOnlyWindowsDevices = @(@($adOnly | ForEach-Object { [ordered]@{ name = $_.name; detail = 'hybrid joined, signed in recently, not managed by Intune' } }) + @($notInEntra) | Select-Object -First 500)
+        $affectedCounts.adOnlyWindowsDevices = $adOnly.Count + $notInEntra.Count
     }
 
     # Apple certificates
@@ -313,10 +316,10 @@ function Get-PostureDevicesFact {
         if ($facts.macPartnerExpected -and $partners.Count -eq 0) { $facts.macPartnerProblems = 1; $affected.macPartnerProblems = @([ordered]@{ name = $(if ($vendor -and $vendor -ne 'none') { $vendor } else { 'Mac MDM' }); detail = 'no partner connected in Intune for macOS' }) }
         if ($haveEntra) {
             if ($facts.macPartnerExpected -and $macs.inUse -eq 0) { $notEvaluated['DEV-023'] = 'No Macs have signed in to Entra recently, so there is no compliance to read.' }
-            else { $facts.macEntraCompliantPct = $(if ($macs.inUse -gt 0) { & $pct $macs.compliant $macs.inUse } else { 100 }); $facts.macsInEntra = $macs.inUse; $facts.macsCompliantInEntra = $macs.compliant; $affected.macsNotCompliantInEntra = @($macsNotCompliant) }
+            else { $facts.macEntraCompliantPct = $(if ($macs.inUse -gt 0) { & $pct $macs.compliant $macs.inUse } else { 100 }); $facts.macsInEntra = $macs.inUse; $facts.macsCompliantInEntra = $macs.compliant; $affected.macsNotCompliantInEntra = @($macsNotCompliant); $affectedCounts.macsNotCompliantInEntra = $macs.inUse - $macs.compliant }
         }
         else { $notEvaluated['DEV-023'] = '08-entra-devices.json was not collected (the Entra collector).' }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('08-entra-devices.json', '09-intune-managed-devices.json', '09-intune-config-profiles-settings-catalog.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('08-entra-devices.json', '09-intune-managed-devices.json', '09-intune-config-profiles-settings-catalog.json') }
 }

@@ -33,6 +33,8 @@ function Get-PostureHybridFact {
     $rows = { param($o) @($o | Where-Object { $_ }) }
     $pct = { param([double] $n, [double] $d) if ($d -le 0) { $null } else { [Math]::Round(100.0 * $n / $d, 1) } }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
+    $affectedCounts = @{}
     $adMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected: run collectors/windows/Get-ADBaseline.ps1 on a domain-joined Windows machine and copy its folder into the evidence folder." } }
 
     $sync = & $load '01-onprem-sync-features'; $domains = & $load '01-domains'; $health = & $load 'az-08-entra-connect-health'
@@ -63,7 +65,7 @@ function Get-PostureHybridFact {
         foreach ($gid in @(& $v $cp 'conditions.users.excludeGroups' | Where-Object { $_ })) { if (-not $caRef.ContainsKey([string]$gid)) { $caRef[[string]$gid] = [System.Collections.Generic.List[string]]::new() }; $caRef[[string]$gid].Add("left out of Conditional Access policy '$name'") }
         foreach ($gid in @(& $v $cp 'conditions.users.includeGroups' | Where-Object { $_ })) { if (-not $caRef.ContainsKey([string]$gid)) { $caRef[[string]$gid] = [System.Collections.Generic.List[string]]::new() }; $caRef[[string]$gid].Add("in Conditional Access policy '$name'") }
     }
-    $gs = @{ synced = 0; fromAd = 0; withSource = $false }
+    $gs = @{ synced = 0; fromAd = 0; withSource = $false; access = 0 }
     $accessGroups = [System.Collections.Generic.List[object]]::new()
     $haveGroups = Read-PostureEvidenceRow -Folder $Evidence -Name '07-groups' -OnRow {
         param($_row)
@@ -72,6 +74,7 @@ function Get-PostureHybridFact {
         if (Test-PostureTrue (& $v $_row 'OnPremisesSyncEnabled')) {
             $gs.synced++
             $why = @($(if ($caRef.ContainsKey([string](& $v $_row 'Id'))) { $caRef[[string](& $v $_row 'Id')] }) + @($(if (Test-PostureTrue (& $v $_row 'Licensed')) { 'assigns licences' })))
+            if ($why.Count) { $gs.access++ }
             if ($why.Count -and $accessGroups.Count -lt 500) { $accessGroups.Add([ordered]@{ name = [string](& $v $_row 'DisplayName'); detail = "synced from AD, $($why -join '; ')" }) }
         }
         elseif ($source -eq 'EntraFromAD') { $gs.fromAd++ }
@@ -79,7 +82,7 @@ function Get-PostureHybridFact {
     if (-not $haveGroups) { foreach ($id in 'HY-032', 'HY-033') { $notEvaluated[$id] = '07-groups was not collected (the Entra collector).' } }
     else {
         if ($null -eq $pol) { $notEvaluated['HY-032'] = 'policies.json (the Conditional Access snapshot) is not in the folder, so the groups the policies use are unknown.' }
-        else { $facts.syncedAccessGroups = $accessGroups.Count; $affected.syncedAccessGroups = @($accessGroups) }
+        else { $facts.syncedAccessGroups = $gs.access; $affected.syncedAccessGroups = @($accessGroups); $affectedCounts.syncedAccessGroups = $gs.access }
         $facts.syncedGroups = $gs.synced
         if (-not $gs.withSource -and $gs.synced -gt 0) { $notEvaluated['HY-033'] = '07-groups was collected before TenantKeep read where groups are managed. Collect Entra again (Resume-PostureRun -Collector Entra).' }
         else { $facts.groupsManagedInEntraFromAd = $gs.fromAd; $facts.cloudManagedGroupPct = $(if (($gs.synced + $gs.fromAd) -gt 0) { & $pct $gs.fromAd ($gs.synced + $gs.fromAd) } else { 100 }) }
@@ -89,7 +92,7 @@ function Get-PostureHybridFact {
 
     # AD side
     $adIds = @('HY-010', 'HY-011', 'HY-012', 'HY-013', 'HY-014', 'HY-015', 'HY-016', 'HY-017', 'HY-018', 'HY-019', 'HY-020', 'HY-021', 'HY-022', 'HY-023', 'HY-024', 'HY-025', 'HY-026', 'HY-027', 'HY-028', 'HY-029')
-    if ($null -eq $forest) { & $adMissing $adIds 'ad-01-forest-domain'; return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json') } }
+    if ($null -eq $forest) { & $adMissing $adIds 'ad-01-forest-domain'; return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json') } }
 
     $facts.forestFunctionalLevel = [string](& $v $forest 'ForestFunctionalLevel'); $facts.domainFunctionalLevel = [string](& $v $forest 'DomainFunctionalLevel')
     $level = { param([string] $m) if ($m -match '(\d{4})') { [int]$Matches[1] } else { 0 } }
@@ -199,5 +202,5 @@ function Get-PostureHybridFact {
     if ($null -ne $gpos) { $gp = @(& $rows $gpos); $facts.gpos = $gp.Count; $facts.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true }).Count; $facts.unlinkedGpos = @($gp | Where-Object { [int]$_.Links -eq 0 }).Count; $affected.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'cpassword in the GPO report' } }) }
     else { $notEvaluated['HY-030'] = 'ad-08-gpos.json was not collected (GroupPolicy module missing on the jump box, or the step failed).' }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json', 'ad-01-forest-domain.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json', 'ad-01-forest-domain.json') }
 }

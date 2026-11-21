@@ -168,6 +168,50 @@ Describe 'Invoke-PostureCheckEvaluation' {
         }
     }
 
+    It 'takes the true number of affected objects from the provider when its list is cut short' {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
+            # The provider lists three and says there are 1,200.
+            $capped = @{ test = { param($Evidence, $OrgProfile, $Thresholds) @{ facts = @{ count = 1200; enabled = $true }; affected = @{ items = @(@{ name = 'alpha' }, @{ name = 'beta' }, @{ name = 'gamma' }) }; affectedCounts = @{ items = 1200 }; evidence = @('provider.json') } } }
+            $r = (Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $capped).results | Where-Object id -eq 'TS-001'
+            $r.status | Should -Be 'fail'
+            $r.affectedCount | Should -Be 1200
+            $r.affectedListed | Should -Be 3
+            @($r.affected).Count | Should -Be 3
+
+            # One listed object accepted by exception leaves the list and the count alike.
+            $one = @([ordered]@{ check = 'TS-001'; object = 'beta'; justification = 'ok'; owner = 'o'; approver = 'a'; expires = [datetime]'2099-01-01'; expired = $false })
+            $r = (Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Exception $one -Evidence $Ev -FactProvider $capped).results | Where-Object id -eq 'TS-001'
+            $r.affectedCount | Should -Be 1199
+            $r.affectedListed | Should -Be 2
+            $r.reason | Should -Match '1 object\(s\) accepted by exception; 1199 remain'
+
+            # Every listed object accepted is not every object accepted: 1,197 were never listed.
+            $all = @('alpha', 'beta', 'gamma' | ForEach-Object { [ordered]@{ check = 'TS-001'; object = $_; justification = 'ok'; owner = 'o'; approver = 'a'; expires = [datetime]'2099-01-01'; expired = $false } })
+            $r = (Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Exception $all -Evidence $Ev -FactProvider $capped).results | Where-Object id -eq 'TS-001'
+            $r.status | Should -Be 'fail' -Because 'the exceptions name three objects and 1,197 more are affected'
+            $r.affectedCount | Should -Be 1197
+            $r.affectedListed | Should -Be 0
+        }
+    }
+
+    It 'keeps the listed count as the count when the provider declares none' {
+        InModuleScope TenantKeep.Posture {
+            $script:ById['TS-001'].affectedListed | Should -Be 3
+            $script:ById['TS-001'].affectedCount | Should -Be 3
+        }
+    }
+
+    It 'carries the provider''s note as the reason of a pass or a fail judged on part of the data' {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ev = $script:Evidence } {
+            $noted = @{ test = { param($Evidence, $OrgProfile, $Thresholds) @{ facts = @{ count = 3; enabled = $true }; affected = @{ items = @(@{ name = 'alpha' }) }; notes = @{ 'TS-001' = 'Judged on 200 of 260 subscriptions; the other 60 were not read.'; 'TS-002' = 'Judged on part.' }; evidence = @('provider.json') } } }
+            $by = @{}; foreach ($r in (Invoke-PostureCheckEvaluation -Catalog $script:Catalog -Baseline $script:Std -OrgProfile $script:NoProfile -Evidence $Ev -FactProvider $noted).results) { $by[$r.id] = $r }
+            $by['TS-001'].status | Should -Be 'fail'
+            $by['TS-001'].reason | Should -Be 'Judged on 200 of 260 subscriptions; the other 60 were not read.'
+            $by['TS-002'].status | Should -Be 'pass'
+            $by['TS-002'].reason | Should -Be 'Judged on part.'
+        }
+    }
+
     It 'counts statuses and records the catalog version' {
         InModuleScope TenantKeep.Posture {
             $script:Run.catalogVersion | Should -Be 'test.1'

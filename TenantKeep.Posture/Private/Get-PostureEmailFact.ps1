@@ -34,6 +34,8 @@ function Get-PostureEmailFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
+    $affectedCounts = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Exchange; check errors.txt)." } }
 
     if (@(Get-ChildItem -LiteralPath $Evidence -Filter 'exo-*.json' -ErrorAction SilentlyContinue).Count -eq 0) {
@@ -326,7 +328,8 @@ function Get-PostureEmailFact {
         # administrators cannot be told from everyone else. None with it on is none either way.
         $facts.nonAdminRemotePowerShell = $(if (-not $havePs -or ($null -eq $roleRows -and $psCount.n -gt 0)) { $null } else { $psCount.n })
         $affected.nonAdminRemotePowerShell = @($(if ($null -ne $roleRows) { $psUsers }))
+        if ($null -ne $roleRows) { $affectedCounts.nonAdminRemotePowerShell = $psCount.n }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }
 }

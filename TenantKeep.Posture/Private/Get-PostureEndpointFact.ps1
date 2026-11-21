@@ -177,7 +177,11 @@ function Get-PostureEndpointFact {
     # ---------- Defender effective state (spec 4.11, the other half): what devices are doing, from advanced hunting ----------
     $defMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Defender; needs ThreatHunting.Read.All and Defender for Endpoint)." } }
     $def = & $load 'def-01-devices'
+    # The collector's own record of whether Defender returned every row it has (def-01-devices-summary, since 2026-11-21).
+    $short = { param([string] $Summary) $x = & $load $Summary; [bool]($null -ne $x -and (& $v $x 'Truncated') -eq $true) }
+    $shortReason = { param([string] $Summary) $x = & $load $Summary; "Defender returned $(& $v $x 'RowsRead') of $(& $v $x 'RowsExpected') device rows, so the list is cut short and devices are missing from it. Collect Defender again (Resume-PostureRun -Collector Defender)." }
     if ($null -eq $def) { & $defMissing @('EP-019', 'EP-020') 'def-01-devices' }
+    elseif (& $short 'def-01-devices-summary') { foreach ($id in 'EP-019', 'EP-020') { $notEvaluated[$id] = & $shortReason 'def-01-devices-summary' } }
     else {
         $d = @(& $rows $def)
         $onboarded = @($d | Where-Object { [string]$_.OnboardingStatus -eq 'Onboarded' })
@@ -208,6 +212,7 @@ function Get-PostureEndpointFact {
 
     $av = & $load 'def-02-av-state'
     if ($null -eq $av) { & $defMissing @('EP-021') 'def-02-av-state' }
+    elseif (& $short 'def-02-av-state-summary') { $notEvaluated['EP-021'] = & $shortReason 'def-02-av-state-summary' }
     else {
         # (verify) AvMode: 0 active, 1 passive, 2 disabled, 4 EDR block mode
         $a = @(& $rows $av)

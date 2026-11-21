@@ -111,6 +111,8 @@ BeforeAll {
             '^security/runHuntingQuery$' {
                 $q = [string](ConvertFrom-Json $Body).Query
                 $hex = $(if ($q -match "startswith '([0-9a-f])'") { $Matches[1] } else { '' })
+                # Each table is first asked how many rows every shard has: two devices in shard a, none elsewhere.
+                if ($q -match 'summarize Count = count\(\) by Shard') { @{ results = @(@{ Shard = 'a'; Count = $(if ($env:TKP_DEF_SHORT) { 9 } else { 2 }) }) }; break }
                 switch -Regex ($q) {
                     '^DeviceInfo' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Active'; ExposureLevel = 'Medium'; AadDeviceId = 'dev-1'; Timestamp = '2026-10-13T00:00:00Z' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; OnboardingStatus = 'Onboarded'; SensorHealthState = 'Inactive'; ExposureLevel = 'High'; AadDeviceId = 'dev-2'; Timestamp = '2026-10-01T00:00:00Z' }) } } else { @{ results = @() } }; break }
                     '^DeviceTvmInfoGathering' { if ($hex -eq 'a') { @{ results = @(@{ DeviceId = 'a1'; DeviceName = 'PC-1'; OSPlatform = 'Windows11'; AvMode = '0'; AvIsSignatureUpToDate = 'true' }, @{ DeviceId = 'a2'; DeviceName = 'OLD-PC'; OSPlatform = 'Windows10'; AvMode = '1'; AvIsSignatureUpToDate = 'false' }) } } else { @{ results = @() } }; break }
@@ -328,6 +330,9 @@ Describe 'Invoke-PostureCollection' {
             $d = @(& $script:Read 'def-01-devices')
             $d.Count | Should -Be 2
             (& $script:Read 'def-01-devices-summary').Onboarded | Should -Be 2
+            (& $script:Read 'def-01-devices-summary').RowsExpected | Should -Be 2
+            (& $script:Read 'def-01-devices-summary').Truncated | Should -BeFalse -Because 'every shard returned as many rows as it said it has'
+            (& $script:Read 'def-02-av-state-summary').Truncated | Should -BeFalse
             (& $script:Read 'def-02-av-state-summary').SignatureOutOfDate | Should -Be 1
             @(& $script:Read 'def-03-secure-config' | Where-Object { $_.ConfigurationId -eq 'scid-1' })[0].CompliantPct | Should -Be 50
             (& $script:Read 'def-04-vulnerabilities-summary').CriticalCvesOver30d | Should -Be 1
@@ -342,7 +347,7 @@ Describe 'Invoke-PostureCollection' {
             $ss.ByCategory.Identity | Should -Be 212.5
             @(& $script:Read 'def-06-secure-score-controls').Count | Should -Be 1 -Because 'deprecated profiles are left out'
             @(& $script:Read 'def-06-secure-score-controls')[0].State | Should -Be 'ThirdParty' -Because 'the latest state update wins'
-            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 32 -Exactly -Scope Context -ParameterFilter { $Uri -like '*runHuntingQuery' -and $Method -eq 'POST' -and ([string]$Body -match 'DeviceInfo|DeviceTvmInfoGathering') } -Because 'two device tables, sixteen shards each'
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -Times 34 -Exactly -Scope Context -ParameterFilter { $Uri -like '*runHuntingQuery' -and $Method -eq 'POST' -and ([string]$Body -match 'DeviceInfo|DeviceTvmInfoGathering') } -Because 'two device tables, each one count by shard and then sixteen shards'
         }
 
         It 'records the verified domains with their authentication type' {
@@ -522,6 +527,29 @@ Describe 'Invoke-PostureCollection' {
                 @($r.Errors | Where-Object { $_ -like 'Apple push*' }).Count | Should -Be 0
             }
             finally { Remove-Item Env:TKP_TEST_APNS -ErrorAction SilentlyContinue }
+        }
+    }
+
+    Context 'Defender returns fewer rows than it has' {
+        It 'records the short read in the summaries, and the checks on those lists have no answer' {
+            # The count by shard says nine devices; the shards return two.
+            $env:TKP_DEF_SHORT = '1'
+            try { $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'defshort') -Collector Intune, Defender -SkipCaSnapshot -PassThru -WarningAction SilentlyContinue }
+            finally { Remove-Item Env:TKP_DEF_SHORT -ErrorAction SilentlyContinue }
+            $summary = Get-Content -Raw (Join-Path $r.Folder 'def-01-devices-summary.json') | ConvertFrom-Json
+            $summary.Truncated | Should -BeTrue
+            $summary.RowsExpected | Should -Be 9
+            $summary.RowsRead | Should -Be 2
+            (Get-Content -Raw (Join-Path $r.Folder 'def-02-av-state-summary.json') | ConvertFrom-Json).Truncated | Should -BeTrue
+
+            $profilePath = Join-Path $script:Root 'defshort-profile.json'
+            '{ "version": 1, "identityModel": "cloud-only", "platforms": ["windows", "macOS", "iOS"], "byod": "mam", "licenses": ["BusinessPremium", "Intune", "MDEBusiness", "MDE2", "E5"] }' | Set-Content -LiteralPath $profilePath
+            $run = Invoke-PostureChecks -Evidence $r.Folder -Domain endpoint -ProfilePath $profilePath -OutputPath (Join-Path $script:Root 'defshort-checks') -PassThru
+            $by = @{}; foreach ($x in $run.results) { $by[$x.id] = $x }
+            foreach ($id in 'EP-019', 'EP-020', 'EP-021') {
+                $by[$id].status | Should -Be 'notEvaluated' -Because "$id would count devices over a list that is cut short"
+                $by[$id].reason | Should -Match 'Defender returned 2 of 9 device rows'
+            }
         }
     }
 

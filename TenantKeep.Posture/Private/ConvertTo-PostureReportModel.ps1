@@ -205,6 +205,8 @@ function ConvertTo-PostureReportModel {
         $c = $byId[$r.id]
         $recommendations[$bucketOf[[string]$r.severity]] += , [ordered]@{
             id = $r.id; title = $r.title; severity = $r.severity; domain = $r.domain; affectedCount = $r.affectedCount
+            # How many of them the run holds (and affected/<id>.csv with it): fewer than affectedCount when the check's own list is cut.
+            affectedListed = $(if ($r.Contains('affectedListed')) { [int]$r.affectedListed } else { @($r.affected).Count })
             reason = [string]$r.reason; affected = @(@($r.affected) | Select-Object -First 25)
             observed = $(if ($r.Contains('observed') -and $r.observed) { $r.observed } else { [ordered]@{} }); thresholds = $r.thresholds
             why = [string]$c['narrative']

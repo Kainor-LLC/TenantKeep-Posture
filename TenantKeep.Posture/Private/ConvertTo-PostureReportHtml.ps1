@@ -431,7 +431,9 @@ function ConvertTo-PostureReportHtml {
             $affected = ''
             if ($x.affectedCount -gt 0) {
                 $li = @($x.affected | ForEach-Object { $n = $(if ($_ -is [System.Collections.IDictionary]) { [string]$_['name'] } else { [string]$_ }); $dt = $(if ($_ -is [System.Collections.IDictionary] -and $_.Contains('detail')) { [string]$_['detail'] } else { '' }); '<li>' + (& $h $n) + $(if ($dt) { ' <span class="muted">(' + (& $h (& $humanize $dt)) + ')</span>' }) + '</li>' }) -join ''
-                $rest = $(if ($x.affectedCount -gt @($x.affected).Count) { '<p class="hint">The first ' + @($x.affected).Count + ' of ' + (& $num $x.affectedCount) + '. All of them are in affected/' + (& $h $x.id) + '.csv.</p>' } else { '' })
+                $listed = $(if ($x.Contains('affectedListed')) { [int]$x.affectedListed } else { [int]$x.affectedCount })
+                $where = $(if ($listed -lt [int]$x.affectedCount) { 'The run lists ' + (& $num $listed) + ' at most for this check; those are in affected/' + (& $h $x.id) + '.csv.' } else { 'All of them are in affected/' + (& $h $x.id) + '.csv.' })
+                $rest = $(if ($x.affectedCount -gt @($x.affected).Count) { '<p class="hint">The first ' + @($x.affected).Count + ' of ' + (& $num $x.affectedCount) + '. ' + $where + '</p>' } else { '' })
                 $affected = '<details class="affected-list"><summary>Affected (' + (& $num $x.affectedCount) + ')</summary><ul>' + $li + '</ul>' + $rest + '</details>'
             }
             $fix = $(if (@($x.steps).Count -gt 1) { '<ol class="steps">' + (@($x.steps | ForEach-Object { '<li>' + (& $h $_) + '</li>' }) -join '') + '</ol>' } else { '<p>' + (& $h $x.remediation) + '</p>' })
@@ -673,7 +675,7 @@ function ConvertTo-PostureReportHtml {
 
     # Embedded data, then the behaviour.
     # At most 500 affected objects per check in the page; affected/<id>.csv beside the report has them all.
-    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected | Select-Object -First 500); affectedCount = $_.affectedCount; evidence = @($_.evidence); thresholds = $_.thresholds; observed = $(if ($_.Contains('observed')) { $_.observed } else { $null }) } }))
+    & $w (& $jsonBlock 'data-results' @($r.results | ForEach-Object { [ordered]@{ id = $_.id; domain = $_.domain; title = $_.title; status = $_.status; severity = $_.severity; reason = $_.reason; affected = @($_.affected | Select-Object -First 500); affectedCount = $_.affectedCount; affectedListed = $(if ($_.Contains('affectedListed')) { [int]$_.affectedListed } else { @($_.affected).Count }); evidence = @($_.evidence); thresholds = $_.thresholds; observed = $(if ($_.Contains('observed')) { $_.observed } else { $null }) } }))
     & $w (& $jsonBlock 'data-catalog' $r.catalogText)
     & $w (& $jsonBlock 'data-exceptions' @($r.exceptions))
     & $w (& $jsonBlock 'data-attestations' $r.attestations)

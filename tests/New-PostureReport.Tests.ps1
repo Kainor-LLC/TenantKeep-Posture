@@ -204,6 +204,24 @@ Describe 'New-PostureReport' {
             Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*report.md' }) | Should -Match 'Role assignments were not collected'
         }
 
+        It 'says how many a check lists when it counted more, and promises no more than the CSV holds' {
+            # 620 members whose sign-in name is not their email: the check counts all and lists 500.
+            $ev = Join-Path $script:Root 'capped'
+            New-Item -ItemType Directory -Path $ev | Out-Null
+            @(1..620 | ForEach-Object { @{ UserPrincipalName = "u$_@contoso.onmicrosoft.com"; Mail = "user.$_@contoso.example"; DisplayName = "Number$_ Person"; GivenName = "Number$_"; Surname = 'Person'; UserType = 'Member'; AccountEnabled = $true } }) | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $ev '06-users.json')
+            $out = Join-Path $script:Root 'capped-out'
+            $r = New-PostureReport -Evidence $ev -OutputPath $out -PassThru
+            $x = @($r.Report.results | Where-Object { $_.id -eq 'UX-009' })[0]
+            $x.affectedCount | Should -Be 620
+            $x.affectedListed | Should -Be 500
+            @(Import-Csv -LiteralPath (Join-Path $out 'affected' 'UX-009.csv')).Count | Should -Be 500
+            $html = Get-Content -Raw -LiteralPath (Join-Path $out 'report.html')
+            $html | Should -Match 'Affected \(620\)'
+            $html | Should -Match 'of 620\. The run lists 500 at most for this check; those are in affected/UX-009\.csv\.'
+            $html | Should -Not -Match 'of 620\. All of them are in affected/UX-009\.csv'
+            @($r.Report.findings.findings | Where-Object { $_.id -eq 'UX-009' })[0].affectedListed | Should -Be 500
+        }
+
         It 'honours -WhatIf and rejects a missing folder' {
             New-PostureReport -Evidence $script:Ev -OutputPath (Join-Path $script:Root 'whatif') -WhatIf
             Join-Path $script:Root 'whatif' 'report.md' | Should -Not -Exist

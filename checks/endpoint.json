@@ -813,7 +813,11 @@
       },
       "evidence": [
         "def-01-devices.json",
-        "09-intune-managed-devices.json"
+        "09-intune-managed-devices.json",
+        "def-01-devices-summary.json"
+      ],
+      "evidenceOptional": [
+        "def-01-devices-summary.json"
       ],
       "pass": "facts.mdeOnboardedPct >= thresholds.minMdeOnboardedPct",
       "affected": "facts.devicesNotOnboarded",
@@ -850,7 +854,11 @@
       ],
       "thresholds": {},
       "evidence": [
-        "def-01-devices.json"
+        "def-01-devices.json",
+        "def-01-devices-summary.json"
+      ],
+      "evidenceOptional": [
+        "def-01-devices-summary.json"
       ],
       "pass": "facts.mdeSensorUnhealthy == 0",
       "affected": "facts.mdeSensorUnhealthy",
@@ -890,7 +898,11 @@
       ],
       "thresholds": {},
       "evidence": [
-        "def-02-av-state.json"
+        "def-02-av-state.json",
+        "def-02-av-state-summary.json"
+      ],
+      "evidenceOptional": [
+        "def-02-av-state-summary.json"
       ],
       "pass": "facts.avNotActive == 0",
       "affected": "facts.avNotActive",

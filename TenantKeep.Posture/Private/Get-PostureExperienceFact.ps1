@@ -32,6 +32,8 @@ function Get-PostureExperienceFact {
         return @{ available = $false; reason = 'No Entra or Intune evidence in the folder (Invoke-PostureCollection -Collector Entra, Intune).' }
     }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # A list of affected objects holds 500 at most; affectedCounts carries how many there are when the list is cut.
+    $affectedCounts = @{}
     $before = { param([string[]] $Ids, [string] $File, [string] $Collector) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was collected before TenantKeep read what this check needs. Collect $Collector again (Resume-PostureRun -Collector $Collector)." } }
     $missing = { param([string[]] $Ids, [string] $File, [string] $Collector) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (the $Collector collector; check errors.txt)." } }
 
@@ -125,8 +127,8 @@ function Get-PostureExperienceFact {
     if (-not $read) { & $missing @('UX-009', 'UX-010') '06-users' 'Entra' }
     elseif ($state.hasMail -eq $false) { & $before @('UX-009', 'UX-010', 'UX-020') '06-users' 'Entra' }
     else {
-        $facts.upnEmailMismatches = $state.upnCount; $affected.upnEmailMismatches = @($upn)
-        $facts.lastFirstDisplayNames = $state.nameCount; $affected.lastFirstDisplayNames = @($lastFirst)
+        $facts.upnEmailMismatches = $state.upnCount; $affected.upnEmailMismatches = @($upn); $affectedCounts.upnEmailMismatches = $state.upnCount
+        $facts.lastFirstDisplayNames = $state.nameCount; $affected.lastFirstDisplayNames = @($lastFirst); $affectedCounts.lastFirstDisplayNames = $state.nameCount
         if ($state.hasProfile) { $facts.profileCompletePct = $(if ($state.members -gt 0) { [Math]::Round(100.0 * $state.profileComplete / $state.members, 1) } else { 100 }) }
         else { & $before @('UX-020') '06-users' 'Entra' }
     }
@@ -204,5 +206,5 @@ function Get-PostureExperienceFact {
     if ($null -eq $rsp) { & $missing @('UX-023') 'exo-13-report-submission' 'Exchange' }
     else { $facts.reportButtonOn = @(& $rows $rsp | Where-Object { (& $v $_ 'EnableReportToMicrosoft') -eq $true -or (& $v $_ 'ReportPhishToCustomizedAddress') -eq $true -or (& $v $_ 'ReportJunkToCustomizedAddress') -eq $true }).Count -gt 0 }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('09-intune-policy-settings.json', '09-intune-enrollment-restrictions.json', '01-company-branding.json', '06-users.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('09-intune-policy-settings.json', '09-intune-enrollment-restrictions.json', '01-company-branding.json', '06-users.json') }
 }

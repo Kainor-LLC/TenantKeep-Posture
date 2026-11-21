@@ -14,6 +14,12 @@ function Invoke-PostureCheckEvaluation {
         in evidenceOptional (it can be judged without it) or in a group of evidenceAnyOf (one of the group is
         enough: the same data from two collectors, or a slim file and the full list it replaced). A fact with no
         value has the same effect inside the expression. Missing data never reads as pass or fail.
+
+        Coverage: a provider that judged a check on part of the data (the collector read 200 of 1,500 subscriptions)
+        says so in notes[<check id>], which becomes the reason of a pass or fail; when nothing failed in the part it
+        saw, it names the check in notEvaluated instead. A provider that keeps only the first rows of an affected
+        list gives the true number in affectedCounts[<affected key>]: affectedCount is that number, and
+        affectedListed how many rows the result carries.
         Threshold precedence: catalog default, then profile.thresholds by key, then baseline.thresholds[check id].
     #>
     [CmdletBinding()]
@@ -115,7 +121,7 @@ function Invoke-PostureCheckEvaluation {
         $severity = if ($Baseline.severity -and $Baseline.severity[$id]) { [string]$Baseline.severity[$id] } else { [string]$c['severityDefault'] }
         $result = [ordered]@{
             id = $id; domain = $d; title = [string]$c['title']; status = $null; severity = $severity; reason = $null
-            thresholds = $thresholds; observed = $null; affected = @(); affectedCount = 0; evidence = @($c['evidence']); exception = $null
+            thresholds = $thresholds; observed = $null; affected = @(); affectedCount = 0; affectedListed = 0; evidence = @($c['evidence']); exception = $null
             coveredBy = $null; custom = [bool]$c['custom']; checkedUtc = $AsOf.ToString('o')
         }
 
@@ -169,11 +175,19 @@ function Invoke-PostureCheckEvaluation {
             $result.status = 'notEvaluated'; $result.reason = "Data missing: $($_.Exception.Message)$(if ($gap.absent.Count -gt 0) { " Not collected: $(@($gap.absent | ForEach-Object { "$_.json" }) -join ', ')." })"; $result; continue
         }
 
+        # The rows the provider kept, and how many there are in all when it kept only the first of them.
+        $declared = 0
         if ($c.Contains('affected') -and $c['affected']) {
             $key = ([string]$c['affected']) -replace '^facts\.', ''
             if ($df['affected'].Contains($key)) { $result.affected = @($df['affected'][$key]) }
+            if ($df.Contains('affectedCounts') -and $df['affectedCounts'] -and $df['affectedCounts'].Contains($key)) { $declared = [int]$df['affectedCounts'][$key] }
         }
+        $listedBefore = @($result.affected).Count
+        # Affected objects the provider counted and did not list: no exception can be matched against them.
+        $unlisted = [Math]::Max(0, $declared - $listedBefore)
         $result.status = if ($passed) { 'pass' } else { 'fail' }
+        # Judged on part of the data: the provider says how much.
+        if ($df.Contains('notes') -and $df['notes'] -and $df['notes'].Contains($id)) { $result.reason = [string]$df['notes'][$id] }
         # The values the pass expression judged, so the report says what was found in this tenant: scalars as they
         # are, a list as its count.
         $observed = [ordered]@{}
@@ -205,18 +219,20 @@ function Invoke-PostureCheckEvaluation {
                 $excepted = @($result.affected | Where-Object { (& $label $_) -in $names })
                 if ($excepted.Count -gt 0) {
                     $result.affected = $remaining
-                    if ($remaining.Count -eq 0) {
+                    if ($remaining.Count -eq 0 -and $unlisted -eq 0) {
                         $result.status = 'acceptedRisk'; $result.exception = $objectLevel
                         $result.reason = "Accepted risk for $($excepted.Count) object(s): $(@($objectLevel | ForEach-Object { "$($_.object): $($_.justification)" }) -join '; ')."
                     }
-                    else { $result.reason = "$($excepted.Count) object(s) accepted by exception; $($remaining.Count) remain." }
+                    else { $result.reason = (@($result.reason, "$($excepted.Count) object(s) accepted by exception; $($remaining.Count + $unlisted) remain.") | Where-Object { $_ }) -join ' ' }
                 }
             }
         }
         if ($expiredOnes.Count -gt 0 -and $result.status -ne 'acceptedRisk') {
             $result.reason = (@($result.reason, "$($expiredOnes.Count) expired exception(s) ignored.") | Where-Object { $_ }) -join ' '
         }
-        $result.affectedCount = @($result.affected).Count
+        # Objects accepted by exception leave the list and the count alike.
+        $result.affectedListed = @($result.affected).Count
+        $result.affectedCount = $result.affectedListed + $unlisted
         $result
     }
 

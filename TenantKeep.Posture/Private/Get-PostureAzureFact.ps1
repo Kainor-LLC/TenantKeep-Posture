@@ -35,13 +35,36 @@ function Get-PostureAzureFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
     $pct = { param([double] $n, [double] $d) if ($d -le 0) { $null } else { [Math]::Round(100.0 * $n / $d, 1) } }
-    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}; $notes = @{}
     $missing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected (Invoke-PostureCollection -Collector Azure; check errors.txt and the Reader and Security Reader roles)." } }
 
     $subs = & $load 'az-01-subscriptions'
     if ($null -eq $subs) { return @{ available = $false; reason = 'No Azure evidence in the folder (Invoke-PostureCollection -Collector Azure needs a Connect-AzAccount session).' } }
     $s = @(& $rows $subs | Where-Object { [string]$_.State -eq 'Enabled' })
     $facts.subscriptions = $s.Count
+    # Which subscriptions the per-subscription reads covered: the collector's DetailRead flag. Evidence from before
+    # the flag read the first 200 enabled subscriptions, so up to 200 all were read; above that az-13-budgets, which
+    # has one row for every subscription read, says which. The checks below that read per-subscription files judge
+    # these and only these: a subscription that was never read has no contact, no export and no plan in the files,
+    # and is not a finding.
+    $has = { param($o, [string] $k) if ($o -is [System.Collections.IDictionary]) { $o.Contains($k) } else { $null -ne $o.PSObject.Properties[$k] } }
+    $read = $s
+    if (@($s | Where-Object { & $has $_ 'DetailRead' }).Count -gt 0) { $read = @($s | Where-Object { (& $v $_ 'DetailRead') -eq $true }) }
+    elseif ($s.Count -gt 200) {
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($row in @(& $rows (& $load 'az-13-budgets'))) { $null = $seen.Add([string](& $v $row 'SubscriptionId')) }
+        $read = @($s | Where-Object { $seen.Contains([string]$_.SubscriptionId) })
+    }
+    $facts.subscriptionsRead = $read.Count
+    # A gap that was seen is a finding, with how much was looked at. With no gap among those read and others unread,
+    # there is no answer for the tenant.
+    $partial = {
+        param([string] $Id, [int] $Gaps, [string] $What)
+        if ($read.Count -ge $s.Count) { return }
+        if ($read.Count -eq 0) { $notEvaluated[$Id] = "The evidence does not say which of the $($s.Count) subscriptions were read in detail. Collect Azure again (Resume-PostureRun -Collector Azure)."; return }
+        if ($Gaps -gt 0) { $notes[$Id] = "Judged on $($read.Count) of $($s.Count) subscriptions; the other $($s.Count - $read.Count) were not read." }
+        else { $notEvaluated[$Id] = "No $What among the $($read.Count) subscriptions that were read; the other $($s.Count - $read.Count) were not read (the per-subscription reads cover the first 200), so there is no answer for the tenant yet." }
+    }
     $subName = @{}; foreach ($x in $s) { $subName[[string]$x.SubscriptionId] = [string]$x.Name }
     $label = { param([string] $id) $(if ($subName.ContainsKey($id)) { "$($subName[$id]) ($id)" } else { $id }) }
 
@@ -75,7 +98,7 @@ function Get-PostureAzureFact {
         # (verify) plan names as the pricings API spells them
         $planFor = [ordered]@{ VirtualMachines = 'microsoft.compute/virtualmachines'; StorageAccounts = 'microsoft.storage/storageaccounts'; KeyVaults = 'microsoft.keyvault/vaults'; SqlServers = 'microsoft.sql/servers'; Containers = 'microsoft.containerservice/managedclusters'; AppServices = 'microsoft.web/sites'; Api = 'microsoft.apimanagement/service' }
         $gaps = @()
-        foreach ($sub in $s) {
+        foreach ($sub in $read) {
             $types = @($(if ($null -ne $byType) { @(& $rows $byType | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId } | ForEach-Object { ([string]$_.Type).ToLowerInvariant() }) }))
             foreach ($plan in $planFor.Keys) {
                 if ($types -notcontains $planFor[$plan]) { continue }
@@ -87,8 +110,9 @@ function Get-PostureAzureFact {
         }
         $facts.defenderPlanGaps = $gaps.Count
         $affected.defenderPlanGaps = @($gaps)
+        & $partial 'AZ-003' $gaps.Count 'Defender plan gap'
         $facts.defenderCspmSubscriptions = @($pr | Where-Object { [string]$_.Plan -eq 'CloudPosture' -and [string]$_.Tier -eq 'Standard' } | ForEach-Object { $_.SubscriptionId } | Sort-Object -Unique).Count
-        if ($facts.defenderCspmSubscriptions -eq 0) { $notEvaluated['AZ-004'] = 'Requires Defender CSPM on at least one subscription; attack paths, permissions creep and unused permissions come with it.' }
+        if ($facts.defenderCspmSubscriptions -eq 0) { $notEvaluated['AZ-004'] = $(if ($read.Count -lt $s.Count) { "Defender CSPM is on none of the $($read.Count) subscriptions that were read; the other $($s.Count - $read.Count) were not read." } else { 'Requires Defender CSPM on at least one subscription; attack paths, permissions creep and unused permissions come with it.' }) }
     }
 
     # AZ-005 security contacts
@@ -96,9 +120,10 @@ function Get-PostureAzureFact {
     if ($null -eq $contacts) { & $missing @('AZ-005') 'az-02-security-contacts' }
     else {
         $c = @(& $rows $contacts)
-        $noContact = @($s | Where-Object { $sub = $_; @($c | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and $_.Emails -and [string]$_.AlertState -ne 'Off' -and $_.IsEnabled -ne $false }).Count -eq 0 })
+        $noContact = @($read | Where-Object { $sub = $_; @($c | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and $_.Emails -and [string]$_.AlertState -ne 'Off' -and $_.IsEnabled -ne $false }).Count -eq 0 })
         $facts.subscriptionsWithoutSecurityContact = $noContact.Count
         $affected.subscriptionsWithoutSecurityContact = @($noContact | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'no security contact with alert notifications on' } })
+        & $partial 'AZ-005' $noContact.Count 'subscription without a security contact'
     }
 
     # AZ-006 activity log export
@@ -106,9 +131,10 @@ function Get-PostureAzureFact {
     if ($null -eq $exports) { & $missing @('AZ-006') 'az-04-activity-log-exports' }
     else {
         $e = @(& $rows $exports)
-        $noExport = @($s | Where-Object { $sub = $_; @($e | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and ($_.WorkspaceId -or $_.EventHub) -and [int]$_.Categories -gt 0 }).Count -eq 0 })
+        $noExport = @($read | Where-Object { $sub = $_; @($e | Where-Object { [string]$_.SubscriptionId -eq [string]$sub.SubscriptionId -and ($_.WorkspaceId -or $_.EventHub) -and [int]$_.Categories -gt 0 }).Count -eq 0 })
         $facts.subscriptionsWithoutActivityLogExport = $noExport.Count
         $affected.subscriptionsWithoutActivityLogExport = @($noExport | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'no diagnostic setting sends the activity log to a workspace or event hub' } })
+        & $partial 'AZ-006' $noExport.Count 'subscription without an activity log export'
     }
 
     # AZ-007 locks on vaults, AZ-009 tags, AZ-010 orphans
@@ -199,6 +225,7 @@ function Get-PostureAzureFact {
         $cl = @(& $rows $classic | Where-Object { [string]$_.Role -notmatch '(?i)^AccountAdministrator$' })
         $facts.classicAdministrators = $cl.Count
         $affected.classicAdministrators = @($cl | ForEach-Object { [ordered]@{ name = [string]$_.EmailAddress; detail = "$($_.Role) on $(& $label $_.SubscriptionId)" } })
+        & $partial 'AZ-017' $cl.Count 'classic administrator'
     }
 
     # AZ-019 Key Vault, AZ-020 storage, AZ-021 SQL
@@ -250,6 +277,7 @@ function Get-PostureAzureFact {
         $facts.m365PaygSubscriptions = $paying.Count
         $facts.m365PaygWithoutBudget = $noBudget.Count
         $affected.m365PaygWithoutBudget = @($noBudget | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'SubscriptionId'); detail = (@(& $v $_ 'Services' | ForEach-Object { "$(& $v $_ 'Name') $(& $v $_ 'Cost') $(& $v $_ 'Currency')" }) -join '; ') } })
+        & $partial 'AZ-023' $noBudget.Count 'pay-as-you-go spend without a budget'
     }
     # AZ-024: management ports (SSH, RDP, WinRM) open to the internet on a network security group in use.
     $ports = & $load 'az-12-open-management-ports'
@@ -259,7 +287,7 @@ function Get-PostureAzureFact {
     # AZ-025: a budget with an alert on every subscription (a spike in spend is often the first sign of misuse).
     $budgets = & $load 'az-13-budgets'
     if ($null -eq $budgets) { & $missing @('AZ-025') 'az-13-budgets' }
-    else { $none = @(& $rows $budgets | Where-Object { [int]$_.Budgets -eq 0 }); $facts.subscriptionsWithoutBudget = $none.Count; $affected.subscriptionsWithoutBudget = @($none | ForEach-Object { [ordered]@{ name = (& $label $_.SubscriptionId); detail = 'no budget' } }) }
+    else { $none = @(& $rows $budgets | Where-Object { [int]$_.Budgets -eq 0 }); $facts.subscriptionsWithoutBudget = $none.Count; $affected.subscriptionsWithoutBudget = @($none | ForEach-Object { [ordered]@{ name = (& $label $_.SubscriptionId); detail = 'no budget' } }); & $partial 'AZ-025' $none.Count 'subscription without a budget' }
 
     # AZ-026: backup vaults keep deleted backups (soft delete) and refuse to shorten or remove them (immutability).
     $bv = & $load 'az-14-backup-vaults'
@@ -298,5 +326,5 @@ function Get-PostureAzureFact {
         $affected.entraDomainServicesWeak = @($weakDs)
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json', 'az-12-open-management-ports.json', 'az-13-budgets.json', 'az-14-backup-vaults.json', 'az-15-sentinel.json', 'az-16-entra-domain-services.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json', 'az-12-open-management-ports.json', 'az-13-budgets.json', 'az-14-backup-vaults.json', 'az-15-sentinel.json', 'az-16-entra-domain-services.json') }
 }

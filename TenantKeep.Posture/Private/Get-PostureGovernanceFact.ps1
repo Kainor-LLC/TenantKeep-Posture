@@ -83,6 +83,10 @@ function Get-PostureGovernanceFact {
         $facts.roleAssignableGroups = $assignable.n
         $facts.pimManagedGroups = [int](& $v $pim 'Groups')
         $facts.pimEligibleGroupAssignments = [int](& $v $pim 'EligibleAssignments')
+        # How many groups the eligibility read covered: the collector's count, or 100 for evidence from before it
+        # read them all. Groups it never asked about are not groups without PIM.
+        $groupsRead = $(if ($null -ne (& $v $pim 'GroupsRead')) { [int](& $v $pim 'GroupsRead') } else { [Math]::Min(100, $assignable.n) })
+        if ($groupsRead -lt $assignable.n -and $facts.pimManagedGroups -eq 0) { $notEvaluated['GV-006'] = "No PIM for Groups among the $groupsRead role-assignable groups that were read; the other $($assignable.n - $groupsRead) were not read. Collect Entra again (Resume-PostureRun -Collector Entra)." }
     }
 
     # Service principals: SSO mix (GV-007), SAML certificates (GV-008), owners (GV-010), HR connector (GV-011)

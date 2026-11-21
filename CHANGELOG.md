@@ -6,6 +6,21 @@ work landed on main.
 
 ## Unreleased
 
+- No finding from a cap (2026-11-21). Three reads stop short on a large tenant, and what they did not read used
+  to count against the tenant. The Azure collector reads Defender plans, security contacts, activity log exports,
+  classic administrators and budgets on the first 200 subscriptions; the other subscriptions were reported as
+  having no contact, no export and no plan (1,300 false flags on a made-up tenant of 1,500). `az-01-subscriptions`
+  now says which were read (`DetailRead`), the checks judge those only, a gap among them is a finding whose reason
+  says "Judged on 200 of N subscriptions", and with no gap among them the check has no answer. The Defender device
+  lists ask each shard how many rows it has before reading it; a shard that returns fewer marks the summary
+  `Truncated`, and EP-019, EP-020 and EP-021 then have no answer instead of counting devices over a short list.
+  PIM for Groups reads every role-assignable group (the first 100 before) and records how many it read.
+- A check that lists the first 500 affected objects now counts all of them. The count on the page, in
+  `checks.json` and in the exports was the length of the list, so 12,000 mismatched sign-in names read as 500.
+  `affectedCount` is the true number, `affectedListed` how many the run holds, and the page says "The run lists
+  500 at most for this check" instead of promising every one in the CSV. An exception that covers every listed
+  object no longer turns the check into an accepted risk while unlisted objects remain. The number of synced
+  groups that access depends on (HY-032) was itself capped at 500 and is now counted in full.
 - No answer for what was not read (2026-11-21). Where a provider could not read a file it used to carry on with
   "off", "none" or zero; it now says unknown, and the check is judged only when the rest decides it. This covers
   the device cleanup rule (DEV-002), feature update profiles (EP-014), quarantine notifications (EM-007), the

@@ -47,6 +47,7 @@ function ConvertTo-PostureFindingsDocument {
             thresholds     = $(if ($r.Contains('thresholds') -and $r.thresholds) { $r.thresholds } else { [ordered]@{} })
             found          = @(@($(if ($r.Contains('observed') -and $r.observed) { $r.observed.Keys | ForEach-Object { [ordered]@{ label = $(if ($factText.Contains($_)) { [string]$factText[$_] } else { $_ }); value = $r.observed[$_] } } })))
             affectedCount  = [int]$r.affectedCount
+            affectedListed = $(if ($r.Contains('affectedListed')) { [int]$r.affectedListed } else { @($r.affected).Count })
             affectedSample = @(@($r.affected) | Select-Object -First $SampleSize | ForEach-Object { [ordered]@{ name = (& $nameOf $_); detail = (& $detailOf $_) } })
             affectedFile   = $(if ([int]$r.affectedCount -gt 0) { "affected/$($r.id).csv" } else { $null })
             whyItMatters   = [string]$c['narrative']

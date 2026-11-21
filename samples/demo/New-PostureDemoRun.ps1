@@ -449,9 +449,9 @@ Write-Demo '09-intune-app-protection-policies' @(
 # --- Defender ----------------------------------------------------------------------------------------------------------------
 $windows = @($fleet | Where-Object OperatingSystem -eq 'Windows')
 Write-Demo 'def-01-devices' @($fleet | Where-Object { $_.OperatingSystem -in 'Windows', 'macOS' } | ForEach-Object { [ordered]@{ DeviceId = $_.Id; DeviceName = $_.DeviceName; OSPlatform = $(if ($_.OperatingSystem -eq 'Windows') { 'Windows11' } else { 'macOS' }); OSVersionInfo = $_.OSVersion; OnboardingStatus = 'Onboarded'; SensorHealthState = $(if (Test-DemoChance 0.02) { 'Inactive' } else { 'Active' }); ExposureLevel = Get-DemoPick @('Low', 'Low', 'Medium', 'Medium', 'High'); MachineGroup = 'Fernquill'; JoinType = 'AzureADJoined'; AadDeviceId = $_.AzureAdDeviceId; IsAzureADJoined = 1; DeviceType = 'Workstation'; LastSeen = $_.LastSyncDateTime } })
-Write-Demo 'def-01-devices-summary' @{ Devices = 252; Onboarded = 252; Active = 248 }
+Write-Demo 'def-01-devices-summary' @{ Devices = 252; RowsExpected = 252; RowsRead = 252; Truncated = $false; Onboarded = 252; Active = 248 }
 Write-Demo 'def-02-av-state' @($windows | ForEach-Object { [ordered]@{ DeviceId = $_.Id; DeviceName = $_.DeviceName; OSPlatform = 'Windows11'; AvMode = 'Active'; AvIsSignatureUpToDate = $(if (Test-DemoChance 0.03) { 'False' } else { 'True' }); AvIsEngineUpToDate = 'True'; AvIsPlatformUpToDate = 'True'; AvSignatureVersion = '1.441.112.0'; LastSeen = $_.LastSyncDateTime } })
-Write-Demo 'def-02-av-state-summary' @{ Devices = $windows.Count; ByMode = @(@{ Name = 'Active'; Count = $windows.Count }); SignatureOutOfDate = 6 }
+Write-Demo 'def-02-av-state-summary' @{ Devices = $windows.Count; RowsExpected = $windows.Count; RowsRead = $windows.Count; Truncated = $false; ByMode = @(@{ Name = 'Active'; Count = $windows.Count }); SignatureOutOfDate = 6 }
 $config = { param([string] $Id, [string] $Name, [string] $Cat, [string] $Sub, [int] $Compliant) [ordered]@{ ConfigurationId = $Id; ConfigurationName = $Name; Category = $Cat; Subcategory = $Sub; Impact = 5; Devices = $windows.Count; Compliant = $Compliant; CompliantPct = [math]::Round(100 * $Compliant / $windows.Count, 1) } }
 Write-Demo 'def-03-secure-config' @(
     (& $config 'scid-91' 'Turn on Tamper Protection' 'Security controls' 'Antivirus' 226)
@@ -586,7 +586,7 @@ Write-Demo 'gov-01-access-reviews' @(
 )
 Write-Demo 'gov-02-access-packages-summary' @{ Packages = 2; Catalogs = 1; ConnectedOrganizations = 1 }
 Write-Demo 'gov-03-lifecycle-workflows' @(@{ DisplayName = 'Joiner - first day'; Category = 'joiner'; IsEnabled = $true }, @{ DisplayName = 'Leaver - last day'; Category = 'leaver'; IsEnabled = $true })
-Write-Demo 'gov-04-pim-groups-summary' @{ EligibleAssignments = 3; Groups = 1 }
+Write-Demo 'gov-04-pim-groups-summary' @{ EligibleAssignments = 3; Groups = 1; RoleAssignableGroups = 2; GroupsRead = 2 }
 Write-Demo 'gov-05-administrative-units' @()
 Write-Demo 'az-11-m365-backup' @{ ServiceStatus = 'enabled'; SharePointPolicies = 1; OneDrivePolicies = 1; ExchangePolicies = 1 }
 

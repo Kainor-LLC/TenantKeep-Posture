@@ -32,21 +32,43 @@ function Invoke-PostureDefenderCollection {
         $r = Invoke-PostureGraphRequest -Uri 'security/runHuntingQuery' -Method 'POST' -Body @{ Query = $Query } -ApiVersion 'v1.0'   # posture:read-only-post
         @(& $v $r 'results')
     }
+    # What the last sharded read covered: rows the service says exist against rows it returned.
+    $huntCoverage = @{ expected = [long]0; read = [long]0; shardsShort = 0 }
     $huntSharded = {
         param([string] $Table, [string] $Rest)
-        # 16 shards by the first hex character of DeviceId keep each answer under the 10,000-row cap.
+        # 16 shards by the first hex character of DeviceId keep each answer under the row cap of one query. The cap is
+        # the service's to change, so one query first asks how many rows each shard has: fewer rows back than that
+        # (or rows under a first character no shard asks for) means the list is cut short, and the summary says so
+        # instead of the checks reading a short list as whole.
+        $huntCoverage.expected = 0; $huntCoverage.read = 0; $huntCoverage.shardsShort = 0
+        $expected = @{}
+        foreach ($row in @(& $hunt "$Table $Rest | summarize Count = count() by Shard = tolower(substring(DeviceId, 0, 1))")) {
+            $expected[[string](& $v $row 'Shard')] = [long](& $v $row 'Count')
+            $huntCoverage.expected += [long](& $v $row 'Count')
+        }
         $all = [System.Collections.Generic.List[object]]::new()
-        foreach ($c in '0123456789abcdef'.ToCharArray()) { foreach ($row in @(& $hunt "$Table | where DeviceId startswith '$c' $Rest")) { $all.Add($row) } }
+        $asked = @{}
+        foreach ($c in '0123456789abcdef'.ToCharArray()) {
+            $asked[[string]$c] = $true
+            $rows = @(& $hunt "$Table | where DeviceId startswith '$c' $Rest")
+            $huntCoverage.read += $rows.Count
+            if ($expected.ContainsKey([string]$c) -and $rows.Count -lt $expected[[string]$c]) { $huntCoverage.shardsShort++ }
+            foreach ($row in $rows) { $all.Add($row) }
+        }
+        foreach ($k in $expected.get_Keys()) { if (-not $asked.ContainsKey($k) -and $expected[$k] -gt 0) { $huntCoverage.shardsShort++ } }
         $all.ToArray()
     }
+    $coverage = { [ordered]@{ RowsExpected = $huntCoverage.expected; RowsRead = $huntCoverage.read; Truncated = ($huntCoverage.shardsShort -gt 0) } }
     $group = { param($rows, [string[]] $keys) @(@($rows | ForEach-Object { [pscustomobject]$_ }) | Group-Object -Property $keys | ForEach-Object { [ordered]@{ Name = $_.Name; Count = $_.Count } } | Sort-Object { -$_.Count }) }
 
     Invoke-PostureStep -Label 'Defender devices' -Folder $Folder -Script {
         $rows = @(& $huntSharded 'DeviceInfo' '| where Timestamp > ago(7d) | summarize arg_max(Timestamp, *) by DeviceId | project DeviceId, DeviceName, OSPlatform, OSVersionInfo, OnboardingStatus, SensorHealthState, ExposureLevel, MachineGroup, JoinType, AadDeviceId, IsAzureADJoined, DeviceType, Timestamp')
         $flat = @($rows | ForEach-Object { [ordered]@{ DeviceId = (& $v $_ 'DeviceId'); DeviceName = (& $v $_ 'DeviceName'); OSPlatform = (& $v $_ 'OSPlatform'); OSVersionInfo = (& $v $_ 'OSVersionInfo'); OnboardingStatus = (& $v $_ 'OnboardingStatus'); SensorHealthState = (& $v $_ 'SensorHealthState'); ExposureLevel = (& $v $_ 'ExposureLevel'); MachineGroup = (& $v $_ 'MachineGroup'); JoinType = (& $v $_ 'JoinType'); AadDeviceId = (& $v $_ 'AadDeviceId'); IsAzureADJoined = (& $v $_ 'IsAzureADJoined'); DeviceType = (& $v $_ 'DeviceType'); LastSeen = (& $v $_ 'Timestamp') } })
         & $save $flat 'def-01-devices' $true
+        $cov = & $coverage
         & $saveOne ([ordered]@{
                 Devices = $flat.Count
+                RowsExpected = $cov.RowsExpected; RowsRead = $cov.RowsRead; Truncated = $cov.Truncated
                 Onboarded = @($flat | Where-Object { $_.OnboardingStatus -eq 'Onboarded' }).Count
                 ByPlatformOnboarding = (& $group $flat @('OSPlatform', 'OnboardingStatus'))
                 BySensorHealth = (& $group $flat @('SensorHealthState'))
@@ -59,7 +81,8 @@ function Invoke-PostureDefenderCollection {
         $rows = @(& $huntSharded 'DeviceTvmInfoGathering' '| where Timestamp > ago(7d) | summarize arg_max(Timestamp, *) by DeviceId | extend AvMode = tostring(AdditionalFields.AvMode), AvIsSignatureUpToDate = tostring(AdditionalFields.AvIsSignatureUpToDate), AvIsEngineUpToDate = tostring(AdditionalFields.AvIsEngineUpToDate), AvIsPlatformUpToDate = tostring(AdditionalFields.AvIsPlatformUpToDate), AvSignatureVersion = tostring(AdditionalFields.AvSignatureVersion) | project DeviceId, DeviceName, OSPlatform, AvMode, AvIsSignatureUpToDate, AvIsEngineUpToDate, AvIsPlatformUpToDate, AvSignatureVersion, Timestamp')
         $flat = @($rows | ForEach-Object { [ordered]@{ DeviceId = (& $v $_ 'DeviceId'); DeviceName = (& $v $_ 'DeviceName'); OSPlatform = (& $v $_ 'OSPlatform'); AvMode = (& $v $_ 'AvMode'); AvIsSignatureUpToDate = (& $v $_ 'AvIsSignatureUpToDate'); AvIsEngineUpToDate = (& $v $_ 'AvIsEngineUpToDate'); AvIsPlatformUpToDate = (& $v $_ 'AvIsPlatformUpToDate'); AvSignatureVersion = (& $v $_ 'AvSignatureVersion'); LastSeen = (& $v $_ 'Timestamp') } })
         & $save $flat 'def-02-av-state' $true
-        & $saveOne ([ordered]@{ Devices = $flat.Count; ByMode = (& $group $flat @('AvMode')); SignatureOutOfDate = @($flat | Where-Object { [string]$_.AvIsSignatureUpToDate -eq 'false' }).Count }) 'def-02-av-state-summary'
+        $cov = & $coverage
+        & $saveOne ([ordered]@{ Devices = $flat.Count; RowsExpected = $cov.RowsExpected; RowsRead = $cov.RowsRead; Truncated = $cov.Truncated; ByMode = (& $group $flat @('AvMode')); SignatureOutOfDate = @($flat | Where-Object { [string]$_.AvIsSignatureUpToDate -eq 'false' }).Count }) 'def-02-av-state-summary'
     } | Out-Null
 
     Invoke-PostureStep -Label 'Defender secure configuration assessment' -Folder $Folder -Script {

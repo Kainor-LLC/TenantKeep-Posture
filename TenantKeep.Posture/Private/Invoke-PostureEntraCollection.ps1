@@ -576,12 +576,14 @@ function Invoke-PostureEntraCollection {
     } | Out-Null
     Invoke-PostureStep -Label 'PIM for Groups' -Folder $Folder -Script {
         # PrivilegedEligibilitySchedule.Read.AzureADGroup. The endpoint needs a groupId or principalId filter (confirmed 2026-10-15: unfiltered is BadRequest),
-        # so it is read once per role-assignable group; those are the groups that carry admin roles. Capped at 100 groups.
-        $candidates = @($groupRows | Where-Object { $_ -and $_.IsAssignableToRole -eq $true } | Select-Object -First 100)
+        # so it is read once per role-assignable group; those are the groups that carry admin roles (the service
+        # limit is 500 per tenant (verify)). Every one is read; the summary says how many, so a short read is never
+        # taken for all.
+        $candidates = @($groupRows | Where-Object { $_ -and $_.IsAssignableToRole -eq $true })
         $sched = @(foreach ($g in $candidates) { & $get "identityGovernance/privilegedAccess/group/eligibilitySchedules?`$filter=groupId eq '$($g.Id)'&`$select=id,groupId,accessId,principalId,status,memberType" })
         $rows = @($sched | ForEach-Object { [ordered]@{ Id = $_.id; GroupId = (& $v $_ 'groupId'); AccessId = (& $v $_ 'accessId'); PrincipalId = (& $v $_ 'principalId'); Status = (& $v $_ 'status'); MemberType = (& $v $_ 'memberType') } })
         & $save $rows 'gov-04-pim-groups' $true
-        & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count }) 'gov-04-pim-groups-summary'
+        & $saveOne ([ordered]@{ EligibleAssignments = $rows.Count; Groups = @($rows | ForEach-Object { $_.GroupId } | Where-Object { $_ } | Sort-Object -Unique).Count; RoleAssignableGroups = $candidates.Count; GroupsRead = $candidates.Count }) 'gov-04-pim-groups-summary'
     } | Out-Null
     Invoke-PostureStep -Label 'Administrative units' -Folder $Folder -Script {
         # AdministrativeUnit.Read.All

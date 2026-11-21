@@ -27,7 +27,7 @@ run continues.
 | `gov-01-access-reviews` (+csv) | identityGovernance/accessReviews/definitions | Scope queries joined, recurrence; needs AccessReview.Read.All |
 | `gov-02-access-packages` (+csv), `gov-02-access-packages-summary` | entitlementManagement packages, catalogs, connected organizations | EntitlementManagement.Read.All |
 | `gov-03-lifecycle-workflows` (+csv) | lifecycleWorkflows/workflows | LifecycleWorkflows.Read.All |
-| `gov-04-pim-groups` (+csv), `gov-04-pim-groups-summary` | privilegedAccess/group/eligibilitySchedules | PrivilegedEligibilitySchedule.Read.AzureADGroup (verify) |
+| `gov-04-pim-groups` (+csv), `gov-04-pim-groups-summary` | privilegedAccess/group/eligibilitySchedules | PrivilegedEligibilitySchedule.Read.AzureADGroup (verify). Read once per role-assignable group, every one of them; the summary records `RoleAssignableGroups` and `GroupsRead`, and GV-006 has no answer when fewer were read and none of those is under PIM |
 | `gov-05-administrative-units` (+csv) | directory/administrativeUnits | AdministrativeUnit.Read.All |
 | `01-domains` (+csv) | domains with authentication type and password expiry | Federated domains feed the identity model discovery; expiry feeds ID-017 |
 | `01-company-branding` | organization/{id}/branding | Presence only (logo, background, sign-in text); a 404 means no branding |
@@ -125,8 +125,12 @@ fingerprint and Face ID settings.
 Graph only, on the same session as the Entra collector: advanced hunting is a query-style POST that changes nothing.
 Scopes: ThreatHunting.Read.All (hunting), SecurityIncident.Read.All (incidents), SecurityEvents.Read.All (Secure
 Score). Skipped with a warning when ThreatHunting.Read.All is missing. The device tables are read in 16 shards by
-the first character of the device id, under the 10,000-row cap per query. Needs Defender for Endpoint P2 for the
-configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
+the first character of the device id, to stay under the row cap of one query (10,000 rows when this was written
+(verify); the cap is the service's to change). One query per table first asks how many rows each shard has, and
+the summary records `RowsExpected`, `RowsRead` and `Truncated`: when a shard returns fewer rows than it has, the
+list is cut short and the checks that count devices over it (EP-019, EP-020, EP-021) have no answer, with the two
+numbers as the reason. Needs Defender for Endpoint P2 for the configuration and vulnerability tables (verify: P1
+answers DeviceInfo only).
 
 | File | Source | Notes |
 |---|---|---|
@@ -141,7 +145,11 @@ configuration and vulnerability tables (verify: P1 answers DeviceInfo only).
 
 On a `Connect-AzAccount` session with Reader on the subscriptions (or the management group) and Security Reader.
 Resource Graph at tenant scope carries the fleet-wide reads; Resource Manager GET calls per subscription are capped at
-200 subscriptions. Both go through Get-only entry points. Sign in to Graph before importing Az.Accounts in the same
+200 subscriptions, and `az-01-subscriptions` says which with `DetailRead`. The checks that read per-subscription
+files (Defender plans, security contacts, activity log export, classic administrators, budgets, pay-as-you-go
+spend) judge the subscriptions that were read and no others: a gap among them is a finding whose reason says
+"Judged on 200 of N subscriptions", and with no gap among them the check has no answer for the tenant. Both go
+through Get-only entry points. Sign in to Graph before importing Az.Accounts in the same
 process: imported first, Az breaks `Connect-MgGraph` with "Entry point was not found" (observed 2026-10-15 on macOS). On macOS the Az browser sign-in can hit the same MSAL
 conflicts as the others. What works (confirmed 2026-10-15): a token from the Azure CLI with the classic Resource
 Manager audience, handed to Az.Accounts:
