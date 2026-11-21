@@ -904,6 +904,218 @@
         "cmmc": "",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "AZ-024",
+      "domain": "azure",
+      "title": "No management ports open to the internet",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-12-open-management-ports.json"
+      ],
+      "pass": "facts.managementPortsOpen == 0",
+      "affected": "facts.managementPortsOpen",
+      "remediation": [
+        "Remove or narrow each rule listed: allow SSH, RDP and WinRM only from known addresses, or not at all.",
+        "Reach virtual machines through Azure Bastion or just-in-time VM access in Defender for Cloud instead of open ports.",
+        "Add an Azure Policy that denies network security group rules allowing these ports from the internet, so new ones cannot appear."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Administrators connect through Azure Bastion or a just-in-time request instead of a port open to the world; nobody else notices."
+      },
+      "learn": "https://learn.microsoft.com/azure/defender-for-cloud/just-in-time-access-usage",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FNetworkSecurityGroups",
+      "narrative": "Remote desktop, SSH and WinRM open to the whole internet are found by scanners within minutes and then guessed at around the clock; exposed RDP remains one of the most common ways into an organisation for ransomware crews. A rule on a network security group in use is all it takes.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1133",
+        "T1021.001",
+        "T1110.001"
+      ]
+    },
+    {
+      "id": "AZ-025",
+      "domain": "azure",
+      "title": "A budget with an alert on every subscription",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-13-budgets.json"
+      ],
+      "pass": "facts.subscriptionsWithoutBudget == 0",
+      "affected": "facts.subscriptionsWithoutBudget",
+      "remediation": [
+        "In Cost Management, Budgets, create a monthly budget for each subscription listed, near its normal spend, with alerts at 80 and 100 percent to the owner and the operations mailbox."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "No one notices until spend jumps, and then the owner hears about it the same day instead of on the invoice."
+      },
+      "learn": "https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets",
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/budgets",
+      "narrative": "A sudden jump in Azure spend is often the first visible sign of a compromised subscription: crypto-mining, mass virtual machine creation or abused AI services. A budget alert turns that into a message the same day rather than a surprise on next month's invoice.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.5.37",
+        "cmmc": "",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1496.001"
+      ]
+    },
+    {
+      "id": "AZ-026",
+      "domain": "azure",
+      "title": "Backup vaults keep deleted backups and refuse to shorten them",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-14-backup-vaults.json"
+      ],
+      "pass": "facts.backupVaultsUnprotected == 0",
+      "affected": "facts.backupVaultsUnprotected",
+      "remediation": [
+        "In each vault listed, Properties, Security settings, set soft delete to Always on (or at least enabled with 14 days or more).",
+        "Turn on immutability, and lock it once the retention settings are settled, so backups cannot be shortened or deleted early even by an administrator.",
+        "Keep multi-user authorization (Resource Guard) in mind for the vaults that hold the most critical backups."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; backups simply cannot be deleted or shortened by mistake or by an attacker."
+      },
+      "learn": "https://learn.microsoft.com/azure/backup/backup-azure-immutable-vault-concept",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.RecoveryServices%2Fvaults",
+      "narrative": "Ransomware operators go for the backups first: deleting recovery points, or shortening retention so they expire, before they encrypt anything. Soft delete keeps deleted backups recoverable for days, and an immutable vault refuses the change altogether, so the restore is still there when it is needed.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-11",
+        "iso27001": "A.8.13",
+        "cmmc": "",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1490",
+        "T1485"
+      ]
+    },
+    {
+      "id": "AZ-027",
+      "domain": "azure",
+      "title": "Microsoft Sentinel receives Entra, Microsoft 365 and Defender XDR",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-15-sentinel.json"
+      ],
+      "pass": "facts.sentinelWorkspaces == 0 || facts.sentinelWithCoreConnectors >= 1",
+      "affected": "facts.sentinelWithCoreConnectors",
+      "remediation": [
+        "In the Sentinel workspace, Content hub, install the Microsoft Entra ID, Microsoft 365 and Microsoft Defender XDR solutions and connect their data connectors.",
+        "For Entra ID, send at least sign-in and audit logs; for Defender XDR, connect incidents and alerts."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team sees identity, mail and endpoint activity in one place."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/connect-data-sources",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A Sentinel workspace without the Microsoft 365 sources sees little of what attackers do in a Microsoft 365 tenant: no sign-ins, no mailbox activity, no Defender alerts. These three connectors are free to ingest for the most part and carry the evidence most investigations start from.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-028",
+      "domain": "azure",
+      "title": "Entra Domain Services without legacy protocols",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-16-entra-domain-services.json"
+      ],
+      "pass": "facts.entraDomainServicesWeak == 0",
+      "affected": "facts.entraDomainServicesWeak",
+      "remediation": [
+        "In the managed domain's Security settings, turn off NTLM v1 authentication, TLS 1.2 only (TLS 1.0 off) and Kerberos RC4 encryption.",
+        "Turn off password synchronisation from on-premises NTLM hashes unless an on-premises app still needs NTLM, and turn on Kerberos armoring, LDAP signing and channel binding."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Old devices or apps that still use NTLMv1, TLS 1.0 or RC4 against the managed domain stop working; test with them first."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/domain-services/secure-your-domain",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.AAD%2FDomainServices",
+      "narrative": "Entra Domain Services gives legacy apps a domain to join and ships with old protocols on for compatibility. NTLMv1 and RC4 make captured credentials easy to crack or relay, and TLS 1.0 is long broken; most managed domains no longer need any of them.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.8",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1557.001",
+        "T1110.002"
+      ]
     }
   ]
 }

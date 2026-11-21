@@ -177,7 +177,7 @@ function ConvertTo-PostureReportHtml {
 
     # Domains
     & $w '<section class="view" id="domains"><h2>Domain Scorecards</h2>'
-    $areas = [ordered]@{ Identity = @(); Access = @(); Devices = @(); Endpoint = @(); Email = @(); 'Collaboration and Data' = @(); Operations = @() }
+    $areas = [ordered]@{ Identity = @(); Access = @(); Devices = @(); Endpoint = @(); Email = @(); 'Collaboration and Data' = @(); Operations = @(); Azure = @() }
     if ($ch.Contains('authUsers')) { $areas.Identity += ConvertTo-PostureChartCard -Class 'wide' -Title 'Members by Sign-in Method' -Takeaway $ch.authUsers.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureSankeyChart -Name 'Members by strongest sign-in method' -Column $ch.authUsers.column -Flow $ch.authUsers.flow) }
     if ($ch.Contains('authAdmins')) { $areas.Identity += ConvertTo-PostureChartCard -Title 'Administrators by Sign-in Strength' -Takeaway $ch.authAdmins.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureDonutChart -Name 'Administrators by strongest method' -CenterLabel 'admins' -Segment $ch.authAdmins.segment) }
     if ($ch.Contains('signInCa')) { $areas.Access += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins Through Conditional Access' -Takeaway $ch.signInCa.takeaway -ViewAllDomain 'ca' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by Conditional Access and MFA' -Height 200 -Column $ch.signInCa.column -Flow $ch.signInCa.flow) }
@@ -233,6 +233,20 @@ function ConvertTo-PostureReportHtml {
     }
     $areas.'Collaboration and Data' += & $rank 'DLP Policies by Mode' 'dlpModes' 'purview' -Keep
     $areas.Operations += & $rank 'Secure Score Against Averages' 'secureScore' 'operations' -Keep
+    if ($ch.Contains('secureScoreCategories')) {
+        $rowsHtml = @($ch.secureScoreCategories.rows | ForEach-Object { '<div class="pillar"><span class="name">' + (& $h $_.label) + '</span><span class="frac">' + $_.earned + ' of ' + ($_.earned + $_.available) + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.label -Segment @(@{ label = 'Earned'; value = $_.earned; tone = 'ok' }, @{ label = 'Available'; value = $_.available; tone = 'na' })) + '</div>' }) -join ''
+        $areas.Operations += ConvertTo-PostureChartCard -Title 'Secure Score by Category' -Takeaway $ch.secureScoreCategories.takeaway -ViewAllDomain 'operations' -Body ('<div class="pillars">' + $rowsHtml + '</div>' + (ConvertTo-PostureChartLegend -Item @(@{ label = 'Earned'; tone = 'ok' }, @{ label = 'Available'; tone = 'na' })))
+    }
+    if ($ch.Contains('secureScoreActions')) {
+        $tbl = '<table><thead><tr><th>Action</th><th>Category</th><th>Points</th><th>Cost</th><th>User Impact</th></tr></thead><tbody>' + (@($ch.secureScoreActions.rows | ForEach-Object { '<tr><td>' + $(if ($_.url) { '<a href="' + (& $h $_.url) + '" target="_blank" rel="noopener">' + (& $h $_.title) + '</a>' } else { & $h $_.title }) + '</td><td>' + (& $h $_.category) + '</td><td>' + $_.points + '</td><td>' + (& $h $_.cost) + '</td><td>' + (& $h $_.userImpact) + '</td></tr>' }) -join '') + '</tbody></table>'
+        $areas.Operations += ConvertTo-PostureChartCard -Class 'wide' -Title 'Top Secure Score Improvements' -Takeaway $ch.secureScoreActions.takeaway -ViewAllDomain 'operations' -Body $tbl
+    }
+    if ($ch.Contains('azureSecureScore')) { $areas.Azure += ConvertTo-PostureChartCard -Title 'Defender for Cloud Secure Score' -Takeaway $ch.azureSecureScore.takeaway -ViewAllDomain 'azure' -Body (ConvertTo-PostureRankedBarChart -Name 'Defender for Cloud secure score' -ValueSuffix '%' -Item @($ch.azureSecureScore.item)) }
+    if ($ch.Contains('azureRecommendations')) { $areas.Azure += ConvertTo-PostureChartCard -Title 'Open Recommendations by Severity' -Takeaway $ch.azureRecommendations.takeaway -ViewAllDomain 'azure' -Body (ConvertTo-PostureBarChart -Name 'Open Defender for Cloud recommendations' -Segment $ch.azureRecommendations.segment) }
+    if ($ch.Contains('azureTopRecommendations')) {
+        $tbl = '<table><thead><tr><th>Recommendation</th><th>Severity</th><th>Resources</th></tr></thead><tbody>' + (@($ch.azureTopRecommendations.rows | ForEach-Object { '<tr><td>' + (& $h $_.title) + '</td><td><span class="sev ' + (& $h $_.severity) + '">' + (& $h $_.severity) + '</span></td><td>' + $_.affected + '</td></tr>' }) -join '') + '</tbody></table><p class="hint"><a href="https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade/~/5" target="_blank" rel="noopener">Each recommendation and its fix steps in Defender for Cloud</a></p>'
+        $areas.Azure += ConvertTo-PostureChartCard -Class 'wide' -Title 'Top Defender for Cloud Recommendations' -Takeaway 'The recommendations affecting the most resources.' -ViewAllDomain 'azure' -Body $tbl
+    }
     foreach ($a in @($areas.Keys)) { $areas[$a] = @($areas[$a] | Where-Object { $_ }) }
     foreach ($a in $areas.Keys) { if (@($areas[$a]).Count) { & $w ('<h3>' + (& $h $a) + '</h3><div class="charts">' + (@($areas[$a]) -join '') + '</div>') } }
     & $w '<h3>Scorecards</h3><div class="cards">'

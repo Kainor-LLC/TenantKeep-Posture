@@ -32,6 +32,10 @@ function Get-AzureFixtureQuery {
         "microsoft\.network/networkinterfaces'" { & $o @{ Count = 1 }; break }
         'subscriptions/resourcegroups' { & $o @{ Count = 0 }; break }
         "microsoft\.authorization/locks'" { & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.KeyVault/vaults/kv1/providers/Microsoft.Authorization/locks/keep'; name = 'keep'; level = 'CanNotDelete' }; break }
+        "microsoft\.dataprotection/backupvaults'" { & $o @{ name = 'rsv1'; type = 'microsoft.recoveryservices/vaults'; subscriptionId = 'sub-1'; resourceGroup = 'rg1'; softDelete = 'AlwaysON'; immutability = 'Disabled' }; break }
+        "microsoft\.network/networksecuritygroups'" { & $o @{ nsg = 'nsg-web'; subscriptionId = 'sub-1'; resourceGroup = 'rg1'; rule = 'allow-rdp'; port = '3389'; ports = '[]' }; & $o @{ nsg = 'nsg-web'; subscriptionId = 'sub-1'; resourceGroup = 'rg1'; rule = 'allow-https'; port = '443'; ports = '[]' }; & $o @{ nsg = 'nsg-app'; subscriptionId = 'sub-1'; resourceGroup = 'rg1'; rule = 'allow-range'; port = ''; ports = '["20-25","8080"]' }; break }
+        "microsoft\.operationsmanagement/solutions'" { & $o @{ workspaceId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.OperationalInsights/workspaces/law-sec'; subscriptionId = 'sub-1' }; break }
+        "microsoft\.aad/domainservices'" { @(); break }
         "microsoft\.recoveryservices/vaults'" { & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.KeyVault/vaults/kv1'; name = 'kv1'; type = 'microsoft.keyvault/vaults'; subscriptionId = 'sub-1'; resourceGroup = 'rg1' }; & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.RecoveryServices/vaults/rsv1'; name = 'rsv1'; type = 'microsoft.recoveryservices/vaults'; subscriptionId = 'sub-1'; resourceGroup = 'rg1' }; break }
         "microsoft\.keyvault/vaults' \| project" { & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.KeyVault/vaults/kv1'; name = 'kv1'; subscriptionId = 'sub-1'; rbac = $true; purge = $true; softDelete = $true; publicNetworkAccess = 'Disabled'; defaultAction = 'Deny' }; & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.KeyVault/vaults/kv2'; name = 'kv2'; subscriptionId = 'sub-1'; rbac = $false; purge = $false; softDelete = $true; publicNetworkAccess = 'Enabled'; defaultAction = 'Allow' }; break }
         "microsoft\.storage/storageaccounts' \| project" { & $o @{ id = 'st1'; name = 'st1'; subscriptionId = 'sub-1'; sharedKey = $false; blobPublic = $false; httpsOnly = $true; minTls = 'TLS1_2'; publicNetworkAccess = 'Enabled' }; & $o @{ id = 'st2'; name = 'legacy2019'; subscriptionId = 'sub-2'; sharedKey = $true; blobPublic = $true; httpsOnly = $true; minTls = 'TLS1_0'; publicNetworkAccess = 'Enabled' }; break }
@@ -59,6 +63,7 @@ function Get-AzureFixtureRequest {
         '/providers/Microsoft\.ADHybridHealthService/services' { @{ serviceName = 'AadSyncService-contoso'; type = 'AadSyncService'; health = 'Healthy'; activeAlerts = 0 }; break }
         '/providers/microsoft\.aadiam/diagnosticSettings' { @{ name = 'entra-to-law'; properties = @{ workspaceId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.OperationalInsights/workspaces/law'; logs = @(@{ category = 'AuditLogs'; enabled = $true }, @{ category = 'SignInLogs'; enabled = $true }, @{ category = 'ProvisioningLogs'; enabled = $false }) } }; break }
         '/providers/Microsoft\.Consumption/budgets' { @(); break }
+        '/providers/Microsoft\.SecurityInsights/dataConnectors' { @{ kind = 'AzureActiveDirectory' }, @{ kind = 'Office365' }, @{ kind = 'MicrosoftThreatProtection' }; break }
         default { throw "Fixture has no Resource Manager answer for: $Path" }
     }
 }

@@ -186,6 +186,39 @@ function Get-PostureChartData {
         }
         $out.checkIn = [ordered]@{ item = @($age.Keys | ForEach-Object { [ordered]@{ label = $_; value = $age[$_]; tone = $(if ($_ -eq 'Over 90 days') { 'err' } elseif ($_ -eq '31 to 90 days') { 'warn' } else { 'c1' }) } }); takeaway = "$($age['Over 90 days'] + $age['31 to 90 days']) managed device(s) have not checked in for a month or more." }
     }
+    # Microsoft Secure Score: where the points are by category, and the actions worth most (Microsoft's links).
+    $controls = & $load 'def-06-secure-score-controls'
+    if ($null -ne $controls) {
+        $live = @(@($controls) | Where-Object { $_ -and [string](& $v $_ 'State') -notin 'Ignored', 'ThirdParty' -and $null -ne (& $v $_ 'Score') -and [double](& $v $_ 'MaxScore') -gt 0 })
+        if ($live.Count) {
+            $cats = [ordered]@{}
+            foreach ($c in $live) { $k = [string](& $v $c 'Category'); if (-not $cats.Contains($k)) { $cats[$k] = @{ earned = 0.0; max = 0.0 } }; $cats[$k].earned += [double](& $v $c 'Score'); $cats[$k].max += [double](& $v $c 'MaxScore') }
+            $out.secureScoreCategories = [ordered]@{ rows = @($cats.Keys | ForEach-Object { [ordered]@{ label = $_; earned = [Math]::Round($cats[$_].earned, 1); available = [Math]::Round($cats[$_].max - $cats[$_].earned, 1) } }); takeaway = 'Points earned and still available, per Secure Score category.' }
+            $top = @($live | Sort-Object { - ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) }, { [string](& $v $_ 'Title') } | Where-Object { ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) -gt 0 } | Select-Object -First 10)
+            $out.secureScoreActions = [ordered]@{
+                rows = @($top | ForEach-Object { [ordered]@{ title = [string](& $v $_ 'Title'); category = [string](& $v $_ 'Category'); points = [Math]::Round([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score'), 1); cost = [string](& $v $_ 'ImplementationCost'); userImpact = [string](& $v $_ 'UserImpact'); url = [string](& $v $_ 'ActionUrl') } })
+                takeaway = "The $(@($top).Count) improvement actions worth the most points, as Microsoft scores them."
+            }
+        }
+    }
+    # Defender for Cloud: secure score per subscription and open recommendations (the Azure collector).
+    $azScores = & $load 'az-02-secure-scores'
+    if ($null -ne $azScores -and @($azScores | Where-Object { $_ }).Count) {
+        $names = @{}; foreach ($sx in @(& $load 'az-01-subscriptions') | Where-Object { $_ }) { $names[[string](& $v $sx 'SubscriptionId')] = [string](& $v $sx 'Name') }
+        $out.azureSecureScore = [ordered]@{
+            item     = @(@($azScores) | Where-Object { $_ } | ForEach-Object { $p = [double](& $v $_ 'Percentage'); if ($p -le 1) { $p = $p * 100 }; $sid = [string](& $v $_ 'SubscriptionId'); [ordered]@{ label = $(if ($names.ContainsKey($sid)) { $names[$sid] } else { $sid }); value = [Math]::Round($p); tone = 'c1' } })
+            takeaway = 'Defender for Cloud secure score per subscription.'
+        }
+    }
+    $azSummary = & $load 'az-02-assessments-summary'
+    if ($null -ne $azSummary) {
+        $sev = [ordered]@{ High = 0; Medium = 0; Low = 0 }
+        foreach ($r in @($azSummary) | Where-Object { $_ -and [string](& $v $_ 'Status') -eq 'Unhealthy' }) { $k = [string](& $v $r 'Severity'); if ($sev.Contains($k)) { $sev[$k] += [int](& $v $r 'Count') } }
+        $out.azureRecommendations = [ordered]@{ segment = @(@{ label = 'High'; value = $sev.High; tone = 'err' }, @{ label = 'Medium'; value = $sev.Medium; tone = 'warn' }, @{ label = 'Low'; value = $sev.Low; tone = 'c1' }); takeaway = "$($sev.High) high-severity recommendation(s) open in Defender for Cloud." }
+    }
+    $azTop = & $load 'az-02-assessments-top'
+    if ($null -ne $azTop -and @($azTop | Where-Object { $_ }).Count) { $out.azureTopRecommendations = [ordered]@{ rows = @(@($azTop) | Where-Object { $_ } | Select-Object -First 10 | ForEach-Object { [ordered]@{ title = [string](& $v $_ 'Recommendation'); severity = [string](& $v $_ 'Severity'); affected = [int](& $v $_ 'Affected') } }) } }
+
     # Who manages the Windows fleet, and how far co-management has gone (DEV-019 to DEV-021).
     $dv = $(if ($DomainFacts.Contains('devices')) { $DomainFacts['devices'] } else { $null })
     if ($dv -and $dv.Contains('windowsIntuneOnly')) {

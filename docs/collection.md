@@ -168,6 +168,13 @@ lasts about an hour; the collector finishes well inside that on a few hundred su
 | `az-08-entra-connect-health` (+csv) | Microsoft.ADHybridHealthService (verify) | Feeds OP-007 |
 | `az-09-entra-diagnostic-settings` (+csv) | microsoft.aadiam diagnosticSettings | Feeds ID-014: sign-in and audit logs to a workspace or event hub |
 
+Also from the Azure collector: `az-12-open-management-ports` (inbound allow rules from anywhere for SSH, RDP and WinRM on
+network security groups in use), `az-13-budgets` (budgets per subscription), `az-14-backup-vaults` (soft delete and
+immutability on Recovery Services and Backup vaults), `az-15-sentinel` (Sentinel workspaces and their data connector
+kinds) and `az-16-entra-domain-services` (the managed domain's security settings), read through Resource Graph and ARM
+GETs (verify the vault, Sentinel and Entra Domain Services property paths on a tenant that has them). The Defender
+collector's Secure Score controls carry each control's points and Microsoft's action link.
+
 ## What the Windows collector writes (hybrid)
 
 collectors/windows/Get-ADBaseline.ps1 is Windows-only and runs outside the module: once, on any domain-joined machine

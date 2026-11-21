@@ -51,6 +51,10 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             }
             $script:Result.Collectors | Should -Be @('Azure')
             $script:Result.Errors.Count | Should -Be 0
+            $ports = @(& $script:Read 'az-12-open-management-ports')
+            @($ports | ForEach-Object { "$($_.Rule)=$($_.Ports)" }) | Should -Be @('allow-rdp=3389', 'allow-range=22') -Because 'SSH sits inside 20-25; HTTPS is not a management port'
+            (& $script:Read 'az-15-sentinel').Connectors | Should -Be 'AzureActiveDirectory, MicrosoftThreatProtection, Office365'
+            (& $script:Read 'az-14-backup-vaults').Immutability | Should -Be 'Disabled'
             @(& $script:Read 'az-01-subscriptions' | Where-Object { $_.AtTenantRoot }).Name | Should -Be 'Sandbox'
             @(& $script:Read 'az-03-policy-assignments' | Where-Object { $_.IsMcsb }).Count | Should -Be 1
             $payg = @(& $script:Read 'az-10-m365-payg')

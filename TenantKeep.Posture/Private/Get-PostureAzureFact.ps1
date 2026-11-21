@@ -250,5 +250,48 @@ function Get-PostureAzureFact {
         $facts.m365PaygWithoutBudget = $noBudget.Count
         $affected.m365PaygWithoutBudget = @($noBudget | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'SubscriptionId'); detail = (@(& $v $_ 'Services' | ForEach-Object { "$(& $v $_ 'Name') $(& $v $_ 'Cost') $(& $v $_ 'Currency')" }) -join '; ') } })
     }
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json') }
+    # AZ-024: management ports (SSH, RDP, WinRM) open to the internet on a network security group in use.
+    $ports = & $load 'az-12-open-management-ports'
+    if ($null -eq $ports) { & $missing @('AZ-024') 'az-12-open-management-ports' }
+    else { $open = @(& $rows $ports); $facts.managementPortsOpen = $open.Count; $affected.managementPortsOpen = @($open | ForEach-Object { [ordered]@{ name = "$($_.Nsg) / $($_.Rule)"; detail = "ports $($_.Ports) open to the internet, $(& $label $_.SubscriptionId)" } }) }
+
+    # AZ-025: a budget with an alert on every subscription (a spike in spend is often the first sign of misuse).
+    $budgets = & $load 'az-13-budgets'
+    if ($null -eq $budgets) { & $missing @('AZ-025') 'az-13-budgets' }
+    else { $none = @(& $rows $budgets | Where-Object { [int]$_.Budgets -eq 0 }); $facts.subscriptionsWithoutBudget = $none.Count; $affected.subscriptionsWithoutBudget = @($none | ForEach-Object { [ordered]@{ name = (& $label $_.SubscriptionId); detail = 'no budget' } }) }
+
+    # AZ-026: backup vaults keep deleted backups (soft delete) and refuse to shorten or remove them (immutability).
+    $bv = & $load 'az-14-backup-vaults'
+    if ($null -eq $bv) { & $missing @('AZ-026') 'az-14-backup-vaults' }
+    else {
+        $weak = @(& $rows $bv | Where-Object { [string]$_.SoftDelete -notin 'Enabled', 'AlwaysON', 'On' -or [string]$_.Immutability -notin 'Unlocked', 'Locked' })
+        $facts.backupVaultsUnprotected = $weak.Count
+        $affected.backupVaultsUnprotected = @($weak | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "soft delete $(if ($_.SoftDelete) { $_.SoftDelete } else { 'off' }), immutability $(if ($_.Immutability) { $_.Immutability } else { 'off' })" } })
+    }
+
+    # AZ-027: a Sentinel workspace receives Entra, Microsoft 365 and Defender XDR.
+    $sentinel = & $load 'az-15-sentinel'
+    if ($null -eq $sentinel) { & $missing @('AZ-027') 'az-15-sentinel' }
+    else {
+        $ws = @(& $rows $sentinel)
+        $core = @('AzureActiveDirectory', 'Office365', 'MicrosoftThreatProtection')
+        $complete = @($ws | Where-Object { $have = @(([string]$_.Connectors) -split ',\s*'); @($core | Where-Object { $_ -notin $have }).Count -eq 0 })
+        $facts.sentinelWorkspaces = $ws.Count
+        $facts.sentinelWithCoreConnectors = $complete.Count
+        $affected.sentinelWithCoreConnectors = @($ws | Where-Object { $_ -notin $complete } | ForEach-Object { $have = @(([string]$_.Connectors) -split ',\s*'); [ordered]@{ name = [string]$_.Workspace; detail = "missing $(@($core | Where-Object { $_ -notin $have }) -join ', ')" } })
+    }
+
+    # AZ-028: Entra Domain Services without NTLMv1, TLS 1.0, RC4 or NTLM password hashes it does not need.
+    $ds = & $load 'az-16-entra-domain-services'
+    if ($null -eq $ds) { & $missing @('AZ-028') 'az-16-entra-domain-services' }
+    else {
+        $weakDs = @(& $rows $ds | ForEach-Object {
+                $x = $_; $why = @(@(@('NTLMv1', 'NtlmV1'), @('TLS 1.0', 'TlsV1'), @('Kerberos RC4', 'KerberosRc4Encryption'), @('NTLM password sync', 'SyncNtlmPasswords')) | Where-Object { [string](& $v $x $_[1]) -eq 'Enabled' } | ForEach-Object { $_[0] })
+                if ($why.Count) { [ordered]@{ name = [string]$x.Name; detail = "$($why -join ', ') on" } }
+            })
+        $facts.entraDomainServicesWeak = $weakDs.Count
+        $affected.entraDomainServicesWeak = @($weakDs)
+    }
+
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json', 'az-12-open-management-ports.json', 'az-13-budgets.json', 'az-14-backup-vaults.json', 'az-15-sentinel.json', 'az-16-entra-domain-services.json') }
 }

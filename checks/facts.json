@@ -357,7 +357,13 @@
     "externalSenderTagOn": "External sender tag on in Outlook",
     "mailTipsExternalOn": "MailTips for outside recipients on",
     "reportButtonOn": "Report button in Outlook on",
-    "autoExpandingArchiveOn": "Auto-expanding archiving on"
+    "autoExpandingArchiveOn": "Auto-expanding archiving on",
+    "managementPortsOpen": "Network security group rules opening SSH, RDP or WinRM to the internet",
+    "subscriptionsWithoutBudget": "Subscriptions without a budget",
+    "backupVaultsUnprotected": "Backup vaults without soft delete or immutability",
+    "sentinelWorkspaces": "Microsoft Sentinel workspaces",
+    "sentinelWithCoreConnectors": "Sentinel workspaces receiving Entra, Microsoft 365 and Defender XDR",
+    "entraDomainServicesWeak": "Entra Domain Services managed domains with legacy protocols on"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

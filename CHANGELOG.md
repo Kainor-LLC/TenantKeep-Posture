@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Azure and Secure Score (2026-11-20): AZ-024 no SSH, RDP or WinRM open to the internet, AZ-025 a budget on every
+  subscription, AZ-026 backup vaults with soft delete and immutability, AZ-027 Sentinel receiving Entra, Microsoft 365
+  and Defender XDR, AZ-028 Entra Domain Services without NTLMv1, TLS 1.0 or RC4. The Operations view gains Secure Score
+  by Category and the top ten improvement actions with Microsoft's links; a new Azure area shows the Defender for Cloud
+  secure score per subscription, open recommendations by severity and the top recommendations.
 - Fourteen more user experience checks (2026-11-20), each an improvement that leads with what people gain:
   phone sign-in with Authenticator (UX-011), the strongest method offered first (UX-012), the Authenticator
   registration campaign (UX-013), Windows sign-in without a password option (UX-014), password reset from the Windows

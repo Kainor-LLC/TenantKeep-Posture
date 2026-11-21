@@ -157,6 +157,40 @@ function Invoke-PostureAzureCollection {
         & $save @($settings | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); WorkspaceId = (& $v $_ 'properties.workspaceId'); EventHub = (& $v $_ 'properties.eventHubAuthorizationRuleId'); StorageAccountId = (& $v $_ 'properties.storageAccountId'); Categories = @(@(& $v $_ 'properties.logs') | Where-Object { (& $v $_ 'enabled') -eq $true } | ForEach-Object { [string](& $v $_ 'category') }) } }) 'az-09-entra-diagnostic-settings' $true
     } | Out-Null
 
+    # ---------- 5b. Exposure, cost guard rails, backup vaults, Sentinel, Entra Domain Services ----------
+    Invoke-PostureStep -Label 'Management ports open to the internet' -Folder $Folder -Script {
+        # Inbound allow rules from anywhere on network security groups attached to something; ports judged here.
+        $rules = & $q "resources | where type =~ 'microsoft.network/networksecuritygroups' | where array_length(properties.networkInterfaces) > 0 or array_length(properties.subnets) > 0 | mv-expand rule = properties.securityRules | where tostring(rule.properties.direction) =~ 'Inbound' and tostring(rule.properties.access) =~ 'Allow' | extend src = tostring(rule.properties.sourceAddressPrefix), srcs = tostring(rule.properties.sourceAddressPrefixes) | where src in~ ('*', 'Internet', '0.0.0.0/0', 'Any') or srcs has '0.0.0.0/0' or srcs has 'Internet' | project nsg = name, subscriptionId, resourceGroup, rule = tostring(rule.name), port = tostring(rule.properties.destinationPortRange), ports = tostring(rule.properties.destinationPortRanges)"
+        $mgmt = @(22, 3389, 5985, 5986)
+        $hits = foreach ($r in $rules) {
+            $specs = @(@([string]$r.port) + @(([string]$r.ports) -replace '[\[\]"]', '' -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $open = @($mgmt | Where-Object { $p = $_; @($specs | Where-Object { $_ -eq '*' -or $_ -eq [string]$p -or ($_ -match '^(\d+)-(\d+)$' -and [int]$Matches[1] -le $p -and [int]$Matches[2] -ge $p) }).Count -gt 0 })
+            if ($open.Count) { [ordered]@{ Nsg = (& $str $r.nsg); SubscriptionId = (& $str $r.subscriptionId); ResourceGroup = (& $str $r.resourceGroup); Rule = (& $str $r.rule); Ports = ($open -join ', ') } }
+        }
+        & $save @($hits) 'az-12-open-management-ports' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Subscription budgets' -Folder $Folder -Script {
+        & $save @($subIds | ForEach-Object { [ordered]@{ SubscriptionId = $_; Budgets = @(& $rest "/subscriptions/$_/providers/Microsoft.Consumption/budgets?api-version=2023-05-01").Count } }) 'az-13-budgets' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Backup vault protection' -Folder $Folder -Script {
+        # Soft delete keeps deleted backups recoverable; immutability stops backups being shortened or removed (verify the
+        # property paths on Backup vaults).
+        $bv = & $q "resources | where type in~ ('microsoft.recoveryservices/vaults', 'microsoft.dataprotection/backupvaults') | project name, type, subscriptionId, resourceGroup, softDelete = tostring(coalesce(properties.securitySettings.softDeleteSettings.softDeleteState, properties.securitySettings.softDeleteSettings.state)), immutability = tostring(properties.securitySettings.immutabilitySettings.state)"
+        & $save @($bv | ForEach-Object { [ordered]@{ Name = (& $str $_.name); Type = (& $str $_.type); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup); SoftDelete = (& $str $_.softDelete); Immutability = (& $str $_.immutability) } }) 'az-14-backup-vaults' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Microsoft Sentinel' -Folder $Folder -Script {
+        # Workspaces with Sentinel, and which data connectors they have (verify: content hub connectors may report a different kind).
+        $ws = & $q "resources | where type =~ 'microsoft.operationsmanagement/solutions' and name startswith 'SecurityInsights' | project workspaceId = tostring(properties.workspaceResourceId), subscriptionId"
+        & $save @(@($ws | Where-Object { $_.workspaceId } | Select-Object -First 50) | ForEach-Object {
+                $kinds = @(& $rest "$($_.workspaceId)/providers/Microsoft.SecurityInsights/dataConnectors?api-version=2024-03-01" | ForEach-Object { & $str (& $v $_ 'kind') } | Sort-Object -Unique)
+                [ordered]@{ Workspace = (Split-Path ([string]$_.workspaceId) -Leaf); SubscriptionId = (& $str $_.subscriptionId); Connectors = ($kinds -join ', ') }
+            }) 'az-15-sentinel' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Entra Domain Services' -Folder $Folder -Script {
+        $ds = & $q "resources | where type =~ 'microsoft.aad/domainservices' | project name, subscriptionId, s = properties.domainSecuritySettings"
+        & $save @($ds | ForEach-Object { [ordered]@{ Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); NtlmV1 = (& $str (& $v $_.s 'ntlmV1')); TlsV1 = (& $str (& $v $_.s 'tlsV1')); SyncNtlmPasswords = (& $str (& $v $_.s 'syncNtlmPasswords')); KerberosRc4Encryption = (& $str (& $v $_.s 'kerberosRc4Encryption')); KerberosArmoring = (& $str (& $v $_.s 'kerberosArmoring')); LdapSigning = (& $str (& $v $_.s 'ldapSigning')); ChannelBinding = (& $str (& $v $_.s 'channelBinding')) } }) 'az-16-entra-domain-services' $true
+    } | Out-Null
+
     # ---------- 6. Microsoft 365 pay-as-you-go and Backup ----------
     Invoke-PostureStep -Label 'Microsoft 365 pay-as-you-go spend' -Folder $Folder -Script {
         # Which subscriptions pay for Microsoft 365 pay-as-you-go services (Backup, Archive, SharePoint Premium, Copilot

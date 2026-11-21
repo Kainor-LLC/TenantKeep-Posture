@@ -100,6 +100,14 @@
       "url": "https://attack.mitre.org/techniques/T1003/003/"
     },
     {
+      "id": "T1021.001",
+      "name": "Remote Services: Remote Desktop Protocol",
+      "tactics": [
+        "lateral-movement"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1021/001/"
+    },
+    {
       "id": "T1021.002",
       "name": "Remote Services: SMB/Windows Admin Shares",
       "tactics": [
@@ -267,6 +275,14 @@
         "credential-access"
       ],
       "url": "https://attack.mitre.org/techniques/T1110/001/"
+    },
+    {
+      "id": "T1110.002",
+      "name": "Brute Force: Password Cracking",
+      "tactics": [
+        "credential-access"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1110/002/"
     },
     {
       "id": "T1110.003",
@@ -448,6 +464,14 @@
       "url": "https://attack.mitre.org/techniques/T1490/"
     },
     {
+      "id": "T1496.001",
+      "name": "Resource Hijacking: Compute Hijacking",
+      "tactics": [
+        "impact"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1496/001/"
+    },
+    {
       "id": "T1528",
       "name": "Steal Application Access Token",
       "tactics": [
@@ -597,6 +621,15 @@
         "collection"
       ],
       "url": "https://attack.mitre.org/techniques/T1557/"
+    },
+    {
+      "id": "T1557.001",
+      "name": "Adversary-in-the-Middle: Name Resolution Poisoning and SMB Relay",
+      "tactics": [
+        "credential-access",
+        "collection"
+      ],
+      "url": "https://attack.mitre.org/techniques/T1557/001/"
     },
     {
       "id": "T1558",

@@ -494,6 +494,32 @@
     },
     {
       "collector": "Azure",
+      "match": "^Subscription budgets$",
+      "roles": [
+        "Cost Management Reader"
+      ],
+      "alsoWorks": [
+        "Reader"
+      ],
+      "scopes": [],
+      "licence": "",
+      "note": "Microsoft.Consumption budgets per subscription."
+    },
+    {
+      "collector": "Azure",
+      "match": "^(Management ports open to the internet|Backup vault protection|Microsoft Sentinel|Entra Domain Services)$",
+      "roles": [
+        "Reader"
+      ],
+      "alsoWorks": [
+        "Security Reader"
+      ],
+      "scopes": [],
+      "licence": "",
+      "note": "Azure Resource Graph and ARM reads on the subscriptions the account can see."
+    },
+    {
+      "collector": "Azure",
       "match": "^(Entra Connect Health)$",
       "roles": [
         "Global Reader"
