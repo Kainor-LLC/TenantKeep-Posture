@@ -18,6 +18,9 @@
         "06-users-summary.json",
         "06-users.json"
       ],
+      "evidenceOptional": [
+        "06-users.json"
+      ],
       "pass": "facts.inactiveMemberPct <= thresholds.maxInactiveMemberPct",
       "remediation": [
         "Disable or remove the enabled accounts that have not signed in within the stale window.",

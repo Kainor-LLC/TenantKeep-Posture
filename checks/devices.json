@@ -20,6 +20,9 @@
         "09-intune-managed-devices.json",
         "09-intune-summary-compliance.json"
       ],
+      "evidenceOptional": [
+        "09-intune-summary-compliance.json"
+      ],
       "pass": "facts.intuneCompliancePct >= thresholds.minCompliancePct",
       "affected": "facts.noncompliantDevices",
       "remediation": [
@@ -53,6 +56,9 @@
       "thresholds": {},
       "evidence": [
         "08-entra-devices.json",
+        "09-intune-device-cleanup.json"
+      ],
+      "evidenceOptional": [
         "09-intune-device-cleanup.json"
       ],
       "pass": "facts.staleEntraDevices == 0 || facts.deviceCleanupRuleEnabled",
@@ -92,6 +98,10 @@
         "maxHybridJoinedPct": 100
       },
       "evidence": [
+        "08-entra-devices.json",
+        "08-entra-devices-by-join-os.json"
+      ],
+      "evidenceOptional": [
         "08-entra-devices-by-join-os.json"
       ],
       "pass": "facts.hybridJoinedPct <= thresholds.maxHybridJoinedPct",
@@ -260,6 +270,10 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
+        "09-intune-managed-devices.json",
+        "09-intune-summary-windows-builds.json"
+      ],
+      "evidenceOptional": [
         "09-intune-summary-windows-builds.json"
       ],
       "pass": "facts.windows10Devices == 0",
@@ -310,6 +324,9 @@
       },
       "evidence": [
         "09-apple-push-cert.json",
+        "09-apple-vpp-tokens.json"
+      ],
+      "evidenceOptional": [
         "09-apple-vpp-tokens.json"
       ],
       "pass": "facts.applePushCertPresent && facts.applePushCertDays >= thresholds.minAppleCertDays && facts.vppTokensExpiringSoon == 0",
@@ -546,6 +563,10 @@
         "minLinuxDevices": 0
       },
       "evidence": [
+        "09-intune-managed-devices.json",
+        "09-intune-summary-os-agent-join.json"
+      ],
+      "evidenceOptional": [
         "09-intune-summary-os-agent-join.json"
       ],
       "pass": "facts.linuxManagedDevices >= thresholds.minLinuxDevices",
@@ -801,6 +822,9 @@
         "09-intune-managed-devices.json",
         "ad-06-computers.json"
       ],
+      "evidenceOptional": [
+        "ad-06-computers.json"
+      ],
       "pass": "facts.adOnlyWindowsPct <= thresholds.maxAdOnlyWindowsPct",
       "affected": "facts.adOnlyWindowsDevices",
       "remediation": [
@@ -843,6 +867,9 @@
       "thresholds": {},
       "evidence": [
         "09-intune-managed-devices.json",
+        "09-intune-comanagement.json"
+      ],
+      "evidenceOptional": [
         "09-intune-comanagement.json"
       ],
       "pass": "facts.coManagedWorkloadsOnConfigMgr == 0",
@@ -890,6 +917,15 @@
         "09-intune-device-management-partners.json",
         "09-intune-managed-devices.json"
       ],
+      "evidenceOptional": [
+        "09-intune-managed-devices.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "09-intune-compliance-partners.json",
+          "09-intune-device-management-partners.json"
+        ]
+      ],
       "pass": "!facts.macPartnerExpected || facts.macPartnerReporting",
       "affected": "facts.macPartnerProblems",
       "remediation": [
@@ -932,7 +968,14 @@
       },
       "evidence": [
         "08-entra-devices.json",
-        "09-intune-compliance-partners.json"
+        "09-intune-compliance-partners.json",
+        "09-intune-device-management-partners.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "09-intune-compliance-partners.json",
+          "09-intune-device-management-partners.json"
+        ]
       ],
       "pass": "!facts.macPartnerExpected || facts.macEntraCompliantPct >= thresholds.minPartnerMacCompliantPct",
       "affected": "facts.macsNotCompliantInEntra",

@@ -21,13 +21,41 @@ Describe 'Invoke-PostureExpression' {
         @{ Expr = "facts.name == 'Fabrikam' || facts.count == 3"; Expected = $true }
         @{ Expr = '(facts.count == 1 || facts.count == 3) && !(facts.percent == 0)'; Expected = $true }
         @{ Expr = 'facts.missing == null'; Expected = $true }
-        @{ Expr = 'facts.missing >= 1'; Expected = $false }
+        @{ Expr = 'facts.missing != null'; Expected = $false }
+        @{ Expr = 'facts.count == 3 || facts.missing'; Expected = $true }
+        @{ Expr = 'facts.count == 3 || facts.nope >= 1'; Expected = $true }
+        @{ Expr = 'facts.count == 1 && facts.missing'; Expected = $false }
+        @{ Expr = 'facts.count == 1 && (facts.missing || facts.nope > 2)'; Expected = $false }
+        @{ Expr = '(facts.count == 3 || facts.missing) && facts.enabled'; Expected = $true }
         @{ Expr = 'facts.nested.deep == 7'; Expected = $true }
         @{ Expr = 'true && false'; Expected = $false }
         @{ Expr = "'a' < 'b'"; Expected = $true }
     ) {
         InModuleScope TenantKeep.Posture -Parameters @{ Expr = $Expr; Expected = $Expected; Ctx = $script:Ctx } {
             Invoke-PostureExpression -Expression $Expr -Context $Ctx | Should -Be $Expected
+        }
+    }
+
+    It 'throws on a fact with no value wherever the answer depends on it: <Expr>' -ForEach @(
+        @{ Expr = 'facts.missing >= 1' }
+        @{ Expr = 'facts.missing == 0' }
+        @{ Expr = 'facts.missing != 0' }
+        @{ Expr = '!facts.missing' }
+        @{ Expr = 'facts.missing' }
+        @{ Expr = 'facts.count == 1 || facts.missing' }
+        @{ Expr = 'facts.count == 3 && facts.missing' }
+        @{ Expr = 'facts.missing || facts.count == 3' }
+    ) {
+        # Missing data must never read as pass or fail: "!facts.x" on a null used to be a pass.
+        InModuleScope TenantKeep.Posture -Parameters @{ Expr = $Expr; Ctx = $script:Ctx } {
+            { Invoke-PostureExpression -Expression $Expr -Context $Ctx } | Should -Throw '*facts.missing has no value in the evidence*'
+        }
+    }
+
+    It 'still checks the shape of a side it does not read' {
+        InModuleScope TenantKeep.Posture -Parameters @{ Ctx = $script:Ctx } {
+            { Invoke-PostureExpression -Expression 'facts.count == 3 || (facts.count == 1' -Context $Ctx } | Should -Throw "*Expected ')'*"
+            { Invoke-PostureExpression -Expression 'facts.count == 1 && facts.count ==' -Context $Ctx } | Should -Throw '*Unexpected end*'
         }
     }
 

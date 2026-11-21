@@ -11,7 +11,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.tenantSharingLevelOk",
       "remediation": "Set the SharePoint and OneDrive external sharing level to Existing guests or New and existing guests. Anyone links are for organisations that have decided to accept unauthenticated access and track it.",
@@ -46,7 +53,14 @@
         "maxAnonymousLinkDays": 30
       },
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.anonymousLinksControlled",
       "remediation": "If Anyone links stay on, require them to expire within 30 days and set the file and folder link default to View.",
@@ -79,7 +93,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.defaultLinkSpecificPeopleView",
       "remediation": "Set the default sharing link type to Specific people and the default permission to View, so the open option is a deliberate choice each time.",
@@ -118,7 +139,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.sharingDomainRestricted",
       "remediation": "Set an allow list of partner domains, or a block list of the consumer domains, under sharing domain restrictions.",
@@ -151,7 +179,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.everyoneClaimsHidden",
       "affected": "facts.everyoneClaimsShown",
@@ -190,7 +225,14 @@
         "maxGuestExpireDays": 60
       },
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.guestExpirationOk",
       "remediation": [
@@ -227,7 +269,13 @@
       "thresholds": {},
       "evidence": [
         "spo-sites-summary.json",
-        "07-groups-ownerless.json"
+        "07-groups-ownerless.json",
+        "spo-sites.json",
+        "07-groups-ownerless-summary.json"
+      ],
+      "evidenceOptional": [
+        "spo-sites.json",
+        "07-groups-ownerless-summary.json"
       ],
       "pass": "facts.ownerlessSites == 0 && facts.ownerlessGroups == 0",
       "affected": "facts.ownerless",
@@ -263,7 +311,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.restrictedAccessControlEnabled",
       "remediation": [
@@ -400,6 +455,9 @@
         "teams-client-config.json",
         "spo-tenant-settings.json"
       ],
+      "evidenceOptional": [
+        "spo-tenant-settings.json"
+      ],
       "pass": "facts.teamsGuestAccessGoverned",
       "remediation": "Keep guest access on only with guest expiration enforced; otherwise turn it off in the Teams guest access settings.",
       "effort": "S",
@@ -467,6 +525,15 @@
         "teams-app-settings.json",
         "teams-app-availability.json",
         "teams-app-permission-policies.json"
+      ],
+      "evidenceOptional": [
+        "teams-app-availability.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "teams-app-settings.json",
+          "teams-app-permission-policies.json"
+        ]
       ],
       "pass": "facts.thirdPartyAppsRestricted",
       "affected": "facts.thirdPartyAppsRestricted",
@@ -553,7 +620,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "!facts.oneDriveAnyoneLinks",
       "remediation": [

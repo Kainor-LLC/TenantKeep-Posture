@@ -847,6 +847,9 @@
         "ad-07-users-summary.json",
         "ad-07-password-never-expires.json"
       ],
+      "evidenceOptional": [
+        "ad-07-password-never-expires.json"
+      ],
       "pass": "!facts.adPasswordsExpire || facts.passwordNeverExpiresHumans == 0",
       "remediation": [
         "Prefer ending scheduled expiry for everyone (HY-031) once MFA and Password Protection on-premises are in place; this check then passes with nothing else to change.",

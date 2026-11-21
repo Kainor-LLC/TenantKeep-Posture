@@ -6,6 +6,15 @@ work landed on main.
 
 ## Unreleased
 
+- A check is judged only on evidence it has (2026-11-21). The engine now holds every check to its evidence list:
+  a file the check needs that is not in the run folder makes it "not evaluated" and names the file, before
+  anything is compared. A check can mark a file as one it can do without (`evidenceOptional`) or name
+  alternatives where one is enough (`evidenceAnyOf`: the SharePoint settings from the admin read or from Graph, a
+  slim file or the full list it replaced). Inside a pass expression a value that could not be read stops the
+  judgement and is named, where `!facts.x` on a missing value used to pass; `&&` and `||` now decide from the
+  left, so "no stale devices, or a cleanup rule" passes on a tenant with no stale devices even when the rule
+  could not be read. The evidence lists of 59 checks were corrected against what the providers read. Custom
+  checks follow the same rule: name in `evidence` only files the check needs, or list the others as optional.
 - A sign-in under the user name "Count" or "Keys" no longer stops the sign-in log read (2026-11-21). A failed
   sign-in is logged under whatever name was typed, and the tallies are kept per name; PowerShell answers `.Count`
   and `.Keys` on such a table with the entry of that name, so one attempt from anywhere on the internet made the

@@ -13,6 +13,9 @@
       "evidence": [
         "profile.json"
       ],
+      "evidenceOptional": [
+        "profile.json"
+      ],
       "pass": "facts.siemInPlace",
       "remediation": [
         "Name the SIEM in the profile's third-party controls.",
@@ -49,6 +52,9 @@
       "evidence": [
         "profile.json"
       ],
+      "evidenceOptional": [
+        "profile.json"
+      ],
       "pass": "facts.backupDecisionRecorded",
       "remediation": "Decide and record it in the profile's third-party controls: Microsoft 365 Backup, a third-party product, or accepted risk with the reasoning. Any named answer passes; none does not.",
       "effort": "S",
@@ -83,6 +89,9 @@
         "breakGlassTestMaxDays": 180
       },
       "evidence": [
+        "profile.json"
+      ],
+      "evidenceOptional": [
         "profile.json"
       ],
       "pass": "facts.breakGlassTestedRecently",
@@ -122,6 +131,9 @@
       "evidence": [
         "profile.json"
       ],
+      "evidenceOptional": [
+        "profile.json"
+      ],
       "pass": "facts.messageCenterOwnerNamed",
       "remediation": "Name the person or team that reads the Microsoft 365 Message Center weekly and turns retirements and changes into tickets; record it in the profile's operations answers.",
       "effort": "S",
@@ -151,6 +163,9 @@
       "thresholds": {},
       "evidence": [
         "def-06-secure-score.json",
+        "def-06-secure-score-controls.json"
+      ],
+      "evidenceOptional": [
         "def-06-secure-score-controls.json"
       ],
       "pass": "facts.secureScoreAtOrAboveAverage",
@@ -185,6 +200,10 @@
       "evidence": [
         "10-app-registrations.json",
         "10-service-principals.json",
+        "09-apple-push-cert.json",
+        "09-apple-vpp-tokens.json"
+      ],
+      "evidenceOptional": [
         "09-apple-push-cert.json",
         "09-apple-vpp-tokens.json"
       ],
@@ -225,7 +244,7 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "azure-entra-connect-health.json"
+        "az-08-entra-connect-health.json"
       ],
       "pass": "facts.entraConnectHealthEnabled",
       "remediation": [

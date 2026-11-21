@@ -397,6 +397,9 @@
         "az-05-role-assignments.json",
         "06-users.json"
       ],
+      "evidenceOptional": [
+        "06-users.json"
+      ],
       "pass": "facts.subscriptionsOverOwnerLimit == 0 && facts.syncedOwners == 0",
       "affected": "facts.ownerProblems",
       "remediation": "Reduce standing Owners to three or fewer named cloud-only accounts per subscription; everyone else gets Contributor or an eligible PIM assignment.",
@@ -520,6 +523,9 @@
       },
       "evidence": [
         "az-05-role-assignments.json",
+        "10-service-principals.json"
+      ],
+      "evidenceOptional": [
         "10-service-principals.json"
       ],
       "pass": "facts.servicePrincipalOwnersOrContributors <= thresholds.maxServicePrincipalOwners",

@@ -64,6 +64,15 @@ function Import-PostureCheckCatalog {
                 if ($steps.Count -eq 0) { throw "$($file.Name): check '$($c['id'])' has no remediation" }
                 $c['steps'] = $steps
                 $c['remediation'] = $steps -join ' '
+                # The evidence contract (Invoke-PostureCheckEvaluation): evidenceOptional and evidenceAnyOf only name files the evidence list has.
+                $evidenceNames = @($c['evidence'] | ForEach-Object { ([string]$_) -replace '\.(json|csv)$', '' })
+                foreach ($n in @($(if ($c.Contains('evidenceOptional')) { $c['evidenceOptional'] }))) { if ((([string]$n) -replace '\.(json|csv)$', '') -notin $evidenceNames) { throw "$($file.Name): check '$($c['id'])' lists '$n' in evidenceOptional but not in evidence" } }
+                # Read without a subexpression: one group in the list would be unrolled into its file names.
+                $anyOf = @(); if ($c.Contains('evidenceAnyOf') -and $null -ne $c['evidenceAnyOf']) { $anyOf = [object[]]$c['evidenceAnyOf'] }
+                foreach ($g in $anyOf) {
+                    if (@($g).Count -lt 2) { throw "$($file.Name): check '$($c['id'])' has an evidenceAnyOf group with fewer than two files" }
+                    foreach ($n in @($g)) { if ((([string]$n) -replace '\.(json|csv)$', '') -notin $evidenceNames) { throw "$($file.Name): check '$($c['id'])' lists '$n' in evidenceAnyOf but not in evidence" } }
+                }
                 if ($c.Contains('effort') -and [string]$c['effort'] -notin $efforts) { throw "$($file.Name): check '$($c['id'])' has effort '$($c['effort'])'; expected $($efforts -join ', ')" }
                 if ($c.Contains('impact')) { throw "$($file.Name): check '$($c['id'])' has impact, which became userImpact (level and text) on 2026-11-20" }
                 if ($c.Contains('userImpact')) {

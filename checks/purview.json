@@ -181,6 +181,9 @@
         "pv-02-dlp-policies.json",
         "pv-02-dlp-rules.json"
       ],
+      "evidenceOptional": [
+        "pv-02-dlp-rules.json"
+      ],
       "pass": "facts.dlpWorkloadsMissing == 0",
       "affected": "facts.dlpWorkloadsMissing",
       "remediation": "Add an enforced DLP policy for each listed workload: Exchange, SharePoint, OneDrive, Teams, and Endpoint devices with E5.",
@@ -220,6 +223,9 @@
       "thresholds": {},
       "evidence": [
         "pv-03-retention-policies.json",
+        "pv-03-retention-rules.json"
+      ],
+      "evidenceOptional": [
         "pv-03-retention-rules.json"
       ],
       "pass": "facts.retentionPoliciesEnabled > 0 && facts.retentionCoversExchangeAndSharePoint",

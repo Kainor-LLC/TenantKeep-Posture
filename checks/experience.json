@@ -469,6 +469,9 @@
         "09-intune-policy-settings.json",
         "01-onprem-sync-features.json"
       ],
+      "evidenceOptional": [
+        "01-onprem-sync-features.json"
+      ],
       "pass": "facts.passwordResetFromSignInScreen && (!facts.passwordWritebackNeeded || facts.passwordWritebackOn)",
       "remediation": [
         "In a settings catalog profile for Windows, set Authentication, Allow Aad Password Reset to Allowed, so the sign-in screen shows Reset password.",

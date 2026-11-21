@@ -511,6 +511,9 @@
         "09-intune-windows-hello.json",
         "09-intune-policy-settings.json"
       ],
+      "evidenceOptional": [
+        "09-intune-windows-hello.json"
+      ],
       "pass": "facts.windowsHelloEnabled",
       "remediation": "Enable Windows Hello for Business in the tenant-wide enrollment settings or an identity protection policy, with a PIN minimum length and biometrics allowed.",
       "effort": "M",
@@ -597,6 +600,9 @@
       },
       "evidence": [
         "09-intune-config-profile-settings.json",
+        "09-intune-feature-update-profiles.json"
+      ],
+      "evidenceOptional": [
         "09-intune-feature-update-profiles.json"
       ],
       "pass": "facts.updateRingsAssigned > 0 && facts.updateQualityDeadlineSet && facts.featureUpdateProfileAssigned",
@@ -1005,6 +1011,9 @@
       "thresholds": {},
       "evidence": [
         "def-04-vulnerabilities-summary.json",
+        "def-04-vulnerabilities-top.json"
+      ],
+      "evidenceOptional": [
         "def-04-vulnerabilities-top.json"
       ],
       "pass": "facts.criticalCvesOver30d == 0",

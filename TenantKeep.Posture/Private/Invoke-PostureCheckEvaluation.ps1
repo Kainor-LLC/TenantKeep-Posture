@@ -8,6 +8,12 @@ function Invoke-PostureCheckEvaluation {
         -Evidence <folder> -OrgProfile <profile> -Thresholds <merged domain thresholds>. -FactProvider overrides providers by domain (tests).
         Statuses: pass, fail, notEvaluated (reason: license, data missing, provider failed), notApplicable (profile),
         acceptedRisk (exception), coveredBy (third-party control in the profile).
+
+        The evidence contract: a check's evidence list is what it needs. A file in it that is not in the folder makes
+        the check notEvaluated and names the file, before the pass expression runs, unless the check lists the file
+        in evidenceOptional (it can be judged without it) or in a group of evidenceAnyOf (one of the group is
+        enough: the same data from two collectors, or a slim file and the full list it replaced). A fact with no
+        value has the same effect inside the expression. Missing data never reads as pass or fail.
         Threshold precedence: catalog default, then profile.thresholds by key, then baseline.thresholds[check id].
     #>
     [CmdletBinding()]
@@ -82,6 +88,26 @@ function Invoke-PostureCheckEvaluation {
         catch { $domainFacts[$d] = @{ available = $false; reason = "Fact provider for '$d' failed: $($_.Exception.Message)" } }
     }
 
+    # What is in the folder, by evidence name (the JSON or the CSV), and what was still being written when a run stopped.
+    $present = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($f in @(Get-ChildItem -LiteralPath $Evidence -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.json', '.csv' })) { $null = $present.Add($f.BaseName) }
+    $unfinished = @(Get-PostureUnfinishedEvidence -Folder $Evidence)
+    $evidenceName = { param($x) ([string]$x) -replace '\.(json|csv)$', '' }
+    # The sentences for the files a check needs and does not have, and the names of every file it reads that is absent.
+    $evidenceGap = {
+        param($Check)
+        $names = @($Check['evidence'] | ForEach-Object { & $evidenceName $_ } | Where-Object { $_ })
+        $optional = @($(if ($Check.Contains('evidenceOptional')) { $Check['evidenceOptional'] }) | ForEach-Object { & $evidenceName $_ } | Where-Object { $_ })
+        # A list, filled by a foreach statement: a pipeline or a subexpression would unroll a single group into its file names.
+        $groups = [System.Collections.Generic.List[object]]::new()
+        if ($Check.Contains('evidenceAnyOf') -and $null -ne $Check['evidenceAnyOf']) { foreach ($g in [object[]]$Check['evidenceAnyOf']) { $groups.Add(@(@($g) | ForEach-Object { & $evidenceName $_ })) } }
+        $grouped = @(foreach ($g in $groups) { foreach ($n in $g) { $n } })
+        $say = { param([string] $n) if ($n -in $unfinished) { "$n was still being written when the run stopped" } else { "$n.json was not collected" } }
+        $required = @(foreach ($n in $names) { if ($n -notin $optional -and $n -notin $grouped -and -not $present.Contains($n)) { & $say $n } })
+        foreach ($g in $groups) { if (@($g | Where-Object { $present.Contains($_) }).Count -eq 0) { $required += "none of $(@($g | ForEach-Object { "$_.json" }) -join ', ') was collected" } }
+        @{ required = @($required); absent = @($names | Where-Object { -not $present.Contains($_) }) }
+    }
+
     # 4. Evaluate.
     $results = foreach ($c in $selected) {
         $id = [string]$c['id']; $d = [string]$c['domain']
@@ -129,10 +155,19 @@ function Invoke-PostureCheckEvaluation {
         if ($df.Contains('notEvaluated') -and $df['notEvaluated'] -and $df['notEvaluated'].Contains($id)) {
             $result.status = 'notEvaluated'; $result.reason = [string]$df['notEvaluated'][$id]; $result; continue
         }
+        # The evidence contract: a file the check needs is not there.
+        $gap = & $evidenceGap $c
+        if ($gap.required.Count -gt 0) {
+            # File names stay as they are written, first letter included.
+            $result.status = 'notEvaluated'; $result.reason = "Not enough evidence: $($gap.required -join '; '). Run Health says which step failed; Resume-PostureRun collects it again."; $result; continue
+        }
         try {
             $passed = Invoke-PostureExpression -Expression ([string]$c['pass']) -Context @{ facts = $df['facts']; thresholds = $thresholds }
         }
-        catch { $result.status = 'notEvaluated'; $result.reason = "Data missing: $($_.Exception.Message)"; $result; continue }
+        catch {
+            # A fact with no value, or not there at all: say which of the check's files are absent, when any is.
+            $result.status = 'notEvaluated'; $result.reason = "Data missing: $($_.Exception.Message)$(if ($gap.absent.Count -gt 0) { " Not collected: $(@($gap.absent | ForEach-Object { "$_.json" }) -join ', ')." })"; $result; continue
+        }
 
         if ($c.Contains('affected') -and $c['affected']) {
             $key = ([string]$c['affected']) -replace '^facts\.', ''

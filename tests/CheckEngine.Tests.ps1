@@ -9,6 +9,8 @@ BeforeAll {
     $script:Fx = Initialize-CheckEngineFixture -Root $script:Root
     $script:Evidence = Join-Path $script:Root 'evidence'
     New-Item -ItemType Directory -Path $script:Evidence | Out-Null
+    # TS-001 names e.json as its evidence: the engine judges it only when the file is in the folder.
+    Set-Content -LiteralPath (Join-Path $script:Evidence 'e.json') -Value '[]'
 }
 
 AfterAll {
@@ -176,3 +178,78 @@ Describe 'Invoke-PostureCheckEvaluation' {
         }
     }
 }
+
+Describe 'The evidence contract' {
+    BeforeAll {
+        # Five checks over the same facts, differing only in what they say they need. The provider answers the same
+        # whatever is in the folder, as a provider that defaults a missing file to "nothing found" would.
+        $script:Contract = Join-Path $script:Root 'contract'
+        $checks = Join-Path $script:Contract 'checks'
+        New-Item -ItemType Directory -Path $checks -Force | Out-Null
+        $base = @{ domain = 'test'; severityDefault = 'High'; license = @(); applicableWhen = @{}; coveredBy = @(); thresholds = @{}; remediation = 'r'; learn = 'https://learn.microsoft.com/'; deepLink = $null; narrative = 'n'; frameworks = @{} }
+        $make = { param([hashtable] $Own) $c = @{}; foreach ($k in $base.Keys) { $c[$k] = $base[$k] }; foreach ($k in $Own.Keys) { $c[$k] = $Own[$k] }; $c }
+        @{ domain = 'test'; checks = @(
+                (& $make @{ id = 'EC-001'; title = 'Needs both files'; evidence = @('list.json', 'settings.json'); pass = 'facts.count == 0' })
+                (& $make @{ id = 'EC-002'; title = 'Can do without the detail'; evidence = @('list.json', 'detail.json'); evidenceOptional = @('detail.json'); pass = 'facts.count == 0' })
+                (& $make @{ id = 'EC-003'; title = 'Either source'; evidence = @('list.json', 'from-admin.json', 'from-graph.json'); evidenceAnyOf = @(, @('from-admin.json', 'from-graph.json')); pass = 'facts.count == 0' })
+                (& $make @{ id = 'EC-004'; title = 'Left side decides'; evidence = @('list.json', 'rule.json'); evidenceOptional = @('rule.json'); pass = 'facts.count == 0 || facts.ruleOn' })
+                (& $make @{ id = 'EC-005'; title = 'Needs the unknown fact'; evidence = @('list.json', 'rule.json'); evidenceOptional = @('rule.json'); pass = 'facts.count == 0 && facts.ruleOn' })
+            )
+        } | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $checks 'test.json')
+        $script:ContractProvider = { param($Evidence, $OrgProfile, $Thresholds) @{ facts = @{ count = 0; ruleOn = $null } } }
+        $script:Evaluate = {
+            param([string[]] $Files, [string[]] $Unfinished = @())
+            $ev = Join-Path $script:Contract "ev-$([guid]::NewGuid().ToString('n'))"
+            New-Item -ItemType Directory -Path $ev | Out-Null
+            foreach ($f in $Files) { Set-Content -LiteralPath (Join-Path $ev $f) -Value '[]' }
+            foreach ($f in $Unfinished) { Set-Content -LiteralPath (Join-Path $ev "$f.part") -Value '[' }
+            InModuleScope TenantKeep.Posture -Parameters @{ P = (Join-Path $script:Contract 'checks'); B = (Join-Path $script:Fx.Baselines 'standard.json'); Ev = $ev; Provider = $script:ContractProvider } {
+                $run = Invoke-PostureCheckEvaluation -Catalog (Import-PostureCheckCatalog -Path $P) -Baseline (Import-PostureBaseline -Baseline $B) -OrgProfile (Import-PostureProfile) -Evidence $Ev -FactProvider @{ test = $Provider }
+                $by = @{}; foreach ($r in $run.results) { $by[[string]$r.id] = $r }; $by
+            }
+        }
+    }
+
+    It 'does not judge a check whose evidence file is not in the folder, and names the file' {
+        $by = & $script:Evaluate @('list.json')
+        $by['EC-001'].status | Should -Be 'notEvaluated' -Because 'the provider says nothing was found, but settings.json was never read'
+        $by['EC-001'].reason | Should -Match 'settings\.json was not collected'
+        $by['EC-001'].reason | Should -Not -Match 'list\.json'
+        (& $script:Evaluate @('list.json', 'settings.csv'))['EC-001'].status | Should -Be 'pass' -Because 'a list is there as its CSV or its JSON'
+    }
+
+    It 'judges a check without a file it lists as optional' {
+        (& $script:Evaluate @('list.json'))['EC-002'].status | Should -Be 'pass'
+    }
+
+    It 'takes one file of an any-of group as enough, and names the group when none is there' {
+        (& $script:Evaluate @('list.json', 'from-graph.json'))['EC-003'].status | Should -Be 'pass'
+        (& $script:Evaluate @('list.json', 'from-admin.json'))['EC-003'].status | Should -Be 'pass'
+        $none = (& $script:Evaluate @('list.json'))['EC-003']
+        $none.status | Should -Be 'notEvaluated'
+        $none.reason | Should -Match 'none of from-admin\.json, from-graph\.json was collected'
+    }
+
+    It 'says when the file was still being written when the run stopped' {
+        $r = (& $script:Evaluate @('list.json') @('settings.json'))['EC-001']
+        $r.status | Should -Be 'notEvaluated'
+        $r.reason | Should -Match 'settings was still being written when the run stopped'
+    }
+
+    It 'passes on the side that decides, and is not evaluated when the answer needs a fact with no value' {
+        $by = & $script:Evaluate @('list.json')
+        $by['EC-004'].status | Should -Be 'pass' -Because 'count is 0, so the rule does not matter'
+        $by['EC-005'].status | Should -Be 'notEvaluated' -Because 'count is 0 and the rule is unknown'
+        $by['EC-005'].reason | Should -Match 'Data missing: facts\.ruleOn has no value in the evidence\. Not collected: rule\.json\.'
+    }
+
+    It 'refuses a catalog whose optional or any-of names are not in the evidence list' {
+        $bad = Join-Path $script:Contract 'bad'
+        New-Item -ItemType Directory -Path $bad -Force | Out-Null
+        foreach ($case in @(@('"evidence": ["a.json"], "evidenceOptional": ["b.json"]', "*'b.json' in evidenceOptional but not in evidence*"), @('"evidence": ["a.json", "b.json"], "evidenceAnyOf": [["a.json", "c.json"]]', "*'c.json' in evidenceAnyOf but not in evidence*"), @('"evidence": ["a.json"], "evidenceAnyOf": [["a.json"]]', '*fewer than two files*'))) {
+            "{ ""domain"": ""x"", ""checks"": [ { ""id"": ""XX-001"", ""domain"": ""x"", ""title"": ""t"", ""severityDefault"": ""High"", ""license"": [], ""applicableWhen"": {}, ""coveredBy"": [], ""thresholds"": {}, $($case[0]), ""pass"": ""true"", ""remediation"": ""r"", ""learn"": , deepLink: null, narrative: , ""frameworks"": {} } ] }" | Set-Content (Join-Path $bad 'x.json')
+            InModuleScope TenantKeep.Posture -Parameters @{ P = $bad; E = $case[1] } { { Import-PostureCheckCatalog -Path $P } | Should -Throw $E }
+        }
+    }
+}
+

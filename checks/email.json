@@ -250,6 +250,9 @@
         "exo-04-eop-content-filter.json",
         "exo-05-quarantine-policies.json"
       ],
+      "evidenceOptional": [
+        "exo-05-quarantine-policies.json"
+      ],
       "pass": "facts.highConfidencePhishAdminOnly && facts.quarantineNotificationsEnabled",
       "affected": "facts.highConfidencePhishReleasable",
       "remediation": "Set the high-confidence phish quarantine tag to AdminOnlyAccessPolicy in every anti-spam policy and enable end-user quarantine notifications in a quarantine policy.",
@@ -573,6 +576,11 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
+        "exo-09-mailboxes.json",
+        "exo-02-accepted-domains.json",
+        "exo-09-mailboxes-with-forwarding.json"
+      ],
+      "evidenceOptional": [
         "exo-09-mailboxes-with-forwarding.json"
       ],
       "pass": "facts.mailboxesForwardingExternally == 0",
@@ -909,6 +917,15 @@
         "10-service-principals.json",
         "04-role-assignments-active.json"
       ],
+      "evidenceOptional": [
+        "04-role-assignments-active.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "exo-12-remote-powershell-users.json",
+          "10-service-principals.json"
+        ]
+      ],
       "pass": "facts.exoPowerShellAppRestricted || facts.nonAdminRemotePowerShell == 0",
       "affected": "facts.nonAdminRemotePowerShell",
       "remediation": [
@@ -948,6 +965,9 @@
       "evidence": [
         "dns-01-mail-records.json",
         "exo-03-inbound-connectors.json"
+      ],
+      "evidenceOptional": [
+        "dns-01-mail-records.json"
       ],
       "pass": "!facts.gatewayInFront || facts.gatewayLockedDown",
       "affected": "facts.gatewayBypass",

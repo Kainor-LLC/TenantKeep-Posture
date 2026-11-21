@@ -133,7 +133,14 @@
       "thresholds": {},
       "evidence": [
         "04-role-assignments-active.json",
+        "06-users-admins.json",
         "06-users.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "06-users-admins.json",
+          "06-users.json"
+        ]
       ],
       "pass": "facts.adminsWithLicenses == 0",
       "affected": "facts.adminsWithLicenses",
@@ -171,7 +178,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
+        "06-users-breakglass-candidates.json",
         "06-users.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "06-users-breakglass-candidates.json",
+          "06-users.json"
+        ]
       ],
       "pass": "facts.breakGlassAccounts >= 1 && facts.breakGlassSynced == 0 && facts.breakGlassDisabled == 0",
       "affected": "facts.breakGlassProblems",
@@ -442,8 +456,15 @@
         "inactiveGuestDays": 90
       },
       "evidence": [
-        "06-users.json",
-        "06-users-summary.json"
+        "06-users-summary.json",
+        "06-users-guests.json",
+        "06-users.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "06-users-guests.json",
+          "06-users.json"
+        ]
       ],
       "pass": "facts.inactiveGuests == 0",
       "affected": "facts.inactiveGuests",
@@ -518,7 +539,7 @@
       ],
       "thresholds": {},
       "evidence": [
-        "azure-diagnostic-settings"
+        "az-09-entra-diagnostic-settings.json"
       ],
       "pass": "facts.logExportConfigured",
       "remediation": "Add a diagnostic setting on Entra ID that sends SignInLogs, AuditLogs, NonInteractiveUserSignInLogs and RiskyUsers to a Log Analytics workspace or your SIEM, with retention beyond the 30 days the portal keeps.",
@@ -597,6 +618,9 @@
       "thresholds": {},
       "evidence": [
         "06-signins-summary.json",
+        "06-signins-legacy-users.json"
+      ],
+      "evidenceOptional": [
         "06-signins-legacy-users.json"
       ],
       "pass": "facts.legacySignIns == 0",
@@ -866,6 +890,9 @@
       "thresholds": {},
       "evidence": [
         "10-service-principals.json",
+        "policies.json"
+      ],
+      "evidenceOptional": [
         "policies.json"
       ],
       "pass": "facts.adminToolsOpenToEveryone == 0",

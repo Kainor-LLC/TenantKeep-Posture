@@ -8,7 +8,14 @@ function Invoke-PostureExpression {
         cmp := value (('==' | '!=' | '>=' | '<=' | '>' | '<') value)?; value := number | 'string' | true | false | null |
         identifier ('.' identifier)* | '(' or-expr ')'. Identifiers resolve through the context: facts.x, thresholds.y.
         Comparisons are numeric when both sides are numbers, string (ordinal, case-insensitive) otherwise.
-        A reference to a missing fact or threshold throws, which the engine turns into "not evaluated: data missing".
+
+        Missing data never reads as pass or fail. A reference to a fact or threshold that is not there throws, and so
+        does a fact that is there with no value (null): the engine turns both into "not evaluated: data missing",
+        naming the fact. Only the literal null may be compared with it (facts.x == null).
+
+        '&&' and '||' decide from the left: when the left side settles the answer the right side is not read, so
+        "facts.staleDevices == 0 || facts.cleanupRuleEnabled" passes on a tenant with no stale devices even when the
+        cleanup rule could not be read, and is not evaluated when there are stale devices and the rule is unknown.
     #>
     [CmdletBinding()]
     [OutputType([bool])]
@@ -44,13 +51,20 @@ function Invoke-PostureExpression {
         $pos += $m.Length
     }
 
-    $state = @{ i = 0 }
+    # skip counts the sides of && and || that are parsed but not read, because the other side already decided.
+    $state = @{ i = 0; skip = 0 }
     $peek = { if ($state.i -lt $tokens.Count) { $tokens[$state.i] } else { $null } }
     $next = { if ($state.i -ge $tokens.Count) { return $null }; $t = $tokens[$state.i]; $state.i++; $t }
     $isOp = { param($t, [string] $v) $t -and $t.type -eq 'op' -and $t.value -eq $v }
 
+    # A reference that resolves to null is carried as a marker with its path, so whatever reads it can say which
+    # fact has no value. A tuple, because no fact is ever one.
+    $noValue = { param($x) $x -is [System.Tuple[string, string]] -and $x.Item1 -eq 'PostureNoValue' }
+    $read = { param($x) if (& $noValue $x) { throw "$($x.Item2) has no value in the evidence." }; $x }
+
     $resolve = {
         param([string] $Path)
+        if ($state.skip -gt 0) { return $false }
         $current = $Context
         foreach ($seg in $Path.Split('.')) {
             if ($current -is [System.Collections.IDictionary]) {
@@ -60,6 +74,7 @@ function Invoke-PostureExpression {
             elseif ($null -ne $current -and ($current.PSObject.Properties.Name -contains $seg)) { $current = $current.$seg }
             else { throw "Unknown reference '$Path' in expression." }
         }
+        if ($null -eq $current) { return [System.Tuple[string, string]]::new('PostureNoValue', $Path) }
         return $current
     }
 
@@ -86,11 +101,14 @@ function Invoke-PostureExpression {
     }
     $compare = {
         param($l, [string] $op, $r)
+        # The literal null against a fact with no value is the one comparison that may see it.
         if ($null -eq $l -or $null -eq $r) {
-            if ($op -eq '==') { return ($null -eq $l -and $null -eq $r) }
-            if ($op -eq '!=') { return -not ($null -eq $l -and $null -eq $r) }
+            $bothNull = ($null -eq $l -or (& $noValue $l)) -and ($null -eq $r -or (& $noValue $r))
+            if ($op -eq '==') { return $bothNull }
+            if ($op -eq '!=') { return -not $bothNull }
             return $false
         }
+        $l = & $read $l; $r = & $read $r
         $ln = 0.0; $rn = 0.0
         $leftNumeric = $l -is [double] -or $l -is [int] -or $l -is [long] -or $l -is [decimal] -or [double]::TryParse([string]$l, [ref]$ln)
         $rightNumeric = $r -is [double] -or $r -is [int] -or $r -is [long] -or $r -is [decimal] -or [double]::TryParse([string]$r, [ref]$rn)
@@ -114,27 +132,45 @@ function Invoke-PostureExpression {
         if ($t -and $t.type -eq 'op' -and $t.value -in @('==', '!=', '>=', '<=', '>', '<')) {
             $null = & $next
             $right = & $parseValue
+            if ($state.skip -gt 0) { return $false }
             return [bool](& $compare $left $t.value $right)
         }
         return $left
     }
     $parseNot = {
         $t = & $peek
-        if (& $isOp $t '!') { $null = & $next; return -not [bool](& $parseNot) }
+        if (& $isOp $t '!') {
+            $null = & $next
+            $inner = & $parseNot
+            if ($state.skip -gt 0) { return $false }
+            return -not [bool](& $read $inner)
+        }
         return & $parseCmp
     }
+    # A side that is not read is still parsed, so the expression's shape is checked and the tokens are consumed.
+    $skipSide = { param([scriptblock] $Side) $state.skip++; try { $null = & $Side } finally { $state.skip-- } }
     $parseAnd = {
         $v = & $parseNot
-        while (& $isOp (& $peek) '&&') { $null = & $next; $r = & $parseNot; $v = [bool]$v -and [bool]$r }
+        while (& $isOp (& $peek) '&&') {
+            $null = & $next
+            if ($state.skip -gt 0) { $null = & $parseNot; continue }
+            if (-not [bool](& $read $v)) { & $skipSide $parseNot; $v = $false }
+            else { $v = [bool](& $read (& $parseNot)) }
+        }
         return $v
     }
     $parseOr = {
         $v = & $parseAnd
-        while (& $isOp (& $peek) '||') { $null = & $next; $r = & $parseAnd; $v = [bool]$v -or [bool]$r }
+        while (& $isOp (& $peek) '||') {
+            $null = & $next
+            if ($state.skip -gt 0) { $null = & $parseAnd; continue }
+            if ([bool](& $read $v)) { & $skipSide $parseAnd; $v = $true }
+            else { $v = [bool](& $read (& $parseAnd)) }
+        }
         return $v
     }
 
     $result = & $parseOr
     if ($state.i -lt $tokens.Count) { throw "Unexpected token '$($tokens[$state.i].value)' after end of expression." }
-    return [bool]$result
+    return [bool](& $read $result)
 }

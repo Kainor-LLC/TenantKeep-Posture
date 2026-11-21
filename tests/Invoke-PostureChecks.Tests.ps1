@@ -9,6 +9,8 @@ BeforeAll {
     $script:Fx = Initialize-CheckEngineFixture -Root $script:Root
     $script:Evidence = Join-Path $script:Root 'evidence'
     New-Item -ItemType Directory -Path $script:Evidence | Out-Null
+    # The fixture's TS-001 names e.json as its evidence: the engine judges it only when the file is there.
+    Set-Content -LiteralPath (Join-Path $script:Evidence 'e.json') -Value '[]'
     # Point the catalog loader at the fixture and give the engine the fixture provider.
     Mock -ModuleName TenantKeep.Posture Get-PostureDataFolder { param($Name) if ($Name -eq 'checks') { $env:TKP_TEST_CHECKS } elseif ($Name -eq 'baselines') { $env:TKP_TEST_BASELINES } }
     $env:TKP_TEST_CHECKS = $script:Fx.Checks

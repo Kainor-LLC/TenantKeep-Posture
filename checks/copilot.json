@@ -50,6 +50,9 @@
       "evidence": [
         "01-subscribed-skus.json"
       ],
+      "evidenceOptional": [
+        "01-subscribed-skus.json"
+      ],
       "pass": "facts.samLicensed",
       "gate": {
         "code": "C2",
@@ -86,6 +89,9 @@
         "oversharingBaselineMaxDays": 90
       },
       "evidence": [
+        "sam-dag-reports.json"
+      ],
+      "evidenceOptional": [
         "sam-dag-reports.json"
       ],
       "pass": "facts.overSharingBaselineRecent",
@@ -133,7 +139,14 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.defaultLinkSpecificPeople",
       "gate": {
@@ -173,7 +186,14 @@
         "anonymousLinkMaxDays": 30
       },
       "evidence": [
-        "spo-tenant-settings.json"
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
       ],
       "pass": "facts.anonymousLinksControlled",
       "gate": {
@@ -382,6 +402,9 @@
       "evidence": [
         "sam-dag-reports.json"
       ],
+      "evidenceOptional": [
+        "sam-dag-reports.json"
+      ],
       "pass": "facts.siteAccessReviewsStarted",
       "gate": {
         "code": "C10",
@@ -551,6 +574,9 @@
       "evidence": [
         "portal-evidence"
       ],
+      "evidenceOptional": [
+        "portal-evidence"
+      ],
       "pass": "facts.dspmReviewed",
       "gate": {
         "code": "C14",
@@ -602,6 +628,9 @@
       "evidence": [
         "admin-center-evidence"
       ],
+      "evidenceOptional": [
+        "admin-center-evidence"
+      ],
       "pass": "facts.copilotSettingsGoverned",
       "gate": {
         "code": "C15",
@@ -651,6 +680,9 @@
       "evidence": [
         "profile.json"
       ],
+      "evidenceOptional": [
+        "profile.json"
+      ],
       "pass": "facts.labelInheritanceTested",
       "gate": {
         "code": "C16",
@@ -690,6 +722,10 @@
         "oversharingBaselineMaxDays": 90
       },
       "evidence": [
+        "01-subscribed-skus.json",
+        "sam-dag-reports.json"
+      ],
+      "evidenceOptional": [
         "01-subscribed-skus.json",
         "sam-dag-reports.json"
       ],
