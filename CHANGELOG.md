@@ -6,6 +6,9 @@ work landed on main.
 
 ## Unreleased
 
+- HY-026 agrees with HY-031 (2026-11-20): people exempt from password expiry fail only while the domain still
+  expires passwords; once Maximum password age is 0 (the NIST stance HY-031 asks for) the check passes. Before, a
+  domain that followed HY-031 kept failing HY-026.
 - MITRE ATT&CK (2026-11-20): 177 checks name the ATT&CK Enterprise techniques they help stop or detect (82
   techniques, release 20.1, pinned in checks/catalog.json). A new ATT&CK Coverage view shows, under each tactic, which
   techniques have a failing check, an accepted risk, passing checks or no evaluated check; cards carry the technique

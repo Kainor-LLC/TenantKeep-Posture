@@ -96,6 +96,18 @@ Describe 'Hybrid checks from the Windows collector files' {
         $by2['HY-014'].status | Should -Be 'notEvaluated'
         $by2['HY-014'].reason | Should -Match 'Get-ADBaseline.ps1'
     }
+
+    It 'passes HY-026 once the domain stops expiring passwords, so it never contradicts HY-031' {
+        $nist = Join-Path $script:Root 'nist'
+        Copy-Item -LiteralPath $script:Ev -Destination $nist -Recurse
+        $forest = Get-Content -Raw (Join-Path $nist 'ad-01-forest-domain.json') | ConvertFrom-Json -AsHashtable
+        $forest.PasswordPolicy.MaxPasswordAgeDays = 0
+        $forest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $nist 'ad-01-forest-domain.json')
+        $r = Invoke-PostureChecks -Evidence $nist -ProfilePath $script:ProfilePath -Domain hybrid -PassThru
+        $by = @{}; foreach ($x in $r.results) { $by[$x.id] = $x }
+        $by['HY-031'].status | Should -Be 'pass'
+        $by['HY-026'].status | Should -Be 'pass' -Because 'the flag changes nothing when no password expires'
+    }
 }
 
 Describe 'The Windows collector script' {

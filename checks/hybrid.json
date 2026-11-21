@@ -831,7 +831,7 @@
     {
       "id": "HY-026",
       "domain": "hybrid",
-      "title": "No human accounts with password never expires",
+      "title": "No people exempt from the domain's password expiry",
       "severityDefault": "Medium",
       "license": [],
       "applicableWhen": {
@@ -847,17 +847,20 @@
         "ad-07-users-summary.json",
         "ad-07-password-never-expires.json"
       ],
-      "pass": "facts.passwordNeverExpiresHumans == 0",
-      "remediation": "Clear the flag on the listed accounts and move services to group managed service accounts.",
+      "pass": "!facts.adPasswordsExpire || facts.passwordNeverExpiresHumans == 0",
+      "remediation": [
+        "Prefer ending scheduled expiry for everyone (HY-031) once MFA and Password Protection on-premises are in place; this check then passes with nothing else to change.",
+        "While the domain still expires passwords, clear Password never expires on the people listed and move service accounts to group managed service accounts."
+      ],
       "effort": "M",
       "category": "fix",
       "userImpact": {
         "level": "low",
-        "text": "The people listed are asked to change their password on the normal schedule."
+        "text": "The people listed change their password on the domain's schedule, unless the domain stops expiring passwords for everyone."
       },
       "learn": "https://learn.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted",
-      "narrative": "Password never expires on a human account is a password that will never be rotated after it leaks.",
+      "narrative": "While the domain expires passwords, a person flagged Password never expires is an exception nobody reviews, often a shared login or a service account someone signs in with. NIST SP 800-63B favours ending scheduled expiry for everyone (HY-031); until then the exceptions should go.",
       "frameworks": {
         "nist-csf-2": "PR.AA-01",
         "iso27001": "A.5.17",
