@@ -393,6 +393,17 @@ function Invoke-Demo {
     try { $null = New-PostureReport -Evidence $run -Client $made.Client }
     finally { Remove-Module $ModuleName -Force -ErrorAction SilentlyContinue }
     $report = Join-Path $run 'report.html'
+    # The report names the folders it was built from. A published sample shows where they sit on a customer's machine
+    # instead, and nothing from this one: the build stops if a path from this machine is left.
+    $shown = [ordered]@{ $made.Client = '~/tenantkeep/clients/fernquill'; $run = '~/tenantkeep/evidence/2026-11-16-0900' }
+    foreach ($f in Get-ChildItem -LiteralPath $run -File | Where-Object { $_.Extension -in '.html', '.md', '.json', '.csv' }) {
+        $text = [System.IO.File]::ReadAllText($f.FullName)
+        foreach ($k in $shown.Keys) { $text = $text.Replace($k, $shown[$k]).Replace($k.Replace($HOME, '~'), $shown[$k]) }
+        [System.IO.File]::WriteAllText($f.FullName, $text, [System.Text.UTF8Encoding]::new($false))
+        foreach ($leak in @($HOME, $Root, [System.IO.Path]::GetTempPath().TrimEnd('/', '\')) | Where-Object { $_ }) {
+            if ($text.Contains($leak)) { throw "$($f.Name) still holds a path from this machine ($leak); the sample cannot be published." }
+        }
+    }
     Write-Host "Demo report: $report ($($made.Files) evidence files, $($made.Users) users, $($made.Devices) devices)"
 
     # Screenshots: headless Edge or Chrome, light theme, one per view.
