@@ -19,8 +19,17 @@ function Invoke-PostureStep {
     Step-PostureProgress -Label $Label
     $script:PostureLastCall = ''
 
+    # The journal: started, then done or failed. Files the step writes are recorded under its label, and the label
+    # of a step that runs inside another is restored when it ends.
+    $outerStep = $script:PostureCurrentStep
+    $script:PostureCurrentStep = $Label
+    $stepClock = [System.Diagnostics.Stopwatch]::StartNew()
+    Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'started'; collector = [string]$script:PostureCurrentCollector; step = $Label }
     try {
-        return & $Script
+        $stepOutput = & $Script
+        Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'done'; collector = [string]$script:PostureCurrentCollector; step = $Label; seconds = [Math]::Round($stepClock.Elapsed.TotalSeconds, 1) }
+        $script:PostureCurrentStep = $outerStep
+        return $stepOutput
     }
     catch {
         # One line per failure in errors.txt, whatever the exception text contains.
@@ -32,6 +41,8 @@ function Invoke-PostureStep {
         # Where it stopped and the request it was making, for whoever is asked to look (Get-PostureSupportDetail).
         $where = @(([string]$_.ScriptStackTrace) -split "`n" | Where-Object { $_ } | Select-Object -First 4 | ForEach-Object { $_.Trim().Replace([string]$script:ModuleRoot, '<module>') })
         Write-PostureStepFailure -Folder $Folder -Label $Label -Message $message -Where $where -Request ([string]$script:PostureLastCall) -Confirm:$false
+        Write-PostureJournal -Folder $Folder -Entry @{ kind = 'step'; state = 'failed'; collector = [string]$script:PostureCurrentCollector; step = $Label; seconds = [Math]::Round($stepClock.Elapsed.TotalSeconds, 1); cause = (Get-PostureFailureCause -Message $message); message = $message }
+        $script:PostureCurrentStep = $outerStep
         return
     }
 }

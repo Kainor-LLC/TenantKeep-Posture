@@ -101,6 +101,9 @@ function Invoke-PostureCheckEvaluation {
     $present = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($f in @(Get-ChildItem -LiteralPath $Evidence -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.json', '.csv' })) { $null = $present.Add($f.BaseName) }
     $unfinished = @(Get-PostureUnfinishedEvidence -Folder $Evidence)
+    # Files left from an earlier attempt (the journal says their step ran again and did not write them) are not there.
+    $stale = @(Get-PostureStaleEvidence -Folder $Evidence)
+    foreach ($n in $stale) { $null = $present.Remove($n) }
     $evidenceName = { param($x) ([string]$x) -replace '\.(json|csv)$', '' }
     # The sentences for the files a check needs and does not have, and the names of every file it reads that is absent.
     $evidenceGap = {
@@ -111,7 +114,7 @@ function Invoke-PostureCheckEvaluation {
         $groups = [System.Collections.Generic.List[object]]::new()
         if ($Check.Contains('evidenceAnyOf') -and $null -ne $Check['evidenceAnyOf']) { foreach ($g in [object[]]$Check['evidenceAnyOf']) { $groups.Add(@(@($g) | ForEach-Object { & $evidenceName $_ })) } }
         $grouped = @(foreach ($g in $groups) { foreach ($n in $g) { $n } })
-        $say = { param([string] $n) if ($n -in $unfinished) { "$n was still being written when the run stopped" } else { "$n.json was not collected" } }
+        $say = { param([string] $n) if ($n -in $unfinished) { "$n was still being written when the run stopped" } elseif ($n -in $stale) { "$n is left from an earlier attempt and the step that writes it did not write it again" } else { "$n.json was not collected" } }
         $required = @(foreach ($n in $names) { if ($n -notin $optional -and $n -notin $grouped -and -not $present.Contains($n)) { & $say $n } })
         foreach ($g in $groups) { if (@($g | Where-Object { $present.Contains($_) }).Count -eq 0) { $required += "none of $(@($g | ForEach-Object { "$_.json" }) -join ', ') was collected" } }
         @{ required = @($required); absent = @($names | Where-Object { -not $present.Contains($_) }) }
@@ -126,6 +129,8 @@ function Invoke-PostureCheckEvaluation {
             id = $id; domain = $d; title = [string]$c['title']; status = $null; severity = $severity; reason = $null
             thresholds = $thresholds; observed = $null; affected = @(); affectedCount = 0; affectedListed = 0; evidence = @($c['evidence']); exception = $null
             coveredBy = $null; custom = [bool]$c['custom']; checkedUtc = $AsOf.ToString('o')
+            # Set on a pass or a fail that was judged on part of the data: the sentence that says how much.
+            judgedOnPart = $null
         }
 
         # Applicability against the profile: a key the profile knows with no overlap means not applicable.
@@ -190,14 +195,14 @@ function Invoke-PostureCheckEvaluation {
         $unlisted = [Math]::Max(0, $declared - $listedBefore)
         $result.status = if ($passed) { 'pass' } else { 'fail' }
         # Judged on part of the data: the provider says how much.
-        if ($df.Contains('notes') -and $df['notes'] -and $df['notes'].Contains($id)) { $result.reason = [string]$df['notes'][$id] }
+        if ($df.Contains('notes') -and $df['notes'] -and $df['notes'].Contains($id)) { $result.reason = [string]$df['notes'][$id]; $result.judgedOnPart = $result.reason }
         # Judged on part of the data, as the provider declares for this check (partial[<id>] with a note and a
         # noAnswer sentence). What was read and failed is a finding, and says how much was read. What was read and
         # passed is no answer: the part that was not read could hold the gap.
         if ($df.Contains('partial') -and $df['partial'] -and $df['partial'].Contains($id)) {
             $part = $df['partial'][$id]
-            if ($passed) { $result.status = 'notEvaluated'; $result.reason = [string]$part['noAnswer']; $result.affected = @(); $unlisted = 0 }
-            elseif (-not $result.reason) { $result.reason = [string]$part['note'] }
+            if ($passed) { $result.status = 'notEvaluated'; $result.reason = [string]$part['noAnswer']; $result.affected = @(); $unlisted = 0; $result.judgedOnPart = $null }
+            else { if (-not $result.reason) { $result.reason = [string]$part['note'] }; $result.judgedOnPart = $result.reason }
         }
         # The values the pass expression judged, so the report says what was found in this tenant: scalars as they
         # are, a list as its count.

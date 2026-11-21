@@ -292,4 +292,16 @@ Describe 'Run conveniences' {
             Invoke-PostureFolderLock -Folder $f -Script { 'free' } | Should -Be 'free'
         }
     }
+
+    It 'lets a block that holds the lock ask for it again without waiting' {
+        InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
+            $f = Join-Path $root 'lock-again'; New-Item -ItemType Directory -Path $f -Force | Out-Null
+            $clock = [System.Diagnostics.Stopwatch]::StartNew()
+            Invoke-PostureFolderLock -Folder $f -TimeoutSeconds 5 -Script { Invoke-PostureFolderLock -Folder $f -TimeoutSeconds 5 -Script { 'inner' } } | Should -Be 'inner'
+            $clock.Elapsed.TotalSeconds | Should -BeLessThan 2 -Because 'the manifest writer holds the lock while its file write adds a line to the journal'
+            $script:PostureLocksHeld.Count | Should -Be 0
+            # And the lock is free afterwards for anyone else.
+            $held = [System.IO.File]::Open((Join-Path $f '.tenantkeep.lock'), 'OpenOrCreate', 'ReadWrite', 'None'); $held.Dispose()
+        }
+    }
 }

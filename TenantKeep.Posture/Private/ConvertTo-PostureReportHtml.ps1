@@ -90,6 +90,9 @@ function ConvertTo-PostureReportHtml {
     # Overview
     & $w '<section class="view active" id="overview"><h2>Overview</h2>'
     $rh = $r.runHealth
+    if ($rh -and $rh.Contains('notFinished') -and @($rh.notFinished).Count -gt 0) {
+        & $w "<div class=`"banner warn`"><strong>The collection stopped before the end.</strong> $(& $h (@($rh.notFinished) -join ', ')) did not finish, and the checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> has the command that collects only what is missing.</div>"
+    }
     if ($rh -and @($rh.failures).Count -gt 0) {
         $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
         & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
@@ -608,7 +611,27 @@ function ConvertTo-PostureReportHtml {
 
     # Run health: what failed, why, and what to grant.
     & $w '<section class="view" id="health"><h2>Run Health</h2>'
-    if (-not $rh -or @($rh.failures).Count -eq 0) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' }
+    # Where the collection stopped, from the run's journal: the steps it was in, the domains that did not finish,
+    # files left from an earlier attempt and writes that were cut short. None of these is read as evidence.
+    $stopped = @($(if ($rh -and $rh.Contains('stoppedIn')) { $rh.stoppedIn })); $unfinished = @($(if ($rh -and $rh.Contains('notFinished')) { $rh.notFinished }))
+    $staleFiles = @($(if ($rh -and $rh.Contains('stale')) { $rh.stale })); $cutShort = @($(if ($rh -and $rh.Contains('cutShort')) { $rh.cutShort }))
+    $interrupted = ($stopped.Count + $unfinished.Count + $staleFiles.Count + $cutShort.Count) -gt 0
+    if ($interrupted) {
+        & $w '<h3>Where the Collection Stopped</h3>'
+        if ($unfinished.Count) { & $w "<p class=`"banner warn`"><strong>$($unfinished.Count) domain(s) did not finish: $(& $h ($unfinished -join ', ')).</strong> The process stopped before the end. Their checks say not evaluated. This collects only what is missing, into the same run:</p><div class=`"cmd`"><code id=`"cmd-resume-stopped`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume-stopped`">Copy</button></div>" }
+        if ($stopped.Count) {
+            & $w '<p>Steps that started and never finished:</p><table><thead><tr><th>Domain</th><th>Step</th></tr></thead><tbody>'
+            foreach ($x in $stopped) { & $w "<tr><td>$(& $h $(if ($x.collector) { $x.collector } else { 'Run' }))</td><td>$(& $h $x.step)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        if ($staleFiles.Count) {
+            & $w '<p>Files left from an earlier attempt. The step that writes each ran again and did not write it, so the file is not read and the checks that need it say not evaluated:</p><table><thead><tr><th>File</th><th>Domain</th><th>Step</th></tr></thead><tbody>'
+            foreach ($x in $staleFiles) { & $w "<tr><td><code>$(& $h $x.file)</code></td><td>$(& $h $x.collector)</td><td>$(& $h $x.step)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+        if ($cutShort.Count) { & $w "<p>$($cutShort.Count) write(s) were cut short and are never read: $(@($cutShort | ForEach-Object { '<code>' + (& $h $_) + '</code>' }) -join ', '). Collecting the domain again replaces them.</p>" }
+    }
+    if (-not $rh -or @($rh.failures).Count -eq 0) { if (-not $interrupted) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' } }
     else {
         & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why and what to do. After granting a role, collect only what failed, into the same run, then refresh this page:</p>"
         & $w "<div class=`"cmd`"><code id=`"cmd-resume`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume`">Copy</button></div>"
@@ -629,6 +652,12 @@ function ConvertTo-PostureReportHtml {
                 & $w ('<details class="support"><summary>' + (& $h "$(if ($f.collector) { $f.collector } else { 'Run' }): $($f.step)") + '</summary><pre class="support-text" id="support-' + $i + '">' + (& $h $f.support) + '</pre><button type="button" data-copy="support-' + $i + '">Copy for Support</button></details>')
             }
         }
+    }
+    if ($rh -and $rh.Contains('judgedOnPart') -and @($rh.judgedOnPart).Count) {
+        & $w "<h3>Judged on Part of the Data</h3><p>$(@($rh.judgedOnPart).Count) check(s) have an answer from part of what the tenant holds: a sample, a list with a ceiling, or the part that could be read. Each says how much. A check that passed on part of the data and could have failed on the rest says not evaluated instead and is not in this list.</p>"
+        & $w '<table><thead><tr><th>Check</th><th>Title</th><th>Status</th><th>How Much Was Read</th></tr></thead><tbody>'
+        foreach ($x in $rh.judgedOnPart) { & $w "<tr data-check=`"$(& $h $x.id)`"><td><code>$(& $h $x.id)</code></td><td>$(& $h $x.title)</td><td><span class=`"status $(& $h $x.status)`">$(if ($x.status -eq 'pass') { 'Pass' } else { 'Fail' })</span></td><td>$(& $h $x.note)</td></tr>" }
+        & $w '</tbody></table>'
     }
     if ($rh -and $rh.Contains('calls') -and $rh.calls) {
         $cs = $rh.calls

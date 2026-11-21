@@ -435,6 +435,21 @@ function ConvertTo-PostureReportModel {
                 [ordered]@{ label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count }
             })
     }
+    # Checks that have an answer from part of the data (a sample, a capped list, some subscriptions): each with the
+    # sentence that says how much was read.
+    $runHealth.judgedOnPart = @($results | Where-Object { $_.status -in 'pass', 'fail' -and $_.Contains('judgedOnPart') -and $_.judgedOnPart } | ForEach-Object { [ordered]@{ id = [string]$_.id; title = [string]$_.title; status = [string]$_.status; note = [string]$_.judgedOnPart } })
+    # Where a collection stopped. From the journal (logs/journal.jsonl; a run made before it has none): the steps
+    # the collection started and never finished, and the files left from an earlier attempt, which are not read.
+    # From the plan and the manifest: the collectors the run set out to collect that did not finish (the same
+    # answer Resume-PostureRun gives). From the folder: writes that were cut short (.part files, never read).
+    $journal = $(try { Get-PostureJournalState -Folder $Evidence } catch { @{ present = $false; steps = @{}; collectors = @{}; files = @{} } })
+    $runHealth.stoppedIn = @($journal.steps.get_Values() | Where-Object { $_.state -eq 'started' } | Sort-Object { $_.started } | ForEach-Object { [ordered]@{ collector = [string]$_.collector; step = [string]$_.step } })
+    $finished = @(@($(if ($collection) { & $v $collection 'collectors' })) + @($journal.collectors.get_Keys() | Where-Object { $journal.collectors[$_].state -eq 'done' }) | Where-Object { $_ } | Select-Object -Unique)
+    $expected = @(@($(if ($plan) { Get-PostureValue $plan 'planned' })) + @($journal.collectors.get_Keys()) | Where-Object { $_ } | Select-Object -Unique)
+    $runHealth.notFinished = @($expected | Where-Object { $_ -notin $finished })
+    $staleNames = @($(try { Get-PostureStaleEvidence -Folder $Evidence } catch { @() }))
+    $runHealth.stale = @($staleNames | ForEach-Object { $n = $_; $rec = @($journal.files.get_Keys() | Where-Object { ($_ -replace '\.(json|csv)$', '') -eq $n } | ForEach-Object { $journal.files[$_] })[0]; [ordered]@{ file = $n; collector = [string]$(if ($rec) { $rec.collector }); step = [string]$(if ($rec) { $rec.step }) } })
+    $runHealth.cutShort = @(Get-ChildItem -LiteralPath $runLayout.evidence -File -Filter '*.part' -ErrorAction SilentlyContinue | ForEach-Object { $_.Name } | Sort-Object)
     foreach ($f in $runHealth.failures) { $runHealth.byCause[$f.causeLabel] = 1 + $(if ($runHealth.byCause.Contains($f.causeLabel)) { $runHealth.byCause[$f.causeLabel] } else { 0 }) }
     $runHealth.retryable = @($runHealth.failures | Where-Object { $_.cause -in 'permission', 'token', 'throttled', 'network', 'unknown', 'module' }).Count
 

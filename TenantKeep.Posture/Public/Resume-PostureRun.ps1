@@ -5,7 +5,8 @@ function Resume-PostureRun {
         Finishes a run that partly failed: collects again only the domains that had a failure a second attempt can
         fix, or never finished, into the same run folder, then rebuilds its report.
     .DESCRIPTION
-        Reads the run's plan (run.json), what it collected (collection.json) and what failed (errors.jsonl). A
+        Reads the run's plan (run.json), what it collected (collection.json and logs/journal.jsonl) and what failed
+        (errors.jsonl). A collector that finished is not collected again, even when the run stopped in a later one. A
         collector is collected again when it was planned and never finished, or when one of its steps failed for a
         reason a second attempt can fix: a role granted since, a sign-in that ran out, throttling, the network, a
         module installed since. Failures that are facts about the tenant (not licensed, not set up) are left, since
@@ -80,7 +81,11 @@ function Resume-PostureRun {
     if ($Collector) { $again = @($Collector); $why = @{}; foreach ($c in $again) { $why[$c] = 'asked for' } }
     else {
         $planned = @($(if ($plan) { $plan['planned'] } else { $manifest['collectors'] }) | Where-Object { $_ })
-        $done = @($(if ($manifest) { $manifest['collectors'] }) | Where-Object { $_ })
+        # What finished: the manifest, which is written after every collector, and the journal, which says the same
+        # line by line and survives a process that died before the manifest was written. A run from before the
+        # journal has the manifest alone.
+        $journal = Get-PostureJournalState -Folder $folder
+        $done = @(@($(if ($manifest) { $manifest['collectors'] })) + @($journal.collectors.get_Keys() | Where-Object { $journal.collectors[$_].state -eq 'done' }) | Where-Object { $_ } | Select-Object -Unique)
         $why = [ordered]@{}
         foreach ($c in $planned) { if ($c -notin $done) { $why[$c] = 'did not finish' } }
         foreach ($f in $failures) {

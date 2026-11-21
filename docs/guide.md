@@ -85,7 +85,7 @@ produces the Conditional Access domain and says what the full tier adds.
   evidence/    everything collected, one file per area (prefixes: exo- Exchange, pv- Purview, spo- SharePoint, ...)
   affected/    every affected object per check, one CSV each
   errors/      what could not be read and why
-  logs/        transcript, run plan, check results
+  logs/        transcript, run plan, journal of the collection, check results
   ```
 
   README.txt in each run says the same. Runs made before this layout keep everything in one folder and still work
@@ -237,6 +237,10 @@ Resume-PostureRun -Client contoso      # the newest run of one client, when ther
 It reads the run's plan (run.json), collects again each domain that did not finish or had a failure a second attempt
 can fix, leaves the facts about the tenant (not licensed, not set up) alone, and rebuilds the report in the same
 folder. A domain is collected again whole, since later steps use what earlier ones read; every other file stays.
+A run that stopped part way (the machine slept, the window was closed, the process was killed) resumes the same
+way: the run's journal says which domains finished, and only the one it stopped in and the ones after it are
+collected. Run Health says where it stopped. A file left from an earlier attempt, whose step ran again and could
+not write it, is not read: the checks that need it say not evaluated.
 A failure that needs a licence or role the tenant does not have (a Purview feature Business Premium leaves out,
 for example) is left alone, since collecting again would say the same; after granting it, `-Collector Purview`
 names that domain. `-Path <run folder>` resumes an older run. The Run Health view copies the exact command.

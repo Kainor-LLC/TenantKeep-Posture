@@ -256,7 +256,8 @@ function Get-PostureIdentityFact {
     }
     $haveGuests = Read-PostureEvidenceRow -Folder $Evidence -Name '06-users-guests' -OnRow $onGuest
     if (-not $haveGuests) { $haveGuests = Read-PostureEvidenceRow -Folder $Evidence -Name '06-users' -OnRow { param($u) if ([string](& $v $u 'UserType') -eq 'Guest') { & $onGuest $u } } }
-    if ($null -eq $usersSummary -or -not $haveGuests) { & $missing 'ID-012' '06-users-summary' }
+    if ($null -eq $usersSummary) { & $missing 'ID-012' '06-users-summary' }
+    elseif (-not $haveGuests) { & $missing 'ID-012' '06-users' }
     elseif (-not (& $v $usersSummary 'SignInActivityAvailable')) { $notEvaluated['ID-012'] = 'Sign-in activity was not available (AuditLog.Read.All), so guest inactivity cannot be measured.' }
     else {
         $facts.inactiveGuests = $guestState.inactive

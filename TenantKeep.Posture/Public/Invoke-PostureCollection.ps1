@@ -188,21 +188,79 @@ function Invoke-PostureCollection {
     }
     else { New-PostureEvidenceFolder -OutRoot $OutRoot }
     $script:GraphApiVersionsUsed.Clear()
+    # The journal of this collection (logs/journal.jsonl): steps, files and finished collectors as they happen.
+    $journalBefore = $script:PostureJournalFolder
+    $script:PostureJournalFolder = $folder
 
     try {
         $files = [System.Collections.Generic.List[string]]::new()
         $ran = [System.Collections.Generic.List[string]]::new()
+        Write-PostureJournal -Folder $folder -Entry @{ kind = 'run'; state = 'started'; collectors = @($Collector); moduleVersion = [string]$script:ModuleVersion }
 
         # Each collector is a progress phase, and its time and step count go into the manifest for the next run's estimate.
         $timings = [ordered]@{}
+        $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
+        # Collectors may run in separate processes into one folder, at the same time (Start-PostureRun runs Exchange
+        # and Purview alongside the rest): the manifest is read, merged and written under the folder's lock, and
+        # keeps what the other process recorded (collectors, start time, API versions, scopes, timings).
+        $writeManifest = {
+            param([switch] $Final)
+            Invoke-PostureFolderLock -Folder $folder -Script {
+                $errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })   # @( ) outside the if: an empty array inside it unrolls to null
+                $previous = $null
+                $manifestPath = Join-Path $folder 'collection.json'
+                if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
+                $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
+                # Module versions: what this process loaded, over what an earlier process into the same folder recorded.
+                $modules = [ordered]@{}
+                if ($previous -and $previous['modules']) { foreach ($k in @($previous['modules'].Keys)) { $modules[$k] = $previous['modules'][$k] } }
+                $used = Get-PostureModuleVersionUsed
+                foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
+                $versions = @(@($(if ($previous -and $previous['graphApiVersions']) { $previous['graphApiVersions'] })) + @($script:GraphApiVersionsUsed) | Where-Object { $_ } | Sort-Object -Unique)
+                $allScopes = @(@($(if ($previous -and $previous['scopes']) { $previous['scopes'] })) + @($granted) | Where-Object { $_ } | Sort-Object -Unique)
+                $allTimings = [ordered]@{}
+                if ($previous -and $previous['timings']) { foreach ($k in @($previous['timings'].Keys)) { $allTimings[$k] = $previous['timings'][$k] } }
+                foreach ($k in @($timings.Keys)) { $allTimings[$k] = $timings[$k] }
+                $doc = [ordered]@{
+                    product          = 'TenantKeep.Posture'
+                    moduleVersion    = $script:ModuleVersion
+                    collectors       = $allCollectors
+                    tenantId         = $context.TenantId
+                    account          = $context.Account
+                    authType         = $context.AuthType
+                    scopes           = $allScopes
+                    timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
+                    completedUtc     = [datetime]::UtcNow.ToString('o')
+                    graphApiVersions = $versions
+                    modules          = $modules
+                    powerShell       = $PSVersionTable.PSVersion.ToString()
+                    os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+                    staleDays        = $StaleDays
+                    files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'run.json') -and -not $_.Name.StartsWith('errors') -and -not $_.Name.StartsWith('.') -and $_.Extension -ne '.part' } | ForEach-Object { $_.Name } | Sort-Object)
+                    errorCount       = $errors.Count
+                    errors           = $errors
+                    timings          = $allTimings
+                }
+                # Written after every collector, so a run that dies later has a manifest of what finished; the row
+                # count line and the call ledger come once, at the end.
+                $written = Write-PostureEvidence -Folder $folder -Name 'collection' -InputObject $doc -Quiet:(-not $Final)
+                if ($Final) { $files.Add($written); $null = Save-PostureCallLedger -Folder $folder -Confirm:$false }
+                $doc
+            }
+        }
         $timed = {
             param([string] $Name, [scriptblock] $Block)
             Set-PostureProgressPhase -Name $Name
             $script:PostureCurrentCollector = $Name
             $clock = [System.Diagnostics.Stopwatch]::StartNew(); $steps0 = $script:PostureStepCount
+            Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'started'; collector = $Name }
             $result = & $Block
             $timings[$Name] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = [Math]::Max(1, $script:PostureStepCount - $steps0) }
             $ran.Add($Name)
+            # Finished, whatever its steps did: the journal and the manifest say so now, not at the end of the run, so
+            # a run that stops in a later collector is resumed from there.
+            Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'done'; collector = $Name; seconds = $timings[$Name].seconds; steps = $timings[$Name].steps }
+            $null = & $writeManifest
             # A collector whose step failed returns nothing: record nothing, and never let that stop the others.
             if ($result -is [System.Collections.IDictionary] -and $result.Contains('files')) { foreach ($f in @($result['files'])) { if ($f) { $files.Add($f) } } }
         }
@@ -213,6 +271,8 @@ function Invoke-PostureCollection {
             foreach ($f in $snap.Files) { $files.Add($f) }
             $timings['ConditionalAccess'] = [ordered]@{ seconds = [Math]::Round($clock.Elapsed.TotalSeconds, 1); steps = 1 }
             $ran.Add('ConditionalAccess')
+            Write-PostureJournal -Folder $folder -Entry @{ kind = 'collector'; state = 'done'; collector = 'ConditionalAccess'; seconds = $timings['ConditionalAccess'].seconds; steps = 1 }
+            $null = & $writeManifest
         }
         if ($Collector -contains 'Entra') { & $timed 'Entra' { Invoke-PostureEntraCollection -Folder $folder -StaleDays $StaleDays -AsOf $startedUtc -SkipPerUserMfa:$SkipPerUserMfa -FullPerUserMfa:$FullPerUserMfa } }
         # A step like any other, so a refusal or a missing licence is recorded with its cause and the run goes on.
@@ -225,50 +285,7 @@ function Invoke-PostureCollection {
         if ($run.Azure) { & $timed 'Azure' { Invoke-PostureAzureCollection -Folder $folder } }
         if ($run.Defender) { & $timed 'Defender' { Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc } }
 
-        $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
-        # Collectors may run in separate processes into one folder, at the same time (Start-PostureRun runs Exchange
-        # and Purview alongside the rest): the manifest is read, merged and written under the folder's lock, and
-        # keeps what the other process recorded (collectors, start time, API versions, scopes, timings).
-        $manifest = Invoke-PostureFolderLock -Folder $folder -Script {
-            $errors = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath })   # @( ) outside the if: an empty array inside it unrolls to null
-            $previous = $null
-            $manifestPath = Join-Path $folder 'collection.json'
-            if ($OutputFolder -and (Test-Path -LiteralPath $manifestPath)) { try { $previous = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json -AsHashtable -Depth 10 } catch { $previous = $null } }
-            $allCollectors = @(@($(if ($previous) { $previous['collectors'] })) + $ran.ToArray() | Where-Object { $_ } | Select-Object -Unique)
-            # Module versions: what this process loaded, over what an earlier process into the same folder recorded.
-            $modules = [ordered]@{}
-            if ($previous -and $previous['modules']) { foreach ($k in @($previous['modules'].Keys)) { $modules[$k] = $previous['modules'][$k] } }
-            $used = Get-PostureModuleVersionUsed
-            foreach ($k in @($used.Keys)) { if ($used[$k] -or -not $modules.Contains($k)) { $modules[$k] = $used[$k] } }
-            $versions = @(@($(if ($previous -and $previous['graphApiVersions']) { $previous['graphApiVersions'] })) + @($script:GraphApiVersionsUsed) | Where-Object { $_ } | Sort-Object -Unique)
-            $allScopes = @(@($(if ($previous -and $previous['scopes']) { $previous['scopes'] })) + @($granted) | Where-Object { $_ } | Sort-Object -Unique)
-            $allTimings = [ordered]@{}
-            if ($previous -and $previous['timings']) { foreach ($k in @($previous['timings'].Keys)) { $allTimings[$k] = $previous['timings'][$k] } }
-            foreach ($k in @($timings.Keys)) { $allTimings[$k] = $timings[$k] }
-            $doc = [ordered]@{
-                product          = 'TenantKeep.Posture'
-                moduleVersion    = $script:ModuleVersion
-                collectors       = $allCollectors
-                tenantId         = $context.TenantId
-                account          = $context.Account
-                authType         = $context.AuthType
-                scopes           = $allScopes
-                timestampUtc     = $(if ($previous -and $previous['timestampUtc']) { (ConvertTo-PostureUtcDateTime $previous['timestampUtc']).ToString('o') } else { $startedUtc.ToString('o') })   # ConvertFrom-Json turned it into a DateTime
-                completedUtc     = [datetime]::UtcNow.ToString('o')
-                graphApiVersions = $versions
-                modules          = $modules
-                powerShell       = $PSVersionTable.PSVersion.ToString()
-                os               = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-                staleDays        = $StaleDays
-                files            = @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Name -notin @('transcript.txt', 'run.json') -and -not $_.Name.StartsWith('errors') -and -not $_.Name.StartsWith('.') -and $_.Extension -ne '.part' } | ForEach-Object { $_.Name } | Sort-Object)
-                errorCount       = $errors.Count
-                errors           = $errors
-                timings          = $allTimings
-            }
-            $files.Add((Write-PostureEvidence -Folder $folder -Name 'collection' -InputObject $doc))
-            $null = Save-PostureCallLedger -Folder $folder -Confirm:$false
-            $doc
-        }
+        $manifest = & $writeManifest -Final
         $errors = @($manifest['errors'])
         if ($errors.Count -gt 0) { Write-Warning "$($errors.Count) step(s) failed; see $errorsPath" }
 
@@ -278,6 +295,8 @@ function Invoke-PostureCollection {
         return $folder
     }
     finally {
+        $script:PostureJournalFolder = $journalBefore
+        $script:PostureCurrentStep = $null
         if (-not $OutputFolder) { try { Stop-Transcript | Out-Null } catch { Write-Verbose 'No transcript to stop.' } }
     }
 }

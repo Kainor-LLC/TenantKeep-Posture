@@ -6,6 +6,24 @@ work landed on main.
 
 ## Unreleased
 
+- A run that stops part way is resumed where it stopped (2026-11-21). The record of what a run collected,
+  collection.json, was written once, at the very end. A run whose process died in its last domain after hours of
+  collection left no record, and `Resume-PostureRun` collected every domain again. The run now keeps a journal
+  (`logs/journal.jsonl`: each step as it starts, finishes or fails, each file as it is written, each domain as it
+  finishes), and collection.json is rewritten after every domain. Resume reads both and collects only what did
+  not finish.
+- A file left from an earlier attempt is not read. When a step ran again and failed (a role taken away, a licence
+  that lapsed), the file its earlier attempt wrote was still in the folder and was judged as today's evidence. The
+  journal now says which attempt wrote each file: a file whose step ran again and did not write it is treated as
+  not collected, by every reader, and the checks that need it say not evaluated and why. A file a step wrote
+  before it failed in the same attempt is still read. A run folder with no journal is read as before.
+- Run Health says where a collection stopped and what was judged on part of the data. New lists: the domains that
+  did not finish with the command that collects only those, the steps that started and never finished, files left
+  from an earlier attempt, writes that were cut short (`.part` files, never read), and every check whose answer
+  came from part of the data (a sample, a list with a ceiling, some subscriptions) with how much was read. A
+  result carries that sentence as `judgedOnPart`. The overview says when the collection stopped before the end.
+- ID-012 names the file it lacks: the users list when the guests cannot be read, not the users summary.
+
 - The Windows AD collector on a large domain (2026-11-21). It read every user and every computer into a variable,
   gigabytes in Windows PowerShell on a domain of hundreds of thousands, and ran one Group Policy report per GPO,
   hours with thousands of them. Users and computers now go through the pipeline and are counted as they arrive.

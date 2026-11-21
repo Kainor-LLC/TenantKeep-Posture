@@ -33,7 +33,11 @@ decisions; `(verify)` marks what has not been proven live yet.
 2. **Collect.** `Invoke-PostureCollection` writes one evidence folder per run: JSON and CSV files named after the audit
    plan (`04-role-assignments-active.csv`, `exo-04-antiphish.json`, ...), a `collection.json` manifest with the tenant
    id, account, scopes, API versions and errors, and the Conditional Access snapshot. Every Graph call pins its API
-   version. Nothing leaves the customer's environment.
+   version. Nothing leaves the customer's environment. A journal (`logs/journal.jsonl`) records each step as it
+   starts, finishes or fails, each file as it is written and each domain as it finishes, and the manifest is
+   rewritten after every domain. `Resume-PostureRun` reads both, so a run whose process stopped is picked up at the
+   domain it stopped in, and a file left from an earlier attempt, whose step ran again and did not write it, is
+   never read as this run's evidence.
 3. **Profile.** `New-PostureProfile` discovers what evidence can tell (licences, platforms, identity model, BYOD,
    Copilot) and asks only what it cannot (third-party tools, thresholds, break-glass accounts, frameworks, audience).
    The result is `profile.json` in the client folder, beside `brand.json`, `exceptions.json` and `tenantkeep.lic`.

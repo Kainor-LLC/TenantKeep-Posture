@@ -36,6 +36,24 @@ Describe 'Resume-PostureRun' {
         Should -Invoke Start-PostureRun -ModuleName TenantKeep.Posture -Times 1 -Exactly -ParameterFilter { $Folder -eq $f -and $TenantId -eq $script:Tid -and $Client -eq $script:Client }
     }
 
+    It 'collects again only the collector a dead process was in, from the journal, when no manifest was written' {
+        # The process died in Defender, its last collector, before collection.json existed. The journal has the rest.
+        $f = Join-Path $script:Root 'evidence' '20261119-0900'; New-Item -ItemType Directory -Path $f | Out-Null
+        @{ tenantId = $script:Tid; client = $script:Client; planned = @('Entra', 'SignIns', 'Intune', 'Azure', 'Defender'); skipped = @{}; resumes = @() } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $f 'run.json')
+        $lines = @(
+            @{ timeUtc = '2026-11-21T09:00:00Z'; kind = 'run'; state = 'started'; collectors = @('Entra', 'SignIns', 'Intune', 'Azure', 'Defender') }
+            @{ timeUtc = '2026-11-21T09:00:01Z'; kind = 'collector'; state = 'started'; collector = 'Entra' }, @{ timeUtc = '2026-11-21T09:40:00Z'; kind = 'collector'; state = 'done'; collector = 'Entra' }
+            @{ timeUtc = '2026-11-21T09:40:01Z'; kind = 'collector'; state = 'started'; collector = 'SignIns' }, @{ timeUtc = '2026-11-21T11:00:00Z'; kind = 'collector'; state = 'done'; collector = 'SignIns' }
+            @{ timeUtc = '2026-11-21T11:00:01Z'; kind = 'collector'; state = 'started'; collector = 'Intune' }, @{ timeUtc = '2026-11-21T11:30:00Z'; kind = 'collector'; state = 'done'; collector = 'Intune' }
+            @{ timeUtc = '2026-11-21T11:30:01Z'; kind = 'collector'; state = 'started'; collector = 'Azure' }, @{ timeUtc = '2026-11-21T11:50:00Z'; kind = 'collector'; state = 'done'; collector = 'Azure' }
+            @{ timeUtc = '2026-11-21T11:50:01Z'; kind = 'collector'; state = 'started'; collector = 'Defender' }
+            @{ timeUtc = '2026-11-21T11:50:02Z'; kind = 'step'; state = 'started'; collector = 'Defender'; step = 'Defender devices' }
+        ) | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 5 }
+        Set-Content -LiteralPath (Join-Path $f 'journal.jsonl') -Value $lines
+        $r = Resume-PostureRun -Path $f -PassThru -Confirm:$false
+        $r.Recollected | Should -Be @('Defender') -Because 'four collectors finished, which the journal says; hours of collection are not done again for the one that did not'
+    }
+
     It 'moves the retried failures out of the live files and keeps the rest' {
         $f = & $script:NewRun '20261120-1000'
         $null = Resume-PostureRun -Path $f -Confirm:$false

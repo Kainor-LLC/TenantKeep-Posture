@@ -209,6 +209,8 @@ Describe 'Invoke-PostureCheckEvaluation' {
             $by['TS-001'].reason | Should -Be 'Judged on 200 of 260 subscriptions; the other 60 were not read.'
             $by['TS-002'].status | Should -Be 'pass'
             $by['TS-002'].reason | Should -Be 'Judged on part.'
+            $by['TS-001'].judgedOnPart | Should -Be 'Judged on 200 of 260 subscriptions; the other 60 were not read.' -Because 'Run Health lists every answer that came from part of the data'
+            $by['TS-002'].judgedOnPart | Should -Be 'Judged on part.'
         }
     }
 
@@ -224,6 +226,8 @@ Describe 'Invoke-PostureCheckEvaluation' {
             $by['TS-002'].status | Should -Be 'notEvaluated' -Because 'the part that was not read could hold the gap'
             $by['TS-002'].reason | Should -Be 'Nothing wrong in one domain; the other two were not read.'
             $by['TS-002'].affectedCount | Should -Be 0
+            $by['TS-001'].judgedOnPart | Should -Be 'Judged on one domain of three.'
+            $by['TS-002'].judgedOnPart | Should -BeNullOrEmpty -Because 'it has no answer, so it is listed as not evaluated and nowhere else'
         }
     }
 

@@ -257,6 +257,19 @@ function ConvertTo-PostureReportMarkdown {
         & $line
         & $table @('Domain', 'Step', 'Why', 'What to do') @($rh.failures | ForEach-Object { , @($_.collector, $_.step, $_.causeLabel, $_.advice) })
     }
+    if ($rh -and $rh.Contains('notFinished') -and (@($rh.notFinished).Count + @($rh.stoppedIn).Count + @($rh.stale).Count + @($rh.cutShort).Count) -gt 0) {
+        & $line '### Where the collection stopped'
+        & $line
+        if (@($rh.notFinished).Count) { & $line "Did not finish: $(@($rh.notFinished) -join ', '). Collect only what is missing, into the same run: ``$($rh.resume)``"; & $line }
+        if (@($rh.stoppedIn).Count) { & $table @('Domain', 'Step that started and never finished') @(foreach ($x in $rh.stoppedIn) { , @($x.collector, $x.step) }) }
+        if (@($rh.stale).Count) { & $line 'Files left from an earlier attempt, not read:'; & $line; & $table @('File', 'Domain', 'Step') @(foreach ($x in $rh.stale) { , @($x.file, $x.collector, $x.step) }) }
+        if (@($rh.cutShort).Count) { $names = @($rh.cutShort | ForEach-Object { '`' + $_ + '`' }) -join ', '; & $line "Writes that were cut short, never read: $names"; & $line }
+    }
+    if ($rh -and $rh.Contains('judgedOnPart') -and @($rh.judgedOnPart).Count) {
+        & $line '### Judged on part of the data'
+        & $line
+        & $table @('Check', 'Title', 'Status', 'How much was read') @(foreach ($x in $rh.judgedOnPart) { , @($x.id, $x.title, $statusLabel[$x.status], $x.note) })
+    }
     if (@($a.errors).Count -gt 0) { & $line '### Collection errors'; & $line; foreach ($e in $a.errors) { & $line "- $(& $esc $e)" }; & $line }
     if ($b.footer) { & $line '---'; & $line; & $line $b.footer }
     return $sb.ToString()

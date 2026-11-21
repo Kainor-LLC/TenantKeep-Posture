@@ -19,6 +19,8 @@ function Read-PostureEvidenceFile {
         [Parameter(Mandatory)] [string] $Name
     )
 
+    # A file left from an earlier attempt, whose step ran again and did not write it, is not this run's evidence.
+    if ($Name -in @(Get-PostureStaleEvidence -Folder $Folder)) { return $null }
     $f = Join-Path $Folder "$Name.json"
     $item = Get-Item -LiteralPath $f -ErrorAction SilentlyContinue
     if (-not $item) { return $null }
@@ -58,6 +60,7 @@ function Find-PostureEvidenceRow {
         [AllowEmptyCollection()] [string[]] $Value = @()
     )
 
+    if ($Name -in @(Get-PostureStaleEvidence -Folder $Folder)) { return $null }
     $csv = Join-Path $Folder "$Name.csv"
     $json = Join-Path $Folder "$Name.json"
     if (-not (Test-Path -LiteralPath $csv) -and -not (Test-Path -LiteralPath $json)) { return $null }
@@ -110,6 +113,7 @@ function Read-PostureEvidenceRow {
         [Parameter(Mandatory)] [scriptblock] $OnRow
     )
 
+    if ($Name -in @(Get-PostureStaleEvidence -Folder $Folder)) { return $false }
     $csv = Join-Path $Folder "$Name.csv"
     if (Test-Path -LiteralPath $csv) {
         # An empty list writes an empty CSV, which Import-Csv reads as no rows. A process block, not ForEach-Object:
