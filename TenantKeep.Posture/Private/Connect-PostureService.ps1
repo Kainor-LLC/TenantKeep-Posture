@@ -65,7 +65,9 @@ function Connect-PostureService {
         }
         'azure' {
             $token = Get-PostureToken -Resource azure
-            Connect-AzAccount -AccessToken $token -AccountId $account -Tenant $tenantId -SkipContextPopulation | Out-Null
+            # -Scope Process: the context and its token live in this process only, never in the saved Az context, so a run
+            # neither stores the token nor replaces the admin's own default context.
+            Connect-AzAccount -AccessToken $token -AccountId $account -Tenant $tenantId -SkipContextPopulation -Scope Process | Out-Null
         }
     }
     # Exchange and Purview sign in through the Exchange module, which renews its own tokens.

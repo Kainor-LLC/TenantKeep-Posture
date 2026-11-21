@@ -3,14 +3,17 @@ function Test-PostureExoSession {
     <#
     .SYNOPSIS
         True when an Exchange Online PowerShell session (ExchangeOnlineManagement 3.x) is connected. Never connects.
+        With -TenantId, only when every connected session is in that tenant: the commands go to whichever session the
+        module picks, so a second one in another tenant could answer for the first.
     #>
     [CmdletBinding()]
     [OutputType([bool])]
-    param()
+    param([string] $TenantId)
 
     $ErrorActionPreference = 'Stop'
     if (-not (Get-Command -Name Get-ConnectionInformation -ErrorAction SilentlyContinue)) { return $false }
     $info = @(Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Connected' -and $_.ConnectionUri -notmatch 'compliance' })
+    if ($TenantId -and @($info | Where-Object { [string]$_.TenantID -ne $TenantId }).Count) { return $false }
     return $info.Count -gt 0
 }
 
@@ -18,14 +21,16 @@ function Test-PosturePurviewSession {
     <#
     .SYNOPSIS
         True when a Security and Compliance PowerShell session (Connect-IPPSSession) is connected. Never connects.
+        With -TenantId, only when every connected session is in that tenant.
     #>
     [CmdletBinding()]
     [OutputType([bool])]
-    param()
+    param([string] $TenantId)
 
     $ErrorActionPreference = 'Stop'
     if (-not (Get-Command -Name Get-ConnectionInformation -ErrorAction SilentlyContinue)) { return $false }
     $info = @(Get-ConnectionInformation -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Connected' -and $_.ConnectionUri -match 'compliance' })
+    if ($TenantId -and @($info | Where-Object { [string]$_.TenantID -ne $TenantId }).Count) { return $false }
     return $info.Count -gt 0
 }
 

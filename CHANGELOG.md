@@ -6,6 +6,11 @@ work landed on main.
 
 ## Unreleased
 
+- Sessions pinned to the run's tenant (2026-11-21): `Invoke-PostureCollection` uses an Exchange, Purview or Azure
+  session only when it is in the Graph session's tenant, so a context saved from another tenant (Az keeps one between
+  sessions) is skipped with the command to fix it instead of being read into the wrong run. The module's own Azure
+  sign-in now stays in the process (`Connect-AzAccount -Scope Process`): it no longer saves its token in the Az
+  context file or replaces the admin's default context.
 - A sample report from a made-up tenant (2026-11-21): `samples/demo/New-PostureDemoRun.ps1` writes a complete run for
   Fernquill Engineering, an invented 400-person cloud-only E5 organisation (reserved example domains, a seeded
   generator, the anonymized Conditional Access sample), with its client profile and one accepted risk.

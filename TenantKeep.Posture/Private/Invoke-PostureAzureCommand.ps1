@@ -2,17 +2,20 @@
 function Test-PostureAzureSession {
     <#
     .SYNOPSIS
-        True when an Az.Accounts context is signed in (Connect-AzAccount). Never connects.
+        True when an Az.Accounts context is signed in (Connect-AzAccount). Never connects. With -TenantId, only when
+        that context is in that tenant: Az saves its context between sessions, so the current one can belong to a
+        tenant signed in to days ago.
     #>
     [CmdletBinding()]
     [OutputType([bool])]
-    param()
+    param([string] $TenantId)
 
     $ErrorActionPreference = 'Stop'
     if (-not (Get-Command -Name Get-AzContext -ErrorAction SilentlyContinue)) { return $false }
     $c = $null
     try { $c = Get-AzContext -ErrorAction Stop } catch { return $false }
     if (-not ($c -and $c.Account -and $c.Tenant)) { return $false }
+    if ($TenantId -and [string]$c.Tenant.Id -ne $TenantId) { return $false }
     # A context can outlive its tokens (the cache dies, the session stays listed); prove it with one small read, which
     # works for every context type including one built from a supplied access token.
     Add-PostureCallRecord -Service azure -Method GET -Target '/subscriptions'

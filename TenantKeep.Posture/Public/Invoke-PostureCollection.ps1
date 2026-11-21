@@ -149,13 +149,15 @@ function Invoke-PostureCollection {
     foreach ($scope in $optional.Keys) {
         if ($scope -notin $granted) { Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt." }
     }
-    # Session-bound collectors: skipped with a warning by default, refused when named. The module never connects.
+    # Session-bound collectors: skipped with a warning by default, refused when named. The module never connects. Exchange,
+    # Purview and Azure must be in the Graph session's tenant: a session left open for another tenant is not used.
+    $tenant = [string]$context.TenantId
     $sessions = [ordered]@{
-        Exchange   = @{ test = { Test-PostureExoSession }; hint = 'Connect-ExchangeOnline -UserPrincipalName <reader>' }
+        Exchange   = @{ test = { Test-PostureExoSession -TenantId $tenant }; hint = "Connect-ExchangeOnline -UserPrincipalName <reader> (in tenant $tenant)" }
         SharePoint = @{ test = { Test-PosturePnpSession }; hint = 'Connect-PnPOnline -Url https://<tenant>-admin.sharepoint.com -ClientId <sharePointClientId from profile.json> -Interactive' }
         Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
-        Purview    = @{ test = { Test-PosturePurviewSession }; hint = 'Connect-IPPSSession -UserPrincipalName <reader>' }
-        Azure      = @{ test = { Test-PostureAzureSession }; hint = 'Connect-AzAccount -Tenant <tenant id>' }
+        Purview    = @{ test = { Test-PosturePurviewSession -TenantId $tenant }; hint = "Connect-IPPSSession -UserPrincipalName <reader> (in tenant $tenant)" }
+        Azure      = @{ test = { Test-PostureAzureSession -TenantId $tenant }; hint = "Connect-AzAccount -Tenant $tenant" }
     }
     $run = @{}
     $run['Defender'] = $Collector -contains 'Defender'
