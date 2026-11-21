@@ -432,8 +432,19 @@ function ConvertTo-PostureReportModel {
         calls    = $(try { Get-PostureCallSummary -Folder $Evidence } catch { $null })
         # Evidence brought in from another machine (Import-PostureEvidence): what, from where, and how it was checked.
         imports  = @($(try { $il = Join-Path $runLayout.logs 'imports.json'; if (Test-Path -LiteralPath $il) { @(Get-Content -Raw -LiteralPath $il | ConvertFrom-Json -AsHashtable -Depth 6) } } catch { @() }) | Where-Object { $_ } | ForEach-Object {
-                [ordered]@{ label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count }
+                [ordered]@{ kind = [string]$_['kind']; label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count; tenantCheck = [string]$(if ($_.Contains('tenantCheck')) { $_['tenantCheck'] }) }
             })
+    }
+    # The Active Directory read is made apart from the run, sometimes long before it: the hybrid scorecard says when.
+    $adImport = @($runHealth.imports | Where-Object { $_.kind -eq 'ad' -and $_.collectedUtc } | Select-Object -Last 1)
+    if ($adImport.Count -gt 0) {
+        $adWhen = ConvertTo-PostureUtcDateTime $adImport[0].collectedUtc
+        $runWhen = $(if ($collection -and (& $v $collection 'timestampUtc')) { ConvertTo-PostureUtcDateTime (& $v $collection 'timestampUtc') } else { $null })
+        if ($adWhen) {
+            $days = $(if ($runWhen) { [int][Math]::Floor(($runWhen - $adWhen).TotalDays) } else { $null })
+            $note = "Active Directory was read on $($adWhen.ToString('yyyy-MM-dd'))$(if ($null -ne $days -and $days -ge 1) { ", $days day$(if ($days -ne 1) { 's' }) before the rest of this run" })."
+            foreach ($d in @($domains)) { if ($d.key -eq 'hybrid') { $d.evidenceNote = $note } }
+        }
     }
     # Checks that have an answer from part of the data (a sample, a capped list, some subscriptions): each with the
     # sentence that says how much was read.

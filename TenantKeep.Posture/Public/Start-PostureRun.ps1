@@ -14,7 +14,8 @@ function Start-PostureRun {
           2. At the same time, in this process: the Graph-based collectors (Entra, Intune, Defender when the token
              carries ThreatHunting.Read.All) and Azure when the profile does not say azure: none and the Az modules
              are installed, then SharePoint and Teams with tokens from the broker.
-          3. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are copied into the run.
+          3. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are brought into the run
+             through Import-PostureEvidence's checks.
           4. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
              other answer kept as New-PostureProfile last wrote it.
           5. The report, with the trend against the newest earlier run, and findings.csv in the run folder.
@@ -272,9 +273,21 @@ function Start-PostureRun {
             if ($exit -ne 0) { $skipped['Exchange or Purview'] = "The second process reported $exit failed collector(s); see errors.txt in the run folder." }
         }
 
-        # 5. Hybrid files from the Windows collector.
-        $adFiles = @(Get-ChildItem -LiteralPath (Join-Path $Client 'hybrid') -Filter 'ad-*' -File -ErrorAction SilentlyContinue)
-        if ($adFiles.Count -gt 0) { $adFiles | Copy-Item -Destination $folder -Force }
+        # 5. The Active Directory read the client folder holds (hybrid/, from the Windows collector), through the same
+        # checks as any evidence from another machine: every file against the collector's bundle.json, and the
+        # forest's sign-in names against the tenant's domains. What an earlier attempt at this run brought in goes
+        # first, so the client folder is the one source. A folder that fails a check is not used, and says why.
+        $hybridFolder = Join-Path $Client 'hybrid'
+        if (@(Get-ChildItem -LiteralPath $hybridFolder -Filter 'ad-*' -File -ErrorAction SilentlyContinue).Count -gt 0) {
+            Get-ChildItem -LiteralPath $folder -File -Filter 'ad-*' | Where-Object { $_.Name -match '^ad-\d{2}-[a-z0-9-]+\.(json|csv)$' } | Remove-Item -Force
+            try { $null = Import-PostureEvidence -Path $hybridFolder -Run $runLayout.root -NoReport -Confirm:$false }
+            catch {
+                $message = "The Active Directory evidence in $hybridFolder was not used: $((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim())"
+                Write-Warning $message
+                Invoke-PostureFolderLock -Folder $folder -Script { Add-Content -Path (Join-Path $runLayout.errors 'errors.txt') -Value "Active Directory evidence :: $message" }
+                Write-PostureStepFailure -Folder $folder -Label 'Active Directory evidence' -Message $message -Collector 'Hybrid' -Confirm:$false
+            }
+        }
         # The newest SharePoint site permissions report filed with Import-PostureSharingReport, summarised into this run.
         $null = Write-PostureSharingSummary -Client $Client -Folder $folder -Confirm:$false
         # The calls made outside a collector (the role check, the SharePoint grant check) join the ledger.

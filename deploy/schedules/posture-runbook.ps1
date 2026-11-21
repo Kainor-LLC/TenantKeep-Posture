@@ -265,8 +265,13 @@ try {
     else { Write-Output 'SharePoint admin read not set up (no TENANTKEEP_SHAREPOINT_ADMIN_URL): the tenant settings come from Graph, and the checks on the site list say not evaluated.' }
     Write-Output 'step: collect (Teams)'
     & $phase 'Teams' { Connect-MicrosoftTeams -Identity | Out-Null } @('Teams')
+    # The Active Directory read the client container holds, through the same checks as any evidence from another
+    # machine (every file against the collector's bundle.json, the forest's sign-in names against the tenant's domains).
     $hybrid = Join-Path $client 'hybrid'
-    if (Test-Path $hybrid) { Copy-Item -Path (Join-Path $hybrid 'ad-*') -Destination $folder -Force; Write-Output 'hybrid ad-* files copied in' }
+    if (@(Get-ChildItem -Path $hybrid -Filter 'ad-*' -File -ErrorAction SilentlyContinue).Count -gt 0) {
+        try { $imported = Import-PostureEvidence -Path $hybrid -Run $folder -NoReport -Force:$false -Confirm:$false; Write-Output "hybrid: $(@($imported.Files).Count + @($imported.Unchanged).Count) Active Directory file(s) in the run ($($imported.Checked); $($imported.TenantCheck))" }
+        catch { $skipped['Hybrid'] = $_.Exception.Message; Write-Output "hybrid evidence not used: $($_.Exception.Message)" }
+    }
 
     Write-Output 'step: report'
     $reportParams = @{ Evidence = $folder; Client = $client; PassThru = $true }

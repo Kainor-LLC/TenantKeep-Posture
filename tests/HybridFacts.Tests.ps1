@@ -182,3 +182,23 @@ Describe 'The Windows collector script' {
         foreach ($n in 'ad-01-forest-domain', 'ad-01-trusts', 'ad-02-domain-controllers', 'ad-03-privileged-groups', 'ad-03-admin-accounts', 'ad-04-builtin-accounts', 'ad-05-delegation', 'ad-05-kerberoastable', 'ad-05-asrep-roastable', 'ad-06-computers-summary', 'ad-07-users-summary', 'ad-08-gpos', 'ad-09-adcs', 'ad-09-adcs-templates', 'ad-10-entra-accounts') { $src | Should -Match ([regex]::Escape("'$n'")) }
     }
 }
+
+Describe 'The hybrid scorecard and when Active Directory was read' {
+    It 'says the date of the read, and how long before the run it was' {
+        # The same evidence in a folder of its own, with the record an import leaves and the run's manifest.
+        $ev = Join-Path $script:Root 'dated'
+        Copy-Item -LiteralPath $script:Ev -Destination $ev -Recurse
+        ConvertTo-Json -InputObject @(@{ kind = 'ad'; label = 'Active Directory'; collector = 'Get-ADBaseline.ps1'; collectedUtc = '2026-10-15T15:00:00Z'; importedUtc = '2026-11-21T10:05:00Z'; checked = 'sha256'; tenantCheck = 'matched: contoso.example is a verified domain of the tenant'; files = @('ad-01-forest-domain.json') }) -Depth 5 | Set-Content (Join-Path $ev 'imports.json')
+        @{ tenantId = '33333333-3333-3333-3333-333333333333'; collectors = @('Entra'); timestampUtc = '2026-11-21T10:00:00Z' } | ConvertTo-Json | Set-Content (Join-Path $ev 'collection.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $r = New-PostureReport -Evidence $ev -OutputPath (Join-Path $script:Root 'dated-out') -PassThru 6>$null
+        $hybrid = @($r.Report.domains | Where-Object { $_.key -eq 'hybrid' })[0]
+        $hybrid.evidenceNote | Should -Be 'Active Directory was read on 2026-10-15, 36 days before the rest of this run.'
+        $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+        $html | Should -Match '<p class="hint">Active Directory was read on 2026-10-15, 36 days before the rest of this run\.</p>'
+        $html | Should -Match 'Tenant: matched: contoso\.example is a verified domain of the tenant'
+        Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match 'Active Directory was read on 2026-10-15, 36 days before the rest of this run\.'
+        @($r.Report.domains | Where-Object { $_.key -ne 'hybrid' -and $_.Contains('evidenceNote') -and $_.evidenceNote }) | Should -BeNullOrEmpty
+    }
+}
+

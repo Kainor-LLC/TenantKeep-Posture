@@ -102,6 +102,7 @@ function ConvertTo-PostureReportMarkdown {
     foreach ($d in $r.domains) {
         & $line "### $($d.label)"
         & $line
+        if ($d.Contains('evidenceNote') -and $d.evidenceNote) { & $line $d.evidenceNote; & $line }
         & $line "Score $(& $num $d.score). $($d.narrative) Pass $($d.counts.pass), fail $($d.counts.fail), accepted risk $($d.counts.acceptedRisk), covered $($d.counts.coveredBy), not evaluated $($d.counts.notEvaluated), not applicable $($d.counts.notApplicable)."
         & $line
         $rows = @(foreach ($x in $d.checks) {

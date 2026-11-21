@@ -32,7 +32,7 @@ function Test-PostureSharePointAccess {
     param([Parameter(Mandatory)] [string] $ClientId)
 
     $ErrorActionPreference = 'Stop'
-    $how = 'A Global Administrator grants it to named admins with deploy/setup/Grant-PostureSharePointAccess.ps1; or run collectors/windows/Get-SpoBaseline.ps1 and bring its files in with Import-PostureEvidence. Until then the SharePoint checks use what Graph returns.'
+    $how = 'A Global Administrator grants it to named admins with deploy/setup/Grant-PostureSharePointAccess.ps1; or run Get-SpoBaseline.ps1 on a Windows machine (Export-PostureCollector -Kind SharePoint writes it with its instructions) and bring its folder in with Import-PostureEvidence. Until then the SharePoint checks use what Graph returns.'
     $first = { param([string] $Uri) $r = Invoke-PostureGraphRequest -ApiVersion v1.0 -Uri $Uri -Single; @($(if ($r -is [System.Collections.IDictionary] -and $r.Contains('value')) { $r['value'] } else { $r }) | Where-Object { $_ }) }
     try {
         $sp = @(& $first "servicePrincipals?`$filter=appId eq '$ClientId'&`$select=id,accountEnabled,appRoleAssignmentRequired")

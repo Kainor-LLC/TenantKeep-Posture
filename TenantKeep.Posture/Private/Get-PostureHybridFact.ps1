@@ -6,7 +6,7 @@ function Get-PostureHybridFact {
         federation, Connect Health) and the Active Directory side from the ad-* files the Windows collector wrote.
     .DESCRIPTION
         Thresholds read: maxDomainAdmins, maxKrbtgtAgeDays, maxAdminPasswordAgeDays, minLapsPct, minPasswordLength,
-        maxSsoKeyAgeDays. The AD files come from collectors/windows/Get-ADBaseline.ps1, copied into the evidence
+        maxSsoKeyAgeDays. The AD files come from collectors/windows/Get-ADBaseline.ps1, brought into the evidence
         folder; without them the AD checks are not evaluated and say so.
     #>
     [CmdletBinding()]
@@ -37,7 +37,7 @@ function Get-PostureHybridFact {
     $affectedCounts = @{}
     # Checks judged on part of the data: the engine turns a pass into no answer and puts a note on a fail.
     $partial = @{}
-    $adMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected: run collectors/windows/Get-ADBaseline.ps1 on a domain-joined Windows machine and copy its folder into the evidence folder." } }
+    $adMissing = { param([string[]] $Ids, [string] $File) foreach ($id in $Ids) { $notEvaluated[$id] = "$File.json was not collected: it comes from Get-ADBaseline.ps1, run on a domain-joined Windows machine. Export-PostureCollector -Kind ActiveDirectory writes the script with its instructions, and Import-PostureEvidence brings the result into the run." } }
 
     $sync = & $load '01-onprem-sync-features'; $domains = & $load '01-domains'; $health = & $load 'az-08-entra-connect-health'
     $forest = & $load 'ad-01-forest-domain'
@@ -209,7 +209,7 @@ function Get-PostureHybridFact {
         $gpoSummary = & $load 'ad-08-gpos-summary'
         $notScanned = ($null -ne $gpoSummary -and (& $v $gpoSummary 'SysvolScanned') -eq $false) -or @($gp | Where-Object { $_ -is [System.Collections.IDictionary] -and $_.Contains('HasCpassword') -and $null -eq $_['HasCpassword'] }).Count -gt 0
         $facts.gposWithCpassword = $(if ($notScanned -and $withPassword -eq 0) { $null } else { $withPassword })
-        if ($null -eq $facts.gposWithCpassword) { $notEvaluated['HY-030'] = 'The Group Policy preference files in SYSVOL could not be read when Active Directory was collected, so whether a policy stores a password is unknown. Run collectors/windows/Get-ADBaseline.ps1 again from a machine that can read SYSVOL.' }
+        if ($null -eq $facts.gposWithCpassword) { $notEvaluated['HY-030'] = 'The Group Policy preference files in SYSVOL could not be read when Active Directory was collected, so whether a policy stores a password is unknown. Run Get-ADBaseline.ps1 again from a machine that can read SYSVOL (Export-PostureCollector -Kind ActiveDirectory writes it with its instructions) and bring the result in with Import-PostureEvidence.' }
         $facts.unlinkedGpos = @($gp | Where-Object { [int]$_.Links -eq 0 }).Count
         $affected.gposWithCpassword = @($gp | Where-Object { $_.HasCpassword -eq $true } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'cpassword in the GPO report' } })
     }

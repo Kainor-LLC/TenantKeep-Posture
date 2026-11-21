@@ -85,7 +85,7 @@ function Get-PostureCopilotFact {
     }
 
     # C4, C5, C9 from SharePoint
-    $adminRead = 'It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector (collectors/windows/Get-SpoBaseline.ps1) brought in with Import-PostureEvidence.'
+    $adminRead = 'It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector, Get-SpoBaseline.ps1 (Export-PostureCollector -Kind SharePoint writes it with its instructions), brought in with Import-PostureEvidence.'
     if ($null -eq $spo) { foreach ($id in 'CP-004', 'CP-005', 'CP-009') { $notEvaluated[$id] = 'No SharePoint settings were collected: the Entra collector reads them through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
     elseif ($spoRead.source -eq 'graph') {
         # Graph has the tenant sharing level, so Anyone links answer when the tenant rules them out; the rest does not.

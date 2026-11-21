@@ -265,7 +265,9 @@ function ConvertTo-PostureReportHtml {
     foreach ($a in $areas.Keys) { if (@($areas[$a]).Count) { & $w ('<h3>' + (& $h $a) + '</h3><div class="charts">' + (@($areas[$a]) -join '') + '</div>') } }
     & $w '<h3>Scorecards</h3><div class="cards">'
     foreach ($d in $r.domains) {
-        & $w "<div class=`"card`"><h3>$(& $h $d.label)</h3><div><strong data-domain-score=`"$(& $h $d.key)`">$(& $num $d.score)</strong> <span class=`"tech`">$($d.counts.pass) pass, $($d.counts.fail) fail, $($d.counts.acceptedRisk) accepted, $($d.counts.coveredBy) covered, $($d.counts.notEvaluated) not evaluated</span></div><div class=`"bar`"><i style=`"width:$(if ($null -ne $d.score) { $d.score } else { 0 })%`"></i></div><p>$(& $h $d.narrative)</p></div>"
+        # When a domain's evidence was read apart from the run (Active Directory), the card says when.
+        $evidenceNote = $(if ($d.Contains('evidenceNote') -and $d.evidenceNote) { '<p class="hint">' + (& $h $d.evidenceNote) + '</p>' } else { '' })
+        & $w "<div class=`"card`"><h3>$(& $h $d.label)</h3><div><strong data-domain-score=`"$(& $h $d.key)`">$(& $num $d.score)</strong> <span class=`"tech`">$($d.counts.pass) pass, $($d.counts.fail) fail, $($d.counts.acceptedRisk) accepted, $($d.counts.coveredBy) covered, $($d.counts.notEvaluated) not evaluated</span></div><div class=`"bar`"><i style=`"width:$(if ($null -ne $d.score) { $d.score } else { 0 })%`"></i></div><p>$(& $h $d.narrative)</p>$evidenceNote</div>"
     }
     foreach ($d in $r.domainsNotCollected) { & $w "<div class=`"card na`"><h3>$(& $h $d.label)</h3><p>Not collected yet.$(if ($d.reason) { " $(& $h $d.reason)" })</p></div>" }
     & $w '</div>'
@@ -681,7 +683,7 @@ function ConvertTo-PostureReportHtml {
     }
     if ($rh -and $rh.Contains('imports') -and @($rh.imports).Count) {
         & $w '<h3>Evidence Brought In From Another Machine</h3><table><thead><tr><th>What</th><th>Collector</th><th>Collected</th><th>By</th><th>Files</th><th>Checked</th></tr></thead><tbody>'
-        foreach ($i in $rh.imports) { & $w "<tr><td>$(& $h $i.label)</td><td>$(& $h $i.collector)</td><td>$(& $h $i.collectedUtc)</td><td>$(& $h $i.account)</td><td>$($i.files)</td><td>$(& $h $(if ($i.checked -eq 'sha256') { 'Every file against its SHA-256' } else { 'File names only' }))</td></tr>" }
+        foreach ($i in $rh.imports) { & $w "<tr><td>$(& $h $i.label)</td><td>$(& $h $i.collector)</td><td>$(& $h $i.collectedUtc)</td><td>$(& $h $i.account)</td><td>$($i.files)</td><td>$(& $h $(if ($i.checked -eq 'sha256') { 'Every file against its SHA-256' } else { 'File names only' }))$(if ($i.Contains('tenantCheck') -and $i.tenantCheck) { '<br><span class="tech">Tenant: ' + (& $h $i.tenantCheck) + '</span>' })</td></tr>" }
         & $w '</tbody></table>'
     }
     & $w '</section>'

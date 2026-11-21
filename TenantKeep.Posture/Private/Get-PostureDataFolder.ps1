@@ -2,12 +2,12 @@
 function Get-PostureDataFolder {
     <#
     .SYNOPSIS
-        Finds a data folder shipped with the product (checks, baselines, templates): inside the module once packaged, or beside it in the repo.
+        Finds a data folder shipped with the product (checks, baselines, templates, the Windows collectors): inside the module once packaged, or beside it in the repo.
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory)] [ValidateSet('checks', 'baselines', 'templates', 'schedules', 'licensing')] [string] $Name
+        [Parameter(Mandatory)] [ValidateSet('checks', 'baselines', 'templates', 'schedules', 'licensing', 'collectors')] [string] $Name
     )
 
     $ErrorActionPreference = 'Stop'

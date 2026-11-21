@@ -99,13 +99,26 @@ Nothing is written anywhere else. Nothing leaves the machine.
 
 ## 4. Hybrid tenants
 
-Run collectors/windows/Get-ADBaseline.ps1 once on a domain-joined Windows machine with RSAT and copy the files it
-wrote into the client folder's `hybrid/`; every later run picks them up. A domain controller has everything the
-script needs; a workstation needs the Active Directory and Group Policy RSAT tools (on Windows Server:
-`Install-WindowsFeature GPMC`; on Windows 10 or 11: `Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`,
-then a new PowerShell window), and without Group Policy the GPO checks are reported as not evaluated. The LAPS check
-reads the schema first, so an unextended schema is reported, not an error. To add AD files to one run only, use
-`Import-PostureEvidence -Path <folder> -Run <run folder>`, which also checks them against the collector's bundle.json.
+The on-premises domain is read by a script that ships with the module, on a domain-joined Windows machine, by
+someone with an account there. Three commands, the first and last where the run is:
+
+```powershell
+Export-PostureCollector -Kind ActiveDirectory -Run ~/tenantkeep/evidence/2026-11-21-0957
+# carry collectors/active-directory/ from the run folder to the Windows machine; RUN-ME.txt there has the command:
+#   .\Get-ADBaseline.ps1
+# bring the folder it wrote (or a zip of it) back, then:
+Import-PostureEvidence -Path ~/Downloads/ad-baseline-20261121-1410.zip -Run ~/tenantkeep/evidence/2026-11-21-0957 -Client ~/tenantkeep/clients/contoso
+```
+
+The import checks every file against the collector's bundle.json, checks that the forest is this tenant's (one of
+the names its people sign in with must be a domain the tenant has verified; another organisation's directory is
+refused), rebuilds the run's report, and with `-Client` files the read in the client folder's `hybrid/`, where every
+later run of that client picks it up through the same checks. The hybrid scorecard says when Active Directory was
+read. A domain controller has everything the script needs; a workstation needs the Active Directory and Group Policy
+RSAT tools (on Windows Server: `Install-WindowsFeature GPMC`; on Windows 10 or 11:
+`Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0`, then a new PowerShell window),
+and without Group Policy the GPO checks are reported as not evaluated. The LAPS check reads the schema first, so an
+unextended schema is reported, not an error.
 
 ## 4a. SharePoint without full control
 
@@ -115,12 +128,12 @@ needs more. For the rest, the SharePoint admin read, pick one:
 - Grant the TenantKeep Posture for SharePoint app to the admins who run the report
   (`deploy/setup/Grant-PostureSharePointAccess.ps1`, docs/collection.md); Start-PostureRun then signs in to it as
   well. It is never consented for the organisation, and only assigned admins can sign in to it.
-- Or run `collectors/windows/Get-SpoBaseline.ps1` on a Windows machine (a cloud PC is fine) as the SharePoint admin,
-  on Microsoft's own SharePoint shell with no third-party app, and bring the folder into the run:
+- Or run Get-SpoBaseline.ps1 on a Windows machine (a cloud PC is fine) as the SharePoint admin, on Microsoft's own
+  SharePoint shell with no third-party app, and bring the folder into the run. The script ships with the module:
 
   ```powershell
-  Import-PostureEvidence -Path ./spo-baseline-20261120-1015 -Run ~/tenantkeep/evidence/20261120-0957
-  New-PostureReport -Evidence ~/tenantkeep/evidence/20261120-0957
+  Export-PostureCollector -Kind SharePoint -Run ~/tenantkeep/evidence/20261120-0957   # RUN-ME.txt has the command, with the tenant filled in
+  Import-PostureEvidence -Path ./spo-baseline-20261120-1015 -Run ~/tenantkeep/evidence/20261120-0957   # rebuilds the report
   ```
 
   This goes into one run on purpose: sharing settings change, so a later run should not quietly reuse an old read.

@@ -547,6 +547,13 @@ function Invoke-Build {
         $src = Join-Path $Root $data
         if (Test-Path $src) { Copy-Item -Path $src -Destination (Join-Path $stage $data) -Recurse -Exclude '.gitkeep' }
     }
+    # The Windows collectors ship inside the module, so Export-PostureCollector can hand one over with its
+    # instructions wherever the module is installed, and a signed release signs them with everything else.
+    $windowsCollectors = Join-Path $Root 'collectors' 'windows'
+    if (Test-Path $windowsCollectors) {
+        New-Item -ItemType Directory -Path (Join-Path $stage 'collectors' 'windows') -Force | Out-Null
+        Copy-Item -Path (Join-Path $windowsCollectors '*.ps1') -Destination (Join-Path $stage 'collectors' 'windows')
+    }
     # The scheduling scripts ship inside the module so a runbook can find them next to the manifest.
     $schedules = Join-Path $Root 'deploy' 'schedules'
     if (Test-Path $schedules) {

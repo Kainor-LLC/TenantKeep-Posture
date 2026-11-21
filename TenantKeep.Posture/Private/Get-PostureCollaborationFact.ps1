@@ -40,7 +40,7 @@ function Get-PostureCollaborationFact {
     $spoRead = Read-PostureSharePointSetting -Evidence $Evidence
     $spo = $(if ($spoRead) { $spoRead.settings } else { $null })
     $graphOnly = $null -ne $spoRead -and $spoRead.source -eq 'graph'
-    $adminOnly = { param([string] $Id, [string] $What) $notEvaluated[$Id] = "Graph's SharePoint settings do not include $What. It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector (collectors/windows/Get-SpoBaseline.ps1) brought in with Import-PostureEvidence." }
+    $adminOnly = { param([string] $Id, [string] $What) $notEvaluated[$Id] = "Graph's SharePoint settings do not include $What. It needs the SharePoint admin read: the TenantKeep SharePoint app for named admins (deploy/setup/Grant-PostureSharePointAccess.ps1), or the Windows collector, Get-SpoBaseline.ps1 (Export-PostureCollector -Kind SharePoint writes it with its instructions), brought in with Import-PostureEvidence." }
     $teamsFed = & $load 'teams-federation'
     if ($null -eq $spo -and $null -eq $teamsFed) { return @{ available = $false; reason = 'No SharePoint or Teams evidence in the folder (the Entra collector reads Graph''s SharePoint settings; Invoke-PostureCollection -Collector Teams needs a Teams session).' } }
 
@@ -85,7 +85,7 @@ function Get-PostureCollaborationFact {
 
     # Ownerless sites and teams (CL-007)
     $sites = & $load 'spo-sites-summary'; $groups = & $load '07-groups-ownerless'; $groupSummary = & $load '07-groups-ownerless-summary'
-    if ($null -eq $sites) { $notEvaluated['CL-007'] = 'The site list was not collected: it comes from the SharePoint admin read (the TenantKeep SharePoint app, or collectors/windows/Get-SpoBaseline.ps1 brought in with Import-PostureEvidence), without -SkipSiteEnumeration.' }
+    if ($null -eq $sites) { $notEvaluated['CL-007'] = 'The site list was not collected: it comes from the SharePoint admin read (the TenantKeep SharePoint app, or Get-SpoBaseline.ps1 from Export-PostureCollector -Kind SharePoint, brought in with Import-PostureEvidence), without -SkipSiteEnumeration.' }
     elseif ($null -eq $groups) { & $missing @('CL-007') '07-groups-ownerless' 'Entra' }
     else {
         # The ownerless sites, a row at a time from the site list.

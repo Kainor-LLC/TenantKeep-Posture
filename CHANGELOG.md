@@ -6,6 +6,23 @@ work landed on main.
 
 ## Unreleased
 
+- `Export-PostureCollector` (2026-11-21). The two scripts that run on a Windows machine, the Active Directory read
+  and the SharePoint admin read on Microsoft's own shell, lived in the repository and had to be found there. They
+  now ship inside the module, and `Export-PostureCollector -Kind ActiveDirectory|SharePoint -Run <run>` writes one
+  to a folder with a RUN-ME.txt: who runs it, where, the exact command with the run's tenant filled in, and the
+  command that brings the result back.
+- One way in for evidence collected elsewhere. `Start-PostureRun` and the Automation runbook copied the client
+  folder's `hybrid/ad-*` files into a run as they were; they now go through `Import-PostureEvidence`, with its
+  check of every file against the collector's bundle.json. A folder that fails is not used, and Run Health says why.
+- Active Directory evidence is checked against the tenant. Nothing tied an AD read to a tenant, so a consultant
+  with twenty client folders could put one client's domain controllers into another client's report. One of the
+  forest's UPN suffixes must now be a domain the run's tenant has verified (or sit under or over one); a forest
+  that shares none is refused unless `-Force`. The record of each import says how the check went.
+- `Import-PostureEvidence` rebuilds the report of a run that has one (`-NoReport` leaves it), files an Active
+  Directory read for later runs with `-Client`, and takes a run kept in one folder.
+- The hybrid scorecard says when Active Directory was read, and how long before the rest of the run.
+- The hints on checks that need a Windows collector name the two commands, not a path in the repository.
+
 - The Automation runbook carries on instead of starting over (2026-11-21). Azure Automation stops a sandbox job
   after three hours and starts it again from the top; the runbook began every job with an empty folder and
   uploaded nothing until the end, so a tenant that needed more than three hours never finished. The run is now

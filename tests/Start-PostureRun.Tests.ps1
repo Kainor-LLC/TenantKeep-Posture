@@ -100,6 +100,25 @@ Describe 'Start-PostureRun' {
         }
     }
 
+    It 'does not use Active Directory evidence in the client folder that fails its checks, and says why' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            $hybrid = Join-Path $client 'hybrid'
+            Get-ChildItem -LiteralPath $hybrid -File | Remove-Item -Force
+            # A collector folder whose file was changed after it was collected.
+            Set-Content -LiteralPath (Join-Path $hybrid 'ad-01-forest-domain.json') -Value '{"ForestFunctionalLevel":"Windows2016Forest"}'
+            @{ kind = 'ad'; collector = 'Get-ADBaseline.ps1'; schema = 1; domain = 'corp.contoso.local'; files = @(@{ name = 'ad-01-forest-domain.json'; sha256 = ('0' * 64) }) } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $hybrid 'bundle.json')
+            $script:NextStamp = '20261123-1200'
+            try {
+                $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra -NoBrowser -AllowSleep -PassThru 6>$null 3>$null
+                Test-Path (Join-Path $result.Evidence 'ad-01-forest-domain.json') | Should -BeFalse -Because 'a file that does not match its bundle is not evidence'
+                $errors = Get-Content (Join-Path (Get-PostureRunLayout -Folder $result.Evidence).errors 'errors.txt')
+                @($errors | Where-Object { $_ -match '^Active Directory evidence :: .*was not used: .*changed after collection' }).Count | Should -Be 1
+            }
+            finally { Get-ChildItem -LiteralPath $hybrid -File | Remove-Item -Force }
+        }
+    }
+
     It 'collects into an existing run folder without a new Conditional Access snapshot, and records the resume in run.json' {
         InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()

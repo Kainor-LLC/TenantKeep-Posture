@@ -228,10 +228,11 @@ with RSAT (ActiveDirectory; GroupPolicy for the GPO inventory), as a domain user
 domain, trusts, domain controllers, privileged groups and admin accounts, krbtgt and built-in accounts, delegation,
 Kerberoastable and AS-REP roastable accounts, LAPS coverage and computers, users, GPOs with a cpassword scan, AD CS
 templates with ESC1 candidates, the seamless SSO and cloud Kerberos accounts) plus errors.txt, a transcript and
-bundle.json (every file with its SHA-256). Bring the folder into the run with `Import-PostureEvidence -Path <folder>
--Run <run folder>`; the hybrid checks evaluate from it next to the Entra-side facts (sync features, federation,
-Connect Health) the cloud collectors already wrote. Nothing is installed or scheduled; the Hybrid Runbook Worker option
-in deploy/ is the v1.1 path for monthly runs.
+bundle.json (every file with its SHA-256, and the forest's domains and UPN suffixes). `Export-PostureCollector -Kind
+ActiveDirectory -Run <run folder>` writes the script and a RUN-ME.txt to carry to that machine. Bring the folder it
+writes into the run with `Import-PostureEvidence -Path <folder> -Run <run folder>`; the hybrid checks evaluate from it
+next to the Entra-side facts (sync features, federation, Connect Health) the cloud collectors already wrote. Nothing is
+installed or scheduled.
 
 On a large domain: users and computers are read through the pipeline and counted as they arrive, never held as a
 list. GPO links come from one directory query for `gPLink`, and passwords stored in Group Policy Preferences from one
@@ -262,10 +263,21 @@ Import-PostureEvidence -Path ./spo -Run ~/tenantkeep/evidence/<stamp>
 New-PostureReport -Evidence ~/tenantkeep/evidence/<stamp>
 ```
 
-Import-PostureEvidence checks every file against bundle.json, refuses SharePoint evidence from another tenant, copies
-only the evidence files the checks read, refuses to overwrite a different file already in the run unless `-Force`,
-adds the collector's errors.txt to the run's errors and records the import, which Run Health lists. It also takes the
-evidence folder of a SharePoint-only run made with the module on another machine (the tenant comes from that run).
+Import-PostureEvidence is the one way Windows-collected evidence enters a run. It checks every file against
+bundle.json, refuses SharePoint evidence from another tenant, copies only the evidence files the checks read, refuses
+to overwrite a different file already in the run unless `-Force`, adds the collector's errors.txt to the run's errors
+and records the import, which Run Health lists, then rebuilds the run's report when it has one (`-NoReport` leaves
+it). It also takes the evidence folder of a SharePoint-only run made with the module on another machine (the tenant
+comes from that run).
+
+Active Directory evidence has no tenant id in it, so it is tied to the tenant by name: one of the forest's UPN
+suffixes (or its domains) must be a domain the run's tenant has verified, or sit under or over one. A forest that
+shares none is refused, which is what keeps one client's domain controllers out of another client's report; `-Force`
+accepts it, for a forest whose people sign in to Microsoft 365 with another name than their AD one. A collector
+folder from before the suffixes were recorded, or a run without the tenant's domain list, is accepted with a warning
+that says the check could not be made. `-Client <client folder>` also files the read in the client's `hybrid/`, and
+`Start-PostureRun` brings that folder into each later run through the same checks; a folder that fails one is not
+used and Run Health says why.
 
 ## What the Purview collector writes
 
