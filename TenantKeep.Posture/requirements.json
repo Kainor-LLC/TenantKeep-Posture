@@ -103,6 +103,16 @@
   },
   "steps": [
     {
+      "collector": "Teams",
+      "match": "^Teams (org-wide app settings|app availability)$",
+      "roles": [
+        "Teams Administrator",
+        "Global Reader (verify)"
+      ],
+      "licence": "",
+      "note": "App centric management: Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps (AppName from MicrosoftTeams 7.3.0). A tenant not moved yet falls back to the app permission policy (verify that both read through the token the module signs in with)."
+    },
+    {
       "collector": "Purview",
       "match": "^Information barriers$",
       "roles": [

@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- Teams apps under app centric management (2026-11-21): the Teams collector reads the org-wide app settings
+  (`Get-M365UnifiedTenantSettings`, `teams-app-settings`) and every app's availability and block state
+  (`Get-AllM365TeamsApps`, `teams-app-availability`). CL-014 now judges the org-wide default for third-party apps,
+  names the setting when it fails and counts the catalog by availability; the app permission policy decides only on a
+  tenant Microsoft has not moved yet, or evidence from before this read. The Teams entry point accepts those two
+  read cmdlets by exact name and still refuses everything else.
 - Six checks checked against Microsoft Learn (2026-11-21), their "(verify)" tags gone from what customers read:
   SharePoint Advanced Management comes with Copilot licences (CP-002); app centric management replaces Teams app
   permission policies on tenants Microsoft has moved since April 2025 (CL-014); the Intune label is Windows Backup and

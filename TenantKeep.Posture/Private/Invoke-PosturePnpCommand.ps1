@@ -54,12 +54,13 @@ function Test-PostureTeamsSession {
 function Invoke-PostureTeamsCommand {
     <#
     .SYNOPSIS
-        The single entry point for MicrosoftTeams cmdlets: Get-Cs* and Get-Team* only, by name.
+        The single entry point for MicrosoftTeams cmdlets: Get-Cs*, Get-Team* and the two app centric management reads
+        (Get-AllM365TeamsApps, Get-M365UnifiedTenantSettings) only, by name.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
     param(
-        [Parameter(Mandatory)] [ValidatePattern('^Get-(Cs|Team)[A-Za-z0-9]*$')] [string] $Name,
+        [Parameter(Mandatory)] [ValidatePattern('^Get-((Cs|Team)[A-Za-z0-9]*|AllM365TeamsApps|M365UnifiedTenantSettings)$')] [string] $Name,
         [hashtable] $Parameters = @{}
     )
 

@@ -464,10 +464,13 @@
       "coveredBy": [],
       "thresholds": {},
       "evidence": [
+        "teams-app-settings.json",
+        "teams-app-availability.json",
         "teams-app-permission-policies.json"
       ],
       "pass": "facts.thirdPartyAppsRestricted",
-      "remediation": "In the global app permission policy (or app centric management) allow specific third-party apps rather than all.",
+      "affected": "facts.thirdPartyAppsRestricted",
+      "remediation": "In the Teams admin center, Manage apps, Actions, Org-wide app settings, turn off third-party apps by default. Then make each approved third-party app available to everyone or to the groups that need it, and leave the rest for users to request. On a tenant still on app permission policies, allow specific third-party apps in the global policy instead of all.",
       "effort": "M",
       "category": "improve",
       "userImpact": {
@@ -476,7 +479,7 @@
       },
       "learn": "https://learn.microsoft.com/microsoftteams/app-centric-management",
       "deepLink": "https://admin.teams.microsoft.com/policies/manage-apps",
-      "narrative": "A Teams app is an OAuth grant plus a surface inside every chat. Allowing all third-party apps lets any user consent to any of them. Microsoft has been moving tenants to app centric management since April 2025, where each app has its own availability and this policy no longer applies; on those tenants, review in Manage apps which third-party apps are available to everyone.",
+      "narrative": "A Teams app is an OAuth grant plus a surface inside every chat. Allowing all third-party apps lets any user consent to any of them. Since April 2025 Microsoft has moved tenants to app centric management, where an org-wide setting decides whether third-party apps are available by default and each app can be opened to everyone, to named groups or to no one. The check reads that setting, and the app permission policy on a tenant not moved yet.",
       "frameworks": {
         "nist-csf-2": "GV.SC-04",
         "iso27001": "A.5.19",

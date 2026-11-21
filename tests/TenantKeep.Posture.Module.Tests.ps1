@@ -196,10 +196,10 @@ Describe 'Read-only guard' {
     }
 
     It 'runs PnP and Teams cmdlets only through their entry points, which accept read names only' {
-        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1', 'Connect-PostureService.ps1'
+        $hits = Find-Code '(^|[;{|(&])\s*[A-Za-z]+-(PnP|(?-i:Cs[A-Z])|Team|AllM365|M365Unified)[A-Za-z]*' 'Invoke-PosturePnpCommand.ps1', 'Connect-PostureService.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PosturePnpCommand.ps1')
         $src | Should -Match "ValidatePattern\('\^Get-PnP"
-        $src | Should -Match "ValidatePattern\('\^Get-\(Cs\|Team\)"
+        $src | Should -Match ([regex]::Escape("ValidatePattern('^Get-((Cs|Team)[A-Za-z0-9]*|AllM365TeamsApps|M365UnifiedTenantSettings)$')"))
     }
 }

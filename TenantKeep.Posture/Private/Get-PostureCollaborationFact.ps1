@@ -145,13 +145,34 @@ function Get-PostureCollaborationFact {
         $facts.autoAdmittedUsers = [string](& $v $meeting 'AutoAdmittedUsers')
         $facts.lobbyForExternal = $facts.autoAdmittedUsers -in @('EveryoneInCompany', 'EveryoneInCompanyExcludingGuests', 'OrganizerOnly', 'InvitedUsers')
     }
+    # CL-014. Under app centric management the org-wide setting for third-party apps decides whether every third-party
+    # app is available by default; GlobalApp is that setting, as GlobalCatalogApps named third-party apps in the old
+    # permission policies (verify: Microsoft's cmdlet page lists DefaultApp, GlobalApp and PrivateApp without saying which
+    # is which). A tenant not moved yet, or evidence from before this read, falls back to the global permission policy.
+    $appSettings = & $load 'teams-app-settings'
+    $thirdParty = @($(if ($null -ne $appSettings) { & $rows $appSettings | Where-Object { [string](& $v $_ 'SettingName') -eq 'GlobalApp' } }) | Select-Object -First 1)
     $apps = & $load 'teams-app-permission-policies'
-    if ($null -eq $apps) { & $missing @('CL-014') 'teams-app-permission-policies' 'Teams' }
-    else {
-        # (verify) app permission policies are being replaced by app centric management; the Global policy still reports the catalog types.
+    if ($thirdParty.Count -and [string](& $v $thirdParty[0] 'SettingValue')) {
+        $default = [string](& $v $thirdParty[0] 'SettingValue')
+        $facts.thirdPartyAppsRestricted = $default -ne 'All'
+        $facts.thirdPartyAppsSource = 'app centric management'
+        # Every app's availability, all kinds together: the per-app list carries no publisher, so it is context, not the verdict.
+        $catalog = & $load 'teams-app-availability'
+        $tally = ''
+        if ($null -ne $catalog) {
+            $all = @(& $rows $catalog | Where-Object { $_ })
+            $open = @($all | Where-Object { [string](& $v $_ 'IsBlocked') -ne 'Blocked' })
+            $tally = "; of the $($all.Count) apps in the catalog, $(@($open | Where-Object { [string](& $v $_ 'AvailableTo') -eq 'Everyone' }).Count) are available to everyone, $(@($open | Where-Object { [string](& $v $_ 'AvailableTo') -eq 'UsersandGroups' }).Count) to named users or groups, and $(@($all | Where-Object { [string](& $v $_ 'IsBlocked') -eq 'Blocked' }).Count) are blocked"
+        }
+        $affected.thirdPartyAppsRestricted = @($(if (-not $facts.thirdPartyAppsRestricted) { [ordered]@{ name = 'Org-wide app settings'; detail = "every third-party app is available to everyone unless it is limited one by one$tally" } }))
+    }
+    elseif ($null -ne $apps) {
         $global = @(& $rows $apps | Where-Object { [string]$_.Identity -match 'Global$' } | Select-Object -First 1)
         $facts.thirdPartyAppsRestricted = [bool]($global.Count -gt 0 -and [string](& $v $global[0] 'GlobalCatalogAppsType') -eq 'AllowedAppList')
+        $facts.thirdPartyAppsSource = 'app permission policy'
+        $affected.thirdPartyAppsRestricted = @($(if (-not $facts.thirdPartyAppsRestricted) { [ordered]@{ name = 'Global app permission policy'; detail = "third-party apps: $(if ($global.Count) { [string](& $v $global[0] 'GlobalCatalogAppsType') } else { 'no global policy' })" } }))
     }
+    else { & $missing @('CL-014') 'teams-app-settings' 'Teams' }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('spo-tenant-settings.json', 'teams-federation.json', 'spo-dag-site-permissions.json') }
 }

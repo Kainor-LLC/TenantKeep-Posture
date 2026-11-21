@@ -34,6 +34,17 @@ function Get-CollaborationFixtureObject {
         'Get-CsTeamsAppPermissionPolicy' { & $o @{ Identity = 'Global'; DefaultCatalogAppsType = 'BlockedAppList'; GlobalCatalogAppsType = 'BlockedAppList'; PrivateCatalogAppsType = 'BlockedAppList'; GlobalCatalogApps = @() } }
         'Get-CsTeamsGuestMessagingConfiguration' { & $o @{ Identity = 'Global'; AllowUserEditMessage = $true; AllowUserDeleteMessage = $true; AllowGiphy = $true } }
         'Get-CsTeamsMessagingPolicy' { & $o @{ Identity = 'Global'; AllowUrlPreviews = $true; AllowUserChat = $true } }
+        'Get-M365UnifiedTenantSettings' {
+            & $o @{ SettingName = 'DefaultApp'; SettingValue = 'All'; Users = @(); Groups = @() }
+            & $o @{ SettingName = 'GlobalApp'; SettingValue = 'All'; Users = @(); Groups = @() }
+            & $o @{ SettingName = 'PrivateApp'; SettingValue = 'None'; Users = @(); Groups = @() }
+        }
+        'Get-AllM365TeamsApps' {
+            & $o @{ Id = 'app-planner'; AppName = 'Planner'; IsBlocked = 'Unblocked'; AvailableTo = [pscustomobject]@{ AssignmentType = 'Everyone'; LastUpdatedTimestamp = '2026-10-01T00:00:00Z' }; InstalledFor = [pscustomobject]@{ AppInstallType = 'Noone' } }
+            & $o @{ Id = 'app-polls'; AppName = 'Quick Polls'; IsBlocked = 'Unblocked'; AvailableTo = [pscustomobject]@{ AssignmentType = 'Everyone'; LastUpdatedTimestamp = '2026-10-01T00:00:00Z' }; InstalledFor = [pscustomobject]@{ AppInstallType = 'Noone' } }
+            & $o @{ Id = 'app-crm'; AppName = 'Sales CRM'; IsBlocked = 'Unblocked'; AvailableTo = [pscustomobject]@{ AssignmentType = 'UsersandGroups'; LastUpdatedTimestamp = '2026-11-01T00:00:00Z' }; InstalledFor = [pscustomobject]@{ AppInstallType = 'UsersandGroups' } }
+            & $o @{ Id = 'app-games'; AppName = 'Office Games'; IsBlocked = 'Blocked'; AvailableTo = [pscustomobject]@{ AssignmentType = 'Noone'; LastUpdatedTimestamp = '2026-09-01T00:00:00Z' }; InstalledFor = [pscustomobject]@{ AppInstallType = 'Noone' } }
+        }
         default { throw "Fixture has no output for $Name" }
     }
 }

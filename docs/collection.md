@@ -232,7 +232,8 @@ Exchange carries every call.
 | `spo-restricted-search` | Get-PnPTenantRestrictedSearchMode and its allow list | Copilot readiness C9 |
 | `spo-sites` (+csv), `spo-sites-summary` | Get-PnPTenantSite -IncludeOneDriveSites -Detailed | Ownerless, anonymous-capable, labeled and restricted counts; OneDrives apart. `-SkipSiteEnumeration` at 20k OneDrives |
 | `teams-federation`, `teams-client-config`, `teams-meeting-policy-global`, `teams-guest-messaging` | the Teams tenant configurations and the Global meeting policy | Single objects |
-| `teams-external-access` (+csv), `teams-app-permission-policies` (+csv), `teams-messaging-policies` (+csv) | the policy collections | (verify) app permission policies on tenants moved to app centric management |
+| `teams-external-access` (+csv), `teams-app-permission-policies` (+csv), `teams-messaging-policies` (+csv) | the policy collections | App permission policies only decide CL-014 on a tenant not yet moved to app centric management |
+| `teams-app-settings`, `teams-app-availability` (+csv) | Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps | App centric management (tenants moved since April 2025): the org-wide default per kind of app, and each app's availability (everyone, named users and groups, no one) and whether it is blocked. CL-014 reads the third-party default (`GlobalApp`) |
 
 The Entra collector adds `02-group-lifecycle-policy` and `07-groups-ownerless` (+summary) for the collaboration checks. The
 oversharing views that need SharePoint Advanced Management reports (sites shared with Everyone except external users,

@@ -33,7 +33,7 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         }
 
         It 'writes the A.3 files with the audit plan names' {
-            foreach ($n in 'spo-tenant-settings', 'spo-sites', 'spo-sites-summary', 'teams-federation', 'teams-client-config', 'teams-meeting-policy-global', 'teams-external-access', 'teams-app-permission-policies', 'teams-guest-messaging') {
+            foreach ($n in 'spo-tenant-settings', 'spo-sites', 'spo-sites-summary', 'teams-federation', 'teams-client-config', 'teams-meeting-policy-global', 'teams-external-access', 'teams-app-permission-policies', 'teams-guest-messaging', 'teams-app-settings', 'teams-app-availability') {
                 Join-Path $script:Folder "$n.json" | Should -Exist
             }
             Join-Path $script:Folder 'spo-sites.csv' | Should -Exist
@@ -63,6 +63,15 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
             @(& $script:Read 'teams-app-permission-policies')[0].GlobalCatalogAppsType | Should -Be 'BlockedAppList'
         }
 
+        It 'flattens each app''s availability and the org-wide app settings' {
+            $apps = @(& $script:Read 'teams-app-availability')
+            $apps.Count | Should -Be 4
+            ($apps | Where-Object Id -eq 'app-crm').AvailableTo | Should -Be 'UsersandGroups'
+            ($apps | Where-Object Id -eq 'app-games').IsBlocked | Should -Be 'Blocked'
+            ($apps | Where-Object Id -eq 'app-planner').AvailableToChangedUtc | Should -Not -BeNullOrEmpty
+            (@(& $script:Read 'teams-app-settings') | Where-Object SettingName -eq 'GlobalApp').SettingValue | Should -Be 'All'
+        }
+
         It 'feeds the collaboration checks, with the Entra files for groups' {
             '[]' | Set-Content -LiteralPath (Join-Path $script:Folder '07-groups-ownerless.json')
             '{ "Present": true, "GroupLifetimeInDays": 365, "ManagedGroupTypes": "All" }' | Set-Content -LiteralPath (Join-Path $script:Folder '02-group-lifecycle-policy.json')
@@ -86,6 +95,22 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
             $by['CL-012'].status | Should -Be 'pass' -Because 'guests are on but expire'
             $by['CL-013'].status | Should -Be 'pass'
             $by['CL-014'].status | Should -Be 'fail'
+            $by['CL-014'].affected[0].name | Should -Be 'Org-wide app settings' -Because 'app centric management decides when its settings were read'
+            $by['CL-014'].affected[0].detail | Should -Match 'of the 4 apps in the catalog, 2 are available to everyone, 1 to named users or groups, and 1 are blocked'
+        }
+
+        It 'passes CL-014 when third-party apps are off by default, and falls back to the permission policy without the new read' {
+            $profilePath = Join-Path $script:Root 'profile.json'
+            $copy = Join-Path $script:Root "acm-$([guid]::NewGuid().ToString('n'))"
+            Copy-Item -LiteralPath $script:Folder -Destination $copy -Recurse
+            ConvertTo-Json -InputObject @(@{ SettingName = 'GlobalApp'; SettingValue = 'None' }) | Set-Content -LiteralPath (Join-Path $copy 'teams-app-settings.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            @((Invoke-PostureChecks -Evidence $copy -Domain collaboration -ProfilePath $profilePath -PassThru).results | Where-Object id -eq 'CL-014')[0].status | Should -Be 'pass'
+
+            Remove-Item -LiteralPath (Join-Path $copy 'teams-app-settings.json')
+            ConvertTo-Json -InputObject @(@{ Identity = 'Global'; GlobalCatalogAppsType = 'AllowedAppList' }) | Set-Content -LiteralPath (Join-Path $copy 'teams-app-permission-policies.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            @((Invoke-PostureChecks -Evidence $copy -Domain collaboration -ProfilePath $profilePath -PassThru).results | Where-Object id -eq 'CL-014')[0].status | Should -Be 'pass' -Because 'an allow list in the global permission policy'
         }
     }
 
@@ -109,6 +134,9 @@ Describe 'PnP and Teams entry points' {
             { Invoke-PosturePnpCommand -Name 'Set-PnPTenant' } | Should -Throw
             { Invoke-PostureTeamsCommand -Name 'Set-CsTenantFederationConfiguration' } | Should -Throw
             { Invoke-PostureTeamsCommand -Name 'Remove-Team' } | Should -Throw
+            { Invoke-PostureTeamsCommand -Name 'Update-M365TeamsApp' } | Should -Throw
+            { Invoke-PostureTeamsCommand -Name 'Update-M365UnifiedTenantSettings' } | Should -Throw
+            { Invoke-PostureTeamsCommand -Name 'Get-AllM365TeamsAppsAndMore' } | Should -Throw
         }
     }
 }

@@ -56,8 +56,9 @@ run) and what the record shows afterwards (below).
 ## How read-only is enforced
 
 - **One entry point per service, reads only.** Graph requests, Exchange and Purview commands (`Get-` only), PnP
-  commands (`Get-PnP` only), Teams commands (`Get-Cs` and `Get-Team` only) and Azure requests each go through one
-  function that refuses anything else.
+  commands (`Get-PnP` only), Teams commands (`Get-Cs`, `Get-Team` and the two app availability reads,
+  `Get-AllM365TeamsApps` and `Get-M365UnifiedTenantSettings`) and Azure requests each go through one function that
+  refuses anything else.
 - **Tests that fail the build.** The module's test suite fails if any code sends a request other than GET, except four
   POSTs that are reads with the question in the body, each marked in the code: Graph batches of reads, advanced
   hunting queries, directory lookups by id, and the Cost Management cost query. The same tests fail on a SharePoint,
