@@ -401,7 +401,7 @@
         "level": "none",
         "text": "Filtering gets more accurate; users notice less spam and fewer false positives."
       },
-      "learn": "https://learn.microsoft.com/defender-office-365/skip-filtering-phishing-simulations-sec-ops-mailboxes",
+      "learn": "https://learn.microsoft.com/exchange/mail-flow-best-practices/use-connectors-to-configure-mail-flow/enhanced-filtering-for-connectors",
       "deepLink": "https://admin.exchange.microsoft.com/#/connectors",
       "narrative": "With a gateway in front, every message arrives from the gateway's IP, SPF fails and spoof intelligence is blind. Enhanced Filtering restores the original connecting IP.",
       "frameworks": {
@@ -550,7 +550,7 @@
         "level": "none",
         "text": "Mail between servers uses enforced encryption; users see nothing."
       },
-      "learn": "https://learn.microsoft.com/exchange/mail-flow-best-practices/enhancing-mail-flow-with-mta-sts",
+      "learn": "https://learn.microsoft.com/purview/enhancing-mail-flow-with-mta-sts",
       "deepLink": "https://admin.microsoft.com/#/Domains",
       "narrative": "MTA-STS makes senders refuse to deliver to the domain without a valid TLS connection, closing the downgrade. TLS-RPT is how failures get reported.",
       "frameworks": {

@@ -1,0 +1,39 @@
+# Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
+name: Weekly upkeep
+
+# What has gone stale in the data the module ships: Microsoft's licensing list, MITRE ATT&CK, the PowerShell modules
+# the collectors were tested with, and Learn links. build.ps1 -Task Upkeep writes the report; this files it as one
+# issue, updated in place each week. Nothing here touches a tenant, and the module itself never calls out.
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  upkeep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write the upkeep report
+        shell: pwsh
+        run: ./build.ps1 -Task Upkeep -UpkeepReport out/upkeep.md
+
+      - name: File it as the upkeep issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $body = Get-Content -Raw out/upkeep.md
+          $existing = gh issue list --state open --label upkeep --json number --jq '.[0].number'
+          if ($body -match 'Nothing has gone stale') {
+            if ($existing) { gh issue close $existing --comment 'Nothing has gone stale this week.' }
+            return
+          }
+          gh label create upkeep --description 'Weekly upkeep report' --color c5def5 2>$null
+          if ($existing) { gh issue edit $existing --body-file out/upkeep.md }
+          else { gh issue create --title 'Weekly upkeep' --label upkeep --body-file out/upkeep.md }

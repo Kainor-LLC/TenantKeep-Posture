@@ -753,7 +753,7 @@
         "level": "low",
         "text": "Members of ownerless sites may be asked to take ownership."
       },
-      "learn": "https://learn.microsoft.com/microsoft-365/solutions/microsoft-365-groups-ownerless-groups-teams",
+      "learn": "https://learn.microsoft.com/sharepoint/site-ownership-policy",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Site access reviews need a site owner to answer them. Ownerless sites are the ones the clean-up cannot reach.",
       "frameworks": {

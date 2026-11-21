@@ -774,7 +774,7 @@
         "level": "medium",
         "text": "Apps that use storage keys, anonymous access or plain HTTP fail until moved to Entra sign-in or scoped tokens."
       },
-      "learn": "https://learn.microsoft.com/azure/storage/common/security-recommendations",
+      "learn": "https://learn.microsoft.com/azure/storage/blobs/security-recommendations",
       "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Storage%2FStorageAccounts",
       "narrative": "A storage account key is a password to every byte in the account, and anonymous blob access is the classic public-bucket leak. Both are off by one switch each.",
       "frameworks": {

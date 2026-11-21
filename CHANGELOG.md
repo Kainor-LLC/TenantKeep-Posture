@@ -6,6 +6,13 @@ work landed on main.
 
 ## Unreleased
 
+- Weekly upkeep (2026-11-20): `build.ps1 -Task Upkeep` reports what has gone stale in the shipped data (Microsoft's
+  licensing list against bundles.json, a newer ATT&CK release or a withdrawn mapped technique, newer versions of the
+  modules the collectors were tested with, catalog Learn links that no longer answer, licensing files past their review
+  date), and `.github/workflows/upkeep.yml` files it as one issue every Monday, closing it when nothing is stale. It
+  runs on GitHub only; the module never calls out. The first run found seven moved Learn pages (AZ-020, CL-007, CL-011,
+  CP-018, EM-011, EM-015, HY-004, OP-006, OP-007), now pointing at their current pages; EM-011 now links Enhanced
+  Filtering for Connectors, the page it was always about.
 - Tiers enforced across the whole report (2026-11-20): without the full tier, the charts, headline figures,
   administrators table, Copilot and licensing pages and the non-CA inventory no longer render from the evidence; only
   the Conditional Access domain is shown, as docs/licensing.md says. Before, the checks were limited but the

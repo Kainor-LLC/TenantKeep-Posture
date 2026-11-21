@@ -241,7 +241,7 @@
         "level": "low",
         "text": "Members of ownerless groups may be asked to take ownership."
       },
-      "learn": "https://learn.microsoft.com/microsoft-365/solutions/microsoft-365-groups-ownerless-groups-teams",
+      "learn": "https://learn.microsoft.com/sharepoint/site-ownership-policy",
       "deepLink": "https://admin.microsoft.com/sharepoint?page=sitesList&modern=true",
       "narrative": "Nobody can approve access, review sharing or delete an ownerless site. They accumulate when the owner leaves and the offboarding does not reassign them.",
       "frameworks": {
@@ -374,7 +374,7 @@
         "level": "low",
         "text": "Users can no longer chat with personal Teams and Skype accounts."
       },
-      "learn": "https://learn.microsoft.com/microsoftteams/communicate-with-users-in-teams-for-personal-use",
+      "learn": "https://learn.microsoft.com/microsoftteams/trusted-organizations-external-meetings-chat",
       "deepLink": "https://admin.teams.microsoft.com/company-wide-settings/external-communications",
       "narrative": "Personal accounts have no tenant behind them to hold accountable. Blocking them removes the cheapest impersonation path.",
       "frameworks": {

@@ -6,7 +6,9 @@
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
-  (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
+  (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), Upkeep (a
+  report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Learn links; run weekly on
+  GitHub by .github/workflows/upkeep.yml, never by the module). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
   manifest is required either way. Sign needs a local
   code-signing certificate and is the emergency path; releases are signed by the release workflow through Azure Artifact Signing,
   after which Verify checks that every staged file carries a valid Authenticode signature. Integrity needs the licence signing key (PEM
@@ -32,7 +34,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'Upkeep')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -49,6 +51,10 @@ param(
 
     # AttackData task: MITRE's enterprise ATT&CK STIX bundle (enterprise-attack-<version>.json), downloaded by hand.
     [string] $AttackStix,
+
+    # Upkeep task: where the report goes (default out/upkeep.md), and -Offline to skip every check that needs the network.
+    [string] $UpkeepReport,
+    [switch] $Offline,
 
     # Publish task: the PowerShell Gallery API key (TENANTKEEP_GALLERY_KEY).
     [string] $GalleryApiKey = $env:TENANTKEEP_GALLERY_KEY,
@@ -273,6 +279,99 @@ function Invoke-AttackData {
     Write-Host "Wrote $path (ATT&CK $release, $(@($out).Count) techniques)"
 }
 
+function Invoke-Upkeep {
+    # What has gone stale since the data was last reviewed, as a Markdown report: Microsoft's licensing list against
+    # bundles.json, a newer ATT&CK release or a mapped technique MITRE withdrew, newer major or minor versions of the
+    # modules the collectors were tested with, Learn links that no longer answer, and data files past their review
+    # date. Runs on GitHub (.github/workflows/upkeep.yml), which files the report as an issue; the module never calls out.
+    Write-Task 'Upkeep'
+    $target = $(if ($UpkeepReport) { $UpkeepReport } else { Join-Path $OutRoot 'upkeep.md' })
+    New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
+    $findings = [System.Collections.Generic.List[string]]::new()
+    $notes = [System.Collections.Generic.List[string]]::new()
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-upkeep-$([guid]::NewGuid().ToString('n'))"
+    New-Item -ItemType Directory -Path $temp -Force | Out-Null
+    try {
+        # Review dates in the licensing data (180 days, like the test that skips past them).
+        foreach ($f in Get-ChildItem (Join-Path $Root 'licensing') -Filter '*.json') {
+            $j = Get-Content -Raw $f.FullName | ConvertFrom-Json
+            if ($j.PSObject.Properties['reviewed'] -and ([datetime]::UtcNow - [datetime]$j.reviewed).TotalDays -gt 180) { $findings.Add("licensing/$($f.Name) was last reviewed on $($j.reviewed): check it against Microsoft's service plan list and bump 'reviewed'.") }
+        }
+        if ($Offline) { $notes.Add('Offline: the licensing list, ATT&CK, module versions and Learn links were not checked.') }
+        else {
+            # Microsoft's licensing list: rebuild bundles.json from it into a copy and compare (verify the download URL stays put).
+            try {
+                $csv = Join-Path $temp 'plans.csv'
+                Invoke-WebRequest -Uri 'https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv' -OutFile $csv -UseBasicParsing
+                $copy = Join-Path $temp 'repo'
+                New-Item -ItemType Directory -Path $copy -Force | Out-Null
+                Copy-Item -Path (Join-Path $Root 'licensing') -Destination $copy -Recurse
+                Copy-Item -Path (Join-Path $Root 'build.ps1') -Destination $copy
+                & pwsh -NoProfile -File (Join-Path $copy 'build.ps1') -Task LicensingData -LicensingCsv $csv *> $null
+                $old = Get-Content -Raw (Join-Path $Root 'licensing' 'bundles.json') | ConvertFrom-Json
+                $new = Get-Content -Raw (Join-Path $copy 'licensing' 'bundles.json') | ConvertFrom-Json
+                foreach ($b in $new.bundles) {
+                    $was = @($old.bundles | Where-Object sku -eq $b.sku)
+                    if ($was.Count -eq 0) { continue }
+                    $added = @($b.features | Where-Object { $_ -notin @($was[0].features) }); $gone = @($was[0].features | Where-Object { $_ -notin @($b.features) })
+                    if ($added.Count -or $gone.Count) { $findings.Add("Microsoft's licensing list changes $($b.sku): $(if ($added.Count) { "adds $($added -join ', ')" })$(if ($added.Count -and $gone.Count) { '; ' })$(if ($gone.Count) { "drops $($gone -join ', ')" }). Run build.ps1 -Task LicensingData with the new CSV.") }
+                }
+            }
+            catch { $notes.Add("Licensing list not checked: $($_.Exception.Message)") }
+
+            # ATT&CK: a newer release than the pin, and any mapped id it revoked or deprecated.
+            try {
+                $index = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/index.json'
+                $latest = @(@($index.collections | Where-Object { $_.name -match 'Enterprise' })[0].versions | Sort-Object { [version]$_.version } -Descending)[0]
+                $pin = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).attack.version
+                if ([version]$latest.version -gt [version]$pin) {
+                    $stix = Join-Path $temp 'enterprise-attack.json'
+                    Invoke-WebRequest -Uri $latest.url -OutFile $stix -UseBasicParsing
+                    $copy = Join-Path $temp 'attack'
+                    New-Item -ItemType Directory -Path $copy -Force | Out-Null
+                    Copy-Item -Path (Join-Path $Root 'checks') -Destination $copy -Recurse
+                    Copy-Item -Path (Join-Path $Root 'build.ps1') -Destination $copy
+                    $cat = Join-Path $copy 'checks' 'catalog.json'
+                    (Get-Content -Raw $cat) -replace ('"version": "' + [regex]::Escape($pin) + '"'), ('"version": "' + $latest.version + '"') | Set-Content $cat
+                    $out = & pwsh -NoProfile -File (Join-Path $copy 'build.ps1') -Task AttackData -AttackStix $stix 2>&1 | Out-String
+                    $problems = @([regex]::Matches($out, '[A-Z]{2,6}-\d{3} names T\d{4}(\.\d{3})?[^\r\n]*') | ForEach-Object { $_.Value.Trim() })
+                    $findings.Add("ATT&CK $($latest.version) is out; the catalog pins $pin. $(if ($problems.Count) { 'Mappings to fix first: ' + ($problems -join '; ') + '.' } else { 'Every mapped technique is still current: move the pin and run build.ps1 -Task AttackData.' })")
+                }
+            }
+            catch { $notes.Add("ATT&CK not checked: $($_.Exception.Message)") }
+
+            # Modules: a newer major or minor version than the one the collectors were tested with.
+            $tested = @{}
+            foreach ($m in [regex]::Matches((Get-Content -Raw (Join-Path $SrcPath 'Private' 'Get-PostureModuleRequirement.ps1')), "name = '([^']+)'; tested = '([^']+)'")) { $tested[$m.Groups[1].Value] = [version]$m.Groups[2].Value }
+            foreach ($name in $tested.Keys | Sort-Object) {
+                try {
+                    $g = Find-Module -Name $name -Repository PSGallery -ErrorAction Stop
+                    $v = [version]$g.Version
+                    if ($v.Major -gt $tested[$name].Major -or ($v.Major -eq $tested[$name].Major -and $v.Minor -gt $tested[$name].Minor)) { $findings.Add("$name $v is out; the collectors were tested with $($tested[$name]). Test a collection with it and bump 'tested' in Get-PostureModuleRequirement.") }
+                }
+                catch { $notes.Add("$name not checked: $($_.Exception.Message)") }
+            }
+
+            # Learn links in the catalog that no longer answer.
+            $links = @(Get-ChildItem (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' } | ForEach-Object { (Get-Content -Raw $_.FullName | ConvertFrom-Json).checks } | Where-Object { $_.learn } | Group-Object learn)
+            foreach ($l in $links) {
+                $code = 0
+                try { $code = [int](Invoke-WebRequest -Uri $l.Name -Method Head -MaximumRedirection 5 -UseBasicParsing -ErrorAction Stop).StatusCode } catch { $code = $(if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { -1 }) }
+                if ($code -eq 404 -or $code -eq 410) { $findings.Add("Learn link gone ($code) for $(@($l.Group | ForEach-Object { $_.id }) -join ', '): $($l.Name)") }
+            }
+        }
+    }
+    finally { Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue }
+    $md = [System.Collections.Generic.List[string]]::new()
+    $md.Add("# Weekly upkeep, $([datetime]::UtcNow.ToString('yyyy-MM-dd'))"); $md.Add('')
+    if ($findings.Count) { $md.Add("$($findings.Count) thing(s) to look at:"); $md.Add(''); foreach ($f in $findings) { $md.Add("- [ ] $f") } }
+    else { $md.Add('Nothing has gone stale.') }
+    if ($notes.Count) { $md.Add(''); $md.Add('Not checked this time:'); $md.Add(''); foreach ($n in $notes) { $md.Add("- $n") } }
+    $md.Add(''); $md.Add('Written by build.ps1 -Task Upkeep. The module itself never calls out; this runs on GitHub only.')
+    [System.IO.File]::WriteAllText($target, ($md -join "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Upkeep: $($findings.Count) finding(s) -> $target"
+}
+
 function Invoke-Catalog {
     # The public catalog page for the website (CLAUDE.md, Licensing): ids, titles, the narrative and the licence required.
     # No pass logic, no remediation, no framework mappings: those are the product.
@@ -491,7 +590,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -505,6 +604,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'Clean', 'Analyze', 'Test', 'Bui
         'Catalog' { Invoke-Catalog }
         'LicensingData' { Invoke-LicensingData }
         'AttackData' { Invoke-AttackData }
+        'Upkeep' { Invoke-Upkeep }
         'Publish' { Invoke-Publish -Stage $stage }
     }
 }
