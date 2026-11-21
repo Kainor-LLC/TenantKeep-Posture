@@ -36,7 +36,7 @@ function ConvertTo-PostureReportHtml {
     foreach ($k in @($catLabels.thresholds.Keys)) { $thresholdLabel[$k] = $catLabels.thresholds[$k] }
     $humanize = { param([string] $t) if (-not $t) { return '' }; $out = $t; foreach ($k in $methodLabel.Keys) { $out = [regex]::Replace($out, "(?<![A-Za-z])$([regex]::Escape($k))(?![A-Za-z])", [string]$methodLabel[$k]) }; $out -replace ';', ', ' }
     $safeColor = { param([string] $c, [string] $fallback) if ($c -match '^#[0-9A-Fa-f]{3,8}$') { $c } else { $fallback } }
-    $jsonBlock = { param([string] $Id, $Data) $json = (ConvertTo-Json -InputObject $Data -Depth 20 -Compress) -replace '</', '<\/'; "<script type=`"application/json`" id=`"$Id`">$json</script>" }
+    $jsonBlock = { param([string] $Id, $Data) $json = (ConvertTo-Json -InputObject $Data -Depth 20 -Compress -EscapeHandling EscapeHtml) -replace '</', '<\/'; "<script type=`"application/json`" id=`"$Id`">$json</script>" }
     $logoDataUri = {
         param([object] $Path)
         if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }

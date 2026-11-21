@@ -119,7 +119,8 @@ function New-PostureReport {
         New-Item -ItemType Directory -Path $affectedFolder -Force | Out-Null
         Get-ChildItem -LiteralPath $affectedFolder -Filter '*.csv' -File | Remove-Item -Force
         foreach ($r in $withAffected) {
-            @($r.affected | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]@{ Name = [string]$_['name']; Detail = [string]$_['detail'] } } else { [pscustomobject]@{ Name = [string]$_; Detail = '' } } }) |
+            # People open these in a spreadsheet, and the names come from the tenant (a guest picks their own): no cell may start a formula.
+            @($r.affected | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [pscustomobject]@{ Name = (ConvertTo-PostureCsvSafeText ([string]$_['name'])); Detail = (ConvertTo-PostureCsvSafeText ([string]$_['detail'])) } } else { [pscustomobject]@{ Name = (ConvertTo-PostureCsvSafeText ([string]$_)); Detail = '' } } }) |
                 Export-Csv -LiteralPath (Join-Path $affectedFolder "$($r.id).csv") -NoTypeInformation -Encoding utf8
         }
     }
@@ -151,7 +152,7 @@ function New-PostureReport {
             New-Item -ItemType Directory -Path $shareFolder -Force | Out-Null
             $null = & $render $redacted.report $shareFolder
             $keyPath = Join-Path $checksFolder 'redaction-key.csv'
-            $redacted.key | Export-Csv -LiteralPath $keyPath -NoTypeInformation -Encoding utf8
+            $redacted.key | ConvertTo-PostureCsvSafeRow | Export-Csv -LiteralPath $keyPath -NoTypeInformation -Encoding utf8
             $written.Add($keyPath)
         }
     }

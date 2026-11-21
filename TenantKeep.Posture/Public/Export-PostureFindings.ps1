@@ -89,7 +89,8 @@ function Export-PostureFindings {
     if ($PSCmdlet.ShouldProcess($out, 'Write findings.csv')) {
         $dir = Split-Path $out -Parent
         if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-        $rows | Export-Csv -LiteralPath $out -NoTypeInformation -Encoding utf8
+        # The file is for a spreadsheet or a ticketing system: no cell may start a formula. -PassThru returns the rows as they are.
+        $rows | ConvertTo-PostureCsvSafeRow | Export-Csv -LiteralPath $out -NoTypeInformation -Encoding utf8
     }
     if ($PassThru) { return $rows }
     return $out

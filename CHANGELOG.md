@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- Names from the tenant can no longer act in a spreadsheet or break the page (2026-11-21). A guest chooses their
+  own display name, so an affected list can carry `=HYPERLINK(...)`: in `affected/<check>.csv`, `findings.csv`,
+  the redaction key and the page's own CSV export, a cell that starts with `=`, `+`, `-`, `@`, a tab or a
+  carriage return now gets a leading apostrophe, which a spreadsheet shows as plain text. `Export-PostureFindings
+  -PassThru` returns the rows unchanged. The JSON the report page embeds is written with angle brackets and
+  ampersands escaped, so a name such as `<!--<script` cannot swallow the rest of the page.
 - Two permissions fewer on the consent screen (2026-11-21): `Sites.Read.All` ("read items in all site collections")
   and `Reports.Read.All` are gone from the TenantKeep Posture app's manifest and from the managed identity grant
   script. No collector ever called an API that needs them. A tenant that already consented keeps working; the
