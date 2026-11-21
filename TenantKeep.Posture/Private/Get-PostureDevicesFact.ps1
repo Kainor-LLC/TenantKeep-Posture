@@ -19,7 +19,7 @@ function Get-PostureDevicesFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0; maxAdOnlyWindowsPct = 5 }
+    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0; maxAdOnlyWindowsPct = 5; maxPartnerHeartbeatDays = 7; minPartnerMacCompliantPct = 90 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -45,6 +45,8 @@ function Get-PostureDevicesFact {
     $hybridActive = @{ count = 0 }; $unmanagedHybrid = [System.Collections.Generic.List[object]]::new()
     # Every Windows device name Entra knows, so the AD collector's workstations can be matched by name (DEV-020).
     $entraWindowsNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    # Macs signed in to Entra recently, and how many a partner MDM reports compliant (DEV-023).
+    $macs = @{ inUse = 0; compliant = 0 }; $macsNotCompliant = [System.Collections.Generic.List[object]]::new()
     $haveEntra = Read-PostureEvidenceRow -Folder $Evidence -Name '08-entra-devices' -OnRow {
         param($_row)
         $row = $_row
@@ -53,6 +55,10 @@ function Get-PostureDevicesFact {
         switch ([string]$row.JoinType) { 'EntraJoined' { $e.entraJoined++ } 'HybridJoined' { $e.hybridJoined++ } 'Registered' { $e.registered++ } }
         if (Test-PostureTrue $row.Stale) { $staleList.Add([ordered]@{ name = $row.DisplayName; detail = "$($row.JoinType), $($row.OperatingSystem), last sign-in $(if ($row.ApproximateLastSignInDateTime) { (ConvertTo-PostureUtcDateTime $row.ApproximateLastSignInDateTime).ToString('yyyy-MM-dd') } else { 'never' })" }) }
         if ([string]$row.OperatingSystem -eq 'Windows') { $null = $entraWindowsNames.Add([string]$row.DisplayName) }
+        if ([string]$row.OperatingSystem -match '(?i)^mac' -and -not (Test-PostureTrue $row.Stale)) {
+            $macs.inUse++
+            if (Test-PostureTrue (& $v $row 'IsCompliant')) { $macs.compliant++ } elseif ($macsNotCompliant.Count -lt 500) { $macsNotCompliant.Add([ordered]@{ name = [string]$row.DisplayName; detail = 'Mac not reported compliant in Entra' }) }
+        }
         if ([string]$row.OperatingSystem -eq 'Windows' -and [string]$row.JoinType -eq 'HybridJoined' -and -not (Test-PostureTrue $row.Stale)) {
             $hybridActive.count++
             if (-not (Test-PostureTrue (& $v $row 'IsManaged'))) { $unmanagedHybrid.Add([ordered]@{ id = [string](& $v $row 'DeviceId'); name = [string]$row.DisplayName }) }
@@ -78,7 +84,7 @@ function Get-PostureDevicesFact {
     }
 
     # Intune managed devices (09): one pass as well.
-    $i = @{ total = 0; known = 0; compliant = 0; windows = 0; autopilot = 0; macs = 0; macsEncrypted = 0; linux = 0 }
+    $i = @{ total = 0; known = 0; compliant = 0; windows = 0; autopilot = 0; macs = 0; macsEncrypted = 0; linux = 0; partnerMacs = 0 }
     $plat = @{}
     $noncompliant = [System.Collections.Generic.List[object]]::new(); $macsOpen = [System.Collections.Generic.List[object]]::new(); $win10 = [System.Collections.Generic.List[object]]::new()
     $states = @('compliant', 'noncompliant', 'inGracePeriod', 'conflict', 'error')
@@ -121,6 +127,7 @@ function Get-PostureDevicesFact {
         }
         if ($os -eq 'macOS') { $i.macs++; if (Test-PostureTrue $row.IsEncrypted) { $i.macsEncrypted++ } else { $macsOpen.Add([ordered]@{ name = $row.DeviceName; detail = 'FileVault not reported as enabled' }) } }
         if ($os -match '(?i)linux|ubuntu') { $i.linux++ }
+        if ($os -eq 'macOS' -and [string](& $v $row 'ManagementAgent') -eq 'jamf') { $i.partnerMacs++ }
     }
     if (-not $haveManaged) { & $missing @('DEV-001', 'DEV-004', 'DEV-006', 'DEV-007', 'DEV-014', 'DEV-019', 'DEV-021') '09-intune-managed-devices' }
     else {
@@ -274,6 +281,37 @@ function Get-PostureDevicesFact {
     $cleanup = & $load '09-intune-device-cleanup'
     if ($null -eq $cleanup) { & $missing @('DEV-013') '09-intune-device-cleanup'; if (-not $facts.Contains('deviceCleanupRuleEnabled')) { $facts.deviceCleanupRuleEnabled = $false } }
     else { $facts.deviceCleanupRuleEnabled = [bool](& $v $cleanup 'Enabled'); $facts.deviceCleanupDays = & $v $cleanup 'DeviceInactivityBeforeRetirementInDays' }
+
+    # DEV-022 and DEV-023: Macs on a partner MDM (Jamf, Kandji, Mosyle). One is expected when the profile names it,
+    # when Intune shows a partner onboarded for Macs, or when Intune lists Macs that Jamf reports.
+    $tp = $(if ($OrgProfile.Contains('thirdParty') -and $OrgProfile['thirdParty']) { $OrgProfile['thirdParty'] } else { @{} })
+    $vendor = $(if ($tp.Contains('macMdm')) { [string]$tp['macMdm'] } else { '' })
+    $cpRows = & $load '09-intune-compliance-partners'; $dpRows = & $load '09-intune-device-management-partners'
+    if ($null -eq $cpRows -and $null -eq $dpRows) {
+        $why = $(if ($haveManaged) { '09-intune-compliance-partners.json was not collected: the Intune collector reads the partner connections since 2026-11-20 (Resume-PostureRun -Collector Intune).' } else { '09-intune-compliance-partners.json was not collected (the Intune collector).' })
+        foreach ($id in 'DEV-022', 'DEV-023') { $notEvaluated[$id] = $why }
+    }
+    else {
+        $hb = { param($x) $d = ConvertTo-PostureUtcDateTime $x; if ($d) { [Math]::Floor(($AsOf - $d).TotalDays) } else { $null } }
+        $partners = @(
+            @(@($cpRows) | Where-Object { $_ -and (Test-PostureTrue (& $v $_ 'MacOsOnboarded')) } | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'DisplayName'); kind = 'compliance partner'; state = [string](& $v $_ 'PartnerState'); days = (& $hb (& $v $_ 'LastHeartbeatDateTime')) } })
+            @(@($dpRows) | Where-Object { $_ -and (Test-PostureTrue (& $v $_ 'IsConfigured')) } | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'DisplayName'); kind = 'device management partner'; state = [string](& $v $_ 'PartnerState'); days = (& $hb (& $v $_ 'LastHeartbeatDateTime')) } })
+        )
+        $isOk = { param($x) $x.state -eq 'enabled' -and $null -ne $x.days -and $x.days -le [int]$t.maxPartnerHeartbeatDays }
+        $facts.macPartnerExpected = ($vendor -and $vendor -ne 'none') -or $partners.Count -gt 0 -or $i.partnerMacs -gt 0
+        $facts.macPartnerReporting = @($partners | Where-Object { & $isOk $_ }).Count -gt 0
+        $facts.macPartners = @($partners | ForEach-Object { $_.name })
+        $facts.partnerReportedMacs = $i.partnerMacs
+        $problems = @($partners | Where-Object { -not (& $isOk $_) })
+        $facts.macPartnerProblems = $problems.Count
+        $affected.macPartnerProblems = @($problems | ForEach-Object { [ordered]@{ name = $_.name; detail = "$($_.kind), state $(if ($_.state) { $_.state } else { 'unknown' }), $(if ($null -ne $_.days) { "last heartbeat $($_.days) days ago" } else { 'no heartbeat recorded' })" } })
+        if ($facts.macPartnerExpected -and $partners.Count -eq 0) { $facts.macPartnerProblems = 1; $affected.macPartnerProblems = @([ordered]@{ name = $(if ($vendor -and $vendor -ne 'none') { $vendor } else { 'Mac MDM' }); detail = 'no partner connected in Intune for macOS' }) }
+        if ($haveEntra) {
+            if ($facts.macPartnerExpected -and $macs.inUse -eq 0) { $notEvaluated['DEV-023'] = 'No Macs have signed in to Entra recently, so there is no compliance to read.' }
+            else { $facts.macEntraCompliantPct = $(if ($macs.inUse -gt 0) { & $pct $macs.compliant $macs.inUse } else { 100 }); $facts.macsInEntra = $macs.inUse; $facts.macsCompliantInEntra = $macs.compliant; $affected.macsNotCompliantInEntra = @($macsNotCompliant) }
+        }
+        else { $notEvaluated['DEV-023'] = '08-entra-devices.json was not collected (the Entra collector).' }
+    }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('08-entra-devices.json', '09-intune-managed-devices.json', '09-intune-config-profiles-settings-catalog.json') }
 }

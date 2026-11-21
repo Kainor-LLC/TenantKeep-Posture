@@ -212,6 +212,15 @@ function Get-PostureChartData {
             }
         }
     }
+    # Macs a partner MDM manages, as Entra sees them (DEV-022, DEV-023).
+    if ($dv -and $dv.Contains('macPartnerExpected') -and $dv['macPartnerExpected'] -and $dv.Contains('macsInEntra') -and [int]$dv['macsInEntra'] -gt 0) {
+        $okMacs = [int]$dv['macsCompliantInEntra']; $allMacs = [int]$dv['macsInEntra']
+        $who = $(if (@($dv['macPartners']).Count) { @($dv['macPartners']) -join ', ' } else { 'the Mac MDM' })
+        $out.macCompliance = [ordered]@{
+            segment  = @(@{ label = 'Compliant'; value = $okMacs; tone = 'ok' }, @{ label = 'Not compliant or not reported'; value = ($allMacs - $okMacs); tone = 'err' })
+            takeaway = "$okMacs of $allMacs Macs in use are compliant in Entra, as reported by $who."
+        }
+    }
     $ep = $(if ($DomainFacts.Contains('endpoint')) { $DomainFacts['endpoint'] } else { $null })
     if ($ep -and $ep.Contains('asrRulesBlock')) {
         $out.asr = [ordered]@{ segment = @(@{ label = 'Block'; value = [int]$ep['asrRulesBlock']; tone = 'ok' }, @{ label = 'Audit'; value = [int]$ep['asrRulesAudit']; tone = 'warn' }, @{ label = 'Off'; value = [int]$ep['asrRulesOff']; tone = 'err' }, @{ label = 'Not configured'; value = [int]$ep['asrRulesNotConfigured']; tone = 'na' }); takeaway = "$([int]$ep['asrRulesBlock']) attack surface reduction rules block; $([int]$ep['asrRulesAudit'] + [int]$ep['asrRulesOff'] + [int]$ep['asrRulesNotConfigured']) do not." }

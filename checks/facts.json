@@ -318,7 +318,15 @@
     "coManagedDevices": "Co-managed devices",
     "coManagementWorkloads": "Co-management workloads on Intune",
     "hybridUnmanagedWindows": "Hybrid-joined Windows devices in use not managed by Intune",
-    "adWorkstationsNotInEntra": "Workstations in use in Active Directory that Entra does not know"
+    "adWorkstationsNotInEntra": "Workstations in use in Active Directory that Entra does not know",
+    "macPartnerExpected": "A Mac MDM other than Intune is in use",
+    "macPartnerReporting": "The Mac MDM reports compliance to Intune",
+    "macPartnerProblems": "Mac MDM connections not reporting",
+    "macPartners": "Mac MDM connections in Intune",
+    "partnerReportedMacs": "Macs Intune lists as managed by Jamf",
+    "macEntraCompliantPct": "Macs in use that Entra shows compliant (%)",
+    "macsInEntra": "Macs signed in to Entra recently",
+    "macsNotCompliantInEntra": "Macs not reported compliant in Entra"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -373,6 +381,8 @@
     "riskyUserMaxAgeDays": "Risky user, maximum age (days)",
     "samlCertWarningDays": "SAML certificate warning (days)",
     "spfRequireHardFail": "SPF must end in -all",
-    "maxAdOnlyWindowsPct": "Maximum hybrid-joined Windows devices with no cloud management (%)"
+    "maxAdOnlyWindowsPct": "Maximum hybrid-joined Windows devices with no cloud management (%)",
+    "maxPartnerHeartbeatDays": "Longest a Mac MDM may go without reporting (days)",
+    "minPartnerMacCompliantPct": "Minimum Macs compliant in Entra (%)"
   }
 }

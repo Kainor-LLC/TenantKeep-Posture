@@ -635,7 +635,8 @@
         ]
       },
       "coveredBy": [
-        "mdm:*"
+        "mdm:*",
+        "macMdm:*"
       ],
       "thresholds": {},
       "evidence": [
@@ -674,7 +675,8 @@
         ]
       },
       "coveredBy": [
-        "mdm:*"
+        "mdm:*",
+        "macMdm:*"
       ],
       "thresholds": {},
       "evidence": [
@@ -716,7 +718,8 @@
         ]
       },
       "coveredBy": [
-        "mdm:*"
+        "mdm:*",
+        "macMdm:*"
       ],
       "thresholds": {},
       "evidence": [

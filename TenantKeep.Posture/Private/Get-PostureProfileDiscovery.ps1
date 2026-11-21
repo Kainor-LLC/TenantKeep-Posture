@@ -95,6 +95,14 @@ function Get-PostureProfileDiscovery {
         $sources.externalCollaboration = "06-users-summary.json guests=$guests$(if ($sharing) { ", SharePoint settings ($($spoRead.source)) sharing=$sharing" }), governance controls $(if ($governed) { 'present' } else { 'absent' })"
     }
 
+    # A Mac MDM connected to Intune: Jamf and others report Mac compliance as a partner. Becomes thirdParty.macMdm
+    # only while the profile still says none (New-PostureProfile).
+    $partnerRows = @(@(& $rows (& $load '09-intune-compliance-partners')) | Where-Object { Test-PostureTrue (& $v $_ 'MacOsOnboarded') }) + @(@(& $rows (& $load '09-intune-device-management-partners')) | Where-Object { Test-PostureTrue (& $v $_ 'IsConfigured') })
+    if ($partnerRows.Count -gt 0) {
+        $facts['thirdParty.macMdm'] = [string](& $v $partnerRows[0] 'DisplayName')
+        $sources['thirdParty.macMdm'] = "09-intune-compliance-partners.json partner $($facts['thirdParty.macMdm']) connected for macOS"
+    }
+
     # Copilot
     if ($null -ne $skus -and $facts.Contains('licenses')) {
         $copilotSkus = @(& $rows $skus | Where-Object { [string](& $v $_ 'skuPartNumber') -match '(?i)copilot' -or [string](& $v $_ 'SkuPartNumber') -match '(?i)copilot' })

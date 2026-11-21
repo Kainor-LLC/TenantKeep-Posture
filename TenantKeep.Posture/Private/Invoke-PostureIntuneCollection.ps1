@@ -234,6 +234,27 @@ function Invoke-PostureIntuneCollection {
         & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; PartnerState = (& $v $_ 'partnerState'); LastHeartbeatDateTime = (& $v $_ 'lastHeartbeatDateTime'); WindowsDeviceBlockedOnMissingPartnerData = (& $v $_ 'windowsDeviceBlockedOnMissingPartnerData'); WindowsEnabled = (& $v $_ 'windowsEnabled'); MacEnabled = (& $v $_ 'macEnabled'); LinuxEnabled = (& $v $_ 'linuxEnabled'); IosEnabled = (& $v $_ 'iosEnabled'); AndroidEnabled = (& $v $_ 'androidEnabled'); MicrosoftDefenderForEndpointAttachEnabled = (& $v $_ 'microsoftDefenderForEndpointAttachEnabled') } }) '09-intune-mde-connector' $true
     } | Out-Null
 
+    Invoke-PostureStep -Label 'Device management partners' -Folder $Folder -Script {
+        # A Mac (or phone) MDM such as Jamf reports compliance to Intune as a compliance management partner (Partner
+        # compliance management); the older integration shows as a device management partner. State and heartbeat say
+        # whether the link still works.
+        $compliance = & $get 'deviceManagement/complianceManagementPartners' 'beta'
+        & $save @($compliance | ForEach-Object {
+                [ordered]@{
+                    Id = $_.id; DisplayName = (& $v $_ 'displayName'); PartnerState = (& $v $_ 'partnerState'); LastHeartbeatDateTime = (& $v $_ 'lastHeartbeatDateTime')
+                    MacOsOnboarded = (& $v $_ 'macOsOnboarded'); IosOnboarded = (& $v $_ 'iosOnboarded'); AndroidOnboarded = (& $v $_ 'androidOnboarded'); LinuxOnboarded = (& $v $_ 'linuxOnboarded')
+                    MacOsAssignments = @(& $v $_ 'macOsEnrollmentAssignments').Count
+                }
+            }) '09-intune-compliance-partners' $true
+        $legacy = & $get 'deviceManagement/deviceManagementPartners' 'v1.0'
+        & $save @($legacy | ForEach-Object {
+                [ordered]@{
+                    Id = $_.id; DisplayName = (& $v $_ 'displayName'); PartnerState = (& $v $_ 'partnerState'); IsConfigured = (& $v $_ 'isConfigured'); LastHeartbeatDateTime = (& $v $_ 'lastHeartbeatDateTime')
+                    PartnerAppType = (& $v $_ 'partnerAppType'); GroupsRequiringPartnerEnrollment = @(& $v $_ 'groupsRequiringPartnerEnrollment').Count
+                }
+            }) '09-intune-device-management-partners' $true
+    } | Out-Null
+
     Invoke-PostureStep -Label 'Device cleanup rules' -Folder $Folder -Script {
         # managedDeviceCleanupRules (beta) is the per-platform list; managedDeviceCleanupSettings is forbidden for delegated reads (confirmed 2026-10-14).
         $rules = & $get 'deviceManagement/managedDeviceCleanupRules' 'beta'

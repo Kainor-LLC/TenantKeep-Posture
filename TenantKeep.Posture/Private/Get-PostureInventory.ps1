@@ -124,6 +124,17 @@ function Get-PostureInventory {
         $out.Add((& $section 'gpo-analytics' 'Group Policy Analytics' 'devices' @('09-intune-gpo-analytics.json') @('GPO', 'Supported in MDM (%)', 'Settings', 'Readiness', 'Linked in AD') $list $(if ($list.Count -eq 0) { 'No GPOs imported into Group Policy analytics.' })))
     }
 
+    # Device management partners: Jamf and other MDMs connected to Intune, for which platforms, and whether they report.
+    $cpRows = & $load '09-intune-compliance-partners'; $dpRows = & $load '09-intune-device-management-partners'
+    if ($null -ne $cpRows -or $null -ne $dpRows) {
+        $platformsOf = { param($r) @(@('macOS', 'MacOsOnboarded'), @('iOS', 'IosOnboarded'), @('Android', 'AndroidOnboarded'), @('Linux', 'LinuxOnboarded') | Where-Object { Test-PostureTrue (& $v $r $_[1]) } | ForEach-Object { $_[0] }) -join ', ' }
+        $list = @(
+            @(& $rows $cpRows | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Compliance partner'; Platforms = (& $platformsOf $_); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = [string](& $v $_ 'LastHeartbeatDateTime') } })
+            @(& $rows $dpRows | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Device management partner'; Platforms = $(if (Test-PostureTrue (& $v $_ 'IsConfigured')) { 'configured' } else { 'not configured' }); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = [string](& $v $_ 'LastHeartbeatDateTime') } })
+        )
+        $out.Add((& $section 'mdm-partners' 'Device Management Partners' 'devices' @('09-intune-compliance-partners.json', '09-intune-device-management-partners.json') @('Partner', 'Connection', 'Platforms', 'State', 'Last Heartbeat') $list $(if ($list.Count -eq 0) { 'No device management partner is connected to Intune.' })))
+    }
+
     # Privileged roles: who holds each role permanently, activated now, or eligible through PIM.
     $active = & $load '04-role-assignments-active'; $eligible = & $load '04-role-assignments-pim-eligible'
     if ($null -eq $active) { $out.Add((& $notCollected 'roles' 'Privileged Roles' 'identity' @('04-role-assignments-active.json', '04-role-assignments-pim-eligible.json') 'Entra')) }

@@ -103,7 +103,7 @@ function New-PostureProfile {
         externalCollaboration = 'governed'
         copilot               = 'none'
         azure                 = 'none'
-        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; siem = 'none'; backup = 'none'; swg = 'none'; ztna = 'none' }
+        thirdParty            = [ordered]@{ email = 'none'; edr = 'none'; mfa = 'none'; mdm = 'none'; macMdm = 'none'; siem = 'none'; backup = 'none'; swg = 'none'; ztna = 'none' }
         frameworks            = @()
         goals                 = @()
         thresholds            = [ordered]@{ maxPermanentGlobalAdmins = 2; staleDeviceDays = 90; maxExclusionGroupMembers = 25; inactiveGuestDays = 90; reportOnlyMaxDays = 90; disabledMaxDays = 90; criticalCveMaxAgeDays = 14; namePattern = $null }
@@ -166,6 +166,13 @@ function New-PostureProfile {
         # Discovered values become the defaults unless the matching parameter was given.
         $paramFor = @{ platforms = 'Platforms'; identityModel = 'IdentityModel'; byod = 'Byod'; externalCollaboration = 'ExternalCollaboration'; copilot = 'Copilot'; tenantId = 'TenantId'; clientName = 'ClientName' }
         foreach ($k in @($discovery.facts.Keys | Where-Object { $_ -ne 'licenses' })) {
+            # A discovered vendor (thirdParty.macMdm) fills one category, and only while it still says none.
+            if ($k -like 'thirdParty.*') {
+                $cat = $k.Substring(11)
+                if ($ThirdParty -and $ThirdParty.Contains($cat)) { continue }
+                if (-not $defaults.thirdParty.Contains($cat) -or [string]$defaults.thirdParty[$cat] -in '', 'none') { $defaults.thirdParty[$cat] = [string]$discovery.facts[$k]; $discovered += $k }
+                continue
+            }
             if ($paramFor.ContainsKey($k) -and $PSBoundParameters.ContainsKey($paramFor[$k])) { continue }
             $defaults[$k] = $discovery.facts[$k]
             $discovered += $k
@@ -194,8 +201,14 @@ function New-PostureProfile {
         if (-not (& $skip 'externalCollaboration')) { $answers.externalCollaboration = & $ask 'External collaboration stance?' 'locked: any guest is a finding. governed: guests with reviews pass. open: by policy.' @('locked', 'governed', 'open') $answers.externalCollaboration $false }
         if (-not (& $skip 'copilot')) { $answers.copilot = & $ask 'Copilot status?' 'Decides whether the readiness domain renders and how oversharing is scored.' @('none', 'pilot', 'deployed') $answers.copilot $false }
         $answers.azure = & $ask 'Azure footprint?' 'none, platform only, or workloads. Decides whether the Azure domain renders.' @('none', 'platform', 'workloads') $answers.azure $false
+        $vendorLabel = @{
+            email = 'email security in front of Microsoft 365 (Proofpoint, Mimecast)'; edr = 'endpoint detection and response (CrowdStrike, SentinelOne)'
+            mfa = 'MFA other than Microsoft (Duo, Okta)'; mdm = 'device management for every platform (Workspace ONE)'; macMdm = 'device management for Macs only (Jamf, Kandji, Mosyle)'
+            siem = 'SIEM (Splunk, Sentinel in another tenant)'; backup = 'Microsoft 365 backup (Veeam, AvePoint)'; swg = 'secure web gateway (Zscaler, Netskope)'; ztna = 'private access or VPN replacement (Zscaler, Cloudflare)'
+        }
         foreach ($cat in @($answers.thirdParty.Keys)) {
-            $answers.thirdParty[$cat] = & $ask "Third-party $cat control? (vendor name, or none)" 'Checks it covers render as "Covered by <vendor>" instead of failing.' @() $answers.thirdParty[$cat] $false
+            $label = $(if ($vendorLabel.ContainsKey($cat)) { $vendorLabel[$cat] } else { "$cat control" })
+            $answers.thirdParty[$cat] = & $ask "Third-party $($label)? (vendor name, or none)" 'Checks it covers render as "Covered by <vendor>" instead of failing.' @() $answers.thirdParty[$cat] $false
         }
         $goalIds = @((Get-PostureLicensingData).goals | ForEach-Object { $_.id })
         $answers.goals = @(& $ask 'Security goals for the licensing advisor?' 'The report says what your licences cover for these and the smallest addition that would. Blank uses the core goals.' $goalIds $answers.goals $true | Where-Object { $_ })

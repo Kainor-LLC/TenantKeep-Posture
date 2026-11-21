@@ -186,6 +186,8 @@ BeforeAll {
             '^deviceManagement/applePushNotificationCertificate$' { if ($env:TKP_TEST_APNS -eq 'missing') { throw 'Response status code does not indicate success: NotFound (Not Found).' }; @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
             '^deviceAppManagement/vppTokens' { & $u @(@{ organizationName = 'Contoso'; appleId = 'apple@contoso.example'; state = 'valid'; expirationDateTime = '2027-06-01T00:00:00Z' }); break }
             '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }, @{ id = 'whfb'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.windowsHelloForBusinessConfiguration'; priority = 0; state = 'enabled'; pinMinimumLength = 6; securityDeviceRequired = $true; unlockWithBiometricsEnabled = $true; assignments = @() }); break }
+            '^deviceManagement/complianceManagementPartners' { & $u @(@{ id = 'jamf'; displayName = 'Jamf'; partnerState = 'enabled'; lastHeartbeatDateTime = '2026-10-13T00:00:00Z'; macOsOnboarded = $true; iosOnboarded = $false; macOsEnrollmentAssignments = @(@{ target = @{ groupId = 'g1' } }) }); break }
+            '^deviceManagement/deviceManagementPartners' { & $u @(); break }
             '^deviceManagement/mobileThreatDefenseConnectors' { & $u @(@{ id = 'mde'; partnerState = 'available'; windowsEnabled = $true; macEnabled = $true; lastHeartbeatDateTime = '2026-10-13T00:00:00Z' }); break }
             '^deviceManagement/managedDeviceCleanupRules' { & $u @(@{ id = 'r1'; displayName = 'Windows 90d'; deviceCleanupRulePlatformType = 'windows'; deviceInactivityBeforeRetirementInDays = 90 }); break }
             '^informationProtection/bitlocker/recoveryKeys' { & $u @(@{ id = 'k1'; deviceId = 'dev-1'; volumeType = 'operatingSystemVolume' }, @{ id = 'k2'; deviceId = 'dev-1'; volumeType = 'fixedDataVolume' }); break }
@@ -243,6 +245,10 @@ Describe 'Invoke-PostureCollection' {
             $co.CoManagedDevices | Should -Be 1
             ($co.Workloads | Where-Object Name -eq 'compliancePolicy').OnIntune | Should -Be 1
             ($co.Workloads | Where-Object Name -eq 'endpointProtection').OnIntune | Should -Be 0
+            $partner = @(& $script:Read '09-intune-compliance-partners')[0]
+            $partner.DisplayName | Should -Be 'Jamf'
+            $partner.MacOsOnboarded | Should -BeTrue
+            $partner.MacOsAssignments | Should -Be 1
         }
 
         It 'flattens settings catalog values through choice children and group collections, and the policy scalars' {
@@ -466,7 +472,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 36
+            $r.results.Count | Should -Be 38
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'

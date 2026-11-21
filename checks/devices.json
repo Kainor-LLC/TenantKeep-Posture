@@ -213,7 +213,8 @@
         ]
       },
       "coveredBy": [
-        "mdm:*"
+        "mdm:*",
+        "macMdm:*"
       ],
       "thresholds": {
         "minMacEncryptedPct": 100
@@ -864,6 +865,95 @@
         "nist-csf-2": "PR.PS-01",
         "iso27001": "A.8.9",
         "cmmc": "CM.L2-3.4.2",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-022",
+      "domain": "devices",
+      "title": "Macs on a partner MDM report compliance to Intune",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "macOS"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "maxPartnerHeartbeatDays": 7
+      },
+      "evidence": [
+        "09-intune-compliance-partners.json",
+        "09-intune-device-management-partners.json",
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "!facts.macPartnerExpected || facts.macPartnerReporting",
+      "affected": "facts.macPartnerProblems",
+      "remediation": [
+        "In Intune, Tenant administration, Connectors and tokens, Partner compliance management, add the partner for macOS and assign the user groups whose Macs it manages.",
+        "In the partner's console (in Jamf Pro: Settings, Global, Device Compliance), connect it to Microsoft Entra ID and Intune for this tenant and confirm the connection.",
+        "Check that the heartbeat stays recent: a link that stops reporting marks its Macs noncompliant after the grace period, and Conditional Access then blocks them."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People register their Mac once through the partner's app (Jamf Self Service, with the Company Portal); after that, signing in works as before."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-partners",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/TenantAdminMenu",
+      "narrative": "When Jamf or another Mac MDM manages the Macs, Intune knows whether a Mac is compliant only if the partner reports it. Without that link, a Conditional Access policy that requires a compliant device blocks every Mac, so in practice Macs end up excluded and sign in from anywhere with no device check. A partner that was connected and whose heartbeat stopped is the same gap, a few days later.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "DEV-023",
+      "domain": "devices",
+      "title": "Macs managed by a partner show as compliant in Entra",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "macOS"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minPartnerMacCompliantPct": 90
+      },
+      "evidence": [
+        "08-entra-devices.json",
+        "09-intune-compliance-partners.json"
+      ],
+      "pass": "!facts.macPartnerExpected || facts.macEntraCompliantPct >= thresholds.minPartnerMacCompliantPct",
+      "affected": "facts.macsNotCompliantInEntra",
+      "remediation": [
+        "In the partner's console, look at the Macs reported noncompliant or not registered, and the compliance rules applied to them.",
+        "Have people whose Mac shows as not registered finish device registration from the partner's Self Service app.",
+        "Keep the Intune compliance policy for macOS assigned to the same users the partner reports for, so the partner's answer is what Conditional Access sees."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People with a noncompliant or unregistered Mac are asked to fix or register it; everyone else sees nothing."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-partners",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/Devices",
+      "narrative": "A connected partner is only useful if the Macs it manages come through as compliant. A Mac that Entra lists as not compliant is blocked by a compliant-device policy, or pushes the organisation to loosen the policy; a Mac that never registered gets no device check at all.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
         "cisa-scuba": ""
       }
     }

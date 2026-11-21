@@ -66,6 +66,12 @@ Manager alone (tenant attach) and hybrid-joined devices that nothing in the clou
 the AD collector's `ad-06-computers`, DEV-020 also counts workstations in use in AD (not servers or domain controllers)
 whose names Entra does not know at all; the collector's summary now carries `ActiveWindowsWorkstations`.
 
+`09-intune-compliance-partners` (beta) and `09-intune-device-management-partners` (v1.0) list the MDMs connected to
+Intune, Jamf for Macs being the usual one: the platforms each is onboarded for, its state and its last heartbeat
+(DeviceManagementServiceConfig.Read.All). DEV-022 asks that a Mac MDM report compliance to Intune, DEV-023 that its Macs
+come through as compliant in Entra; the profile's `thirdParty.macMdm` is filled from a connected partner while it says
+none, and covers the macOS checks Intune would otherwise judge.
+
 ## What the Exchange collector writes
 
 Needs a connected Exchange Online PowerShell session (ExchangeOnlineManagement 3.x, `Connect-ExchangeOnline`), with

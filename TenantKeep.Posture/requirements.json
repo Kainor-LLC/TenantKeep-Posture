@@ -291,6 +291,19 @@
     },
     {
       "collector": "Intune",
+      "match": "^Device management partners$",
+      "roles": [
+        "Global Reader",
+        "Intune Administrator"
+      ],
+      "scopes": [
+        "DeviceManagementServiceConfig.Read.All"
+      ],
+      "licence": "Microsoft Intune Plan 1",
+      "note": "Partner compliance management (Jamf and other Mac or phone MDMs) and the older device management partner integration."
+    },
+    {
+      "collector": "Intune",
       "match": "^(Apple push certificate|Apple VPP tokens|Enrollment restrictions|Autopilot devices|Device cleanup rules)$",
       "roles": [
         "Global Reader",

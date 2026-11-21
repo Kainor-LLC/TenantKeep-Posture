@@ -6,6 +6,12 @@ work landed on main.
 
 ## Unreleased
 
+- Macs on Jamf or another Mac MDM (2026-11-20): the Intune collector reads the partners connected to Intune (Partner
+  compliance management and the older device management partners). DEV-022 asks that the Mac MDM report compliance to
+  Intune, live and recent; DEV-023 that its Macs show as compliant in Entra. A new profile vendor, thirdParty.macMdm,
+  covers only the macOS checks (FileVault, macOS hardening, Platform SSO) and is discovered from a connected partner.
+  The profile wizard names each vendor category in plain words. The Devices view gains Macs on a Partner MDM, and the
+  Inventory lists the partners.
 - Who manages the Windows fleet (2026-11-20): DEV-019 no Windows devices on Configuration Manager alone, DEV-020
   hybrid-joined Windows devices in use managed by Intune and not by Group Policy alone (5% allowed by default),
   DEV-021 co-management workloads moved to Intune. Each says what people notice and how to move. The Intune collector
