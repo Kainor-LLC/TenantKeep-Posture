@@ -48,6 +48,10 @@ what says a list finished, and what says a file is left from an earlier attempt 
 | `01-domains` (+csv) | domains with authentication type and password expiry | Federated domains feed the identity model discovery; expiry feeds ID-017 |
 | `01-company-branding` | organization/{id}/branding | Presence only (logo, background, sign-in text); a 404 means no branding |
 | `02-directory-settings` | groupSettings | Tenant directory settings; Password Rule Settings feed ID-018 and ID-019. The banned password list is kept as a count, never its words |
+| `01-federation-settings` (+csv) | domains/{id}/federationConfiguration, one request for each federated domain | When each federated domain's token-signing certificate runs out, its thumbprint, the next certificate's date and how the last automatic renewal went; never the certificate. Empty for a tenant with no federated domain. Domain-InternalFederation.Read.All; on the expiry calendar (OP-006) |
+| `12-service-health` (+csv) | admin/serviceAnnouncement/issues | The incidents and advisories Microsoft has open for the tenant. ServiceHealth.Read.All; listed in Run Health, judged by no check |
+| `12-message-center` (+csv), `12-message-center-summary` | admin/serviceAnnouncement/messages | The posts with a date to act by that is ahead or passed in the last 30 days, and a count of the rest. ServiceMessage.Read.All; feeds OP-011 |
+| `13-mdi-health-issues` (+csv) | security/identities/healthIssues | Open Defender for Identity health issues, read only on a tenant that syncs from a domain. SecurityIdentitiesHealth.Read.All; feeds HY-034 |
 | `gsa-01-forwarding-profiles`, `gsa-02-filtering-profiles`, `gsa-03-settings` | networkAccess (beta) | Read only where the tenant holds Internet Access or Private Access; NetworkAccess.Read.All |
 | `policies`, `named-locations`, `auth-strengths`, `auth-context`, `resolved-names`, `group-scope`, `metadata` | Export-PostureCaSnapshot into the same folder | The CA checks and documents read these |
 | `collection` | run manifest: tenant, account, scopes, API versions, files, errors | `metadata.json` stays the CA snapshot's own |
@@ -68,6 +72,7 @@ snapshot.
 | `09-intune-compliance-policies`, `09-intune-config-profiles-templates`, `09-intune-config-profiles-settings-catalog`, `09-intune-apps` (+csv) | compliance policies, device configurations, configurationPolicies (beta) with template family and assignment counts, mobile apps | Endpoint security policies are settings catalog policies with a `TemplateFamily` |
 | `09-apple-push-cert`, `09-apple-vpp-tokens` (+csv) | APNs certificate, VPP tokens | Expiry feeds DEV-008 |
 | `09-apple-ade-tokens` (+csv) | deviceManagement/depOnboardingSettings (beta) | Automated Device Enrollment tokens with their expiry; on the expiry calendar (OP-006) |
+| `09-intune-role-assignments` (+csv), `09-intune-scope-tags` (+csv), `09-intune-approval-policies` (+csv) | deviceManagement/roleAssignments, roleScopeTags, operationApprovalPolicies (beta) | Intune's own role assignments with their scope, the scope tags, and the multi-admin approval policies. DeviceManagementRBAC.Read.All; feed DEV-025 and DEV-026 |
 | `09-certificate-connectors` (+csv) | deviceManagement/ndesConnectors (beta) | The on-premises certificate connectors with their state, last contact and how many days silent at the read; feeds DEV-024 |
 | `09-intune-enrollment-restrictions` (+csv) | deviceEnrollmentConfigurations (beta) | Per-platform personal enrollment blocked (verify the newer per-platform shape) |
 | `09-intune-mde-connector` (+csv) | mobileThreatDefenseConnectors (beta) | (verify) partner identification |
@@ -392,7 +397,7 @@ User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagem
 OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All. All delegated, all read-only.
 
 ```powershell
-Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All -NoWelcome, NetworkAccess.Read.All, BackupRestore-Configuration.Read.All
+Connect-MgGraph -Scopes Policy.Read.All, Directory.Read.All, Group.Read.All, User.Read.All, AuditLog.Read.All, UserAuthenticationMethod.Read.All, RoleManagement.Read.Directory, OnPremDirectorySynchronization.Read.All, IdentityRiskyUser.Read.All, IdentityRiskEvent.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All, LifecycleWorkflows.Read.All, PrivilegedEligibilitySchedule.Read.AzureADGroup, AdministrativeUnit.Read.All, ThreatHunting.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All, NetworkAccess.Read.All, BackupRestore-Configuration.Read.All, SharePointTenantSettings.Read.All, DeviceManagementRBAC.Read.All, SecurityIdentitiesHealth.Read.All, ServiceHealth.Read.All, ServiceMessage.Read.All, Domain-InternalFederation.Read.All -NoWelcome
 Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
 ```
 

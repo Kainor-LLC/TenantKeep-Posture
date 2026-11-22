@@ -1168,6 +1168,54 @@
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "HY-034",
+      "domain": "hybrid",
+      "title": "No open Defender for Identity health issue",
+      "severityDefault": "High",
+      "license": [
+        "MDI"
+      ],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "13-mdi-health-issues.json"
+      ],
+      "pass": "facts.mdiOpenHealthIssues == 0",
+      "affected": "facts.mdiOpenHealthIssues",
+      "remediation": [
+        "Open each issue in the Defender portal, Settings, Identities, Health issues: it says which sensor or domain controller and what to do.",
+        "Fix the cause: start or reinstall the sensor, give the directory service account what it needs to read, or install a sensor on a domain controller that has none.",
+        "Close an issue that is fixed, and suppress only one that is understood and accepted."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "None for users. A sensor that is fixed starts watching its domain controller again."
+      },
+      "learn": "https://learn.microsoft.com/defender-for-identity/health-alerts",
+      "deepLink": "https://security.microsoft.com/settings/identities?tabid=healthIssues",
+      "narrative": "Defender for Identity sees an attack on Active Directory only through its sensors on the domain controllers. A sensor that has stopped, a domain controller with no sensor, or a service account that can no longer read leaves a blind spot exactly where lateral movement and credential theft happen, and nothing else in the tenant says so. Every issue Defender for Identity has open is listed, the most severe first.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1003.003",
+        "T1021.002",
+        "T1558"
+      ]
     }
   ]
 }

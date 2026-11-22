@@ -697,6 +697,18 @@ function ConvertTo-PostureReportHtml {
             & $w '</tbody></table>'
         }
     }
+    if ($rh -and $rh.Contains('serviceHealth') -and $null -ne $rh.serviceHealth) {
+        $open = @($rh.serviceHealth)
+        & $w '<h3>Microsoft Service Health When This Run Was Made</h3>'
+        if ($open.Count -eq 0) { & $w '<p>Microsoft reported no open incident or advisory for this tenant.</p>' }
+        else {
+            $incidents = @($open | Where-Object { $_.kind -eq 'incident' }).Count
+            & $w "<p>Microsoft had $incidents incident(s) and $($open.Count - $incidents) advisory(ies) open for this tenant. They are Microsoft's to fix and no check is judged by them; they are listed because an incident on the day can explain a step that failed.</p>"
+            & $w '<table><thead><tr><th>Service</th><th>Kind</th><th>What</th><th>Status</th></tr></thead><tbody>'
+            foreach ($x in $open) { & $w "<tr><td>$(& $h $x.service)</td><td>$(& $h $(if ($x.kind -eq 'incident') { 'Incident' } else { 'Advisory' }))</td><td><code>$(& $h $x.id)</code> $(& $h $x.title)</td><td>$(& $h $x.status)</td></tr>" }
+            & $w '</tbody></table>'
+        }
+    }
     if ($rh -and $rh.Contains('imports') -and @($rh.imports).Count) {
         & $w '<h3>Evidence Brought In From Another Machine</h3><table><thead><tr><th>What</th><th>Collector</th><th>Collected</th><th>By</th><th>Files</th><th>Checked</th></tr></thead><tbody>'
         foreach ($i in $rh.imports) { & $w "<tr><td>$(& $h $i.label)</td><td>$(& $h $i.collector)</td><td>$(& $h $i.collectedUtc)</td><td>$(& $h $i.account)</td><td>$($i.files)</td><td>$(& $h $(if ($i.checked -eq 'sha256') { 'Every file against its SHA-256' } else { 'File names only' }))$(if ($i.Contains('tenantCheck') -and $i.tenantCheck) { '<br><span class="tech">Tenant: ' + (& $h $i.tenantCheck) + '</span>' })</td></tr>" }

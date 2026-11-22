@@ -299,3 +299,157 @@ Describe 'OneDrive retention, sync and idle sign-out (CL-017 to CL-019)' {
     }
 }
 
+# ---- Catalog 2026.11.2: the reads that each need a new read permission on the consent ----
+
+Describe 'Message Center (OP-011), service health and federation certificates on the calendar' {
+    BeforeAll {
+        $script:OpsNow = { param([string] $Folder) InModuleScope TenantKeep.Posture -Parameters @{ E = $Folder; AsOf = $script:AsOf } { param($E, $AsOf) Get-PostureOperationsFact -Evidence $E -OrgProfile @{} -Thresholds @{} -AsOf $AsOf } }
+    }
+
+    It 'lists the posts whose act-by date is inside the window, soonest first, and not one that has passed or is far off' {
+        $f = & $script:Folder 'message-center'
+        & $script:Write $f '12-message-center' @(
+            @{ Id = 'MC3'; Title = 'Far off'; ActionRequiredByDateTime = (& $script:Day -90); Services = 'Microsoft Teams' }
+            @{ Id = 'MC2'; Title = 'Next month'; ActionRequiredByDateTime = (& $script:Day -25); Services = 'Microsoft Entra;Microsoft Teams' }
+            @{ Id = 'MC1'; Title = 'Next week'; ActionRequiredByDateTime = (& $script:Day -6); Services = '' }
+            @{ Id = 'MC0'; Title = 'Last week'; ActionRequiredByDateTime = (& $script:Day 7); Services = 'Exchange Online' }
+        )
+        $r = & $script:OpsNow $f
+        $r.facts.messageCenterActionsDue | Should -Be 2
+        @($r.affected.messageCenterActionsDue | ForEach-Object { "$($_.name) | $($_.detail)" }) | Should -Be @('MC1: Next week | act by 2026-11-27, in 6 day(s)', 'MC2: Next month | act by 2026-12-16, in 25 day(s); Microsoft Entra, Microsoft Teams')
+    }
+
+    It 'has no answer without the read, and passes a tenant with no dated post' {
+        (& $script:OpsNow (& $script:Folder 'message-center-none')).notEvaluated['OP-011'] | Should -Match '12-message-center\.json was not collected'
+        $f = & $script:Folder 'message-center-empty'; & $script:Write $f '12-message-center' @()
+        $r = & $script:OpsNow $f
+        $r.facts.messageCenterActionsDue | Should -Be 0
+        $r.notEvaluated.ContainsKey('OP-011') | Should -BeFalse
+    }
+
+    It 'counts what Microsoft has open as facts, and judges nothing by it' {
+        $f = & $script:Folder 'service-health'
+        & $script:Write $f '12-service-health' @(@{ Id = 'EX1'; Classification = 'advisory' }, @{ Id = 'TM2'; Classification = 'incident' }, @{ Id = 'SP3'; Classification = 'incident' })
+        $r = & $script:OpsNow $f
+        $r.facts.serviceIncidentsOpen | Should -Be 2
+        $r.facts.serviceAdvisoriesOpen | Should -Be 1
+        (& $script:OpsNow (& $script:Folder 'service-health-none')).facts.Contains('serviceIncidentsOpen') | Should -BeFalse -Because 'not read is not zero'
+    }
+
+    It 'puts each federated domain''s signing certificate on the expiry calendar' {
+        $f = & $script:Folder 'federation'
+        & $script:Write $f '01-federation-settings' @(@{ Domain = 'contoso.example'; SigningCertificateExpiry = (& $script:Day -12); SigningCertificateRead = $true }, @{ Domain = 'fabrikam.example'; SigningCertificateExpiry = (& $script:Day -200); SigningCertificateRead = $true })
+        $r = & $script:OpsNow $f
+        @($r.facts.expiryCalendar | ForEach-Object { "$($_.kind): $($_.name) in $($_.days)" }) | Should -Be @('Federation signing certificate: contoso.example in 12', 'Federation signing certificate: fabrikam.example in 200')
+        $r.facts.expiringWithinWarning | Should -Be 1
+        $r.partial.ContainsKey('OP-006') | Should -BeFalse
+    }
+
+    It 'has no answer for a calendar with nothing near its date when a signing certificate could not be read' {
+        $f = & $script:Folder 'federation-unread'
+        & $script:Write $f '01-federation-settings' @(@{ Domain = 'contoso.example'; SigningCertificateExpiry = (& $script:Day -200); SigningCertificateRead = $true }, @{ Domain = 'broken.example'; SigningCertificateExpiry = $null; SigningCertificateRead = $false })
+        $r = & $script:OpsNow $f
+        $r.facts.expiringWithinWarning | Should -Be 0
+        $r.partial['OP-006'].noAnswer | Should -Be 'Nothing that was read is near its date, but the signing certificate of 1 federated domain(s) could not be read.'
+        # Through the engine, with the two lists the calendar always needs: a pass on part of the data is no answer.
+        & $script:Write $f '10-app-registrations' @(); & $script:Write $f '10-service-principals' @()
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $run = Invoke-PostureChecks -Evidence $f -Domain operations -PassThru
+        $op6 = @($run.results | Where-Object { $_.id -eq 'OP-006' })[0]
+        $op6.status | Should -Be 'notEvaluated'
+        $op6.reason | Should -Match 'could not be read'
+    }
+}
+
+Describe 'Defender for Identity health (HY-034)' {
+    BeforeAll {
+        $script:Hybrid = { param([string] $Folder) InModuleScope TenantKeep.Posture -Parameters @{ E = $Folder } { param($E) Get-PostureHybridFact -Evidence $E -OrgProfile @{} -Thresholds @{} } }
+        $script:HybridBase = { param([string] $Folder) & $script:Write $Folder '01-onprem-sync-features' @(@{ id = 't'; features = @{ passwordSyncEnabled = $true } }) }
+    }
+
+    It 'lists every open issue, the most severe first, with the sensors it names' {
+        $f = & $script:Folder 'mdi'; & $script:HybridBase $f
+        & $script:Write $f '13-mdi-health-issues' @(
+            @{ DisplayName = 'Low disk space on a sensor'; Severity = 'low'; Status = 'open'; CreatedDateTime = (& $script:Day 3); Sensors = 'DC03.contoso.example' }
+            @{ DisplayName = 'Sensor stopped communicating'; Severity = 'high'; Status = 'open'; CreatedDateTime = (& $script:Day 40); Sensors = 'DC01.contoso.example;DC02.contoso.example;DC04.contoso.example;DC05.contoso.example' }
+        )
+        $r = & $script:Hybrid $f
+        $r.facts.mdiOpenHealthIssues | Should -Be 2
+        @($r.affected.mdiOpenHealthIssues | ForEach-Object { "$($_.name) | $($_.detail)" }) | Should -Be @(
+            'Sensor stopped communicating | high severity, open since 2026-10-12; DC01.contoso.example, DC02.contoso.example, DC04.contoso.example and 1 more'
+            'Low disk space on a sensor | low severity, open since 2026-11-18; DC03.contoso.example'
+        )
+    }
+
+    It 'passes with none open, and has no answer when the read is not there' {
+        $f = & $script:Folder 'mdi-clean'; & $script:HybridBase $f
+        & $script:Write $f '13-mdi-health-issues' @()
+        (& $script:Hybrid $f).facts.mdiOpenHealthIssues | Should -Be 0
+        $g = & $script:Folder 'mdi-missing'; & $script:HybridBase $g
+        $r = & $script:Hybrid $g
+        $r.notEvaluated['HY-034'] | Should -Match '13-mdi-health-issues\.json was not collected'
+        $r.facts.Contains('mdiOpenHealthIssues') | Should -BeFalse -Because 'no read is not no issues'
+    }
+}
+
+Describe 'Intune multi-admin approval (DEV-025) and role scope (DEV-026)' {
+    BeforeAll {
+        $script:DevicesNow = { param([string] $Folder) InModuleScope TenantKeep.Posture -Parameters @{ E = $Folder } { param($E) Get-PostureDevicesFact -Evidence $E -OrgProfile @{} -Thresholds @{} } }
+    }
+
+    It 'counts the approval policies and says what they cover' {
+        $f = & $script:Folder 'approval'
+        & $script:Write $f '09-intune-approval-policies' @(@{ DisplayName = 'Wipe'; PolicyType = 'deviceWipe' }, @{ DisplayName = 'Scripts'; PolicyType = 'script' }, @{ DisplayName = 'More scripts'; PolicyType = 'script' })
+        $r = & $script:DevicesNow $f
+        $r.facts.multiAdminApprovalPolicies | Should -Be 3
+        $r.facts.multiAdminApprovalCovers | Should -Be 'deviceWipe, script'
+        $g = & $script:Folder 'approval-none'; & $script:Write $g '09-intune-approval-policies' @()
+        (& $script:DevicesNow $g).facts.multiAdminApprovalPolicies | Should -Be 0
+        (& $script:DevicesNow (& $script:Folder 'approval-missing')).notEvaluated['DEV-025'] | Should -Match '09-intune-approval-policies\.json was not collected'
+    }
+
+    It 'lists a writing role assigned over every device and user, and not a read-only or a scoped one' {
+        $f = & $script:Folder 'intune-roles'
+        & $script:Write $f '09-intune-role-assignments' @(
+            @{ DisplayName = 'Help desk'; RoleName = 'Help Desk Operator'; ScopeType = 'allDevicesAndLicensedUsers'; MemberGroups = 2 }
+            @{ DisplayName = 'Auditors'; RoleName = 'Read Only Operator'; ScopeType = 'allDevicesAndLicensedUsers'; MemberGroups = 1 }
+            @{ DisplayName = 'Mac team'; RoleName = 'Policy and Profile manager'; ScopeType = 'resourceScope'; MemberGroups = 1 }
+            @{ DisplayName = 'Kiosk owners'; RoleName = 'Kiosk admin'; ScopeType = 'allDevices'; MemberGroups = 1 }
+        )
+        & $script:Write $f '09-intune-scope-tags' @(@{ DisplayName = 'Default'; IsBuiltIn = $true }, @{ DisplayName = 'Mac'; IsBuiltIn = $false })
+        $r = & $script:DevicesNow $f
+        $r.facts.intuneRoleAssignments | Should -Be 4
+        $r.facts.intuneRolesOrgWide | Should -Be 2
+        $r.facts.intuneScopeTags | Should -Be 1
+        @($r.affected.intuneRolesOrgWide | ForEach-Object { "$($_.name) | $($_.detail)" }) | Should -Be @('Help desk (Help Desk Operator) | over every device and every user; 2 member group(s)', 'Kiosk owners (Kiosk admin) | over every device; 1 member group(s)')
+    }
+
+    It 'passes a tenant that uses no Intune role assignments, and has no answer when they were not read' {
+        $f = & $script:Folder 'intune-roles-none'; & $script:Write $f '09-intune-role-assignments' @()
+        $r = & $script:DevicesNow $f
+        $r.facts.intuneRolesOrgWide | Should -Be 0
+        $r.facts.intuneScopeTags | Should -BeNullOrEmpty -Because 'the scope tags were not read, which is not zero tags'
+        (& $script:DevicesNow (& $script:Folder 'intune-roles-missing')).notEvaluated['DEV-026'] | Should -Match '09-intune-role-assignments\.json was not collected'
+    }
+}
+
+Describe 'Microsoft service health in Run Health' {
+    It 'lists what Microsoft had open, incidents first, and says nothing when the read was not made' {
+        . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
+        $ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'health-report')
+        & $script:Write $ev '12-service-health' @(@{ Id = 'EX1'; Title = 'Mail delays'; Service = 'Exchange Online'; Classification = 'advisory'; Status = 'serviceDegradation' }, @{ Id = 'TM2'; Title = 'Meetings cannot start'; Service = 'Microsoft Teams'; Classification = 'incident'; Status = 'investigating' })
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $r = New-PostureReport -Evidence $ev -PassThru 6>$null
+        @($r.Report.runHealth.serviceHealth | ForEach-Object { "$($_.kind) $($_.id)" }) | Should -Be @('incident TM2', 'advisory EX1')
+        $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+        $html | Should -Match 'Microsoft had 1 incident\(s\) and 1 advisory\(ies\) open for this tenant'
+        $html | Should -Match '<code>TM2</code> Meetings cannot start'
+        Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match '### Microsoft service health when this run was made'
+        $bare = Initialize-CollectionFixture -Root (Join-Path $script:Root 'health-report-none')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $none = New-PostureReport -Evidence $bare -PassThru 6>$null
+        $none.Report.runHealth.serviceHealth | Should -BeNullOrEmpty
+        Get-Content -Raw (@($none.Files) -like '*.html')[0] | Should -Not -Match 'Microsoft Service Health When This Run Was Made'
+    }
+}
+

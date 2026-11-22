@@ -274,6 +274,11 @@ function ConvertTo-PostureReportMarkdown {
         if (@($rh.stale).Count) { & $line 'Files left from an earlier attempt, not read:'; & $line; & $table @('File', 'Domain', 'Step') @(foreach ($x in $rh.stale) { , @($x.file, $x.collector, $x.step) }) }
         if (@($rh.cutShort).Count) { $names = @($rh.cutShort | ForEach-Object { '`' + $_ + '`' }) -join ', '; & $line "Files that were not finished, never read: $names"; & $line }
     }
+    if ($rh -and $rh.Contains('serviceHealth') -and @($rh.serviceHealth).Count -gt 0) {
+        & $line '### Microsoft service health when this run was made'
+        & $line
+        & $table @('Service', 'Kind', 'What', 'Status') @(foreach ($x in $rh.serviceHealth) { , @($x.service, $(if ($x.kind -eq 'incident') { 'Incident' } else { 'Advisory' }), "$($x.id) $($x.title)", $x.status) })
+    }
     if ($rh -and $rh.Contains('judgedOnPart') -and @($rh.judgedOnPart).Count) {
         & $line '### Judged on part of the data'
         & $line

@@ -22,7 +22,7 @@ function Get-PostureOperationsFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ expiryWarningDays = 30; breakGlassTestMaxDays = 180; maxSecureScoreDropPoints = 5 }
+    $t = @{ expiryWarningDays = 30; breakGlassTestMaxDays = 180; maxSecureScoreDropPoints = 5; messageCenterWarningDays = 30 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -36,6 +36,8 @@ function Get-PostureOperationsFact {
     $v = { param($o, [string] $p) Get-PostureValue $o $p }
     $rows = { param($o) @($o | Where-Object { $_ }) }
     $facts = [ordered]@{}; $affected = [ordered]@{}; $notEvaluated = @{}
+    # Checks judged on part of the data: the engine turns a pass into no answer and puts a note on a fail.
+    $partial = @{}
 
     # Answers from the profile (the questionnaire half: nothing in the tenant says who owns the Message Center).
     $present = [bool]$OrgProfile['present']
@@ -136,6 +138,23 @@ function Get-PostureOperationsFact {
             elseif ($status -eq 'Warning') { & $add 'Subscription in its grace period' ([string](& $v $x 'SkuPartNumber')) (& $v $x 'NextLifecycleDateTime') }
         }
     }
+    # The token-signing certificate of each federated domain. One that could not be read is not a date that is
+    # far off: the calendar is then everything else, and says so.
+    $federation = & $load '01-federation-settings'
+    if ($null -ne $federation) {
+        $sources++
+        $unread = 0
+        foreach ($x in @(& $rows $federation)) {
+            $expires = & $v $x 'SigningCertificateExpiry'
+            if ($expires) { & $add 'Federation signing certificate' ([string](& $v $x 'Domain')) $expires } else { $unread++ }
+        }
+        if ($unread -gt 0) {
+            $partial['OP-006'] = @{
+                note     = "The signing certificate of $unread federated domain(s) could not be read; the calendar is everything else."
+                noAnswer = "Nothing that was read is near its date, but the signing certificate of $unread federated domain(s) could not be read."
+            }
+        }
+    }
     $sorted = @($calendar | Sort-Object { $_.days })
     $facts.expiryCalendarEntries = $sorted.Count
     $facts.expiryCalendarSources = $sources
@@ -143,7 +162,27 @@ function Get-PostureOperationsFact {
     $facts.expiringWithinWarning = $soon.Count
     $facts.expiryCalendar = @($sorted | Select-Object -First 50)
     $affected.expiringWithinWarning = @($soon | ForEach-Object { [ordered]@{ name = "$($_.kind): $($_.name)"; detail = $(if ($_.days -lt 0) { "expired $(-$_.days) day(s) ago" } else { "expires in $($_.days) day(s)" }) } })
-    if ($sources -eq 0) { $notEvaluated['OP-006'] = 'None of the expiry sources were collected (app registrations, service principals, Apple certificates and tokens, subscriptions).' }
+    if ($sources -eq 0) { $notEvaluated['OP-006'] = 'None of the expiry sources were collected (app registrations, service principals, Apple certificates and tokens, subscriptions, federation settings).' }
+
+    # Message Center (OP-011): the posts with a date to act by that falls inside the warning window. Each is
+    # Microsoft saying something changes on that day unless the organisation does something first.
+    $posts = & $load '12-message-center'
+    if ($null -eq $posts) { $notEvaluated['OP-011'] = '12-message-center.json was not collected (Invoke-PostureCollection -Collector Entra; needs ServiceMessage.Read.All).' }
+    else {
+        $due = @(& $rows $posts | ForEach-Object {
+                $by = ConvertTo-PostureUtcDateTime (& $v $_ 'ActionRequiredByDateTime')
+                if ($by) { $days = [int][Math]::Floor(($by - $AsOf).TotalDays); if ($days -ge 0 -and $days -le [int]$t.messageCenterWarningDays) { [ordered]@{ name = "$([string](& $v $_ 'Id')): $([string](& $v $_ 'Title'))"; detail = "act by $($by.ToString('yyyy-MM-dd')), in $days day(s)$(if ([string](& $v $_ 'Services')) { "; $(([string](& $v $_ 'Services')) -replace ';', ', ')" })"; days = $days } } }
+            } | Sort-Object { $_.days })
+        $facts.messageCenterActionsDue = $due.Count
+        $affected.messageCenterActionsDue = @($due | ForEach-Object { [ordered]@{ name = $_.name; detail = $_.detail } })
+    }
+
+    # Service health: what Microsoft had open when the run was made. Reported, never judged: it is not the tenant's posture.
+    $health = & $load '12-service-health'
+    if ($null -ne $health) {
+        $facts.serviceIncidentsOpen = @(& $rows $health | Where-Object { [string](& $v $_ 'Classification') -eq 'incident' }).Count
+        $facts.serviceAdvisoriesOpen = @(& $rows $health | Where-Object { [string](& $v $_ 'Classification') -ne 'incident' }).Count
+    }
 
     # Entra Connect Health (OP-007) from the Azure collector. (verify) the service fields
     $health = & $load 'az-08-entra-connect-health'
@@ -155,5 +194,5 @@ function Get-PostureOperationsFact {
         $facts.entraConnectHealthEnabled = $services.Count -gt 0
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('10-app-registrations.json', 'def-06-secure-score.json', 'def-06-secure-score-history.json', '01-subscriptions.json') }
+    return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; partial = $partial; evidence = @('10-app-registrations.json', 'def-06-secure-score.json', 'def-06-secure-score-history.json', '01-subscriptions.json', '12-message-center.json') }
 }

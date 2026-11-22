@@ -203,17 +203,19 @@
         "09-apple-push-cert.json",
         "09-apple-vpp-tokens.json",
         "09-apple-ade-tokens.json",
-        "01-subscriptions.json"
+        "01-subscriptions.json",
+        "01-federation-settings.json"
       ],
       "evidenceOptional": [
         "09-apple-push-cert.json",
         "09-apple-vpp-tokens.json",
         "09-apple-ade-tokens.json",
-        "01-subscriptions.json"
+        "01-subscriptions.json",
+        "01-federation-settings.json"
       ],
       "pass": "facts.expiringWithinWarning == 0",
       "affected": "facts.expiringWithinWarning",
-      "remediation": "Renew each listed item before its date: rotate the application credential, roll the SAML certificate, renew the Apple push certificate, VPP token or Automated Device Enrollment token, and buy or let go the trial or the subscription that is in its grace period. The full calendar is in the facts, soonest first.",
+      "remediation": "Renew each listed item before its date: rotate the application credential, roll the SAML certificate, renew the Apple push certificate, VPP token or Automated Device Enrollment token, buy or let go the trial or the subscription that is in its grace period, and make sure the federation server has rolled its token-signing certificate and Entra has picked the new one up. The full calendar is in the facts, soonest first.",
       "effort": "S",
       "category": "fix",
       "userImpact": {
@@ -222,7 +224,7 @@
       },
       "learn": "https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
-      "narrative": "One calendar for every expiry that takes a service down: application secrets, SAML signing certificates, the Apple push certificate, VPP and Automated Device Enrollment tokens, trial subscriptions and subscriptions in their grace period. Entra Connect and domain renewals join it when their collectors exist.",
+      "narrative": "One calendar for every expiry that takes a service down: application secrets, SAML signing certificates, the Apple push certificate, VPP and Automated Device Enrollment tokens, trial subscriptions, subscriptions in their grace period, and the token-signing certificate of each federated domain, which stops every sign-in in that domain the day it lapses.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
         "iso27001": "A.8.24",
@@ -382,6 +384,43 @@
         "nist-csf-2": "ID.AM-08",
         "iso27001": "A.5.9",
         "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "OP-011",
+      "domain": "operations",
+      "title": "No Message Center post is close to its act-by date",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "messageCenterWarningDays": 30
+      },
+      "evidence": [
+        "12-message-center.json"
+      ],
+      "pass": "facts.messageCenterActionsDue == 0",
+      "affected": "facts.messageCenterActionsDue",
+      "remediation": [
+        "Open each post listed in the Microsoft 365 admin center, Health, Message center, and read what changes on the date.",
+        "Do what it asks (a setting to choose, an application to update, people to tell) or decide that the default is wanted.",
+        "Record a post that needs nothing from you as an exception, so the next report does not list it again."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Depends on the change: each post says who is affected and how."
+      },
+      "learn": "https://learn.microsoft.com/microsoft-365/admin/manage/message-center",
+      "deepLink": "https://admin.microsoft.com/Adminportal/Home#/MessageCenter",
+      "narrative": "Most Message Center posts are news. A few carry a date to act by: a setting that flips, a feature that is retired, a default that turns on unless someone chooses otherwise. Missing one is how an organisation finds out about a change from its users. This lists the posts whose date falls inside the warning window, soonest first.",
+      "frameworks": {
+        "nist-csf-2": "ID.IM-03",
+        "iso27001": "A.5.37",
+        "cmmc": "CM.L2-3.4.3",
         "cisa-scuba": ""
       }
     }

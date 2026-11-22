@@ -64,6 +64,32 @@ function Invoke-PostureEntraCollection {
         $domains = & $get 'domains?$select=id,isDefault,isInitial,isVerified,authenticationType,passwordValidityPeriodInDays,passwordNotificationWindowInDays'
         & $save @($domains | ForEach-Object { [ordered]@{ Id = $_.id; IsDefault = (& $v $_ 'isDefault'); IsInitial = (& $v $_ 'isInitial'); IsVerified = (& $v $_ 'isVerified'); AuthenticationType = (& $v $_ 'authenticationType'); PasswordValidityPeriodInDays = (& $v $_ 'passwordValidityPeriodInDays'); PasswordNotificationWindowInDays = (& $v $_ 'passwordNotificationWindowInDays') } }) '01-domains' $true
     } | Out-Null
+    Invoke-PostureStep -Label 'Federation settings' -Folder $Folder -Script {
+        # For each federated domain: when the token-signing certificate Entra trusts runs out, whether a next one is
+        # staged, and how the last automatic renewal went. The day it lapses, everyone in the domain stops signing
+        # in. Only the dates and the thumbprint are kept, never the certificate. A tenant with no federated domain
+        # sends nothing and writes an empty list. Domain-InternalFederation.Read.All.
+        $federated = @(& $load '01-domains' | Where-Object { $_ -and [string]$_.AuthenticationType -eq 'Federated' })
+        $certificate = {
+            param([string] $Base64)
+            if (-not $Base64) { return $null }
+            try { $x = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new([System.Convert]::FromBase64String($Base64)); try { @{ notAfter = $x.NotAfter.ToUniversalTime().ToString('o'); thumbprint = $x.Thumbprint } } finally { $x.Dispose() } }
+            catch { $null }
+        }
+        $rows = foreach ($domain in $federated) {
+            foreach ($f in @(& $get "domains/$([uri]::EscapeDataString([string]$domain.Id))/federationConfiguration")) {
+                $current = & $certificate ([string](& $v $f 'signingCertificate')); $next = & $certificate ([string](& $v $f 'nextSigningCertificate'))
+                [ordered]@{
+                    Domain = [string]$domain.Id; DisplayName = (& $v $f 'displayName'); IssuerUri = (& $v $f 'issuerUri')
+                    SigningCertificateExpiry = $(if ($current) { $current.notAfter }); SigningCertificateThumbprint = $(if ($current) { $current.thumbprint }); SigningCertificateRead = ($null -ne $current)
+                    NextSigningCertificateExpiry = $(if ($next) { $next.notAfter })
+                    LastCertificateUpdateResult = (& $v $f 'signingCertificateUpdateStatus.certificateUpdateResult'); LastCertificateUpdateRun = (& $v $f 'signingCertificateUpdateStatus.lastRunDateTime')
+                    FederatedIdpMfaBehavior = (& $v $f 'federatedIdpMfaBehavior'); IsSignedAuthenticationRequestRequired = (& $v $f 'isSignedAuthenticationRequestRequired'); PreferredAuthenticationProtocol = (& $v $f 'preferredAuthenticationProtocol')
+                }
+            }
+        }
+        & $save @($rows) '01-federation-settings' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Company branding' -Folder $Folder -Script {
         # What the sign-in page shows, as presence only: a page with the organisation's logo and words is one users
         # learn to recognise. A tenant without branding answers 404, which means none.
@@ -736,6 +762,48 @@ function Invoke-PostureEntraCollection {
         $aus = & $get 'directory/administrativeUnits?$select=id,displayName,membershipType,isMemberManagementRestricted'
         & $save @($aus | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); MembershipType = (& $v $_ 'membershipType'); IsMemberManagementRestricted = (& $v $_ 'isMemberManagementRestricted') } }) 'gov-05-administrative-units' $true
     } | Out-Null
+
+    # ---------- 12. Microsoft's own notices: service health and the Message Center ----------
+    Invoke-PostureStep -Label 'Service health' -Folder $Folder -Script {
+        # The incidents and advisories Microsoft has open for this tenant now. They are Microsoft's to fix, not a
+        # finding; Run Health lists them, since an incident on the day of a run explains a read that failed.
+        # ServiceHealth.Read.All.
+        # Asked for the open ones; when Graph will not take the filter, every issue is read and the open ones kept.
+        $issues = $(try { & $get 'admin/serviceAnnouncement/issues?$filter=isResolved eq false' } catch { if ((Get-PostureHttpStatus -ErrorRecord $_) -ne 400) { throw }; & $get 'admin/serviceAnnouncement/issues' })
+        & $save @($issues | Where-Object { (& $v $_ 'isResolved') -ne $true } | ForEach-Object { [ordered]@{ Id = $_.id; Title = (& $v $_ 'title'); Service = (& $v $_ 'service'); Feature = (& $v $_ 'feature'); Classification = (& $v $_ 'classification'); Status = (& $v $_ 'status'); StartDateTime = (& $v $_ 'startDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime') } }) '12-service-health' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Message Center' -Folder $Folder -Script {
+        # The Message Center posts that carry a date to act by. Every post is read (a few hundred, a hundred to a
+        # page) and counted; the ones with a date that is still ahead, or passed in the last 30 days, are kept.
+        # ServiceMessage.Read.All.
+        $seen = @{ posts = 0; major = 0 }
+        $keepFrom = $AsOf.AddDays(-30)
+        $due = [System.Collections.Generic.List[object]]::new()
+        $null = Invoke-PostureGraphRequest -Uri 'admin/serviceAnnouncement/messages' -ApiVersion 'v1.0' -Label 'Message Center' -OnPage {
+            param($page)
+            foreach ($m in $page) {
+                $seen.posts++
+                if ((& $v $m 'isMajorChange') -eq $true) { $seen.major++ }
+                $by = & $date (& $v $m 'actionRequiredByDateTime')
+                if (-not $by -or $by -lt $keepFrom) { continue }
+                $due.Add([ordered]@{ Id = $m['id']; Title = (& $v $m 'title'); Category = (& $v $m 'category'); Severity = (& $v $m 'severity'); IsMajorChange = (& $v $m 'isMajorChange'); ActionRequiredByDateTime = $by.ToString('o'); Services = (@(& $v $m 'services' | Where-Object { $_ }) -join ';'); LastModifiedDateTime = (& $v $m 'lastModifiedDateTime') })
+            }
+        }
+        & $save @($due | Sort-Object { $_.ActionRequiredByDateTime }) '12-message-center' $true
+        & $saveOne ([ordered]@{ Posts = $seen.posts; MajorChanges = $seen.major; WithActionDate = $due.Count }) '12-message-center-summary'
+    } | Out-Null
+
+    # ---------- 13. Defender for Identity (hybrid tenants) ----------
+    # Its sensors sit on the domain controllers, so a tenant that does not sync from a domain is not asked: the
+    # read would only say that there is no Defender for Identity here. SecurityIdentitiesHealth.Read.All.
+    $syncs = $false
+    foreach ($o in @(& $load '01-organization' | Where-Object { $_ })) { if ((& $v $o 'onPremisesSyncEnabled') -eq $true) { $syncs = $true } }
+    if ($syncs) {
+        Invoke-PostureStep -Label 'Defender for Identity health' -Folder $Folder -Script {
+            $open = & $get "security/identities/healthIssues?`$filter=status eq 'open'"
+            & $save @($open | Where-Object { [string](& $v $_ 'status') -eq 'open' } | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); HealthIssueType = (& $v $_ 'healthIssueType'); Severity = (& $v $_ 'severity'); Status = (& $v $_ 'status'); CreatedDateTime = (& $v $_ 'createdDateTime'); LastModifiedDateTime = (& $v $_ 'lastModifiedDateTime'); Domains = (@(& $v $_ 'domainNames' | Where-Object { $_ }) -join ';'); Sensors = (@(& $v $_ 'sensorDNSNames' | Where-Object { $_ }) -join ';') } }) '13-mdi-health-issues' $true
+        } | Out-Null
+    }
 
     return @{
         files  = $files.ToArray()

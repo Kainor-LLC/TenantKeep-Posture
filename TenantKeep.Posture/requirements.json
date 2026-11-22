@@ -709,6 +709,63 @@
         "AuditLog.Read.All"
       ],
       "licence": "Microsoft Entra ID P1"
+    },
+    {
+      "collector": "Intune",
+      "match": "^(Intune roles|Intune scope tags|Multi-admin approval)$",
+      "roles": [
+        "Global Reader",
+        "Intune Administrator"
+      ],
+      "scopes": [
+        "DeviceManagementRBAC.Read.All"
+      ],
+      "licence": "Intune"
+    },
+    {
+      "collector": "Entra",
+      "match": "^Defender for Identity health$",
+      "roles": [
+        "Security Reader",
+        "Global Reader"
+      ],
+      "scopes": [
+        "SecurityIdentitiesHealth.Read.All"
+      ],
+      "licence": "Microsoft Defender for Identity"
+    },
+    {
+      "collector": "Entra",
+      "match": "^Service health$",
+      "roles": [
+        "Global Reader",
+        "Service Support Administrator"
+      ],
+      "scopes": [
+        "ServiceHealth.Read.All"
+      ]
+    },
+    {
+      "collector": "Entra",
+      "match": "^Message Center$",
+      "roles": [
+        "Global Reader",
+        "Message Center Reader"
+      ],
+      "scopes": [
+        "ServiceMessage.Read.All"
+      ]
+    },
+    {
+      "collector": "Entra",
+      "match": "^Federation settings$",
+      "roles": [
+        "Global Reader",
+        "Security Reader"
+      ],
+      "scopes": [
+        "Domain-InternalFederation.Read.All"
+      ]
     }
   ]
 }

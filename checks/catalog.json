@@ -1,11 +1,23 @@
 {
-  "version": "2026.11.1",
+  "version": "2026.11.2",
   "attack": {
     "version": "20.1",
     "domain": "enterprise-attack"
   },
   "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only. attack: the MITRE ATT&CK release the checks' technique ids are checked against; build.ps1 -Task AttackData writes checks/attack.json from that release and refuses any other. changes: one entry per catalog version whose checks changed meaning, with the checks that can move for a tenant that did not change and why; the trend reads it so a result that moved with the catalog is not called a new failure or a fix.",
   "changes": [
+    {
+      "version": "2026.11.2",
+      "date": "2026-11-21",
+      "summary": "Four new checks from reads that each need a new read permission on the consent, and federation signing certificates on the expiry calendar.",
+      "checks": {
+        "OP-006": "The expiry calendar gains the token-signing certificate of each federated domain. Where one could not be read, a calendar with nothing near its date has no answer.",
+        "OP-011": "New: Message Center posts whose act-by date is inside the warning window.",
+        "HY-034": "New: open Defender for Identity health issues.",
+        "DEV-025": "New: whether an Intune multi-admin approval policy exists.",
+        "DEV-026": "New: Intune role assignments that give a writing role over every device and user."
+      }
+    },
     {
       "version": "2026.11.1",
       "date": "2026-11-21",
@@ -269,6 +281,8 @@
         "11-",
         "gov-",
         "gsa-",
+        "12-",
+        "13-",
         "spo-tenant-settings-graph"
       ],
       "who": "The admin who ran the assessment, with Global Reader",

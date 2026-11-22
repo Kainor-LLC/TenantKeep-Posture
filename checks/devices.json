@@ -1038,6 +1038,82 @@
         "cmmc": "SC.L2-3.13.10",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-025",
+      "domain": "devices",
+      "title": "Multi-admin approval protects changes that reach every device",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-approval-policies.json"
+      ],
+      "pass": "facts.multiAdminApprovalPolicies > 0",
+      "remediation": [
+        "Intune admin center, Tenant administration, Multi Admin Approval, Access policies: create a policy.",
+        "Start with the profile types that can do the most harm at once: device actions such as wipe and retire, scripts, and role changes.",
+        "Name an approver group of at least two people who are not the only ones who make such changes, so a request is never waiting on its own author."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "None for users. An admin who starts a protected change waits for a second admin to approve it."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/fundamentals/multi-admin-approval",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/TenantAdminMenu/~/multiAdminApproval",
+      "narrative": "One Intune administrator session can wipe every device, or push a script to every device, in a few clicks. Attackers who take such a session have done exactly that. With multi-admin approval, a protected change one administrator starts does nothing until a second administrator approves it. The check passes when at least one approval policy exists, and the facts say which kinds of change the policies cover.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.3",
+        "cmmc": "AC.L2-3.1.4",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1485"
+      ]
+    },
+    {
+      "id": "DEV-026",
+      "domain": "devices",
+      "title": "No Intune role that can change things is assigned over every device and user",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-role-assignments.json"
+      ],
+      "pass": "facts.intuneRolesOrgWide == 0",
+      "affected": "facts.intuneRolesOrgWide",
+      "remediation": [
+        "For each assignment listed, decide which devices and users that team really looks after.",
+        "Edit the assignment in Intune admin center, Tenant administration, Roles: set its scope to the groups it should reach, and use scope tags so the team sees only its own policies and apps.",
+        "Leave tenant-wide administration to the few people who hold the Intune Administrator role in Entra, activated through PIM."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "None for users. A help desk team whose assignment is narrowed stops seeing devices outside its groups."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/fundamentals/role-based-access-control",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/RolesLandingMenuBlade/~/myPermissions",
+      "narrative": "Intune has its own roles beside the Entra ones, and each assignment says which devices and users it reaches. An assignment over all devices and all users gives a team, often the help desk, the same reach as a tenant administrator for whatever the role allows: wiping, retiring, reading recovery keys. A read-only role is not listed, and a tenant that uses no Intune role assignments passes.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

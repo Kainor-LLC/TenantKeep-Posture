@@ -94,6 +94,20 @@ function Get-PostureHybridFact {
 
     # AD side
     $adIds = @('HY-010', 'HY-011', 'HY-012', 'HY-013', 'HY-014', 'HY-015', 'HY-016', 'HY-017', 'HY-018', 'HY-019', 'HY-020', 'HY-021', 'HY-022', 'HY-023', 'HY-024', 'HY-025', 'HY-026', 'HY-027', 'HY-028', 'HY-029')
+    # HY-034: the health issues Defender for Identity has open (a sensor that stopped, a domain controller with
+    # no sensor, a service account that cannot read). Read through Graph on tenants that sync from a domain.
+    $mdi = & $load '13-mdi-health-issues'
+    if ($null -eq $mdi) { $notEvaluated['HY-034'] = '13-mdi-health-issues.json was not collected: the Entra collector reads it on tenants that sync from a domain (needs SecurityIdentitiesHealth.Read.All, Security Reader, and Defender for Identity in the tenant).' }
+    else {
+        $openIssues = @(& $rows $mdi | Sort-Object { @{ high = 0; medium = 1; low = 2 }[[string](& $v $_ 'Severity')] }, { [string](& $v $_ 'DisplayName') })
+        $facts.mdiOpenHealthIssues = $openIssues.Count
+        $affected.mdiOpenHealthIssues = @($openIssues | ForEach-Object {
+                $since = ConvertTo-PostureUtcDateTime (& $v $_ 'CreatedDateTime')
+                $where = @(([string](& $v $_ 'Sensors')) -split ';' | Where-Object { $_ })
+                [ordered]@{ name = [string](& $v $_ 'DisplayName'); detail = "$([string](& $v $_ 'Severity')) severity$(if ($since) { ", open since $($since.ToString('yyyy-MM-dd'))" })$(if ($where.Count -gt 0) { "; $(@($where | Select-Object -First 3) -join ', ')$(if ($where.Count -gt 3) { " and $($where.Count - 3) more" })" })" }
+            })
+    }
+
     if ($null -eq $forest) { & $adMissing $adIds 'ad-01-forest-domain'; return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('01-onprem-sync-features.json') } }
 
     $facts.forestFunctionalLevel = [string](& $v $forest 'ForestFunctionalLevel'); $facts.domainFunctionalLevel = [string](& $v $forest 'DomainFunctionalLevel')

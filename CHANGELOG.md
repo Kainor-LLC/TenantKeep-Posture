@@ -6,6 +6,25 @@ work landed on main.
 
 ## Unreleased
 
+- Five new read permissions on the consent, and what they read (2026-11-21, catalog 2026.11.2). All are read-only
+  delegated scopes on Microsoft Graph, added together so a tenant consents again once. A tenant on the earlier
+  consent keeps working: the five reads fail with the permission named, and the report's "To complete this
+  assessment" says to consent again.
+  - `DeviceManagementRBAC.Read.All`: Intune's own role assignments, scope tags and multi-admin approval. DEV-025,
+    a multi-admin approval policy exists; DEV-026, no role that can change things is assigned over every device
+    and user.
+  - `SecurityIdentitiesHealth.Read.All`: Defender for Identity health issues, read on tenants that sync from a
+    domain. HY-034, none is open.
+  - `ServiceHealth.Read.All` and `ServiceMessage.Read.All`: what Microsoft has open for the tenant, listed in Run
+    Health and judged by no check; and the Message Center posts with a date to act by. OP-011, none is inside the
+    warning window.
+  - `Domain-InternalFederation.Read.All`: for each federated domain, when its token-signing certificate runs out.
+    On the expiry calendar (OP-006); the certificate itself is never kept. This is the narrower of the two
+    permissions that read it (`Domain.Read.All` is the other).
+- The managed identity's grant script lists the same five as application roles.
+- A calendar with nothing near its date has no answer when a federated domain's signing certificate could not be
+  read.
+
 - Ten new checks from reads that need no new permission (2026-11-21, catalog 2026.11.1).
   - OP-009: Secure Score against its best day in the 90 Microsoft keeps, as a share of the maximum. A fall of more
     than five points means something was undone.

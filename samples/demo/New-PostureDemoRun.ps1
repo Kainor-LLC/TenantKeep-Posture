@@ -82,6 +82,15 @@ Write-Demo '01-subscriptions' @(
     @{ SkuPartNumber = 'VISIOCLIENT'; SkuId = (Get-DemoId 'f3000000' 5); Status = 'Warning'; IsTrial = $false; TotalLicenses = 6; CreatedDateTime = Get-DemoDate 1100; NextLifecycleDateTime = Get-DemoDate -19 }
     @{ SkuPartNumber = 'POWER_BI_STANDARD'; SkuId = (Get-DemoId 'f3000000' 3); Status = 'Enabled'; IsTrial = $false; TotalLicenses = 1000000; CreatedDateTime = Get-DemoDate 900; NextLifecycleDateTime = $null }
 )
+# No federated domain, so no signing certificate to watch.
+Write-Demo '01-federation-settings' @()
+# What Microsoft had open on the day, and the Message Center posts with a date to act by (OP-011).
+Write-Demo '12-service-health' @(@{ Id = 'EX1180456'; Title = 'Some users may see delays receiving external email'; Service = 'Exchange Online'; Feature = 'E-Mail timely delivery'; Classification = 'advisory'; Status = 'serviceDegradation'; StartDateTime = Get-DemoDate 0.4; LastModifiedDateTime = Get-DemoDate 0.1 })
+Write-Demo '12-message-center' @(
+    @{ Id = 'MC1198342'; Title = 'Retirement of legacy per-user MFA and self-service password reset policies'; Category = 'planForChange'; Severity = 'high'; IsMajorChange = $true; ActionRequiredByDateTime = Get-DemoDate -20; Services = 'Microsoft Entra'; LastModifiedDateTime = Get-DemoDate 12 }
+    @{ Id = 'MC1201877'; Title = 'New default for external meeting chat in Microsoft Teams'; Category = 'planForChange'; Severity = 'normal'; IsMajorChange = $false; ActionRequiredByDateTime = Get-DemoDate -75; Services = 'Microsoft Teams'; LastModifiedDateTime = Get-DemoDate 5 }
+)
+Write-Demo '12-message-center-summary' @{ Posts = 214; MajorChanges = 9; WithActionDate = 2 }
 Write-Demo '01-onprem-sync-features' @{ id = $tenantId; configuration = $null; features = @{ passwordSyncEnabled = $false; passwordWritebackEnabled = $false; blockSoftMatchEnabled = $true; blockCloudObjectTakeoverThroughHardMatchEnabled = $true } }
 Write-Demo '01-company-branding' @{ Present = $true; HasBannerLogo = $true; HasSquareLogo = $true; HasSignInText = $true }
 
@@ -431,6 +440,15 @@ Write-Demo '09-certificate-connectors' @(
     @{ DisplayName = 'Certificate Connector'; MachineName = 'FQ-PKI01'; State = 'active'; LastConnectionDateTime = Get-DemoDate 0.01; DaysSinceLastConnection = 0; EnrolledDateTime = Get-DemoDate 500; ConnectorVersion = '6.2406.0.1001' }
     @{ DisplayName = 'Certificate Connector'; MachineName = 'FQ-PKI02'; State = 'inactive'; LastConnectionDateTime = Get-DemoDate 12; DaysSinceLastConnection = 12; EnrolledDateTime = Get-DemoDate 500; ConnectorVersion = '6.2301.1.0' }
 )
+# Intune's own roles: the help desk has Help Desk Operator over every device and user (DEV-026), the Mac team is
+# scoped to its group. No multi-admin approval policy yet (DEV-025).
+Write-Demo '09-intune-role-assignments' @(
+    @{ Id = 'ra-helpdesk'; DisplayName = 'Help desk'; RoleName = 'Help Desk Operator'; RoleBuiltIn = $true; ScopeType = 'allDevicesAndLicensedUsers'; MemberGroups = 1; ScopeGroups = 0 }
+    @{ Id = 'ra-mac'; DisplayName = 'Mac team'; RoleName = 'Policy and Profile manager'; RoleBuiltIn = $true; ScopeType = 'resourceScope'; MemberGroups = 1; ScopeGroups = 1 }
+    @{ Id = 'ra-audit'; DisplayName = 'Auditors'; RoleName = 'Read Only Operator'; RoleBuiltIn = $true; ScopeType = 'allDevicesAndLicensedUsers'; MemberGroups = 1; ScopeGroups = 0 }
+)
+Write-Demo '09-intune-scope-tags' @(@{ Id = '0'; DisplayName = 'Default'; IsBuiltIn = $true }, @{ Id = '1'; DisplayName = 'Mac'; IsBuiltIn = $false })
+Write-Demo '09-intune-approval-policies' @()
 Write-Demo '09-intune-mde-connector' @{ Id = 'fc780465-2017-40d4-a0c5-307022471b92'; PartnerState = 'enabled'; LastHeartbeatDateTime = Get-DemoDate 0.1; WindowsDeviceBlockedOnMissingPartnerData = $false; WindowsEnabled = $true; MacEnabled = $true; LinuxEnabled = $null; IosEnabled = $true; AndroidEnabled = $true; MicrosoftDefenderForEndpointAttachEnabled = $false }
 Write-Demo '09-intune-device-cleanup' @{ Enabled = $true; DeviceInactivityBeforeRetirementInDays = 90; Rules = @(@{ Id = 'r1'; DisplayName = 'All platforms'; PlatformType = 'all'; DeviceInactivityBeforeRetirementInDays = 90 }) }
 Write-Demo '09-intune-settings' @{ SecureByDefault = $true }

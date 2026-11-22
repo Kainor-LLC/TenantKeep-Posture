@@ -324,6 +324,30 @@ function Get-PostureDevicesFact {
         else { $notEvaluated['DEV-023'] = '08-entra-devices.json was not collected (the Entra collector).' }
     }
 
+    # DEV-025: multi-admin approval. With it, a wipe, a script or a policy change one admin starts waits for a
+    # second admin; without it one stolen admin session reaches every device at once.
+    $approval = & $load '09-intune-approval-policies'
+    if ($null -eq $approval) { & $missing @('DEV-025') '09-intune-approval-policies' }
+    else {
+        $approvalList = @($approval | Where-Object { $_ })
+        $facts.multiAdminApprovalPolicies = $approvalList.Count
+        $facts.multiAdminApprovalCovers = (@($approvalList | ForEach-Object { [string](Get-PostureValue $_ 'PolicyType') } | Where-Object { $_ } | Sort-Object -Unique) -join ', ')
+    }
+    # DEV-026: Intune's own role assignments. One that gives a role that can change things over every device and
+    # every user is listed; a read-only role is not. No assignment at all (the Entra roles are used) passes.
+    $intuneRoles = & $load '09-intune-role-assignments'
+    if ($null -eq $intuneRoles) { & $missing @('DEV-026') '09-intune-role-assignments' }
+    else {
+        $roleList = @($intuneRoles | Where-Object { $_ })
+        $orgWide = @($roleList | Where-Object { [string](Get-PostureValue $_ 'ScopeType') -in 'allDevices', 'allLicensedUsers', 'allDevicesAndLicensedUsers' -and [string](Get-PostureValue $_ 'RoleName') -notmatch '(?i)read.?only' })
+        $facts.intuneRoleAssignments = $roleList.Count
+        $facts.intuneRolesOrgWide = $orgWide.Count
+        $tags = & $load '09-intune-scope-tags'
+        $facts.intuneScopeTags = $(if ($null -ne $tags) { @($tags | Where-Object { $_ -and (Get-PostureValue $_ 'IsBuiltIn') -ne $true }).Count } else { $null })
+        $scopeWords = @{ allDevices = 'every device'; allLicensedUsers = 'every user'; allDevicesAndLicensedUsers = 'every device and every user' }
+        $affected.intuneRolesOrgWide = @($orgWide | ForEach-Object { [ordered]@{ name = "$([string](Get-PostureValue $_ 'DisplayName')) ($([string](Get-PostureValue $_ 'RoleName')))"; detail = "over $($scopeWords[[string](Get-PostureValue $_ 'ScopeType')]); $([int](Get-PostureValue $_ 'MemberGroups')) member group(s)" } })
+    }
+
     # DEV-024: the on-premises certificate connectors (SCEP through NDES, PKCS). One Intune calls inactive, or one
     # that has not been heard from in days, issues no certificates. A tenant with none has nothing to lose here.
     $connectors = & $load '09-certificate-connectors'

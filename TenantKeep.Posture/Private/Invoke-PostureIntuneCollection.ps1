@@ -278,6 +278,26 @@ function Invoke-PostureIntuneCollection {
         & $save @($rows | ForEach-Object { [ordered]@{ Id = $_.id; PartnerState = (& $v $_ 'partnerState'); LastHeartbeatDateTime = (& $v $_ 'lastHeartbeatDateTime'); WindowsDeviceBlockedOnMissingPartnerData = (& $v $_ 'windowsDeviceBlockedOnMissingPartnerData'); WindowsEnabled = (& $v $_ 'windowsEnabled'); MacEnabled = (& $v $_ 'macEnabled'); LinuxEnabled = (& $v $_ 'linuxEnabled'); IosEnabled = (& $v $_ 'iosEnabled'); AndroidEnabled = (& $v $_ 'androidEnabled'); MicrosoftDefenderForEndpointAttachEnabled = (& $v $_ 'microsoftDefenderForEndpointAttachEnabled') } }) '09-intune-mde-connector' $true
     } | Out-Null
 
+    # Who can do what in Intune itself, beside the Entra roles: role assignments with their scope, the scope tags,
+    # and the multi-admin approval policies. DeviceManagementRBAC.Read.All; beta for the scope type and the policies.
+    Invoke-PostureStep -Label 'Intune roles' -Folder $Folder -Script {
+        $assignments = & $get 'deviceManagement/roleAssignments?$expand=roleDefinition' 'beta'
+        & $save @($assignments | ForEach-Object {
+                [ordered]@{
+                    Id = $_.id; DisplayName = (& $v $_ 'displayName'); RoleName = (& $v $_ 'roleDefinition.displayName'); RoleBuiltIn = (& $v $_ 'roleDefinition.isBuiltIn')
+                    ScopeType = (& $v $_ 'scopeType'); MemberGroups = @(& $v $_ 'members' | Where-Object { $_ }).Count
+                    ScopeGroups = @(@(& $v $_ 'scopeMembers') + @(& $v $_ 'resourceScopes') | Where-Object { $_ } | Sort-Object -Unique).Count
+                }
+            }) '09-intune-role-assignments' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Intune scope tags' -Folder $Folder -Script {
+        $tags = & $get 'deviceManagement/roleScopeTags' 'beta'
+        & $save @($tags | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); IsBuiltIn = (& $v $_ 'isBuiltIn') } }) '09-intune-scope-tags' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Multi-admin approval' -Folder $Folder -Script {
+        $policies = & $get 'deviceManagement/operationApprovalPolicies' 'beta'
+        & $save @($policies | ForEach-Object { [ordered]@{ Id = $_.id; DisplayName = (& $v $_ 'displayName'); PolicyType = (& $v $_ 'policyType'); PolicyPlatform = (& $v $_ 'policyPlatform'); ApproverGroups = @(& $v $_ 'approverGroupIds' | Where-Object { $_ }).Count } }) '09-intune-approval-policies' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Device management partners' -Folder $Folder -Script {
         # A Mac (or phone) MDM such as Jamf reports compliance to Intune as a compliance management partner (Partner
         # compliance management); the older integration shows as a device management partner. State and heartbeat say

@@ -211,6 +211,17 @@ BeforeAll {
             '^deviceManagement/windowsFeatureUpdateProfiles' { & $u @(@{ id = 'fu1'; displayName = 'Windows 11 24H2'; featureUpdateVersion = 'Windows 11, version 24H2'; assignments = @(@{ id = 'a' }) }); break }
             '^deviceAppManagement/mobileApps' { & $u @(@{ id = 'app1'; displayName = 'Company Portal'; publisher = 'Microsoft'; '@odata.type' = '#microsoft.graph.winGetApp' }); break }
             '^deviceManagement/applePushNotificationCertificate$' { if ($env:TKP_TEST_APNS -eq 'missing') { throw 'Response status code does not indicate success: NotFound (Not Found).' }; @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
+            '^deviceManagement/roleAssignments' { & $u @(@{ id = 'ra1'; displayName = 'Help desk'; scopeType = 'allDevicesAndLicensedUsers'; members = @('g1', 'g2'); scopeMembers = @(); resourceScopes = @(); roleDefinition = @{ id = 'rd1'; displayName = 'Help Desk Operator'; isBuiltIn = $true } }, @{ id = 'ra2'; displayName = 'Mac team'; scopeType = 'resourceScope'; members = @('g3'); scopeMembers = @('g9'); resourceScopes = @('g9'); roleDefinition = @{ id = 'rd2'; displayName = 'Policy and Profile manager'; isBuiltIn = $true } }); break }
+            '^deviceManagement/roleScopeTags' { & $u @(@{ id = '0'; displayName = 'Default'; isBuiltIn = $true }, @{ id = '1'; displayName = 'Mac'; isBuiltIn = $false }); break }
+            '^deviceManagement/operationApprovalPolicies' { & $u @(@{ id = 'p1'; displayName = 'Wipe needs a second admin'; policyType = 'deviceWipe'; policyPlatform = 'notApplicable'; approverGroupIds = @('g-approvers') }); break }
+            '^admin/serviceAnnouncement/issues' { & $u @(@{ id = 'EX1'; title = 'Mail delays'; service = 'Exchange Online'; feature = 'Delivery'; classification = 'advisory'; status = 'serviceDegradation'; isResolved = $false; startDateTime = '2026-10-13T00:00:00Z' }, @{ id = 'TM2'; title = 'Meetings cannot start'; service = 'Microsoft Teams'; classification = 'incident'; status = 'investigating'; isResolved = $false }, @{ id = 'OLD'; title = 'Fixed last week'; service = 'SharePoint Online'; classification = 'incident'; isResolved = $true }); break }
+            '^admin/serviceAnnouncement/messages' {
+                & $u @(
+                    @{ id = 'MC1'; title = 'A setting changes unless you choose'; category = 'planForChange'; severity = 'high'; isMajorChange = $true; actionRequiredByDateTime = [datetime]::UtcNow.AddDays(20.5).ToString('o'); services = @('Microsoft Entra', 'Microsoft Teams') }
+                    @{ id = 'MC2'; title = 'News with no date'; category = 'stayInformed'; severity = 'normal'; isMajorChange = $false; actionRequiredByDateTime = $null; services = @('Microsoft 365 suite') }
+                    @{ id = 'MC3'; title = 'Acted on last year'; category = 'planForChange'; severity = 'normal'; isMajorChange = $true; actionRequiredByDateTime = '2025-06-01T00:00:00Z'; services = @('Exchange Online') }
+                ); break
+            }
             '^deviceManagement/depOnboardingSettings' { & $u @(@{ id = 'dep1'; tokenName = 'Apple Business Manager'; appleIdentifier = 'apple@contoso.example'; tokenType = 'dep'; tokenExpirationDateTime = '2027-03-01T00:00:00Z'; lastSuccessfulSyncDateTime = '2026-10-13T00:00:00Z'; lastSyncErrorCode = 0 }); break }
             '^deviceManagement/ndesConnectors' { & $u @(@{ id = 'c1'; displayName = 'Certificate Connector'; machineName = 'PKI01'; state = 'active'; lastConnectionDateTime = [datetime]::UtcNow.AddHours(-2).ToString('o'); connectorVersion = '6.2406.0.1001' }, @{ id = 'c2'; displayName = 'Certificate Connector'; machineName = 'PKI02'; state = 'inactive'; lastConnectionDateTime = [datetime]::UtcNow.AddDays(-12.5).ToString('o') }, @{ id = 'c3'; displayName = 'Certificate Connector'; machineName = 'PKI03'; state = 'none' }); break }
             '^directory/subscriptions' { & $u @(@{ id = 'sub1'; skuPartNumber = 'SPB'; skuId = 's1'; status = 'Enabled'; isTrial = $false; totalLicenses = 12; createdDateTime = '2024-01-01T00:00:00Z'; nextLifecycleDateTime = '2027-01-01T00:00:00Z' }, @{ id = 'sub2'; skuPartNumber = 'TEAMS_PREMIUM'; skuId = 's2'; status = 'Warning'; isTrial = $true; totalLicenses = 25; nextLifecycleDateTime = '2026-11-01T00:00:00Z' }); break }
@@ -419,6 +430,31 @@ Describe 'Invoke-PostureCollection' {
             @($script:GraphAsked | Where-Object { $_ -match '/beta/deviceManagement/(depOnboardingSettings|ndesConnectors)' }).Count | Should -BeGreaterOrEqual 2
         }
 
+        It 'reads Intune''s own role assignments with their scope, the scope tags and the approval policies' {
+            $roles = @(& $script:Read '09-intune-role-assignments')
+            @($roles | ForEach-Object { "$($_.DisplayName): $($_.RoleName), $($_.ScopeType), $($_.MemberGroups) member group(s), $($_.ScopeGroups) scope group(s)" }) | Should -Be @('Help desk: Help Desk Operator, allDevicesAndLicensedUsers, 2 member group(s), 0 scope group(s)', 'Mac team: Policy and Profile manager, resourceScope, 1 member group(s), 1 scope group(s)')
+            @(& $script:Read '09-intune-scope-tags').Count | Should -Be 2
+            @(& $script:Read '09-intune-approval-policies')[0].PolicyType | Should -Be 'deviceWipe'
+            @($script:GraphAsked | Where-Object { $_ -match '/beta/deviceManagement/(roleAssignments|roleScopeTags|operationApprovalPolicies)' }).Count | Should -BeGreaterOrEqual 3
+        }
+
+        It 'reads what Microsoft has open and the Message Center posts with a date still ahead, and counts the rest' {
+            $health = @(& $script:Read '12-service-health')
+            @($health.Id) | Should -Be @('EX1', 'TM2') -Because 'an issue Microsoft has resolved is not open'
+            $posts = @(& $script:Read '12-message-center')
+            @($posts.Id) | Should -Be @('MC1') -Because 'a post with no date, or a date long past, is not kept'
+            $posts[0].Services | Should -Be 'Microsoft Entra;Microsoft Teams'
+            $summary = & $script:Read '12-message-center-summary'
+            $summary.Posts | Should -Be 3
+            $summary.MajorChanges | Should -Be 2
+        }
+
+        It 'asks nothing about federation or Defender for Identity of a tenant with no federated domain that does not sync' {
+            @(& $script:Read '01-federation-settings').Count | Should -Be 0 -Because 'the list is written, empty: the domains were read and none is federated'
+            @($script:GraphAsked | Where-Object { $_ -match 'federationConfiguration|security/identities/healthIssues' }) | Should -BeNullOrEmpty
+            Join-Path $script:R.Folder '13-mdi-health-issues.json' | Should -Not -Exist
+        }
+
         It 'keeps a day-by-day history of Secure Score beside the latest score' {
             $history = @(& $script:Read 'def-06-secure-score-history')
             $history.Count | Should -Be 1 -Because 'the synthetic tenant has one day'
@@ -584,7 +620,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 40
+            $r.results.Count | Should -Be 42
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
@@ -846,6 +882,55 @@ Describe 'Invoke-PostureCollection' {
                 Join-Path $f '05-per-user-mfa-summary.json' | Should -Not -Exist -Because 'no members read is not the same as no members with per-user MFA'
                 Join-Path $f 'gov-04-pim-groups-summary.json' | Should -Not -Exist -Because 'no groups read is not the same as no role-assignable groups'
             }
+        }
+    }
+
+    Context 'a tenant that federates a domain and syncs from Active Directory' {
+        BeforeAll {
+            # A signing certificate made here: only its public part goes into the answer, as Graph gives it.
+            $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+            $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new('CN=sts.contoso.example', $rsa, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+            $made = $request.CreateSelfSigned([datetimeoffset]::new(2026, 1, 1, 0, 0, 0, [timespan]::Zero), [datetimeoffset]::new(2026, 12, 15, 0, 0, 0, [timespan]::Zero))
+            $script:FedCert = [System.Convert]::ToBase64String($made.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+            $script:FedThumbprint = $made.Thumbprint
+            $made.Dispose(); $rsa.Dispose()
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/v1\.0/domains\?' } { $script:GraphAsked.Add([string]$Uri); @{ value = @(@{ id = 'contoso.example'; isDefault = $true; isVerified = $true; authenticationType = 'Federated' }, @{ id = 'broken.example'; isVerified = $true; authenticationType = 'Federated' }, @{ id = 'contoso.onmicrosoft.com'; isInitial = $true; isVerified = $true; authenticationType = 'Managed' }) } }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/domains/[^/]+/federationConfiguration' } {
+                $script:GraphAsked.Add([string]$Uri)
+                if ($Uri -match 'broken\.example') { return @{ value = @(@{ id = 'f2'; displayName = 'Old STS'; issuerUri = 'http://old.example/trust'; signingCertificate = 'not a certificate' }) } }
+                @{ value = @(@{ id = 'f1'; displayName = 'Contoso STS'; issuerUri = 'http://sts.contoso.example/adfs/services/trust'; signingCertificate = $script:FedCert; nextSigningCertificate = $null; federatedIdpMfaBehavior = 'acceptIfMfaDoneByFederatedIdp'; signingCertificateUpdateStatus = @{ certificateUpdateResult = 'Success'; lastRunDateTime = '2026-10-01T00:00:00Z' } }) }
+            }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/v1\.0/organization\?' } { $script:GraphAsked.Add([string]$Uri); @{ value = @(@{ id = 'tenant-guid'; displayName = 'Contoso'; onPremisesSyncEnabled = $true; verifiedDomains = @(@{ name = 'contoso.example'; isDefault = $true }) }) } }
+            Mock -ModuleName TenantKeep.Posture Invoke-MgGraphRequest -ParameterFilter { $Uri -match '/security/identities/healthIssues' } { $script:GraphAsked.Add([string]$Uri); @{ value = @(@{ id = 'h1'; displayName = 'Sensor stopped communicating'; healthIssueType = 'sensor'; severity = 'high'; status = 'open'; createdDateTime = '2026-10-10T00:00:00Z'; sensorDNSNames = @('DC01.contoso.example', 'DC02.contoso.example'); domainNames = @('contoso.example') }) } }
+            $script:GraphAsked.Clear()
+            $script:Fed = Invoke-PostureCollection -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -OutputFolder (Join-Path $script:Root 'federated') -PassThru -WarningAction SilentlyContinue 6>$null
+            $script:FedRead = { param($n) Get-Content -Raw -LiteralPath (Join-Path $script:Fed.Folder "$n.json") | ConvertFrom-Json }
+        }
+
+        It 'keeps when each federated domain''s signing certificate runs out, and its thumbprint, never the certificate' {
+            $rows = @(& $script:FedRead '01-federation-settings')
+            $rows.Count | Should -Be 2
+            $ok = $rows | Where-Object Domain -eq 'contoso.example'
+            ([datetime]$ok.SigningCertificateExpiry).ToUniversalTime().ToString('yyyy-MM-dd') | Should -Be '2026-12-15'
+            $ok.SigningCertificateThumbprint | Should -Be $script:FedThumbprint
+            $ok.SigningCertificateRead | Should -BeTrue
+            $ok.FederatedIdpMfaBehavior | Should -Be 'acceptIfMfaDoneByFederatedIdp'
+            $ok.LastCertificateUpdateResult | Should -Be 'Success'
+            Get-Content -Raw (Join-Path $script:Fed.Folder '01-federation-settings.json') | Should -Not -Match ([regex]::Escape($script:FedCert.Substring(0, 40))) -Because 'the dates are the evidence; the certificate itself is not kept'
+            @($script:GraphAsked | Where-Object { $_ -match 'federationConfiguration' }).Count | Should -Be 2 -Because 'one request for each federated domain, none for the managed one'
+        }
+
+        It 'says a certificate could not be read, with no date in its place' {
+            $bad = @(& $script:FedRead '01-federation-settings') | Where-Object Domain -eq 'broken.example'
+            $bad.SigningCertificateRead | Should -BeFalse
+            $bad.SigningCertificateExpiry | Should -BeNullOrEmpty
+        }
+
+        It 'reads the open Defender for Identity health issues of a tenant that syncs' {
+            $issues = @(& $script:FedRead '13-mdi-health-issues')
+            $issues.Count | Should -Be 1
+            $issues[0].Severity | Should -Be 'high'
+            $issues[0].Sensors | Should -Be 'DC01.contoso.example;DC02.contoso.example'
         }
     }
 

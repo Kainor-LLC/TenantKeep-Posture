@@ -373,7 +373,11 @@
     "directSendRejected": "Direct Send rejected",
     "oneDriveRetentionDays": "Days a deleted user's OneDrive is kept",
     "oneDriveSyncRestricted": "OneDrive sync limited to the organisation's domains",
-    "idleSignOutWithinLimit": "Idle sessions signed out within the limit"
+    "idleSignOutWithinLimit": "Idle sessions signed out within the limit",
+    "messageCenterActionsDue": "Message Center posts close to their act-by date",
+    "mdiOpenHealthIssues": "Open Defender for Identity health issues",
+    "multiAdminApprovalPolicies": "Multi-admin approval policies",
+    "intuneRolesOrgWide": "Intune role assignments over every device and user"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -439,6 +443,7 @@
     "unusedAppDays": "Application unused after (days)",
     "minPolicyCompliancePct": "Azure Policy compliance, minimum (%)",
     "minOneDriveRetentionDays": "Deleted user's OneDrive kept at least (days)",
-    "maxIdleSignOutMinutes": "Idle session sign-out, at most (minutes)"
+    "maxIdleSignOutMinutes": "Idle session sign-out, at most (minutes)",
+    "messageCenterWarningDays": "Message Center act-by warning window (days)"
   }
 }

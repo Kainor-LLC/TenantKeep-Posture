@@ -419,6 +419,7 @@ function ConvertTo-PostureReportModel {
     $causeOrder = @{ permission = 0; unavailable = 1; licence = 2; token = 3; module = 4; throttled = 5; network = 6; notProvisioned = 7; unknown = 8 }
     $causeLabel = @{ permission = 'Needs a role'; unavailable = 'Needs a role or licence'; licence = 'Needs a licence'; token = 'Sign-in ran out'; module = 'Module missing'; throttled = 'Throttled'; network = 'Network or service error'; notProvisioned = 'Not set up in this tenant'; unknown = 'Not recognised' }
     $failures = @($(try { Read-PostureRunFailure -Folder $Evidence } catch { @() }))
+    $fullTierForHealth = ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')
     $runHealth = [ordered]@{
         failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {
                 [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
@@ -435,6 +436,12 @@ function ConvertTo-PostureReportModel {
                 [ordered]@{ kind = [string]$_['kind']; label = [string]$_['label']; collector = [string]$_['collector']; collectedUtc = [string]$_['collectedUtc']; importedUtc = [string]$_['importedUtc']; account = [string]$_['account']; checked = [string]$_['checked']; files = @($_['files']).Count; tenantCheck = [string]$(if ($_.Contains('tenantCheck')) { $_['tenantCheck'] }) }
             })
     }
+    # What Microsoft had open for the tenant when the run was made (12-service-health): incidents first. It is not a
+    # finding; it is here because an incident on the day explains a read that failed or a number that looks wrong.
+    $serviceIssues = & $load '12-service-health'
+    $runHealth.serviceHealth = $(if ($null -eq $serviceIssues -or -not $fullTierForHealth) { $null } else {
+            @(@($serviceIssues) | Where-Object { $_ } | Sort-Object { $(if ([string](& $v $_ 'Classification') -eq 'incident') { 0 } else { 1 }) }, { [string](& $v $_ 'Service') } | ForEach-Object { [ordered]@{ id = [string](& $v $_ 'Id'); service = [string](& $v $_ 'Service'); title = [string](& $v $_ 'Title'); kind = [string](& $v $_ 'Classification'); status = [string](& $v $_ 'Status') } })
+        })
     # The Active Directory read is made apart from the run, sometimes long before it: the hybrid scorecard says when.
     $adImport = @($runHealth.imports | Where-Object { $_.kind -eq 'ad' -and $_.collectedUtc } | Select-Object -Last 1)
     if ($adImport.Count -gt 0) {

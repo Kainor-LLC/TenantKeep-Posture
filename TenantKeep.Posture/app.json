@@ -44,7 +44,12 @@
         "Application.Read.All",
         "SharePointTenantSettings.Read.All",
         "NetworkAccess.Read.All",
-        "BackupRestore-Configuration.Read.All"
+        "BackupRestore-Configuration.Read.All",
+        "DeviceManagementRBAC.Read.All",
+        "SecurityIdentitiesHealth.Read.All",
+        "ServiceHealth.Read.All",
+        "ServiceMessage.Read.All",
+        "Domain-InternalFederation.Read.All"
       ]
     },
     {

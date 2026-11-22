@@ -61,7 +61,10 @@ $postureGraphRoles = @(
     'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All',
     'Organization.Read.All', 'Application.Read.All',
     # The SharePoint tenant settings, through Graph: the scheduled run's default read of them.
-    'SharePointTenantSettings.Read.All'
+    'SharePointTenantSettings.Read.All',
+    # Intune roles and multi-admin approval, Defender for Identity health, service health and Message Center,
+    # and the signing certificates of federated domains.
+    'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All'
 )
 if ($IncludePosture) { $roles += $postureGraphRoles }
 
