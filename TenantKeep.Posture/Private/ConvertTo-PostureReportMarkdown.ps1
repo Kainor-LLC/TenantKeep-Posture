@@ -258,6 +258,12 @@ function ConvertTo-PostureReportMarkdown {
     & $line (($a.evidenceFiles | ForEach-Object { "``$_``" }) -join ', ')
     & $line
     $rh = $r.runHealth
+    if ($rh -and $rh.Contains('sources') -and @($rh.sources).Count -gt 0) {
+        $sourceLabel = @{ collected = 'Collected'; notCollected = 'Not collected'; notNeeded = 'Not needed here' }
+        & $line '### Where this run''s evidence comes from'
+        & $line
+        & $table @('Source', 'In this run', 'Detail') @($rh.sources | ForEach-Object { , @($_.title, $sourceLabel[[string]$_.state], $_.detail) })
+    }
     if ($rh -and @($rh.failures).Count -gt 0) {
         & $line '### Run health'
         & $line

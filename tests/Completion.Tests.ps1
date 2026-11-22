@@ -158,6 +158,44 @@ Describe 'What a run still lacks' {
         }
     }
 
+    It 'lists every source in Run Health with where the run stands, also when nothing is missing' {
+        # "To Complete This Assessment" speaks only when a check waits. A run that lacks nothing then explained
+        # nothing, and a reader could not tell "not needed for this tenant" from "nobody told me".
+        $run = & $script:NewRun 'sources' @{ skipped = @{ Azure = 'the profile says azure: none' } }
+        # A cloud-only tenant, by its profile: nothing waits for an Active Directory read.
+        $client = Join-Path $script:Root 'client of sources'
+        '{ "version": 1, "identityModel": "cloud-only" }' | Set-Content (Join-Path $client 'profile.json')
+        $r = New-PostureReport -Evidence (Join-Path $run 'evidence') -Client $client -PassThru 6>$null
+        $sources = @($r.Report.runHealth.sources)
+        @($sources.id | Sort-Object) | Should -Be @($script:Entries | ForEach-Object { [string]$_['id'] } | Sort-Object) -Because 'every entry of the catalog is a row, once'
+        $by = @{}; foreach ($s in $sources) { $by[[string]$s.id] = $s }
+        $by['entra'].state | Should -Be 'collected'
+        $by['entra'].detail | Should -Match '^\d+ files\.'
+        $by['active-directory'].state | Should -Be 'notNeeded' -Because 'the profile says the tenant does not sync from a domain'
+        $by['active-directory'].detail | Should -Be 'No check in this run waits for it. Needed by: A tenant that syncs users from an on-premises Active Directory domain.'
+        $by['azure'].state | Should -Be 'notCollected'
+        $by['azure'].detail | Should -Match '^Skipped when the run started: the profile says azure: none\. .*To Complete This Assessment'
+        @($sources.state)[0] | Should -Be 'collected' -Because 'what the run holds comes first'
+        @($sources.state)[-1] | Should -Be 'notNeeded'
+        $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+        $html | Should -Match '<h3>Where This Run&#39;s Evidence Comes From</h3>|<h3>Where This Run''s Evidence Comes From</h3>'
+        $html | Should -Match '<td>Active Directory \(the on-premises domain\)</td><td><span class="status notApplicable">Not needed here</span></td>'
+        (Get-Content -Raw (@($r.Files) -like '*.md')[0]) | Should -Match '(?m)^\| Entra ID \| Collected \| \d+ files\. \|\r?$'
+    }
+
+    It 'says Active Directory is not collected when a hybrid tenant has no AD read, and collected once it has' {
+        $run = & $script:NewRun 'sources-hybrid'
+        ConvertTo-Json -InputObject @(@{ id = 't'; features = @{ passwordSyncEnabled = $true } }) -Depth 5 | Set-Content (Join-Path $run 'evidence' '01-onprem-sync-features.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $ad = @((New-PostureReport -Evidence (Join-Path $run 'evidence') -PassThru 6>$null).Report.runHealth.sources | Where-Object { $_.id -eq 'active-directory' })[0]
+        $ad.state | Should -Be 'notCollected'
+        $ad.detail | Should -Match '^\d+ checks wait for it\. '
+        '{ "DomainName": "contoso.example" }' | Set-Content (Join-Path $run 'evidence' 'ad-01-domain.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $after = @((New-PostureReport -Evidence (Join-Path $run 'evidence') -PassThru 6>$null).Report.runHealth.sources | Where-Object { $_.id -eq 'active-directory' })[0]
+        $after.files | Should -Be 1
+    }
+
     It 'says nothing in the Conditional Access tier, where the other domains are not waiting for evidence' {
         $run = & $script:NewRun 'free-tier'
         InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
@@ -165,6 +203,7 @@ Describe 'What a run still lacks' {
         finally { InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } } }
         @($r.Report.completion) | Should -BeNullOrEmpty
         Get-Content -Raw (@($r.Files) -like '*.html')[0] | Should -Not -Match 'To Complete This Assessment'
+        Get-Content -Raw (@($r.Files) -like '*.html')[0] | Should -Not -Match 'Evidence Comes From' -Because 'the source list is about every domain, and this tier reports one'
     }
 }
 

@@ -226,16 +226,25 @@ body.executive .tech, body.executive #checks, body.executive #appendix { display
 /* Charts (Private/ConvertTo-PostureChart.ps1): a tone class sets --tone; each mark type paints with it. */
 .t-c1 { --tone: var(--c1); } .t-c2 { --tone: var(--c2); } .t-c3 { --tone: var(--c3); } .t-c4 { --tone: var(--c4); } .t-c5 { --tone: var(--c5); }
 .t-ok { --tone: var(--ok); } .t-warn { --tone: var(--warn); } .t-err { --tone: var(--err); } .t-na { --tone: var(--na); }
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin: 10px 0 22px; align-items: start; }
+/* Cards in a row share a height, so a row has one bottom edge and "View the checks" sits on it; pinned to the top,
+   a short card beside a tall one left a hole under it. Dense: a card that needs two columns does not leave the
+   column before it empty. */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin: 10px 0 22px; align-items: stretch; grid-auto-flow: dense; }
 .chart-card { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .chart-card.wide { grid-column: 1 / -1; }
+/* The opening cards of the Overview fill their rows whatever their number: four cards in three columns left the
+   fourth alone with two empty columns beside it. */
+.charts.story { display: flex; flex-wrap: wrap; }
+.charts.story > .chart-card { flex: 1 1 300px; }
 .chart-card figcaption h4 { margin: 0; font-size: 0.95rem; text-transform: none; letter-spacing: 0; color: var(--fg); }
 .chart-card .takeaway { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .chart-card .view-all { font-size: 13px; margin-top: auto; align-self: flex-start; }
 .chart-card svg { display: block; width: 100%; height: auto; }
 .chart-card text { fill: var(--fg); font-family: var(--font); }
-.donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.donut { max-width: 150px; }
+/* The legend stays beside the donut and wraps its own words; a long label used to push the whole legend under it. */
+.donut-wrap { display: flex; align-items: center; gap: 18px; }
+.donut { flex: 0 0 150px; max-width: 150px; }
+.donut-wrap .legend-values { flex: 1 1 0; min-width: 0; }
 .donut circle { stroke: var(--tone); }
 .donut .center-value { font-size: 24px; font-weight: 650; }
 .donut .center-label { font-size: 10px; fill: var(--muted); }
@@ -246,11 +255,13 @@ body.executive .tech, body.executive #checks, body.executive #appendix { display
 .sankey .node { fill: var(--tone); }
 .sankey .node-label { font-size: 12px; paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
 .sankey .node-value { font-weight: 650; }
-.rings-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.rings { max-width: 170px; }
+/* The rings above their list, not beside it: beside, the list had half a card's width, every layer wrapped to
+   three lines and the card stood twice as tall as its neighbours. */
+.rings-wrap { display: flex; flex-direction: column; gap: 10px; }
+.rings { max-width: 170px; align-self: center; }
 .rings .track { stroke: var(--track); }
 .rings circle:not(.track) { stroke: var(--tone); }
-.layer-list { list-style: none; margin: 0; padding: 0; flex: 1 1 200px; font-size: 14px; }
+.layer-list { list-style: none; margin: 0; padding: 0; font-size: 14px; }
 .layer-list li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line); }
 .layer-list li:first-child { border-top: none; }
 .layer-list .layer-state { color: var(--muted); font-size: 13px; white-space: nowrap; }
@@ -265,6 +276,15 @@ body.executive .tech, body.executive #checks, body.executive #appendix { display
 .segbar .seg { background: var(--tone); color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; padding: 0 6px; min-width: 2px; white-space: nowrap; }
 .segbar .seg.t-c4, .segbar .seg.t-na { color: #111; }
 details.chart-table summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+/* Domains: the charts of each domain, folded until asked for. */
+.area-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.area-head h3 { margin: 0; }
+details.area { border-top: 1px solid var(--line); }
+details.area:last-of-type { border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+details.area > summary { cursor: pointer; padding: 10px 2px; font-size: 15px; }
+details.area > summary .area-name { font-weight: 600; }
+details.area > summary .hint { margin-left: 8px; }
+details.area[open] > summary { border-bottom: 1px solid var(--line); }
 details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 @media print { .chart-card { break-inside: avoid; } .sankey-wrap { overflow: visible; } details.chart-table { display: none; } }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 14px; }
@@ -360,7 +380,11 @@ details.support { margin: 6px 0; } details.support summary { cursor: pointer; }
 .lane li a { color: var(--fg); }
 .mailgrid td .cell { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .mailgrid td { white-space: nowrap; }
-.outcomes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 6px 0 20px; }
+/* Six outcomes in one row, three or two on a narrower page: fitting as many as the width allowed left the sixth
+   alone on a row of its own. */
+.outcomes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 6px 0 20px; }
+@media (min-width: 760px) { .outcomes { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1320px) { .outcomes { grid-template-columns: repeat(6, 1fr); } }
 .outcome { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
 .outcome-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 650; }
 .outcome-score { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 4px 0; }

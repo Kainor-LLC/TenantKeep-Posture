@@ -27,6 +27,19 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- The charts sit in even rows (2026-11-22). Cards were pinned to the top of rows as tall as their tallest card, so
+  a short card beside a tall one left a hole under it. The cards of a row now share a height, with "View the
+  checks" along the bottom edge. The three layered-ring cards have a row of their own on the Overview, "Defence in
+  Depth", with the rings above their list: beside it, every layer wrapped to three lines and the card stood twice
+  as tall as its neighbours. A donut's legend stays beside it and wraps its own words. The opening cards and the
+  six outcomes fill their rows.
+- The Domains tab opens on the scorecards. The charts follow, a section for each domain, folded until asked for,
+  with one button to open or fold them all. Printing opens them.
+- Run Health lists every source an assessment can draw on and where the run stands with each: collected, not
+  collected, or not needed here, with the kind of tenant that would need it. "To Complete This Assessment" speaks
+  only when a check waits for something, so a run that lacked nothing explained nothing, and a reader could not
+  tell "not needed for this tenant" from "nobody told me" about the Active Directory read or the SharePoint site
+  permissions report. The rows are data, in the completion block of the catalog.
 - Four fixes from the first run of this version against a live tenant (2026-11-21):
   - Azure Lighthouse delegations (AZ-030) were asked of a Resource Graph table that does not exist, and Azure
     answered Bad Request. The table is `managedservicesresources`.

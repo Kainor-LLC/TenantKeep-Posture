@@ -128,7 +128,7 @@ function ConvertTo-PostureReportHtml {
     $storyCards += ConvertTo-PostureChartCard -Title 'Open Findings by Severity' -Takeaway "$(@($sevOpen)[0].value) critical and $(@($sevOpen)[1].value) high findings are open." -Body (ConvertTo-PostureRankedBarChart -Name 'Open findings by severity' -KeepOrder -Item $sevOpen) -ViewAllLabel 'Go to Recommendations'
     if ($st.Contains('funnel') -and $st.funnel) { $storyCards += ConvertTo-PostureChartCard -Title 'Attack Path: Phishing to Admin' -Takeaway $st.funnel.takeaway -ViewAllDomain 'auth' -Body (ConvertTo-PostureRankedBarChart -Name 'Attack path' -KeepOrder -Item @($st.funnel.steps | ForEach-Object { [ordered]@{ label = $_.label; value = $_.value; tone = 'err' } })) }
     if ($st.Contains('ledger') -and $st.ledger) { $storyCards += ConvertTo-PostureChartCard -Title 'Accepted Risks by Expiry' -Takeaway "$($st.ledger.total) accepted risk(s); $($st.ledger.buckets['Expired']) expired and $($st.ledger.buckets['Within 30 days']) expire within 30 days." -Body (ConvertTo-PostureRankedBarChart -Name 'Accepted risks by expiry' -KeepOrder -Item @($st.ledger.buckets.Keys | ForEach-Object { [ordered]@{ label = $_; value = $st.ledger.buckets[$_]; tone = $(if ($_ -eq 'Expired') { 'err' } elseif ($_ -eq 'Within 30 days') { 'warn' } else { 'c1' }) } })) }
-    & $w ('<div class="charts">' + ($storyCards -join '') + '</div>')
+    & $w ('<div class="charts story">' + ($storyCards -join '') + '</div>')
     # Outcomes a board asks about, each a score with its trend across runs.
     if ($st.Contains('outcomes') -and @($st.outcomes).Count) {
         $oc = @($st.outcomes | ForEach-Object {
@@ -166,11 +166,13 @@ function ConvertTo-PostureReportHtml {
     if ($ch.Contains('signInCa')) { $overviewCharts += ConvertTo-PostureChartCard -Class 'wide' -Title 'Sign-ins Through Conditional Access' -Takeaway $ch.signInCa.takeaway -ViewAllDomain 'ca' -Body (ConvertTo-PostureSankeyChart -Name 'Successful sign-ins by Conditional Access and MFA' -Height 200 -Column $ch.signInCa.column -Flow $ch.signInCa.flow) }
     if ($ch.Contains('compliance')) { $overviewCharts += ConvertTo-PostureChartCard -Title 'Device Compliance' -Takeaway $ch.compliance.takeaway -ViewAllDomain 'devices' -Body (ConvertTo-PostureDonutChart -Name 'Device compliance' -CenterLabel 'devices' -Segment $ch.compliance.segment) }
     if ($ch.Contains('authAdmins')) { $overviewCharts += ConvertTo-PostureChartCard -Title 'Administrators by Sign-in Strength' -Takeaway $ch.authAdmins.takeaway -ViewAllDomain 'identity' -Body (ConvertTo-PostureBarChart -Name 'Administrators by strongest method' -Segment $ch.authAdmins.segment) }
-    # Defence in depth: each layer set as rings.
-    foreach ($ls in @($(if ($r.Contains('layers')) { $r.layers }))) { $overviewCharts += ConvertTo-PostureChartCard -Title $ls.name -Takeaway $ls.takeaway -ViewAllDomain $ls.domain -Body (ConvertTo-PostureRingChart -Name $ls.name -Layer $ls.layers) }
+    # Defence in depth: each layer set as rings, in a row of their own (they are one kind of card and one height).
+    $layerCards = @()
+    foreach ($ls in @($(if ($r.Contains('layers')) { $r.layers }))) { $layerCards += ConvertTo-PostureChartCard -Title $ls.name -Takeaway $ls.takeaway -ViewAllDomain $ls.domain -Body (ConvertTo-PostureRingChart -Name $ls.name -Layer $ls.layers) }
     $c0 = $r.counts
     $overviewCharts += ConvertTo-PostureChartCard -Title 'Check Results' -Takeaway "$($c0.pass) of $([int]$c0.pass + [int]$c0.fail + [int]$c0.acceptedRisk + [int]$c0.coveredBy) evaluated checks pass; $($c0.notEvaluated) could not be evaluated." -Body (ConvertTo-PostureBarChart -Name 'Check results' -Segment @(@{ label = 'Pass'; value = $c0.pass; tone = 'ok' }, @{ label = 'Fail'; value = $c0.fail; tone = 'err' }, @{ label = 'Accepted or covered'; value = ([int]$c0.acceptedRisk + [int]$c0.coveredBy); tone = 'c1' }, @{ label = 'Not evaluated'; value = $c0.notEvaluated; tone = 'na' }))
     & $w ('<div class="charts">' + ($overviewCharts -join '') + '</div>')
+    if (@($layerCards).Count) { & $w ('<h3>Defence in Depth</h3><div class="charts">' + ($layerCards -join '') + '</div>') }
     & $w '<h3>Top Risks</h3>'
     if (@($r.topRisks).Count -eq 0) { & $w '<p>No failed checks.</p>' }
     else {
@@ -278,8 +280,9 @@ function ConvertTo-PostureReportHtml {
         $areas.Azure += ConvertTo-PostureChartCard -Class 'wide' -Title 'Top Defender for Cloud Recommendations' -Takeaway 'The recommendations affecting the most resources.' -ViewAllDomain 'azure' -Body $tbl
     }
     foreach ($a in @($areas.Keys)) { $areas[$a] = @($areas[$a] | Where-Object { $_ }) }
-    foreach ($a in $areas.Keys) { if (@($areas[$a]).Count) { & $w ('<h3>' + (& $h $a) + '</h3><div class="charts">' + (@($areas[$a]) -join '') + '</div>') } }
-    & $w '<h3>Scorecards</h3><div class="cards">'
+    # The tab opens on the scorecards; the charts follow, a section for each domain, folded until asked for (forty
+    # charts at once is a long scroll). Written after the cards below.
+    & $w '<div class="cards">'
     foreach ($d in $r.domains) {
         # When a domain's evidence was read apart from the run (Active Directory), the card says when.
         $evidenceNote = $(if ($d.Contains('evidenceNote') -and $d.evidenceNote) { '<p class="hint">' + (& $h $d.evidenceNote) + '</p>' } else { '' })
@@ -287,6 +290,15 @@ function ConvertTo-PostureReportHtml {
     }
     foreach ($d in $r.domainsNotCollected) { & $w "<div class=`"card na`"><h3>$(& $h $d.label)</h3><p>Not collected yet.$(if ($d.reason) { " $(& $h $d.reason)" })</p></div>" }
     & $w '</div>'
+    $withCharts = @($areas.Keys | Where-Object { @($areas[$_]).Count })
+    if ($withCharts.Count) {
+        # The button opens or folds every section; printing opens them all, and so does ?areas=open (report.js).
+        & $w '<div class="area-head"><h3>Charts by Domain</h3><button type="button" id="areas-toggle" aria-expanded="false">Open all</button></div>'
+        foreach ($a in $withCharts) {
+            $n = @($areas[$a]).Count
+            & $w ('<details class="area"><summary><span class="area-name">' + (& $h $a) + '</span><span class="hint">' + "$n chart$(if ($n -ne 1) { 's' })" + '</span></summary><div class="charts">' + (@($areas[$a]) -join '') + '</div></details>')
+        }
+    }
     foreach ($d in $r.domains) {
         & $w "<h3>$(& $h $d.label)</h3><table><thead><tr><th>Check</th><th>Title</th><th>Status</th><th>Severity</th><th class=`"tech`">Licence Needed</th><th>Detail</th></tr></thead><tbody>"
         foreach ($x in $d.checks) {
@@ -629,6 +641,20 @@ function ConvertTo-PostureReportHtml {
 
     # Run health: what failed, why, and what to grant.
     & $w '<section class="view" id="health"><h2>Run Health</h2>'
+    # Every source an assessment can draw on and where this run stands with each. Always there: "To Complete This
+    # Assessment" speaks only when a check waits, so without this a run that lacks nothing explains nothing.
+    $sources = @($(if ($rh -and $rh.Contains('sources')) { $rh.sources }))
+    if ($sources.Count -gt 0) {
+        $sourceLabel = @{ collected = @('pass', 'Collected'); notCollected = @('notEvaluated', 'Not collected'); notNeeded = @('notApplicable', 'Not needed here') }
+        & $w '<h3>Where This Run''s Evidence Comes From</h3>'
+        & $w '<p class="hint">Every source the assessment can draw on. Most are read by the run itself; a few are collected somewhere else and brought in, and those are asked for only when a check needs them.</p>'
+        & $w '<table><thead><tr><th>Source</th><th>In This Run</th><th>Detail</th></tr></thead><tbody>'
+        foreach ($x in $sources) {
+            $label = $sourceLabel[[string]$x.state]
+            & $w ('<tr><td>' + (& $h $x.title) + '</td><td><span class="status ' + $label[0] + '">' + $label[1] + '</span></td><td>' + (& $h $x.detail) + '</td></tr>')
+        }
+        & $w '</tbody></table>'
+    }
     # Where the collection stopped, from the run's journal: the steps it was in, the domains that did not finish,
     # files left from an earlier attempt and writes that were cut short. None of these is read as evidence.
     $stopped = @($(if ($rh -and $rh.Contains('stoppedIn')) { $rh.stoppedIn })); $unfinished = @($(if ($rh -and $rh.Contains('notFinished')) { $rh.notFinished }))

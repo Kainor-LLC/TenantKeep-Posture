@@ -48,3 +48,41 @@ Describe 'Demo tenant' {
         foreach ($d in $domains) { $d | Should -Match '(\.example|^fernquilldemo\.onmicrosoft\.com)$' -Because 'the demo tenant uses reserved example domains only' }
     }
 }
+
+Describe 'The page a reader opens' {
+    # How the charts are placed. Cards used to be pinned to the top of rows as tall as their tallest card, so a short
+    # card beside a tall one left a hole under it, and the ring cards stood twice as tall as their neighbours.
+    BeforeAll {
+        $report = New-PostureReport -Evidence $script:Made.Evidence -Client $script:Made.Client -Format Html -OutputPath (Join-Path $TestDrive 'page') -PassThru 6>$null
+        $script:Page = Get-Content -Raw (@($report.Files) -like '*.html')[0]
+        $script:Css = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'templates' 'report.css')
+    }
+
+    It 'gives the cards of a row one height, and keeps a donut''s legend beside it' {
+        $rule = [regex]::Match($script:Css, '(?m)^\.charts \{[^}]*\}').Value
+        $rule | Should -Match 'align-items: stretch' -Because 'a row then has one bottom edge, and "View the checks" sits on it'
+        $rule | Should -Not -Match 'align-items: start'
+        [regex]::Match($script:Css, '(?m)^\.donut-wrap \{[^}]*\}').Value | Should -Not -Match 'flex-wrap: wrap' -Because 'a long label wraps its own words; it does not push the legend under the donut'
+        [regex]::Match($script:Css, '(?m)^\.rings-wrap \{[^}]*\}').Value | Should -Match 'flex-direction: column' -Because 'the list under the rings has the card''s whole width'
+    }
+
+    It 'lets the opening cards fill their rows and gives the layered rings a row of their own' {
+        $script:Page | Should -Match '<div class="charts story"><figure class="chart-card'
+        $depth = [regex]::Match($script:Page, '<h3>Defence in Depth</h3><div class="charts">(.*?)</div>\s*<h3>', 'Singleline').Groups[1].Value
+        $depth | Should -Not -BeNullOrEmpty
+        [regex]::Matches($depth, '<figure class="chart-card').Count | Should -Be ([regex]::Matches($depth, 'class="rings-wrap"').Count) -Because 'every card in that row is a ring card'
+        [regex]::Matches($depth, 'class="rings-wrap"').Count | Should -BeGreaterThan 1
+        [regex]::Matches($script:Page, 'class="rings-wrap"').Count | Should -Be ([regex]::Matches($depth, 'class="rings-wrap"').Count) -Because 'no ring card is left among the shorter ones'
+    }
+
+    It 'opens the Domains tab on the scorecards and folds the charts of each domain under them' {
+        $domains = [regex]::Match($script:Page, '<section class="view" id="domains">(.*?)</section>', 'Singleline').Groups[1].Value
+        $domains.IndexOf('<div class="cards">') | Should -BeLessThan $domains.IndexOf('<h3>Charts by Domain</h3>') -Because 'the scores come first'
+        $domains | Should -Match '<button type="button" id="areas-toggle" aria-expanded="false">Open all</button>'
+        $areas = [regex]::Matches($domains, '<details class="area"><summary><span class="area-name">([^<]+)</span><span class="hint">(\d+) charts?</span></summary><div class="charts">')
+        $areas.Count | Should -BeGreaterThan 4
+        $domains | Should -Not -Match '<details class="area" open' -Because 'a section opens when it is asked for'
+        foreach ($a in $areas) { [int]$a.Groups[2].Value | Should -BeGreaterThan 0 }
+        $script:Page | Should -Match 'beforeprint' -Because 'a printed report has every section open'
+    }
+}

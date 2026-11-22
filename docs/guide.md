@@ -241,8 +241,14 @@ steps that failed), with how many checks wait for it, who can add it, where, the
 brings it back. The run prints the same rows when it ends. A site permissions report can also just be saved into the
 client folder's `imports/`: the next run checks it is that report and this tenant's, and files it.
 
+Run Health opens with every source an assessment can draw on and where the run stands with each: collected (and
+how many files), not collected (the Overview's "To Complete This Assessment" then says who can add it and how), or
+not needed here, with the kind of tenant that would need it. The on-premises domain and the SharePoint site
+permissions report are the two that are collected somewhere else and brought in; a tenant that needs neither is
+told so, not left to wonder.
+
 A step that fails is recorded with its cause: needs a role, needs a licence, sign-in ran out, throttled, network,
-or not set up in this tenant. The console ends with the failures grouped by cause and what to do, the report opens
+not readable with this sign-in, or not set up in this tenant. The console ends with the failures grouped by cause and what to do, the report opens
 with a banner, and its Run Health view lists each step with the role, delegated permission or licence it needs
 (from the module's requirements.json) and Microsoft's own message. Checks that depend on a failed step say not
 evaluated, never pass or fail.

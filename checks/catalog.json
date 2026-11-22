@@ -135,7 +135,8 @@
       "who": "Someone with an account in the domain",
       "where": "A domain-joined Windows machine with the Active Directory tools",
       "get": "Export-PostureCollector -Kind ActiveDirectory -Run {run}",
-      "bring": "Import-PostureEvidence -Path <the folder the script wrote> -Run {run} -Client {client}"
+      "bring": "Import-PostureEvidence -Path <the folder the script wrote> -Run {run} -Client {client}",
+      "neededBy": "A tenant that syncs users from an on-premises Active Directory domain."
     },
     {
       "id": "sharing-report",
@@ -147,7 +148,8 @@
       "who": "A SharePoint Administrator",
       "where": "SharePoint admin center, Reports, Data access governance, Site permissions across your organization: run the report, then Download CSV",
       "get": "Save the CSV in {imports}",
-      "bring": "Nothing more: the next run, or Import-PostureSharingReport -Client {client} -Path <the CSV> now, reads it."
+      "bring": "Nothing more: the next run, or Import-PostureSharingReport -Client {client} -Path <the CSV> now, reads it.",
+      "neededBy": "A tenant licensed for SharePoint Advanced Management or Microsoft 365 Copilot."
     },
     {
       "id": "sharepoint-admin",

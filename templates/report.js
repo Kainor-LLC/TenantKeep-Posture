@@ -211,6 +211,20 @@
 
   bindCopy(document);
 
+  // Domains: the charts of each domain are folded sections. The button opens or folds them all; printing opens them
+  // for the paper and puts them back; ?areas=open opens them from the address, for a screenshot or a link.
+  var areasToggle = $('areas-toggle');
+  function areaList() { return Array.prototype.slice.call(document.querySelectorAll('details.area')); }
+  function setAreas(open) {
+    areaList().forEach(function (d) { d.open = open; });
+    if (areasToggle) { areasToggle.textContent = open ? 'Fold all' : 'Open all'; areasToggle.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  }
+  if (areasToggle) { areasToggle.addEventListener('click', function () { setAreas(!areaList().every(function (d) { return d.open; })); }); }
+  if (/[?&]areas=open(&|$)/.test(window.location.search)) { setAreas(true); }
+  var areasBeforePrint = null;
+  window.addEventListener('beforeprint', function () { areasBeforePrint = areaList().map(function (d) { return d.open; }); areaList().forEach(function (d) { d.open = true; }); });
+  window.addEventListener('afterprint', function () { if (areasBeforePrint) { areaList().forEach(function (d, i) { d.open = areasBeforePrint[i]; }); areasBeforePrint = null; } });
+
   // Humanise the server-rendered detail cells once.
   Array.prototype.slice.call(document.querySelectorAll('[data-human]')).forEach(function (el) { el.textContent = humanDetail(el.textContent); });
 })();

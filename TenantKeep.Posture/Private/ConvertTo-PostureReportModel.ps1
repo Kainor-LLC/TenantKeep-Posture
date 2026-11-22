@@ -487,6 +487,9 @@ function ConvertTo-PostureReportModel {
         if ($plan -is [System.Collections.IDictionary]) { $completionArgs.Plan = $plan }
         if ($collection -is [System.Collections.IDictionary]) { $completionArgs.Collection = $collection }
         $completion = @($(try { Get-PostureCompletion @completionArgs } catch { Write-Verbose "What the assessment lacks was not worked out: $($_.Exception.Message)"; @() }))
+        # Every source with where this run stands, for Run Health: the list above is silent when nothing is missing,
+        # and a reader cannot tell "not needed for this tenant" from "nobody told me".
+        $runHealth['sources'] = @($(try { Get-PostureSourceStatus -Catalog $Catalog -Evidence $Evidence -Completion @($completion) -Failure @($failures) } catch { Write-Verbose "The sources were not listed: $($_.Exception.Message)"; @() }))
     }
 
     return [ordered]@{
