@@ -23,7 +23,8 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   permission it lacks.
 - Run against a live tenant with a normal sign-in and through the scheduled run. Not yet seen live: the five new
   reads through the scheduled run's identity (Azure keeps its old token for up to a day; a run without them says
-  which permission it lacks), the reads that need Microsoft 365 E5, a federated domain's certificate, and the
+  which permission it lacks), the reads that need Microsoft 365 E5, the two that need a tenant that syncs from
+  Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
 - Four fixes from the first run of this version against a live tenant (2026-11-21):
