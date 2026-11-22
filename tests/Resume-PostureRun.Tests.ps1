@@ -93,7 +93,13 @@ Describe 'Resume-PostureRun' {
             $p = Join-Path $client 'profile.json'; $d = Get-Content -Raw $p | ConvertFrom-Json -AsHashtable; $d.outputRoot = (Join-Path $root 'evidence'); $d | ConvertTo-Json | Set-Content $p
             $newest = Join-Path $otherRoot '20261121-0800'; New-Item -ItemType Directory -Path $newest -Force | Out-Null
             @{ tenantId = '66666666-6666-6666-6666-666666666666'; client = $other; planned = @('Entra') } | ConvertTo-Json | Set-Content (Join-Path $newest 'run.json')
+            # Across every client the search also takes in the folder runs go to by default, ~/tenantkeep/evidence. On
+            # a machine that makes real runs that folder has newer ones, so the search is kept inside this test's.
+            $none = Join-Path $root 'no-default-runs'; New-Item -ItemType Directory -Path $none -Force | Out-Null
+            # $PesterBoundParameters, not $Client: this block has a $client of its own, and a variable's name ignores case.
+            Mock Get-PostureOutputRoot { if ($PesterBoundParameters.ContainsKey('Client')) { [string](Get-Content -Raw (Join-Path $PesterBoundParameters['Client'] 'profile.json') | ConvertFrom-Json -AsHashtable)['outputRoot'] } else { $none } }
             Find-PostureLatestRun -ClientsRoot $clients | Should -Be $newest -Because 'the newest run of any client'
+            Should -Invoke Get-PostureOutputRoot -Times 1 -Exactly -ParameterFilter { $PesterBoundParameters.Count -eq 0 } -Because 'the default folder is part of the search, and here it is the empty one'
             Find-PostureLatestRun -Client 'contoso' -ClientsRoot $clients | Should -Be (Join-Path $root 'evidence' '20261120-1200') -Because 'the newest of that client, found by name'
             { Find-PostureLatestRun -Client 'nobody' -ClientsRoot $clients } | Should -Throw '*No client folder named nobody*'
         }
