@@ -137,12 +137,13 @@ Describe 'MITRE ATT&CK mapping' {
         $doc | ConvertTo-Json -Depth 20 | Set-Content $file
         $out = & pwsh -NoProfile -File (Join-Path $root 'build.ps1') -Task AttackData -AttackStix $stix 2>&1 | Out-String
         $LASTEXITCODE | Should -Not -Be 0
-        $out | Should -Match 'ID-001 names T1562\.008, revoked in ATT&CK'
-        $out | Should -Match 'T1685\.002 \(Disable or Modify Cloud Log\)' -Because 'the error names the replacement'
+        # The task prints each problem on a line of its own. The error text under it is wrapped to the console's width
+        # (80 columns here, 120 on a Windows runner), so nothing below reads a phrase out of that.
+        $out | Should -Match '(?m)^ATT&CK mapping: ID-001 names T1562\.008, revoked in ATT&CK \S+ by T1685\.002 \(Disable or Modify Cloud Log\)\r?$' -Because 'the line names the check, the id and the replacement'
 
         $cat = Join-Path $root 'checks' 'catalog.json'
         (Get-Content -Raw $cat) -replace '"version": "20\.1"', '"version": "19.0"' | Set-Content $cat
         $out = & pwsh -NoProfile -File (Join-Path $root 'build.ps1') -Task AttackData -AttackStix $stix 2>&1 | Out-String
-        $out | Should -Match 'pins 19\.0'
+        $out | Should -Match '(?m)^ATT&CK release: the bundle is \S+, checks/catalog\.json pins 19\.0\r?$'
     }
 }

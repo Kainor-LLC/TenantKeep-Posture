@@ -228,7 +228,12 @@ function Invoke-AttackData {
     $pin = [string](Get-Content -Raw (Join-Path $dir 'catalog.json') | ConvertFrom-Json -AsHashtable).attack.version
     $objects = @((Get-Content -Raw -LiteralPath $AttackStix | ConvertFrom-Json -AsHashtable -Depth 20).objects)
     $release = [string](@($objects | Where-Object { $_.type -eq 'x-mitre-collection' })[0].x_mitre_version)
-    if ($release -ne $pin) { throw "$AttackStix is ATT&CK $release; checks/catalog.json pins $pin. Change attack.version there to move releases, then run this again." }
+    # What a caller reads (the Upkeep task, the tests) goes out as plain lines first, here and for the mappings below:
+    # the error view joins a message's lines and wraps them to the console's width, which differs by machine.
+    if ($release -ne $pin) {
+        Write-Host "ATT&CK release: the bundle is $release, checks/catalog.json pins $pin"
+        throw "$AttackStix is ATT&CK $release; checks/catalog.json pins $pin. Change attack.version there to move releases, then run this again."
+    }
     $idOf = { param($o) [string]@($o.external_references | Where-Object { $_.source_name -eq 'mitre-attack' })[0].external_id }
     $byRef = @{}; foreach ($o in $objects) { $byRef[[string]$o.id] = $o }
     $tech = @{}
@@ -257,7 +262,10 @@ function Invoke-AttackData {
             }
         }
     }
-    if ($problems.Count) { throw "ATT&CK mappings to fix:`n  $($problems -join "`n  ")" }
+    if ($problems.Count) {
+        foreach ($p in $problems) { Write-Host "ATT&CK mapping: $p" }
+        throw "ATT&CK mappings to fix:`n  $($problems -join "`n  ")"
+    }
 
     $out = foreach ($id in @($used.Keys | Sort-Object)) {
         $o = $used[$id]
@@ -339,7 +347,8 @@ function Invoke-Upkeep {
                     $cat = Join-Path $copy 'checks' 'catalog.json'
                     (Get-Content -Raw $cat) -replace ('"version": "' + [regex]::Escape($pin) + '"'), ('"version": "' + $latest.version + '"') | Set-Content $cat
                     $out = & pwsh -NoProfile -File (Join-Path $copy 'build.ps1') -Task AttackData -AttackStix $stix 2>&1 | Out-String
-                    $problems = @([regex]::Matches($out, '[A-Z]{2,6}-\d{3} names T\d{4}(\.\d{3})?[^\r\n]*') | ForEach-Object { $_.Value.Trim() })
+                    # The task's own lines, one problem each; the error text under them is wrapped and would be cut.
+                    $problems = @([regex]::Matches($out, '(?m)^ATT&CK mapping: ([^\r\n]+)') | ForEach-Object { $_.Groups[1].Value.Trim() })
                     $findings.Add("ATT&CK $($latest.version) is out; the catalog pins $pin. $(if ($problems.Count) { 'Mappings to fix first: ' + ($problems -join '; ') + '.' } else { 'Every mapped technique is still current: move the pin and run build.ps1 -Task AttackData.' })")
                 }
             }

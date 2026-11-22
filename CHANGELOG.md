@@ -24,6 +24,9 @@ work landed on main.
 - The managed identity's grant script lists the same five as application roles.
 - `build.ps1 -Task AttackData` writes `attack.json` with the same line endings on Windows as elsewhere, and four
   tests no longer depend on how the platform ends a line (the first Windows CI run of them failed on that alone).
+- `build.ps1 -Task AttackData` prints each mapping to fix on a line of its own before it fails. The weekly upkeep
+  report read them out of the error text, which PowerShell wraps to the console's width, so a long one arrived cut
+  (and a test of it failed on Windows, where the console is 120 columns wide).
 - A calendar with nothing near its date has no answer when a federated domain's signing certificate could not be
   read.
 
