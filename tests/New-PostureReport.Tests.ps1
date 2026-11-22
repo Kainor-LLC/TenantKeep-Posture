@@ -71,7 +71,8 @@ Describe 'New-PostureReport' {
         }
 
         It 'gives the first row of the appendix its two cells' {
-            $script:Md | Should -Match '(?m)^\| Catalog version \| \d{4}\.\d+\.\d+ \|$' -Because 'the row used to run its cells together'
+            # \r? because the report's lines end the way the platform's do.
+            $script:Md | Should -Match '(?m)^\| Catalog version \| \d{4}\.\d+\.\d+ \|\r?$' -Because 'the row used to run its cells together'
         }
 
         It 'applies the client folder: brand, profile and exceptions' {

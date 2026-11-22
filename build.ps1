@@ -279,7 +279,8 @@ function Invoke-AttackData {
         techniques  = @($out)
     }
     $path = Join-Path $dir 'attack.json'
-    [System.IO.File]::WriteAllText($path, ($doc | ConvertTo-Json -Depth 6) + "`n", [System.Text.UTF8Encoding]::new($false))
+    # Line feeds whichever platform runs the task, so the committed file does not change with the machine.
+    [System.IO.File]::WriteAllText($path, (($doc | ConvertTo-Json -Depth 6) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "Wrote $path (ATT&CK $release, $(@($out).Count) techniques)"
 }
 

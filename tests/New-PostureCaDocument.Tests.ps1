@@ -49,7 +49,7 @@ Describe 'New-PostureCaDocument' {
             ConvertTo-Json -InputObject @($locations[0]) -Depth 20 | Set-Content -LiteralPath $file
             $r = New-PostureCaDocument -Snapshot $one -OutputPath (Join-Path $script:Out 'one-location') -Format Markdown -SkipChecks -PassThru -WarningAction SilentlyContinue
             $md = Get-Content -Raw -LiteralPath ($r.Files | Where-Object { $_ -like '*.md' })
-            $md | Should -Match '(?m)^\| HQ egress \| ipNamedLocation \| yes \| \d+\.\d+\.\d+\.\d+/\d+[^|]* \| [0-9a-f-]{36} \|$' -Because 'one row, with the type of the location and its ranges'
+            $md | Should -Match '(?m)^\| HQ egress \| ipNamedLocation \| yes \| \d+\.\d+\.\d+\.\d+/\d+[^|]* \| [0-9a-f-]{36} \|\r?$' -Because 'one row, with the type of the location and its ranges'
         }
 
         It 'shows what kind of location each named location is, and its ranges or countries' {

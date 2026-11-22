@@ -22,6 +22,8 @@ work landed on main.
     On the expiry calendar (OP-006); the certificate itself is never kept. This is the narrower of the two
     permissions that read it (`Domain.Read.All` is the other).
 - The managed identity's grant script lists the same five as application roles.
+- `build.ps1 -Task AttackData` writes `attack.json` with the same line endings on Windows as elsewhere, and four
+  tests no longer depend on how the platform ends a line (the first Windows CI run of them failed on that alone).
 - A calendar with nothing near its date has no answer when a federated domain's signing certificate could not be
   read.
 

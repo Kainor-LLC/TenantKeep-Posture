@@ -24,8 +24,9 @@ Describe 'Upkeep task' {
 
     It 'files the report from a workflow that only reads the repository and writes issues' {
         $yml = Get-Content -Raw (Join-Path $PSScriptRoot '..' '.github' 'workflows' 'upkeep.yml')
-        $yml | Should -Match '(?m)^\s+contents: read$'
-        $yml | Should -Match '(?m)^\s+issues: write$'
+        # \r? because a Windows checkout ends the lines of this file with a carriage return as well.
+        $yml | Should -Match '(?m)^\s+contents: read\r?$'
+        $yml | Should -Match '(?m)^\s+issues: write\r?$'
         $yml | Should -Not -Match 'secrets\.'
         $yml | Should -Match 'build\.ps1 -Task Upkeep'
     }

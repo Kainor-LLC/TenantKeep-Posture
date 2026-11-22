@@ -122,10 +122,14 @@ Describe 'MITRE ATT&CK mapping' {
         $stix = Join-Path $TestDrive 'enterprise-attack.json'
         @{ type = 'bundle'; objects = @($objects) } | ConvertTo-Json -Depth 10 | Set-Content $stix
 
-        $before = Get-Content -Raw (Join-Path $root 'checks' 'attack.json')
+        # The task writes line feeds on every platform; a Windows checkout of the shipped file may carry carriage
+        # returns as well, so the shipped text is compared with those taken out.
+        $before = (Get-Content -Raw (Join-Path $root 'checks' 'attack.json')) -replace "`r`n", "`n"
         & pwsh -NoProfile -File (Join-Path $root 'build.ps1') -Task AttackData -AttackStix $stix *> $null
         $LASTEXITCODE | Should -Be 0
-        Get-Content -Raw (Join-Path $root 'checks' 'attack.json') | Should -Be $before -Because 'the shipped file is what the task writes'
+        $after = Get-Content -Raw (Join-Path $root 'checks' 'attack.json')
+        $after | Should -Not -Match "`r" -Because 'the generated file is the same bytes whichever platform wrote it'
+        $after | Should -Be $before -Because 'the shipped file is what the task writes'
 
         $file = Join-Path $root 'checks' 'identity.json'
         $doc = Get-Content -Raw $file | ConvertFrom-Json -AsHashtable -Depth 20
