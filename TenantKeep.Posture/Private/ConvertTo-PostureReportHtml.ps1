@@ -59,13 +59,29 @@ function ConvertTo-PostureReportHtml {
     & $w '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
     & $w "<meta http-equiv=`"Content-Security-Policy`" content=`"default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'`">"
     & $w "<title>$(& $h $r.title)</title>"
+    # The logo at the top and the icon on the browser tab. A logo in brand.json wins (an MSP's choice is never
+    # overridden); then the organisation's own, from its Entra company branding (the model carries it in a paid tier
+    # and never in a redacted copy); then the TenantKeep mark, but only under TenantKeep's own name: a report
+    # prepared under another name and given no logo shows none, as before.
+    $brandLogo = & $logoDataUri (Get-PostureValue $b 'preparedBy.logo'); if (-not $brandLogo) { $brandLogo = & $logoDataUri (Get-PostureValue $b 'client.logo') }
+    $brandIcon = & $logoDataUri (Get-PostureValue $b 'preparedBy.icon')
+    $ownName = [string]$b.preparedBy.name -eq 'TenantKeep Posture'
+    $mark = $(if ($ownName) { & $logoDataUri (Get-PostureTemplatePath -Name 'tenantkeep-mark.png') } else { $null })
+    $tenantBanner = [string]$(if ($r.Contains('tenantLogo') -and $r.tenantLogo) { $r.tenantLogo['banner'] })
+    $tenantIcon = [string]$(if ($r.Contains('tenantLogo') -and $r.tenantLogo) { $r.tenantLogo['icon'] })
+    $imageUri = { param([string] $u) if ($u -match '^data:image/(png|jpeg|gif|x-icon|svg\+xml|webp);base64,[A-Za-z0-9+/]+={0,2}$') { $u } else { $null } }
+    $logo = $null; $logoClass = 'logo'; $logoAlt = ''
+    if ($brandLogo) { $logo = $brandLogo; $logoClass = 'logo plate'; $logoAlt = "$([string]$b.preparedBy.name) logo" }
+    elseif (& $imageUri $tenantBanner) { $logo = $tenantBanner; $logoClass = 'logo plate'; $logoAlt = "$([string]$r.clientName) logo" }
+    elseif ($mark) { $logo = $mark; $logoClass = 'logo mark'; $logoAlt = 'TenantKeep' }
+    $icon = @($brandIcon, $brandLogo, (& $imageUri $tenantIcon), $mark | Where-Object { $_ }) | Select-Object -First 1
+    if ($icon) { & $w "<link rel=`"icon`" href=`"$icon`">" }
     & $w "<style>`n$css`n$override`n</style></head>"
     & $w "<body data-template=`"$(& $h $r.template)`">"
 
     # Header and toolbar
     & $w '<header class="doc"><div>'
-    $logo = & $logoDataUri (Get-PostureValue $b 'preparedBy.logo'); if (-not $logo) { $logo = & $logoDataUri (Get-PostureValue $b 'client.logo') }
-    if ($logo) { & $w "<img class=`"logo`" alt=`"logo`" src=`"$logo`">" }
+    if ($logo) { & $w "<img class=`"$logoClass`" alt=`"$(& $h $logoAlt)`" src=`"$logo`">" }
     & $w "<h1>$(& $h $r.title)</h1>"
     $prepared = [string]$b.preparedBy.name; if ($b.client.name) { $prepared += " for $($b.client.name)" }
     if ($r.licence -and -not ($r.licence.licensed -and $r.licence.tier -eq 'full')) {
@@ -293,7 +309,7 @@ function ConvertTo-PostureReportHtml {
     $withCharts = @($areas.Keys | Where-Object { @($areas[$_]).Count })
     if ($withCharts.Count) {
         # The button opens or folds every section; printing opens them all, and so does ?areas=open (report.js).
-        & $w '<div class="area-head"><h3>Charts by Domain</h3><button type="button" id="areas-toggle" aria-expanded="false">Open all</button></div>'
+        & $w '<div class="area-head"><h3>Charts by Domain</h3><button type="button" class="fold-toggle" data-fold="details.area" aria-expanded="false">Open all</button></div>'
         foreach ($a in $withCharts) {
             $n = @($areas[$a]).Count
             & $w ('<details class="area"><summary><span class="area-name">' + (& $h $a) + '</span><span class="hint">' + "$n chart$(if ($n -ne 1) { 's' })" + '</span></summary><div class="charts">' + (@($areas[$a]) -join '') + '</div></details>')
@@ -551,9 +567,12 @@ function ConvertTo-PostureReportHtml {
                 $bar = ConvertTo-PostureBarChart -Thin -Name $t.name -Segment @('covered', 'accepted', 'gap', 'unchecked' | ForEach-Object { @{ label = $stand[$_][2]; value = [int]$t.counts[$_]; tone = $stand[$_][0] } })
                 '<a class="pillar" href="#attack-' + (& $h $t.key) + '"><span class="name">' + (& $h $t.name) + '</span><span class="frac">' + $t.counts.covered + ' of ' + $ev + ' covered</span>' + $bar + '</a>'
             }) -join ''
-        & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Title 'Techniques by Standing' -Takeaway $takeaway -Body (ConvertTo-PostureDonutChart -Name 'ATT&CK techniques by standing' -CenterLabel 'techniques' -Segment $seg)) + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Tactics' -Takeaway 'Techniques covered of those evaluated, per tactic. A technique under two tactics counts in both.' -Body ('<div class="pillars">' + $rows + '</div>' + (ConvertTo-PostureChartLegend -Item $seg))) + '</div>')
+        & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Title 'Techniques by Standing' -Takeaway $takeaway -Body (ConvertTo-PostureDonutChart -Name 'ATT&CK techniques by standing' -CenterLabel 'techniques' -Segment $seg)) + (ConvertTo-PostureChartCard -Class 'span2' -Title 'Tactics' -Takeaway 'Techniques covered of those evaluated, per tactic. A technique under two tactics counts in both.' -Body ('<div class="pillars">' + $rows + '</div>' + (ConvertTo-PostureChartLegend -Item $seg))) + '</div>')
         # Failing checks first on each technique, eight at most; the drawer behind each check has the rest of the story.
         $checkRank = @{ fail = 0; acceptedRisk = 1; notEvaluated = 2; pass = 3; coveredBy = 3 }
+        # A section for each tactic in the order of an attack, folded until asked for, its techniques across the page.
+        # A column for each tactic left the short ones standing beside the long ones with holes under them.
+        & $w '<div class="area-head"><h3>Techniques by Tactic</h3><button type="button" class="fold-toggle" data-fold="details.attack-tactic" aria-expanded="false">Open all</button></div>'
         & $w '<div class="attack-matrix">'
         foreach ($t in $at.tactics) {
             $items = @($t.techniques | ForEach-Object {
@@ -562,7 +581,9 @@ function ConvertTo-PostureReportHtml {
                     $checkLinks = (@($ordered | Select-Object -First 8 | ForEach-Object { '<a href="#checks" data-check="' + (& $h $_.id) + '" class="qw-chip st-' + (& $h $_.status) + '" title="' + (& $h "$($_.title): $($statusLabel[[string]$_.status])") + '">' + (& $h $_.id) + '</a>' }) -join ' ') + $(if ($n -gt 8) { ' <span class="muted">+' + ($n - 8) + '</span>' })
                     '<li class="attack-tech"><span class="status-dot t-' + $st[0] + '" aria-hidden="true">' + $st[1] + '</span><div><a href="' + (& $h $x.url) + '" target="_blank" rel="noopener"><code>' + (& $h $x.id) + '</code> ' + (& $h $x.name) + '</a><p class="hint">' + $st[2] + ': ' + $x.pass + ' of ' + $n + ' check' + $(if ($n -ne 1) { 's' }) + ' pass</p><p class="attack-checks">' + $checkLinks + '</p></div></li>'
                 }) -join ''
-            & $w ('<section class="attack-tactic" id="attack-' + (& $h $t.key) + '"><h3>' + (& $h $t.name) + ' <span class="muted tech">' + (& $h $t.id) + '</span></h3><ul>' + $items + '</ul></section>')
+            $evaluated = [int]$t.counts.covered + [int]$t.counts.accepted + [int]$t.counts.gap
+            $standing = "$($t.counts.covered) of $evaluated covered" + $(if ([int]$t.counts.gap -gt 0) { ", $($t.counts.gap) with a failing check" } else { '' })
+            & $w ('<details class="attack-tactic" id="attack-' + (& $h $t.key) + '"><summary><span class="area-name">' + (& $h $t.name) + '</span><span class="muted tech">' + (& $h $t.id) + '</span><span class="hint">' + (& $h $standing) + '</span></summary><ul>' + $items + '</ul></details>')
         }
         & $w '</div>'
         & $w ('<p class="hint tech">MITRE ATT&amp;CK ' + (& $h $at.version) + ', Enterprise. ' + (& $h $at.notice) + '</p></section>')

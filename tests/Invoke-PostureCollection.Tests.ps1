@@ -990,6 +990,28 @@ Describe 'Invoke-PostureCollection' {
         }
     }
 
+    Context 'the organisation''s logo for the report' {
+        # The fixture's branding has a banner logo and no square logo or icon.
+        It 'asks only for what the branding has, and keeps a picture with its kind' {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphStream { , ([byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4)) }
+            $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'logos') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue 6>$null
+            @($r.Errors | Where-Object { $_ -like 'Company branding logos*' }) | Should -BeNullOrEmpty
+            $doc = Get-Content -Raw (Join-Path $r.Folder '01-company-branding-logos.json') | ConvertFrom-Json -AsHashtable
+            @($doc.get_Keys()) | Should -Be @('BannerLogo')
+            $doc['BannerLogo'].ContentType | Should -Be 'image/png'
+            $doc['BannerLogo'].Bytes | Should -Be 12
+            $doc['BannerLogo'].Base64 | Should -Be ([System.Convert]::ToBase64String([byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4)))
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-PostureGraphStream -Times 1 -Exactly -Scope It -ParameterFilter { $Uri -like 'organization/*/branding/localizations/default/bannerLogo' -and $ApiVersion -eq 'v1.0' }
+        }
+
+        It 'keeps nothing that does not begin as a picture does' {
+            # What comes back is the tenant's to choose: markup with a script in it is not kept, whatever it is called.
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphStream { , ([System.Text.Encoding]::UTF8.GetBytes('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>')) }
+            $r = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'logos-not-a-picture') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -PassThru -WarningAction SilentlyContinue 6>$null
+            (Get-Content -Raw (Join-Path $r.Folder '01-company-branding-logos.json') | ConvertFrom-Json -AsHashtable).get_Count() | Should -Be 0
+        }
+    }
+
     Context 'scope check' {
         It 'refuses without the core scopes' {
             Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }

@@ -27,6 +27,19 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- A logo on the report and an icon on its browser tab (2026-11-22). The TenantKeep mark by default. In a licensed
+  tier the organisation's own logo and icon take its place, read from its Entra company branding when the branding
+  has them (`01-company-branding-logos`; pictures only, by their first bytes, and never above half a megabyte). A
+  logo named in brand.json still wins, and `preparedBy.icon` is new there for the tab. A copy made with `-Redact`
+  never carries the organisation's logo, and a report prepared under another name shows no TenantKeep mark.
+- The ATT&CK view has a section for each tactic, folded until asked for, with its techniques across the page. A
+  column for each tactic left the short ones beside the long ones with holes under them. A tactic's bar above
+  opens its section, and the tactics sit beside their donut.
+- Microsoft 365 Backup (OP-008) has an answer where no Azure subscription pays for it. Backup is paid for through
+  Azure and no other way, and the run already reads which subscriptions pay for Microsoft 365 services: when every
+  subscription answered and none was billed for Backup in the last 30 days, the check fails saying so (and that a
+  subscription the account cannot see is not counted), and Graph is not asked. A tenant without Backup had an
+  error row for a read Microsoft refuses and a check with no answer.
 - The charts sit in even rows (2026-11-22). Cards were pinned to the top of rows as tall as their tallest card, so
   a short card beside a tall one left a hole under it. The cards of a row now share a height, with "View the
   checks" along the bottom edge. The three layered-ring cards have a row of their own on the Overview, "Defence in

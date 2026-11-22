@@ -85,6 +85,42 @@ function Invoke-PostureGraphRequest {
     return $graphItems.ToArray()
 }
 
+function Invoke-PostureGraphStream {
+    <#
+    .SYNOPSIS
+        One Graph GET whose answer is a file's bytes, not JSON (an image of the company branding). Returns the bytes,
+        or $null when Graph has none (404, or an empty answer).
+    .DESCRIPTION
+        The version is pinned and recorded and the call is counted, like every other read. The answer is written to
+        a temporary file and read back, never kept on disk, and refused above -MaxBytes: what comes back is the
+        tenant's to choose.
+    #>
+    [CmdletBinding()]
+    [OutputType([byte[]])]
+    param(
+        [Parameter(Mandatory)] [string] $Uri,
+        [Parameter(Mandatory)] [ValidateSet('v1.0', 'beta')] [string] $ApiVersion,
+        [ValidateRange(1, 5242880)] [int] $MaxBytes = 524288
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $url = "https://graph.microsoft.com/$ApiVersion/$($Uri.TrimStart('/'))"
+    $null = $script:GraphApiVersionsUsed.Add($ApiVersion)
+    Add-PostureCallRecord -Service graph -Method GET -Target $url
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-stream-$([guid]::NewGuid().ToString('n'))"
+    try {
+        Write-Verbose "GET $url"
+        try { $null = Invoke-MgGraphRequest -Method GET -Uri $url -OutputFilePath $temp -ErrorAction Stop }
+        catch { if ((Get-PostureHttpStatus -ErrorRecord $_) -eq 404) { return $null }; throw }
+        if (-not (Test-Path -LiteralPath $temp -PathType Leaf)) { return $null }
+        $length = ([System.IO.FileInfo]$temp).Length
+        if ($length -eq 0) { return $null }
+        if ($length -gt $MaxBytes) { throw "$Uri answered $length bytes, more than the $MaxBytes this read keeps." }
+        return , [System.IO.File]::ReadAllBytes($temp)
+    }
+    finally { if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue } }
+}
+
 function Invoke-PostureGraphPage {
     <#
     .SYNOPSIS

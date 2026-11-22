@@ -69,8 +69,20 @@ function Get-PostureOperationsFact {
         # The service's status is behind a permission the module does not ask for. When it was not read it is unknown:
         # the policies alone fail the check when a workload has none, and the check has no answer when all three have.
         $backupStatus = [string](& $v $mb 'ServiceStatus')
-        $facts.m365BackupEnabled = $(if ($backupStatus) { $backupStatus -eq 'enabled' } else { $null })
-        $facts.m365BackupWorkloadsProtected = @('SharePointPolicies', 'OneDrivePolicies', 'ExchangePolicies' | Where-Object { [int](& $v $mb $_) -gt 0 }).Count
+        if ((& $v $mb 'Billed') -eq $false) {
+            # Judged from the bill: Backup is paid for through Azure and no other way, and no subscription the run
+            # read was billed for it. The verdict says what it rests on, and what it cannot see.
+            $facts.m365BackupEnabled = $false
+            $facts.m365BackupWorkloadsProtected = 0
+            $partial['OP-008'] = @{
+                note     = "None of the $([int](& $v $mb 'SubscriptionsRead')) Azure subscription(s) this run read was billed for Microsoft 365 Backup in the last 30 days, and Backup is paid for no other way. A subscription the account cannot see is not counted."
+                noAnswer = 'The Azure subscriptions this run read do not say whether Microsoft 365 Backup is on.'
+            }
+        }
+        else {
+            $facts.m365BackupEnabled = $(if ($backupStatus) { $backupStatus -eq 'enabled' } else { $null })
+            $facts.m365BackupWorkloadsProtected = @('SharePointPolicies', 'OneDrivePolicies', 'ExchangePolicies' | Where-Object { [int](& $v $mb $_) -gt 0 }).Count
+        }
     }
 
     # Secure Score against the comparative average (OP-005)

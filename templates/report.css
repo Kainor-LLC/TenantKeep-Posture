@@ -34,7 +34,10 @@ p { margin: 0.4rem 0 0.8rem; }
 
 /* Header */
 header.doc { padding: 24px 24px 12px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; background: var(--card); border-bottom: 1px solid var(--line); }
-header.doc .logo { max-height: 44px; margin-bottom: 8px; display: block; }
+header.doc .logo { max-height: 44px; max-width: 280px; margin-bottom: 8px; display: block; }
+/* A logo drawn for a white page stays readable on the dark theme; the TenantKeep mark brings its own ground. */
+header.doc .logo.plate { background: #fff; padding: 4px 8px; border-radius: 6px; box-sizing: content-box; }
+header.doc .logo.mark { border-radius: 9px; }
 header.doc .meta { color: var(--muted); font-size: 13px; max-width: 960px; }
 header.doc .confidential { color: var(--warn); font-size: 13px; margin-top: 4px; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -232,6 +235,8 @@ body.executive .tech, body.executive #checks, body.executive #appendix { display
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin: 10px 0 22px; align-items: stretch; grid-auto-flow: dense; }
 .chart-card { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .chart-card.wide { grid-column: 1 / -1; }
+/* Two columns beside a one-column card, where the page has three: the tactics beside their donut. */
+@media (min-width: 1100px) { .chart-card.span2 { grid-column: span 2; } }
 /* The opening cards of the Overview fill their rows whatever their number: four cards in three columns left the
    fourth alone with two empty columns beside it. */
 .charts.story { display: flex; flex-wrap: wrap; }
@@ -279,12 +284,12 @@ details.chart-table summary { cursor: pointer; font-size: 12px; color: var(--mut
 /* Domains: the charts of each domain, folded until asked for. */
 .area-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
 .area-head h3 { margin: 0; }
-details.area { border-top: 1px solid var(--line); }
-details.area:last-of-type { border-bottom: 1px solid var(--line); margin-bottom: 22px; }
-details.area > summary { cursor: pointer; padding: 10px 2px; font-size: 15px; }
-details.area > summary .area-name { font-weight: 600; }
-details.area > summary .hint { margin-left: 8px; }
-details.area[open] > summary { border-bottom: 1px solid var(--line); }
+details.area, details.attack-tactic { border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+details.area:last-of-type, details.attack-tactic:last-of-type { border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+details.area > summary, details.attack-tactic > summary { cursor: pointer; padding: 10px 2px; font-size: 15px; }
+details.area > summary .area-name, details.attack-tactic > summary .area-name { font-weight: 600; }
+details.area > summary .hint, details.attack-tactic > summary .hint, details.attack-tactic > summary .tech { margin-left: 8px; }
+details.area[open] > summary, details.attack-tactic[open] > summary { border-bottom: 1px solid var(--line); }
 details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 @media print { .chart-card { break-inside: avoid; } .sankey-wrap { overflow: visible; } details.chart-table { display: none; } }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 14px; }
@@ -348,12 +353,9 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 /* ATT&CK coverage: a column per tactic that wraps on narrow screens, a row per technique with its standing. */
 .chip.attack { color: var(--fg); text-decoration: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .chip.attack:hover { text-decoration: underline; }
-.attack-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; margin: 18px 0; }
-.attack-tactic { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; scroll-margin-top: 16px; }
-.attack-tactic h3 { margin: 0 0 8px; font-size: 15px; }
-.attack-tactic ul { list-style: none; margin: 0; padding: 0; }
-.attack-tech { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
-.attack-tech:first-child { border-top: 0; }
+.attack-matrix { margin: 0 0 18px; }
+.attack-tactic ul { list-style: none; margin: 12px 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.attack-tech { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: 14px; }
 .attack-tech a { color: var(--fg); }
 .attack-tech .hint { margin: 2px 0; }
 .attack-checks { margin: 2px 0 0; line-height: 1.9; }

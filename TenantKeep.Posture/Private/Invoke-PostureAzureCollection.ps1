@@ -263,6 +263,8 @@ function Invoke-PostureAzureCollection {
     } | Out-Null
 
     # ---------- 6. Microsoft 365 pay-as-you-go and Backup ----------
+    # What the spend step learns for the Backup step: whether every subscription answered, and whether one pays for Backup.
+    $payg = @{ known = $false; backup = $false }
     Invoke-PostureStep -Label 'Microsoft 365 pay-as-you-go spend' -Folder $Folder -Script {
         # Which subscriptions pay for Microsoft 365 pay-as-you-go services (Backup, Archive, SharePoint Premium, Copilot
         # messages) over the last 30 days, and whether each has a budget. Service names are Cost Management's (verify).
@@ -279,6 +281,9 @@ function Invoke-PostureAzureCollection {
         }
         & $save @($rows) 'az-10-m365-payg'
         & $refusals 'Microsoft 365 pay-as-you-go spend'
+        # Every subscription answered: the Backup step below can go by this.
+        $payg.known = $subIds.Count -gt 0
+        $payg.backup = @($rows | Where-Object { $_ } | ForEach-Object { $_['Services'] } | Where-Object { $_ -and [string]$_['Name'] -match 'Backup' }).Count -gt 0
     } | Out-Null
 
     # Which subscriptions answered every per-subscription read: written into the list now that the reads are done.
@@ -300,10 +305,19 @@ function Invoke-PostureAzureCollection {
         # for registered backup controller applications and the module does not ask for: a refusal there leaves the
         # status unknown (ServiceStatusRead false) and the step done. The check is then decided by the policies when
         # they already fail it, and has no answer otherwise.
+        # Microsoft 365 Backup is paid for through an Azure subscription and no other way. Where every subscription
+        # answered the spend read above and none was billed for Backup in the last 30 days, nothing is being backed up
+        # by it: that is written down (Billed false, the policies not read) and Graph is not asked, since Graph
+        # refuses this read to a tenant without the service and there would be an error row for a question already
+        # answered. A subscription the account cannot see is not counted, which the check says with its verdict.
+        if ($payg.known -and -not $payg.backup) {
+            & $saveOne ([ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; Billed = $false; SubscriptionsRead = $subIds.Count; SharePointPolicies = $null; OneDrivePolicies = $null; ExchangePolicies = $null }) 'az-11-m365-backup'
+            return
+        }
         $active = { param([string] $kind) @(Invoke-PostureGraphRequest -Uri "solutions/backupRestore/$kind" -ApiVersion 'v1.0' | Where-Object { [string](& $v $_ 'status') -eq 'active' }).Count }
         $context = Get-MgContext
         $carries = [bool]($context -and 'BackupRestore-Configuration.Read.All' -in @($context.Scopes))
-        try { $row = [ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') } }
+        try { $row = [ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; Billed = $(if ($payg.known) { $true } else { $null }); SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') } }
         catch {
             # Seen on a live run: a Global Administrator with the permission consented is refused the policies too.
             # With the permission on the sign-in there is nothing an admin can grant, so the step says that and does

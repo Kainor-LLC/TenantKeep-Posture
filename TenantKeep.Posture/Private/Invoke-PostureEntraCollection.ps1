@@ -97,7 +97,37 @@ function Invoke-PostureEntraCollection {
         $b = $null
         try { $b = & $one "organization/$orgId/branding" }
         catch { if ([string]$_.Exception.Message -notmatch '404|NotFound|ResourceNotFound') { throw } }
-        & $saveOne ([ordered]@{ Present = ($null -ne $b); HasBackground = [bool](& $v $b 'backgroundImageRelativeUrl'); HasBannerLogo = [bool](& $v $b 'bannerLogoRelativeUrl'); HasSquareLogo = [bool](& $v $b 'squareLogoRelativeUrl'); HasSignInText = [bool](& $v $b 'signInPageText'); HasUsernameHint = [bool](& $v $b 'usernameHintText') }) '01-company-branding'
+        & $saveOne ([ordered]@{ Present = ($null -ne $b); HasBackground = [bool](& $v $b 'backgroundImageRelativeUrl'); HasBannerLogo = [bool](& $v $b 'bannerLogoRelativeUrl'); HasSquareLogo = [bool](& $v $b 'squareLogoRelativeUrl'); HasFavicon = [bool](& $v $b 'faviconRelativeUrl'); HasSignInText = [bool](& $v $b 'signInPageText'); HasUsernameHint = [bool](& $v $b 'usernameHintText') }) '01-company-branding'
+    } | Out-Null
+    Invoke-PostureStep -Label 'Company branding logos' -Folder $Folder -Script {
+        # The organisation's own logo and icon, as its sign-in page shows them, for the top of the report and the
+        # browser tab (in a redacted copy they are left out). Read only when the branding says there is one. What
+        # comes back is the tenant's to choose, so it is kept only when its first bytes are those of a PNG, a JPEG,
+        # a GIF or an icon, and never above half a megabyte. No check reads this.
+        $branding = @(& $load '01-company-branding' | Where-Object { $_ })
+        $orgId = [string](@(& $load '01-organization')[0].id)
+        $kindOf = {
+            param([byte[]] $Bytes)
+            if ($null -eq $Bytes -or $Bytes.Length -lt 8) { return $null }
+            $head = [System.BitConverter]::ToString($Bytes, 0, 8)
+            if ($head.StartsWith('89-50-4E-47')) { return 'image/png' }
+            if ($head.StartsWith('FF-D8-FF')) { return 'image/jpeg' }
+            if ($head.StartsWith('47-49-46-38')) { return 'image/gif' }
+            if ($head.StartsWith('00-00-01-00')) { return 'image/x-icon' }
+            return $null
+        }
+        $doc = [ordered]@{}
+        $wanted = [ordered]@{ BannerLogo = 'bannerLogo'; SquareLogo = 'squareLogo'; Favicon = 'favicon' }
+        $has = @{ BannerLogo = 'HasBannerLogo'; SquareLogo = 'HasSquareLogo'; Favicon = 'HasFavicon' }
+        if ($branding.Count -gt 0 -and $orgId) {
+            foreach ($name in $wanted.get_Keys()) {
+                if ((& $v $branding[0] $has[$name]) -ne $true) { continue }
+                $bytes = Invoke-PostureGraphStream -Uri "organization/$orgId/branding/localizations/default/$($wanted[$name])" -ApiVersion 'v1.0'
+                $type = & $kindOf $bytes
+                if ($type) { $doc[$name] = [ordered]@{ ContentType = $type; Bytes = $bytes.Length; Base64 = [System.Convert]::ToBase64String($bytes) } }
+            }
+        }
+        & $saveOne $doc '01-company-branding-logos'
     } | Out-Null
     Invoke-PostureStep -Label 'Subscribed SKUs' -Folder $Folder -Script {
         $skus = & $get 'subscribedSkus'

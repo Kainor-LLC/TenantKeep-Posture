@@ -13,7 +13,7 @@ function Import-PostureBrand {
     $ErrorActionPreference = 'Stop'
 
     $brand = [ordered]@{
-        preparedBy      = [ordered]@{ name = 'TenantKeep Posture'; logo = $null; contact = $null }
+        preparedBy      = [ordered]@{ name = 'TenantKeep Posture'; logo = $null; icon = $null; contact = $null }
         client          = [ordered]@{ name = $null; logo = $null }
         colors          = [ordered]@{ primary = '#1F3A5F'; accent = '#E8A33D' }
         font            = 'Inter, Helvetica, Arial, sans-serif'

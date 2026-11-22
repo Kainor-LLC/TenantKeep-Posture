@@ -78,11 +78,22 @@ Describe 'The page a reader opens' {
     It 'opens the Domains tab on the scorecards and folds the charts of each domain under them' {
         $domains = [regex]::Match($script:Page, '<section class="view" id="domains">(.*?)</section>', 'Singleline').Groups[1].Value
         $domains.IndexOf('<div class="cards">') | Should -BeLessThan $domains.IndexOf('<h3>Charts by Domain</h3>') -Because 'the scores come first'
-        $domains | Should -Match '<button type="button" id="areas-toggle" aria-expanded="false">Open all</button>'
+        $domains | Should -Match '<button type="button" class="fold-toggle" data-fold="details\.area" aria-expanded="false">Open all</button>'
         $areas = [regex]::Matches($domains, '<details class="area"><summary><span class="area-name">([^<]+)</span><span class="hint">(\d+) charts?</span></summary><div class="charts">')
         $areas.Count | Should -BeGreaterThan 4
         $domains | Should -Not -Match '<details class="area" open' -Because 'a section opens when it is asked for'
         foreach ($a in $areas) { [int]$a.Groups[2].Value | Should -BeGreaterThan 0 }
         $script:Page | Should -Match 'beforeprint' -Because 'a printed report has every section open'
+    }
+
+    It 'folds each ATT&CK tactic into a section with its standing, and opens one from the bars above it' {
+        # A column for each tactic left the short tactics standing beside the long ones with holes under them.
+        $attack = [regex]::Match($script:Page, '<section class="view" id="attack">(.*?)</section>', 'Singleline').Groups[1].Value
+        $attack | Should -Match '<button type="button" class="fold-toggle" data-fold="details\.attack-tactic" aria-expanded="false">Open all</button>'
+        $tactics = [regex]::Matches($attack, '<details class="attack-tactic" id="attack-([a-z-]+)"><summary><span class="area-name">[^<]+</span><span class="muted tech">TA\d{4}</span><span class="hint">(\d+) of (\d+) covered[^<]*</span></summary><ul>')
+        $tactics.Count | Should -BeGreaterThan 8
+        foreach ($t in $tactics) { $attack | Should -Match ('<a class="pillar" href="#attack-' + $t.Groups[1].Value + '">') -Because 'each bar leads to its section' }
+        $attack | Should -Not -Match '<details class="attack-tactic"[^>]* open'
+        $script:Page | Should -Match "el\.tagName === 'DETAILS'" -Because 'a link to a folded section opens it'
     }
 }

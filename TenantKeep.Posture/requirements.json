@@ -597,7 +597,7 @@
     },
     {
       "collector": "Entra",
-      "match": "^Company branding$",
+      "match": "^Company branding( logos)?$",
       "roles": [
         "Global Reader"
       ],

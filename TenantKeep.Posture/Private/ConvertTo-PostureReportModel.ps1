@@ -492,8 +492,31 @@ function ConvertTo-PostureReportModel {
         $runHealth['sources'] = @($(try { Get-PostureSourceStatus -Catalog $Catalog -Evidence $Evidence -Completion @($completion) -Failure @($failures) } catch { Write-Verbose "The sources were not listed: $($_.Exception.Message)"; @() }))
     }
 
+    # The organisation's own logo and icon from its Entra company branding, for the top of the page and the browser
+    # tab. In any paid tier. A redacted copy leaves it out (ConvertTo-PostureRedactedReport): a logo names the customer.
+    $tenantLogo = $null
+    if ($Entitlement['licensed']) {
+        $logoDoc = $(try { Read-PostureEvidenceFile -Folder $Evidence -Name '01-company-branding-logos' } catch { $null })
+        if ($logoDoc -is [System.Collections.IDictionary]) {
+            $asUri = {
+                param([string] $Name, [string[]] $Allowed)
+                $x = $logoDoc[$Name]
+                if (-not ($x -is [System.Collections.IDictionary])) { return $null }
+                $type = [string]$x['ContentType']; $data = [string]$x['Base64']
+                # The evidence is a file anyone could have edited: only the image kinds the collector keeps, only base64, and no more than it would have kept.
+                if ($type -notin $Allowed -or $data.Length -eq 0 -or $data.Length -gt 720000 -or $data -notmatch '^[A-Za-z0-9+/]+={0,2}$') { return $null }
+                "data:$type;base64,$data"
+            }
+            $picture = @('image/png', 'image/jpeg', 'image/gif')
+            $banner = & $asUri 'BannerLogo' $picture; if (-not $banner) { $banner = & $asUri 'SquareLogo' $picture }
+            $icon = & $asUri 'Favicon' ($picture + 'image/x-icon'); if (-not $icon) { $icon = & $asUri 'SquareLogo' $picture }
+            if ($banner -or $icon) { $tenantLogo = [ordered]@{ banner = $banner; icon = $icon } }
+        }
+    }
+
     return [ordered]@{
         title        = "Microsoft Security Posture Report: $clientName"
+        tenantLogo   = $tenantLogo
         clientName   = $clientName
         tenantId     = $tenantId
         tenantName   = $tenantName

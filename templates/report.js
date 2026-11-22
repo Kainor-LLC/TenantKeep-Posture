@@ -64,6 +64,8 @@
     var el = $((location.hash || '#overview').substring(1)), view = el && el.closest ? el.closest('section.view') : null;
     if (!view) { show('overview'); return; }
     show(view.id);
+    // A link to a folded section (a tactic from the bars above it) opens the section it lands on.
+    if (el.tagName === 'DETAILS') { el.open = true; }
     if (view !== el) { el.scrollIntoView(); }
   }
   window.addEventListener('hashchange', route);
@@ -213,17 +215,19 @@
 
   // Domains: the charts of each domain are folded sections. The button opens or folds them all; printing opens them
   // for the paper and puts them back; ?areas=open opens them from the address, for a screenshot or a link.
-  var areasToggle = $('areas-toggle');
-  function areaList() { return Array.prototype.slice.call(document.querySelectorAll('details.area')); }
-  function setAreas(open) {
-    areaList().forEach(function (d) { d.open = open; });
-    if (areasToggle) { areasToggle.textContent = open ? 'Fold all' : 'Open all'; areasToggle.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  // The same for the tactics of the ATT&CK view: a button names the sections it folds in data-fold.
+  var foldButtons = Array.prototype.slice.call(document.querySelectorAll('button.fold-toggle'));
+  function foldList(selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); }
+  function setFold(button, open) {
+    foldList(button.getAttribute('data-fold')).forEach(function (d) { d.open = open; });
+    button.textContent = open ? 'Fold all' : 'Open all'; button.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
-  if (areasToggle) { areasToggle.addEventListener('click', function () { setAreas(!areaList().every(function (d) { return d.open; })); }); }
-  if (/[?&]areas=open(&|$)/.test(window.location.search)) { setAreas(true); }
-  var areasBeforePrint = null;
-  window.addEventListener('beforeprint', function () { areasBeforePrint = areaList().map(function (d) { return d.open; }); areaList().forEach(function (d) { d.open = true; }); });
-  window.addEventListener('afterprint', function () { if (areasBeforePrint) { areaList().forEach(function (d, i) { d.open = areasBeforePrint[i]; }); areasBeforePrint = null; } });
+  foldButtons.forEach(function (button) { button.addEventListener('click', function () { setFold(button, !foldList(button.getAttribute('data-fold')).every(function (d) { return d.open; })); }); });
+  if (/[?&]areas=open(&|$)/.test(window.location.search)) { foldButtons.forEach(function (button) { setFold(button, true); }); }
+  var foldedBeforePrint = null;
+  function allFolds() { return foldList('details.area, details.attack-tactic'); }
+  window.addEventListener('beforeprint', function () { foldedBeforePrint = allFolds().map(function (d) { return d.open; }); allFolds().forEach(function (d) { d.open = true; }); });
+  window.addEventListener('afterprint', function () { if (foldedBeforePrint) { allFolds().forEach(function (d, i) { d.open = foldedBeforePrint[i]; }); foldedBeforePrint = null; } });
 
   // Humanise the server-rendered detail cells once.
   Array.prototype.slice.call(document.querySelectorAll('[data-human]')).forEach(function (el) { el.textContent = humanDetail(el.textContent); });

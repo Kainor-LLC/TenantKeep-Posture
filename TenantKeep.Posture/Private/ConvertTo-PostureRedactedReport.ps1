@@ -17,6 +17,13 @@ function ConvertTo-PostureRedactedReport {
     param([Parameter(Mandatory)] [System.Collections.IDictionary] $Report)
 
     $ErrorActionPreference = 'Stop'
+    # The organisation's logo names it as surely as its name does: a copy made to share goes without.
+    if ($Report.Contains('tenantLogo') -and $Report['tenantLogo']) {
+        # Assigned as they are: a subexpression would unroll a list of one and turn an empty list into nothing.
+        $without = [ordered]@{}
+        foreach ($k in @($Report.get_Keys())) { if ($k -eq 'tenantLogo') { $without[$k] = $null } else { $without[$k] = $Report[$k] } }
+        $Report = $without
+    }
     $json = ConvertTo-Json -InputObject $Report -Depth 40 -Compress
     $map = [ordered]@{}
     $count = @{}

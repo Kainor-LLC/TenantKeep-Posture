@@ -200,6 +200,37 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
         }
     }
 
+    Context 'Microsoft 365 Backup where no subscription pays for it' {
+        # Backup is paid for through an Azure subscription and no other way. A tenant without it was left with an
+        # error row for a read Microsoft refuses, and a check with no answer.
+        It 'goes by the bill, does not ask Graph, and fails OP-008 saying what the verdict rests on' {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureCostQuery { @() }
+            $folder = Join-Path $script:Root 'backup-not-billed'
+            $r = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            @($r.Errors | Where-Object { $_ -like 'Microsoft 365 Backup*' }) | Should -BeNullOrEmpty
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -Times 0 -Scope It -ParameterFilter { $Uri -like 'solutions/backupRestore*' }
+            $b = Get-Content -Raw (Join-Path $folder 'az-11-m365-backup.json') | ConvertFrom-Json -AsHashtable
+            $b.Billed | Should -BeFalse
+            $b.SubscriptionsRead | Should -BeGreaterThan 0
+            $b.SharePointPolicies | Should -BeNullOrEmpty -Because 'the policies were not read, and nothing says they were'
+            InModuleScope TenantKeep.Posture -Parameters @{ folder = $folder } {
+                param($folder)
+                Clear-PostureEvidenceCache
+                $f = Get-PostureOperationsFact -Evidence $folder
+                $f.facts.m365BackupEnabled | Should -BeFalse
+                $f.partial['OP-008'].note | Should -Match 'was billed for Microsoft 365 Backup in the last 30 days.*A subscription the account cannot see is not counted'
+            }
+        }
+
+        It 'still asks Graph when the spend of a subscription could not be read' {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureCostQuery { throw 'Response status code does not indicate success: Forbidden (Forbidden).' }
+            $folder = Join-Path $script:Root 'backup-bill-unknown'
+            $null = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            Should -Invoke -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -Scope It -ParameterFilter { $Uri -like 'solutions/backupRestore*' }
+            (Get-Content -Raw (Join-Path $folder 'az-11-m365-backup.json') | ConvertFrom-Json -AsHashtable).Billed | Should -BeNullOrEmpty -Because 'the bill is not known'
+        }
+    }
+
     Context 'every subscription read in detail' {
         It 'marks each enabled subscription as read once the per-subscription reads are done' {
             $subs = @(& $script:Read 'az-01-subscriptions')

@@ -67,6 +67,14 @@ Describe 'Gap checks from existing evidence' {
         $vendor['OP-008'].status | Should -Be 'coveredBy'
     }
 
+    It 'fails OP-008 from the bill when no subscription pays for Backup, and says what that rests on' {
+        $d = Join-Path $script:Root 'backup-not-billed'
+        & $script:Write $d 'az-11-m365-backup' @{ ServiceStatus = $null; ServiceStatusRead = $false; Billed = $false; SubscriptionsRead = 2; SharePointPolicies = $null; OneDrivePolicies = $null; ExchangePolicies = $null }
+        $r = (& $script:Checks $d @('operations') '{ "version": 1, "thirdParty": { "backup": "none" } }')['OP-008']
+        $r.status | Should -Be 'fail'
+        $r.reason | Should -Match '^None of the 2 Azure subscription\(s\) this run read was billed for Microsoft 365 Backup'
+    }
+
     It 'judges OP-008 on the policies when the service status could not be read, and has no answer when they would pass it' {
         $plain = '{ "version": 1, "thirdParty": { "backup": "none" } }'
         $gap = Join-Path $script:Root 'backup-status-unknown-gap'

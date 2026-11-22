@@ -97,6 +97,12 @@ produces the Conditional Access domain and says what the full tier adds.
 
 Nothing is written anywhere else. Nothing leaves the machine.
 
+The logo at the top of the report, and the icon on its browser tab, come from the first of these that exists: a
+logo named in the client folder's brand.json (`preparedBy.logo`, `client.logo`, and `preparedBy.icon` for the tab);
+the organisation's own logo and icon from its Entra company branding, which the run reads when the branding has
+them (in a licensed tier); the TenantKeep mark. A copy made with `-Redact` never carries the organisation's logo,
+and a report prepared under another name in brand.json shows no TenantKeep mark.
+
 ## 4. Hybrid tenants
 
 The on-premises domain is read by a script that ships with the module, on a domain-joined Windows machine, by
