@@ -1122,6 +1122,98 @@
         "T1557.001",
         "T1110.002"
       ]
+    },
+    {
+      "id": "AZ-029",
+      "domain": "azure",
+      "title": "Azure Policy compliance at or above the threshold",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "minPolicyCompliancePct": 80
+      },
+      "evidence": [
+        "az-03-policy-compliance.json",
+        "az-03-policy-noncompliant-assignments.json",
+        "az-03-policy-assignments.json"
+      ],
+      "evidenceOptional": [
+        "az-03-policy-noncompliant-assignments.json",
+        "az-03-policy-assignments.json"
+      ],
+      "pass": "facts.policyCompliancePct >= thresholds.minPolicyCompliancePct",
+      "affected": "facts.policyNonCompliantAssignments",
+      "remediation": [
+        "Open Azure Policy, Compliance, and start with the assignments listed here: they are the ones most resources break.",
+        "For each, fix the resources (many built-in policies offer a remediation task) or, where the policy does not fit a workload, record an exemption on that scope with a reason and an end date.",
+        "Move policies that are only audited to deny or deploy-if-not-exists once the estate is clean, so new resources cannot break them."
+      ],
+      "effort": "L",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Fixing a resource to meet a policy can change how it is reached or logged; each policy says what it changes."
+      },
+      "learn": "https://learn.microsoft.com/azure/governance/policy/how-to/get-compliance-data",
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Policy/PolicyMenuBlade/~/Compliance",
+      "narrative": "Assigning a policy says what the rules are; compliance says whether the estate follows them. This is the share of the resources Azure Policy has evaluated that break no assigned policy, across the subscriptions that were read, with the assignments most resources break. A low figure with the benchmark assigned usually means the benchmark was assigned and never worked.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-01",
+        "iso27001": "A.5.36",
+        "cmmc": "CA.L2-3.12.1",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "AZ-030",
+      "domain": "azure",
+      "title": "Azure Lighthouse delegations with more than read access justified",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-17-lighthouse-delegations.json"
+      ],
+      "pass": "facts.lighthouseWriteDelegations == 0",
+      "affected": "facts.lighthouseWriteDelegations",
+      "remediation": [
+        "For each delegation listed, confirm the partner still works for you and still needs that role on that scope.",
+        "Remove a delegation that is no longer wanted: Azure portal, Service providers, Delegations, then remove it.",
+        "Ask the partner to republish an offer that is too broad with narrower roles, or with eligible (just in time) access for the roles that change things.",
+        "Record the delegations that stay as exceptions with an owner and a review date."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "None for your users. A partner whose delegation is removed loses access at once, so agree it with them first."
+      },
+      "learn": "https://learn.microsoft.com/azure/lighthouse/how-to/view-manage-service-providers",
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_CustomerHub/ServiceProvidersBladeV2/~/delegations",
+      "narrative": "Azure Lighthouse lets people in another organisation's tenant act on your subscriptions with a role you granted once, when an offer was accepted. Their accounts, their MFA and their leavers are theirs to manage, not yours, and the delegation stays until someone removes it. A delegation that only reads is left alone. One with Contributor or any other role that can change things, or one whose roles could not be read, is listed so that each has a name next to it.",
+      "frameworks": {
+        "nist-csf-2": "GV.SC-07",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1199"
+      ]
     }
   ]
 }

@@ -1,11 +1,29 @@
 {
-  "version": "2026.11.0",
+  "version": "2026.11.1",
   "attack": {
     "version": "20.1",
     "domain": "enterprise-attack"
   },
   "description": "TenantKeep Posture check catalog. One file per domain. Copyright (c) 2026 Kainor LLC; the catalog text, logic and framework mappings are the protected part of the product (LICENSE.md). domains: every domain in report order with its label; the report, the findings export and the public catalog page read it, so a new domain is data only. attack: the MITRE ATT&CK release the checks' technique ids are checked against; build.ps1 -Task AttackData writes checks/attack.json from that release and refuses any other. changes: one entry per catalog version whose checks changed meaning, with the checks that can move for a tenant that did not change and why; the trend reads it so a result that moved with the catalog is not called a new failure or a fix.",
   "changes": [
+    {
+      "version": "2026.11.1",
+      "date": "2026-11-21",
+      "summary": "Ten new checks from reads that need no new permission, and a longer expiry calendar.",
+      "checks": {
+        "OP-006": "The expiry calendar gains Apple Automated Device Enrollment tokens, trial subscriptions and subscriptions in their grace period, so it can list items it did not know about before.",
+        "OP-009": "New: Secure Score against its best day in the last 90.",
+        "OP-010": "New: subscriptions in their grace period, suspended or locked out.",
+        "DEV-024": "New: Intune certificate connectors that have stopped answering.",
+        "ID-024": "New: applications that hold Graph application permissions and have not signed in for 90 days.",
+        "AZ-029": "New: the share of evaluated resources that comply with Azure Policy.",
+        "AZ-030": "New: Azure Lighthouse delegations that give another tenant more than read access.",
+        "EM-028": "New: whether Exchange Online rejects Direct Send.",
+        "CL-017": "New: how long a deleted user's OneDrive is kept.",
+        "CL-018": "New: OneDrive sync limited to the organisation's own domain-joined computers (hybrid tenants).",
+        "CL-019": "New: idle browser sessions signed out of SharePoint and OneDrive."
+      }
+    },
     {
       "version": "2026.11.0",
       "date": "2026-11-21",

@@ -19,7 +19,7 @@ function Get-PostureDevicesFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0; maxAdOnlyWindowsPct = 5; maxPartnerHeartbeatDays = 7; minPartnerMacCompliantPct = 90 }
+    $t = @{ minCompliancePct = 0; maxHybridJoinedPct = 100; minAutopilotPct = 0; minBitLockerEscrowedPct = 100; minMacEncryptedPct = 100; minAppleCertDays = 60; minLinuxDevices = 0; maxAdOnlyWindowsPct = 5; maxPartnerHeartbeatDays = 7; minPartnerMacCompliantPct = 90; maxConnectorSilentDays = 3 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -322,6 +322,26 @@ function Get-PostureDevicesFact {
             else { $facts.macEntraCompliantPct = $(if ($macs.inUse -gt 0) { & $pct $macs.compliant $macs.inUse } else { 100 }); $facts.macsInEntra = $macs.inUse; $facts.macsCompliantInEntra = $macs.compliant; $affected.macsNotCompliantInEntra = @($macsNotCompliant); $affectedCounts.macsNotCompliantInEntra = $macs.inUse - $macs.compliant }
         }
         else { $notEvaluated['DEV-023'] = '08-entra-devices.json was not collected (the Entra collector).' }
+    }
+
+    # DEV-024: the on-premises certificate connectors (SCEP through NDES, PKCS). One Intune calls inactive, or one
+    # that has not been heard from in days, issues no certificates. A tenant with none has nothing to lose here.
+    $connectors = & $load '09-certificate-connectors'
+    if ($null -eq $connectors) { & $missing @('DEV-024') '09-certificate-connectors' }
+    else {
+        $connectorList = @($connectors | Where-Object { $_ })
+        # How long each had been silent when the list was read (the collector's own count), so a report built
+        # later says the same thing.
+        $silent = @($connectorList | Where-Object {
+                $days = Get-PostureValue $_ 'DaysSinceLastConnection'
+                [string](Get-PostureValue $_ 'State') -eq 'inactive' -or $null -eq $days -or "$days" -eq '' -or [int]$days -gt [int]$t.maxConnectorSilentDays
+            })
+        $facts.certificateConnectors = $connectorList.Count
+        $facts.certificateConnectorsSilent = $silent.Count
+        $affected.certificateConnectorsSilent = @($silent | ForEach-Object {
+                $heard = ConvertTo-PostureUtcDateTime (Get-PostureValue $_ 'LastConnectionDateTime')
+                [ordered]@{ name = "$([string](Get-PostureValue $_ 'DisplayName'))$(if (Get-PostureValue $_ 'MachineName') { " on $([string](Get-PostureValue $_ 'MachineName'))" })"; detail = $(if ($heard) { "last heard from $($heard.ToString('yyyy-MM-dd'))" } else { 'never heard from' }) + $(if ([string](Get-PostureValue $_ 'State') -eq 'inactive') { ', inactive' } else { '' }) }
+            })
     }
 
     return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; evidence = @('08-entra-devices.json', '09-intune-managed-devices.json', '09-intune-config-profiles-settings-catalog.json') }

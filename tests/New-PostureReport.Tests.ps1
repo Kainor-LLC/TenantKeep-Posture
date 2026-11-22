@@ -266,12 +266,15 @@ Describe 'Trend since a previous run' {
     It 'lists a result that moved with the catalog apart from failures and fixes, and does not call a lost answer a fix' {
         $prevPath = Join-Path $script:Root 'previous-catalog.json'
         $prev = Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20
-        $changed = @((Get-Content -Raw (Join-Path $PSScriptRoot '..' 'checks' 'catalog.json') | ConvertFrom-Json -AsHashtable -Depth 10)['changes'][0]['checks'].get_Keys())
+        # Every catalog version since 2026.10.0 has an entry in changes, and each names the checks it moved.
+        $entries = @((Get-Content -Raw (Join-Path $PSScriptRoot '..' 'checks' 'catalog.json') | ConvertFrom-Json -AsHashtable -Depth 10)['changes'])
+        $changed = @($entries | ForEach-Object { $_['checks'].get_Keys() } | Sort-Object -Unique)
         # The earlier run was judged with the catalog before: a check that changed since had the opposite answer,
         # and two checks with no answer now had one then.
         $prev.catalogVersion = '2026.10.0'
-        $moved = @($prev.results | Where-Object { $_.id -in $changed -and $_.status -in 'pass', 'fail' })[0]
-        $moved | Should -Not -BeNullOrEmpty -Because 'the fixture evaluates at least one check the catalog change names'
+        $candidates = @($prev.results | Where-Object { $_.id -in $changed -and $_.status -in 'pass', 'fail' })
+        $candidates.Count | Should -BeGreaterThan 0 -Because 'the fixture evaluates at least one check a catalog change names'
+        $moved = $candidates[0]
         $nowStatus = [string]$moved.status
         $moved.status = $(if ($nowStatus -eq 'fail') { 'pass' } else { 'fail' })
         $silent = @($prev.results | Where-Object { $_.status -eq 'notEvaluated' -and $_.id -notin $changed })
@@ -283,7 +286,7 @@ Describe 'Trend since a previous run' {
         $tr.catalogChanged | Should -BeTrue
         $tr.catalogBefore | Should -Be '2026.10.0'
         $tr.catalogAfter | Should -Be $r.Report.appendix.catalogVersion
-        @($tr.catalogNotes).Count | Should -Be 1
+        @($tr.catalogNotes).Count | Should -Be $entries.Count -Because 'one note for each catalog version between the two runs'
         @($tr.logicChanged | ForEach-Object { $_.id }) | Should -Be @($moved.id)
         $tr.logicChanged[0].detail | Should -Match '\.$'
         @($tr.newFailures | ForEach-Object { $_.id }) | Should -Not -Contain $moved.id -Because 'the check changed, the tenant did not'

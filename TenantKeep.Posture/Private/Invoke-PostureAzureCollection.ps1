@@ -108,6 +108,15 @@ function Invoke-PostureAzureCollection {
         $rows = & $q "policyresources | where type == 'microsoft.authorization/policyassignments' | project id, name, displayName = tostring(properties.displayName), scope = tostring(properties.scope), policyDefinitionId = tostring(properties.policyDefinitionId), enforcementMode = tostring(properties.enforcementMode)"
         & $save @($rows | ForEach-Object { [ordered]@{ Id = (& $str $_.id); Name = (& $str $_.name); DisplayName = (& $str $_.displayName); Scope = (& $str $_.scope); PolicyDefinitionId = (& $str $_.policyDefinitionId); EnforcementMode = (& $str $_.enforcementMode); IsMcsb = ([string]$_.policyDefinitionId -match '(?i)1f3afdf9-d0c9-4c3d-847f-89da613e70a8' -or [string]$_.displayName -match '(?i)cloud security benchmark') } }) 'az-03-policy-assignments' $true
     } | Out-Null
+    Invoke-PostureStep -Label 'Azure Policy compliance' -Folder $Folder -Script {
+        # What Azure Policy found when it last evaluated: for each subscription how many resources it looked at and
+        # how many break at least one policy, and the assignments that most resources break. Counts of distinct
+        # resources, from the policy states Resource Graph keeps (the latest evaluation of each).
+        $bySub = & $q "policyresources | where type == 'microsoft.policyinsights/policystates' | extend resourceId = tolower(tostring(properties.resourceId)), state = tostring(properties.complianceState) | summarize NonCompliant = dcountif(resourceId, state == 'NonCompliant'), Resources = dcount(resourceId) by subscriptionId"
+        & $save @($bySub | ForEach-Object { [ordered]@{ SubscriptionId = (& $str $_.subscriptionId); Resources = [long]$_.Resources; NonCompliant = [long]$_.NonCompliant } }) 'az-03-policy-compliance' $true
+        $top = & $q "policyresources | where type == 'microsoft.policyinsights/policystates' | where tostring(properties.complianceState) == 'NonCompliant' | summarize Resources = dcount(tolower(tostring(properties.resourceId))) by assignmentId = tolower(tostring(properties.policyAssignmentId)), assignment = tostring(properties.policyAssignmentName) | order by Resources desc | take 50"
+        & $save @($top | ForEach-Object { [ordered]@{ AssignmentId = (& $str $_.assignmentId); Assignment = (& $str $_.assignment); Resources = [long]$_.Resources } }) 'az-03-policy-noncompliant-assignments' $true
+    } | Out-Null
 
     # ---------- 4. Activity log export ----------
     Invoke-PostureStep -Label 'Activity log diagnostic settings' -Folder $Folder -Script {
@@ -151,6 +160,25 @@ function Invoke-PostureAzureCollection {
         }
         & $save @($rows) 'az-05-classic-administrators' $true
         & $refusals 'Classic administrators'
+    } | Out-Null
+    Invoke-PostureStep -Label 'Azure Lighthouse delegations' -Folder $Folder -Script {
+        # Subscriptions and resource groups another tenant manages through Azure Lighthouse: who, under which offer,
+        # with which roles. The assignment says where, the definition says who and what; they are read apart and
+        # joined here. A delegation whose definition cannot be read keeps its row, with its roles unknown.
+        $assignments = & $q "managedserviceresources | where type == 'microsoft.managedservices/registrationassignments' | project id, subscriptionId, resourceGroup, definitionId = tolower(tostring(properties.registrationDefinitionId))"
+        $definitions = & $q "managedserviceresources | where type == 'microsoft.managedservices/registrationdefinitions' | project definitionId = tolower(id), offer = tostring(properties.registrationDefinitionName), managedByTenantId = tostring(properties.managedByTenantId), managedByTenantName = tostring(properties.managedByTenantName), authorizations = properties.authorizations, eligible = properties.eligibleAuthorizations"
+        $byDefinition = @{}; foreach ($d in $definitions) { $byDefinition[(& $str $d.definitionId)] = $d }
+        $roleIds = { param($list) @(@($list) | Where-Object { $_ } | ForEach-Object { ((& $str (& $v $_ 'roleDefinitionId')) -split '/')[-1].ToLowerInvariant() } | Where-Object { $_ } | Sort-Object -Unique) }
+        & $save @($assignments | ForEach-Object {
+                $key = & $str $_.definitionId
+                $d = $(if ($byDefinition.ContainsKey($key)) { $byDefinition[$key] } else { $null })
+                [ordered]@{
+                    Id = (& $str $_.id); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup)
+                    DefinitionRead = ($null -ne $d); Offer = $(if ($d) { & $str $d.offer }); ManagedByTenantId = $(if ($d) { & $str $d.managedByTenantId }); ManagedByTenantName = $(if ($d) { & $str $d.managedByTenantName })
+                    Roles = $(if ($d) { (& $roleIds $d.authorizations) -join ';' }); EligibleRoles = $(if ($d) { (& $roleIds $d.eligible) -join ';' })
+                    Principals = $(if ($d) { @(@($d.authorizations) + @($d.eligible) | Where-Object { $_ } | ForEach-Object { & $str (& $v $_ 'principalId') } | Where-Object { $_ } | Sort-Object -Unique).Count })
+                }
+            }) 'az-17-lighthouse-delegations' $true
     } | Out-Null
 
     # ---------- 6. Resource hygiene ----------

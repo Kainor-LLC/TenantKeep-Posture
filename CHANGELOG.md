@@ -6,6 +6,30 @@ work landed on main.
 
 ## Unreleased
 
+- Ten new checks from reads that need no new permission (2026-11-21, catalog 2026.11.1).
+  - OP-009: Secure Score against its best day in the 90 Microsoft keeps, as a share of the maximum. A fall of more
+    than five points means something was undone.
+  - OP-010: subscriptions in their grace period, suspended or locked out.
+  - DEV-024: Intune certificate connectors that Intune calls inactive, or that had been silent for more than three
+    days when they were read.
+  - ID-024: applications that hold Graph application permissions and have not signed in for 90 days. Applications
+    made in that time are left out, and a holder the run cannot find is never counted as in use.
+  - AZ-029: the share of the resources Azure Policy evaluated that break no policy, with the assignments most
+    resources break.
+  - AZ-030: Azure Lighthouse delegations that give another tenant more than read access, or whose roles could not
+    be read.
+  - EM-028: whether Exchange Online rejects Direct Send. No answer where the environment does not have the setting.
+  - CL-017, CL-018, CL-019: how long a deleted user's OneDrive is kept, OneDrive sync limited to the organisation's
+    own domain-joined computers (hybrid tenants), and idle browser sessions signed out. All three from the Graph
+    read of the SharePoint settings the run already makes.
+- The expiry calendar (OP-006) gains Apple Automated Device Enrollment tokens, trial subscriptions and
+  subscriptions in their grace period. A paid subscription in good standing is not on it: its date is its next
+  renewal.
+- New evidence: `01-subscriptions`, `10-app-signin-activity`, `09-apple-ade-tokens`, `09-certificate-connectors`,
+  `def-06-secure-score-history`, `az-03-policy-compliance`, `az-03-policy-noncompliant-assignments`,
+  `az-17-lighthouse-delegations`; `exo-01-orgconfig` gains `RejectDirectSend`. The demo tenant has the Microsoft 365
+  ones.
+
 - "To complete this assessment" (2026-11-21). A run that lacked a piece said so check by check, in forty reasons
   that each named a script path. The report's overview now opens with one row for each missing piece (the Active
   Directory read, the SharePoint admin read, the site permissions report, a domain that was skipped, steps that

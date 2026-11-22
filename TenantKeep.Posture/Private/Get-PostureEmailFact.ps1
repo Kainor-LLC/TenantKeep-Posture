@@ -160,10 +160,16 @@ function Get-PostureEmailFact {
         $affected.partnerConnectorsWithoutEnhancedFiltering = @($noEf | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "partner connector, Enhanced Filtering off, senders $(@(Get-PostureValue $_ 'SenderIPAddresses') -join ' ')" } })
     }
     $org = & $load 'exo-01-orgconfig'
-    if ($null -eq $org) { & $missing @('EM-019', 'EM-021') 'exo-01-orgconfig' }
+    if ($null -eq $org) { & $missing @('EM-019', 'EM-021', 'EM-028') 'exo-01-orgconfig' }
     else {
         $facts.arcTrustedSealers = @((& $v $org 'ArcTrustedSealers') | Where-Object { $_ }).Count
         $facts.mailboxAuditDisabledOrgWide = [bool]((& $v $org 'AuditDisabled') -eq $true)
+        # EM-028: Direct Send, mail handed to the tenant's own endpoint with no sign-in, claiming to be from one of
+        # its own domains. An organisation config without the setting (read before the collector asked for it, or
+        # a cloud that does not have it) is no answer, never "not rejected".
+        $reject = & $v $org 'RejectDirectSend'
+        if ($null -eq $reject -or "$reject" -eq '') { $notEvaluated['EM-028'] = 'The organisation configuration in this run does not say whether Direct Send is rejected: it was read before the collector asked for it, or this Exchange environment does not have the setting. Collect Exchange again (Resume-PostureRun -Collector Exchange).' }
+        else { $facts.directSendRejected = ($reject -eq $true -or "$reject" -eq 'True') }
     }
 
     # DKIM (EM-012)

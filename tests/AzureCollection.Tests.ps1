@@ -79,6 +79,38 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             @(& $script:Read 'az-09-entra-diagnostic-settings')[0].Categories | Should -Be @('AuditLogs', 'SignInLogs')
         }
 
+        It 'reads what Azure Policy found: resources evaluated and breaking for each subscription, and the assignments most break' {
+            $bySub = @(& $script:Read 'az-03-policy-compliance')
+            @($bySub | ForEach-Object { "$($_.SubscriptionId) $($_.NonCompliant)/$($_.Resources)" }) | Should -Be @('sub-1 12/40', 'sub-2 3/10')
+            @(& $script:Read 'az-03-policy-noncompliant-assignments')[0].Resources | Should -Be 11
+        }
+
+        It 'reads the Azure Lighthouse delegations with who manages what, with which roles, and keeps one whose definition cannot be read' {
+            $rows = @(& $script:Read 'az-17-lighthouse-delegations')
+            $rows.Count | Should -Be 3
+            $rows[0].ManagedByTenantName | Should -Be 'Fabrikam Managed Services'
+            $rows[0].Roles | Should -Be 'acdd72a7-3385-48ef-bd42-f606fba81ae7;b24988ac-6180-42a0-ab88-20f7382dd24c' -Because 'a role is kept by its id, whether Azure gave the id or its full path'
+            $rows[0].Principals | Should -Be 2
+            $rows[1].ResourceGroup | Should -Be 'rg1'
+            $rows[2].DefinitionRead | Should -BeFalse
+            $rows[2].Roles | Should -BeNullOrEmpty
+        }
+
+        It 'judges policy compliance and the delegations that can change things' {
+            $profilePath = Join-Path $script:Root 'profile-az.json'
+            '{ "version": 1, "azure": "workloads", "identityModel": "cloud", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath
+            $run = Invoke-PostureChecks -Evidence $script:Folder -Domain azure -ProfilePath $profilePath -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by['AZ-029'].status | Should -Be 'fail' -Because '35 of 50 resources comply, 70%, under the 80 the catalog asks for'
+            $by['AZ-029'].observed.policyCompliancePct | Should -Be 70
+            @($by['AZ-029'].affected | ForEach-Object { "$($_.name): $($_.detail)" })[0] | Should -Be 'Microsoft cloud security benchmark: 11 resource(s) not compliant' -Because 'the assignment is named as the portal names it'
+            $by['AZ-030'].status | Should -Be 'fail'
+            @($by['AZ-030'].affected | ForEach-Object { "$($_.name) | $($_.detail)" }) | Should -Be @(
+                'Managed Azure, managed by Fabrikam Managed Services | subscription sub-1: Contributor'
+                'Delegation, managed by a tenant that could not be read | subscription sub-2: roles could not be read'
+            ) -Because 'the monitoring partner only reads, and is left alone'
+        }
+
         It 'feeds the azure checks and the identity and operations checks that wait on Azure' {
             $profilePath = Join-Path $script:Root 'profile.json'
             '{ "version": 1, "azure": "workloads", "identityModel": "hybrid-connect", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath

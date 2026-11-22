@@ -20,7 +20,7 @@ function Get-PostureIdentityFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ minGlobalAdmins = 2; maxGlobalAdmins = 5; credentialExpiryWarningDays = 30; riskyUserMaxAgeDays = 7; inactiveGuestDays = 90; maxActivationHours = 8 }
+    $t = @{ minGlobalAdmins = 2; maxGlobalAdmins = 5; credentialExpiryWarningDays = 30; riskyUserMaxAgeDays = 7; inactiveGuestDays = 90; maxActivationHours = 8; unusedAppDays = 90 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
 
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
@@ -239,6 +239,42 @@ function Get-PostureIdentityFact {
         $hits = @($perms | Where-Object { $_.Permission -in $high })
         $facts.highPrivilegeAppPermissions = $hits.Count
         $affected.highPrivilegeAppPermissions = @($hits | ForEach-Object { [ordered]@{ name = "$($_.PrincipalDisplayName): $($_.Permission)"; detail = "application permission granted $((& $v $_ 'CreatedDateTime'))" } })
+    }
+
+    # ID-024: applications that hold Graph application permissions and have not signed in for unusedAppDays. The
+    # permissions are from 10-graph-app-permissions; who each holder is, and when it was made, from the service
+    # principals (looked up by id, never loaded whole); its last sign-in from 10-app-signin-activity, which has a
+    # row for each application Entra has seen sign in. An application made inside the window is too new to judge.
+    if ($null -eq $perms) { & $missing 'ID-024' '10-graph-app-permissions' }
+    else {
+        $holderIds = @($perms | Where-Object { $_ -and [string](& $v $_ 'PrincipalType') -ne 'User' } | ForEach-Object { [string](& $v $_ 'PrincipalId') } | Where-Object { $_ } | Sort-Object -Unique)
+        $holders = Find-PostureEvidenceRow -Folder $Evidence -Name '10-service-principals' -Key 'Id' -Value $holderIds
+        $appIds = @($(if ($null -ne $holders) { $holders.get_Values() | ForEach-Object { [string](& $v $_ 'AppId') } | Where-Object { $_ } }))
+        $activity = Find-PostureEvidenceRow -Folder $Evidence -Name '10-app-signin-activity' -Key 'AppId' -Value $appIds
+        if ($null -eq $holders) { & $missing 'ID-024' '10-service-principals' }
+        elseif ($null -eq $activity) { $notEvaluated['ID-024'] = '10-app-signin-activity.json was not collected (the Entra collector; needs AuditLog.Read.All, and Entra ID P1 for the sign-in record).' }
+        else {
+            $unusedCutoff = $AsOf.AddDays(-[int]$t.unusedAppDays)
+            $unused = [System.Collections.Generic.List[object]]::new()
+            $notFound = 0
+            foreach ($id in $holderIds) {
+                # A holder that is not in this run's service principal list cannot be judged: counted, never taken as in use.
+                if (-not $holders.ContainsKey($id)) { $notFound++; continue }
+                $sp = $holders[$id]
+                $made = ConvertTo-PostureUtcDateTime (& $v $sp 'CreatedDateTime')
+                if ($made -and $made -gt $unusedCutoff) { continue }
+                $appId = [string](& $v $sp 'AppId')
+                $last = $(if ($appId -and $activity.ContainsKey($appId)) { ConvertTo-PostureUtcDateTime (& $v $activity[$appId] 'LastSignIn') } else { $null })
+                if ($last -and $last -ge $unusedCutoff) { continue }
+                $held = @($perms | Where-Object { [string](& $v $_ 'PrincipalId') -eq $id } | ForEach-Object { [string](& $v $_ 'Permission') } | Where-Object { $_ } | Sort-Object -Unique)
+                $unused.Add([ordered]@{ name = [string](& $v $sp 'DisplayName'); detail = "$($held.Count) Graph permission(s): $(@($held | Select-Object -First 3) -join ', ')$(if ($held.Count -gt 3) { ' and more' }); $(if ($last) { "last sign-in $($last.ToString('yyyy-MM-dd'))" } else { 'no sign-in on record' })" })
+            }
+            $facts.appsWithGraphPermissions = $holderIds.Count
+            $facts.unusedAppsWithPermissions = $unused.Count
+            $affected.unusedAppsWithPermissions = @($unused | Sort-Object { $_.name })
+            if ($notFound -gt 0 -and $unused.Count -eq 0) { $notEvaluated['ID-024'] = "$notFound of the $($holderIds.Count) applications that hold Graph permissions are not in this run's service principal list, so whether they still sign in is not known." }
+            elseif ($notFound -gt 0) { $notes['ID-024'] = "Judged on $($holderIds.Count - $notFound) of the $($holderIds.Count) applications that hold Graph permissions; the other $notFound are not in this run's service principal list." }
+        }
     }
 
     # Guests a row at a time: all counted, the first 500 inactive ones kept for the report. A run from before the

@@ -211,6 +211,15 @@ BeforeAll {
             '^deviceManagement/windowsFeatureUpdateProfiles' { & $u @(@{ id = 'fu1'; displayName = 'Windows 11 24H2'; featureUpdateVersion = 'Windows 11, version 24H2'; assignments = @(@{ id = 'a' }) }); break }
             '^deviceAppManagement/mobileApps' { & $u @(@{ id = 'app1'; displayName = 'Company Portal'; publisher = 'Microsoft'; '@odata.type' = '#microsoft.graph.winGetApp' }); break }
             '^deviceManagement/applePushNotificationCertificate$' { if ($env:TKP_TEST_APNS -eq 'missing') { throw 'Response status code does not indicate success: NotFound (Not Found).' }; @{ appleIdentifier = 'apple@contoso.example'; expirationDateTime = '2026-11-20T00:00:00Z'; topicIdentifier = 'com.apple.mgmt.x' }; break }
+            '^deviceManagement/depOnboardingSettings' { & $u @(@{ id = 'dep1'; tokenName = 'Apple Business Manager'; appleIdentifier = 'apple@contoso.example'; tokenType = 'dep'; tokenExpirationDateTime = '2027-03-01T00:00:00Z'; lastSuccessfulSyncDateTime = '2026-10-13T00:00:00Z'; lastSyncErrorCode = 0 }); break }
+            '^deviceManagement/ndesConnectors' { & $u @(@{ id = 'c1'; displayName = 'Certificate Connector'; machineName = 'PKI01'; state = 'active'; lastConnectionDateTime = [datetime]::UtcNow.AddHours(-2).ToString('o'); connectorVersion = '6.2406.0.1001' }, @{ id = 'c2'; displayName = 'Certificate Connector'; machineName = 'PKI02'; state = 'inactive'; lastConnectionDateTime = [datetime]::UtcNow.AddDays(-12.5).ToString('o') }, @{ id = 'c3'; displayName = 'Certificate Connector'; machineName = 'PKI03'; state = 'none' }); break }
+            '^directory/subscriptions' { & $u @(@{ id = 'sub1'; skuPartNumber = 'SPB'; skuId = 's1'; status = 'Enabled'; isTrial = $false; totalLicenses = 12; createdDateTime = '2024-01-01T00:00:00Z'; nextLifecycleDateTime = '2027-01-01T00:00:00Z' }, @{ id = 'sub2'; skuPartNumber = 'TEAMS_PREMIUM'; skuId = 's2'; status = 'Warning'; isTrial = $true; totalLicenses = 25; nextLifecycleDateTime = '2026-11-01T00:00:00Z' }); break }
+            '^reports/servicePrincipalSignInActivities' {
+                & $u @(
+                    @{ id = 'a1'; appId = 'app-1'; lastSignInActivity = @{ lastSignInDateTime = '2026-10-01T00:00:00Z' }; applicationAuthenticationClientSignInActivity = @{ lastSignInDateTime = '2026-10-12T08:00:00Z' }; delegatedClientSignInActivity = @{ lastSignInDateTime = $null } }
+                    @{ id = 'a2'; appId = 'app-2'; lastSignInActivity = @{} }
+                ); break
+            }
             '^deviceAppManagement/vppTokens' { & $u @(@{ organizationName = 'Contoso'; appleId = 'apple@contoso.example'; state = 'valid'; expirationDateTime = '2027-06-01T00:00:00Z' }); break }
             '^deviceManagement/deviceEnrollmentConfigurations' { & $u @(@{ id = 'er1'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration'; priority = 0; windowsRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $true }; macOSRestriction = @{ platformBlocked = $false; personalDeviceEnrollmentBlocked = $false }; assignments = @() }, @{ id = 'whfb'; displayName = 'All users and all devices'; '@odata.type' = '#microsoft.graph.windowsHelloForBusinessConfiguration'; priority = 0; state = 'enabled'; pinMinimumLength = 6; securityDeviceRequired = $true; unlockWithBiometricsEnabled = $true; assignments = @() }); break }
             '^deviceManagement/complianceManagementPartners' { & $u @(@{ id = 'jamf'; displayName = 'Jamf'; partnerState = 'enabled'; lastHeartbeatDateTime = '2026-10-13T00:00:00Z'; macOsOnboarded = $true; iosOnboarded = $false; macOsEnrollmentAssignments = @(@{ target = @{ groupId = 'g1' } }) }); break }
@@ -389,6 +398,35 @@ Describe 'Invoke-PostureCollection' {
             $by['GV-010'].affectedCount | Should -Be 1
         }
 
+        It 'reads the subscriptions with their state, and when each application last signed in' {
+            $subs = @(& $script:Read '01-subscriptions')
+            @($subs | ForEach-Object { "$($_.SkuPartNumber) $($_.Status) trial=$($_.IsTrial)" }) | Should -Be @('SPB Enabled trial=False', 'TEAMS_PREMIUM Warning trial=True')
+            $subs[1].TotalLicenses | Should -Be 25
+            $activity = @(Import-Csv (Join-Path $script:R.Folder '10-app-signin-activity.csv'))
+            $activity.Count | Should -Be 2
+            ($activity | Where-Object AppId -eq 'app-1').LastSignIn | Should -Match '^2026-10-12T08:00:00' -Because 'the latest of the kinds of sign-in is the last sign-in'
+            ($activity | Where-Object AppId -eq 'app-2').LastSignIn | Should -BeNullOrEmpty
+            @($script:GraphAsked | Where-Object { $_ -match '/beta/reports/servicePrincipalSignInActivities' }).Count | Should -BeGreaterOrEqual 1 -Because 'the report is beta only'
+            @($script:GraphAsked | Where-Object { $_ -match '/v1\.0/directory/subscriptions' }).Count | Should -BeGreaterOrEqual 1
+        }
+
+        It 'reads the Apple enrollment tokens and the certificate connectors, with how long each had been silent at the read' {
+            $ade = @(& $script:Read '09-apple-ade-tokens')
+            $ade[0].TokenName | Should -Be 'Apple Business Manager'
+            ([datetime]$ade[0].TokenExpirationDateTime).ToUniversalTime().ToString('yyyy-MM-dd') | Should -Be '2027-03-01'
+            $connectors = @(& $script:Read '09-certificate-connectors')
+            @($connectors | ForEach-Object { "$($_.MachineName) $($_.State) $($_.DaysSinceLastConnection)" }) | Should -Be @('PKI01 active 0', 'PKI02 inactive 12', 'PKI03 none ')
+            @($script:GraphAsked | Where-Object { $_ -match '/beta/deviceManagement/(depOnboardingSettings|ndesConnectors)' }).Count | Should -BeGreaterOrEqual 2
+        }
+
+        It 'keeps a day-by-day history of Secure Score beside the latest score' {
+            $history = @(& $script:Read 'def-06-secure-score-history')
+            $history.Count | Should -Be 1 -Because 'the synthetic tenant has one day'
+            $history[0].CurrentScore | Should -Be 412.5
+            $history[0].MaxScore | Should -Be 900
+            @($script:GraphAsked | Where-Object { $_ -match 'security/secureScores\?\$top=90' }).Count | Should -BeGreaterOrEqual 1
+        }
+
         It 'collects Defender effective state: sharded hunting answers, incidents and Secure Score' {
             $script:Result = $script:R
             $d = @(& $script:Read 'def-01-devices')
@@ -546,7 +584,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 39
+            $r.results.Count | Should -Be 40
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'

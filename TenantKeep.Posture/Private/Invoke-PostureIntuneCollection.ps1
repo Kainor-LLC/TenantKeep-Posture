@@ -152,6 +152,23 @@ function Invoke-PostureIntuneCollection {
         $rows = & $get 'deviceAppManagement/vppTokens'
         & $save @($rows | ForEach-Object { [ordered]@{ OrganizationName = (& $v $_ 'organizationName'); AppleId = (& $v $_ 'appleId'); VppTokenAccountType = (& $v $_ 'vppTokenAccountType'); State = (& $v $_ 'state'); ExpirationDateTime = (& $v $_ 'expirationDateTime'); LastSyncDateTime = (& $v $_ 'lastSyncDateTime'); LastSyncStatus = (& $v $_ 'lastSyncStatus'); AutomaticallyUpdateApps = (& $v $_ 'automaticallyUpdateApps') } }) '09-apple-vpp-tokens' $true
     } | Out-Null
+    Invoke-PostureStep -Label 'Apple ADE tokens' -Folder $Folder -Script {
+        # Automated Device Enrollment (the old DEP) tokens: each lasts a year, and new Apple devices stop enrolling
+        # the day one lapses. Beta only. A tenant with none answers an empty list.
+        $rows = & $get 'deviceManagement/depOnboardingSettings' 'beta'
+        & $save @($rows | ForEach-Object { [ordered]@{ TokenName = (& $v $_ 'tokenName'); AppleIdentifier = (& $v $_ 'appleIdentifier'); TokenType = (& $v $_ 'tokenType'); TokenExpirationDateTime = (& $v $_ 'tokenExpirationDateTime'); LastSuccessfulSyncDateTime = (& $v $_ 'lastSuccessfulSyncDateTime'); LastSyncErrorCode = (& $v $_ 'lastSyncErrorCode') } }) '09-apple-ade-tokens' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Certificate connectors' -Folder $Folder -Script {
+        # The on-premises connectors that issue certificates to devices (SCEP through NDES, PKCS). One that has stopped
+        # answering means no new Wi-Fi, VPN or email certificates. Beta only; state is none, active or inactive.
+        # DaysSinceLastConnection is worked out now, against the time of this read: a report built from this
+        # evidence a week later must not find every connector a week more silent.
+        $rows = & $get 'deviceManagement/ndesConnectors' 'beta'
+        & $save @($rows | ForEach-Object {
+                $heard = ConvertTo-PostureUtcDateTime (& $v $_ 'lastConnectionDateTime')
+                [ordered]@{ DisplayName = (& $v $_ 'displayName'); MachineName = (& $v $_ 'machineName'); State = (& $v $_ 'state'); LastConnectionDateTime = (& $v $_ 'lastConnectionDateTime'); DaysSinceLastConnection = $(if ($heard) { [int][Math]::Max(0, [Math]::Floor(($AsOf - $heard).TotalDays)) } else { $null }); EnrolledDateTime = (& $v $_ 'enrolledDateTime'); ConnectorVersion = (& $v $_ 'connectorVersion') }
+            }) '09-certificate-connectors' $true
+    } | Out-Null
 
     # ---------- 4.4 additions ----------
     $enrollment = @(Invoke-PostureStep -Label 'Enrollment restrictions' -Folder $Folder -Script {

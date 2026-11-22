@@ -27,6 +27,7 @@ what says a list finished, and what says a file is left from an earlier attempt 
 | File | Source | Notes |
 |---|---|---|
 | `01-organization`, `01-subscribed-skus` (+csv), `01-onprem-sync-features` | organization, subscribedSkus, directory sync | SKUs feed `New-PostureProfile -Evidence`; sync features need OnPremDirectorySynchronization.Read.All |
+| `01-subscriptions` (+csv) | directory/subscriptions | What was bought with its state (Enabled, Warning for the grace period, Suspended, LockedOut), whether it is a trial, and the date it changes state; feeds OP-010 and the expiry calendar |
 | `02-*` tenant policies | authorization, security defaults, authentication methods, strengths, admin consent, cross-tenant access | |
 | `04-role-definitions`, `04-role-assignments-active` (+csv), `04-role-assignments-pim-eligible` (+csv), `04-role-assignments-summary` | PIM schedule instances; plain role assignments when PIM is unavailable | Needs RoleManagement.Read.Directory for PIM |
 | `04-role-holders` (+csv), `04-role-holders-summary` | groups/{id}/transitiveMembers for each group that holds a role; PIM for Groups eligibilitySchedules for the same groups where the tenant has PIM | One row per person and role: `Held` is Direct, Eligible, Group or EligibleGroup, with the group and the kind of membership. Every admin set (registration, users, sign-in tallies, the checks, the admins table) reads it. A group that could not be opened is named in the summary (`GroupsNotRead`, `EligibleMembersNotRead`), the step is logged as failed, and the checks that count administrators say what they did not see. Needs Group.Read.All and, for who can join, PrivilegedEligibilitySchedule.Read.AzureADGroup (verify: a Global Reader can read the members of a role-assignable group) |
@@ -37,6 +38,7 @@ what says a list finished, and what says a file is left from an earlier attempt 
 | `06-users` (+csv), `06-users-summary` | users with signInActivity; retried without it when AuditLog.Read.All is missing | `SignInActivityAvailable` in the summary says which |
 | `07-groups` (+csv), `07-groups-summary` | groups with Kind and Dynamic | The summary is counted as the list is written: groups, by kind, role-assignable, synced, licensed, dynamic |
 | `10-app-registrations`, `10-service-principals`, `10-graph-app-permissions`, `10-oauth2-delegated-grants` (+csv) | applications, servicePrincipals, Graph appRoleAssignedTo, oauth2PermissionGrants | Credential expiry and SAML certificate expiry computed |
+| `10-app-signin-activity` (+csv) | reports/servicePrincipalSignInActivities (beta) | When each application last signed in, the latest of its kinds of sign-in; an application with none on record has no row. AuditLog.Read.All; feeds ID-024. (verify) how far back the record goes |
 | `11-risky-users`, `11-risk-detections-30d` (+csv) | Identity Protection | P2; denied without it and logged. Risky users are the ones at risk now (`riskState` atRisk or confirmedCompromised), not everyone who ever had a risk |
 | `gov-01-access-reviews` (+csv) | identityGovernance/accessReviews/definitions | Scope queries joined, recurrence; needs AccessReview.Read.All |
 | `gov-02-access-packages` (+csv), `gov-02-access-packages-summary` | entitlementManagement packages, catalogs, connected organizations | EntitlementManagement.Read.All |
@@ -65,6 +67,8 @@ snapshot.
 | `09-autopilot-devices` (+csv) | windowsAutopilotDeviceIdentities | |
 | `09-intune-compliance-policies`, `09-intune-config-profiles-templates`, `09-intune-config-profiles-settings-catalog`, `09-intune-apps` (+csv) | compliance policies, device configurations, configurationPolicies (beta) with template family and assignment counts, mobile apps | Endpoint security policies are settings catalog policies with a `TemplateFamily` |
 | `09-apple-push-cert`, `09-apple-vpp-tokens` (+csv) | APNs certificate, VPP tokens | Expiry feeds DEV-008 |
+| `09-apple-ade-tokens` (+csv) | deviceManagement/depOnboardingSettings (beta) | Automated Device Enrollment tokens with their expiry; on the expiry calendar (OP-006) |
+| `09-certificate-connectors` (+csv) | deviceManagement/ndesConnectors (beta) | The on-premises certificate connectors with their state, last contact and how many days silent at the read; feeds DEV-024 |
 | `09-intune-enrollment-restrictions` (+csv) | deviceEnrollmentConfigurations (beta) | Per-platform personal enrollment blocked (verify the newer per-platform shape) |
 | `09-intune-mde-connector` (+csv) | mobileThreatDefenseConnectors (beta) | (verify) partner identification |
 | `09-intune-device-cleanup` | managedDeviceCleanupSettings (beta) | (verify) endpoint |
@@ -103,7 +107,7 @@ scalars and string lists before they are written.
 
 | File | Source | Notes |
 |---|---|---|
-| `exo-01-orgconfig`, `exo-01-transport-config`, `exo-01-auth-policies`, `exo-01-audit-config` | organization, transport and audit config, authentication policies | SMTP AUTH, ARC sealers, mailbox audit default, unified audit log |
+| `exo-01-orgconfig`, `exo-01-transport-config`, `exo-01-auth-policies`, `exo-01-audit-config` | organization, transport and audit config, authentication policies | SMTP AUTH, ARC sealers, mailbox audit default, unified audit log, and whether Direct Send is rejected (`RejectDirectSend`, EM-028; absent where the environment does not have the setting) |
 | `exo-02-accepted-domains`, `exo-02-dkim` | accepted domains, DKIM signing config | |
 | `exo-03-inbound-connectors`, `exo-03-outbound-connectors`, `exo-03-transport-rules` | connectors, mail flow rules | Enhanced Filtering fields, SCL -1 rules with their scope |
 | `exo-04-eop-content-filter`, `exo-04-eop-connection-filter`, `exo-04-eop-malware`, `exo-04-antiphish`, `exo-04-outbound-spam` | EOP policies | Full property set |
@@ -174,6 +178,7 @@ answers DeviceInfo only).
 | `def-04-vulnerabilities-summary`, `def-04-vulnerabilities-top` (+csv) | DeviceTvmSoftwareVulnerabilities joined to its KB | Critical CVEs, over 30 days since publication, top 50 by device count |
 | `def-05-incidents` (+csv), `def-05-incidents-summary` | security/incidents, active | Open over 7 days, unassigned |
 | `def-06-secure-score`, `def-06-secure-score-controls` (+csv) | security/secureScores, secureScoreControlProfiles | Spec 4.12: reported beside the posture score, never the grade |
+| `def-06-secure-score-history` (+csv) | security/secureScores, the 90 days Microsoft keeps | A row a day: date, score, maximum. Feeds OP-009, the fall from the best day |
 
 ## What the Azure collector writes
 
@@ -207,6 +212,8 @@ lasts about an hour; the collector finishes well inside that on a few hundred su
 | `az-02-defender-pricings` (+csv), `az-02-security-contacts` (+csv) | Microsoft.Security pricings and securityContacts per subscription | (verify) contact shape |
 | `az-02-secure-scores` (+csv), `az-02-assessments-summary` (+csv), `az-02-assessments-top` (+csv) | securityresources | Microsoft's numbers, reported beside the posture score |
 | `az-03-policy-assignments` (+csv) | policyresources | Benchmark assignments flagged |
+| `az-03-policy-compliance` (+csv), `az-03-policy-noncompliant-assignments` (+csv) | policyresources, the policy states | For each subscription the resources Azure Policy evaluated and how many break a policy, and the fifty assignments most resources break; feeds AZ-029 |
+| `az-17-lighthouse-delegations` (+csv) | managedserviceresources | Subscriptions and resource groups another tenant manages through Azure Lighthouse: the offer, the managing tenant, the role ids (standing and eligible); feeds AZ-030. (verify) the property names on a tenant that has a delegation |
 | `az-04-activity-log-exports` (+csv) | Microsoft.Insights diagnosticSettings per subscription | |
 | `az-05-role-assignments` (+csv), `az-05-role-definitions-custom` (+csv), `az-05-classic-administrators` (+csv) | authorizationresources, classicAdministrators | Role names resolved, scope level and subscription parsed; joined to 06-users, 07-groups and 10-service-principals by the facts |
 | `az-06-resources-by-type` (+csv), `az-06-resources-summary`, `az-06-locks` (+csv), `az-06-vaults` (+csv) | resources | Tags, orphans, delete locks on Key Vaults and Recovery Services vaults |

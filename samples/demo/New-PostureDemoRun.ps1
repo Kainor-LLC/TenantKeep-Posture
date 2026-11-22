@@ -73,6 +73,15 @@ Write-Demo '01-subscribed-skus' @(
     (& $sku 'Microsoft_365_Copilot' 40 31 2)
     (& $sku 'POWER_BI_STANDARD' 1000000 22 3)
 )
+# What was bought, with its state. The Copilot add-on trial ends in twelve days and is on the expiry calendar; the
+# old Visio plan was not renewed and is in its grace period (OP-010).
+Write-Demo '01-subscriptions' @(
+    @{ SkuPartNumber = 'SPE_E5'; SkuId = (Get-DemoId 'f3000000' 1); Status = 'Enabled'; IsTrial = $false; TotalLicenses = 400; CreatedDateTime = Get-DemoDate 700; NextLifecycleDateTime = Get-DemoDate -160 }
+    @{ SkuPartNumber = 'Microsoft_365_Copilot'; SkuId = (Get-DemoId 'f3000000' 2); Status = 'Enabled'; IsTrial = $false; TotalLicenses = 40; CreatedDateTime = Get-DemoDate 240; NextLifecycleDateTime = Get-DemoDate -125 }
+    @{ SkuPartNumber = 'Microsoft_Teams_Premium'; SkuId = (Get-DemoId 'f3000000' 4); Status = 'Enabled'; IsTrial = $true; TotalLicenses = 25; CreatedDateTime = Get-DemoDate 18; NextLifecycleDateTime = Get-DemoDate -12 }
+    @{ SkuPartNumber = 'VISIOCLIENT'; SkuId = (Get-DemoId 'f3000000' 5); Status = 'Warning'; IsTrial = $false; TotalLicenses = 6; CreatedDateTime = Get-DemoDate 1100; NextLifecycleDateTime = Get-DemoDate -19 }
+    @{ SkuPartNumber = 'POWER_BI_STANDARD'; SkuId = (Get-DemoId 'f3000000' 3); Status = 'Enabled'; IsTrial = $false; TotalLicenses = 1000000; CreatedDateTime = Get-DemoDate 900; NextLifecycleDateTime = $null }
+)
 Write-Demo '01-onprem-sync-features' @{ id = $tenantId; configuration = $null; features = @{ passwordSyncEnabled = $false; passwordWritebackEnabled = $false; blockSoftMatchEnabled = $true; blockCloudObjectTakeoverThroughHardMatchEnabled = $true } }
 Write-Demo '01-company-branding' @{ Present = $true; HasBannerLogo = $true; HasSquareLogo = $true; HasSignInText = $true }
 
@@ -333,10 +342,20 @@ Write-Demo '10-app-registrations' @(
     @{ Id = (Get-DemoId 'f6000000' 3); AppId = (Get-DemoId 'f7000000' 3); DisplayName = 'Intranet Search'; SignInAudience = 'AzureADMyOrg'; PublisherDomain = $domain; CreatedDateTime = Get-DemoDate 400; Secrets = 0; Certs = 1; EarliestExpiry = Get-DemoDate -280; ExpiredCredentials = 0 }
     @{ Id = (Get-DemoId 'f6000000' 4); AppId = (Get-DemoId 'f7000000' 4); DisplayName = 'Plotter Gateway'; SignInAudience = 'AzureADMyOrg'; PublisherDomain = $domain; CreatedDateTime = Get-DemoDate 600; Secrets = 0; Certs = 1; EarliestExpiry = Get-DemoDate -500; ExpiredCredentials = 0 }
 )
+# The id of a demo service principal, from its application id: the grants below and the service principal list agree on it.
+$spId = { param([string] $AppId) [guid]::new(([System.Security.Cryptography.MD5]::HashData([System.Text.Encoding]::UTF8.GetBytes("sp$AppId")))).ToString() }
 Write-Demo '10-graph-app-permissions' @(
-    @{ PrincipalDisplayName = 'Drawing Vault Sync'; PrincipalId = 'd4000000-0000-4000-8000-000000000009'; PrincipalType = 'ServicePrincipal'; Permission = 'Sites.ReadWrite.All'; CreatedDateTime = Get-DemoDate 900 }
-    @{ PrincipalDisplayName = 'Timesheet Export'; PrincipalId = 'd4000000-0000-4000-8000-000000000010'; PrincipalType = 'ServicePrincipal'; Permission = 'User.Read.All'; CreatedDateTime = Get-DemoDate 1200 }
-    @{ PrincipalDisplayName = 'Mailbox Archiver'; PrincipalId = 'd4000000-0000-4000-8000-000000000011'; PrincipalType = 'ServicePrincipal'; Permission = 'Mail.ReadWrite'; CreatedDateTime = Get-DemoDate 700 }
+    @{ PrincipalDisplayName = 'Drawing Vault Sync'; PrincipalId = (& $spId (Get-DemoId 'f7000000' 1)); PrincipalType = 'ServicePrincipal'; Permission = 'Sites.ReadWrite.All'; CreatedDateTime = Get-DemoDate 900 }
+    @{ PrincipalDisplayName = 'Timesheet Export'; PrincipalId = (& $spId (Get-DemoId 'f7000000' 2)); PrincipalType = 'ServicePrincipal'; Permission = 'User.Read.All'; CreatedDateTime = Get-DemoDate 1200 }
+    @{ PrincipalDisplayName = 'Mailbox Archiver'; PrincipalId = (& $spId (Get-DemoId 'f7000000' 5)); PrincipalType = 'ServicePrincipal'; Permission = 'Mail.ReadWrite'; CreatedDateTime = Get-DemoDate 700 }
+)
+# When each application last signed in. Timesheet Export stopped in the spring, and Mailbox Archiver has no sign-in
+# on record at all: both still hold their Graph permissions (ID-024).
+Write-Demo '10-app-signin-activity' @(
+    @{ AppId = (Get-DemoId 'f7000000' 1); LastSignIn = Get-DemoDate 0.3 }
+    @{ AppId = (Get-DemoId 'f7000000' 2); LastSignIn = Get-DemoDate 212 }
+    @{ AppId = (Get-DemoId 'f7000000' 3); LastSignIn = Get-DemoDate 2 }
+    @{ AppId = (Get-DemoId 'f7000000' 4); LastSignIn = Get-DemoDate 1 }
 )
 $sp = { param([string] $AppId, [string] $Name, [bool] $HomeApp = $false, [bool] $Assignment = $false, [bool] $Enabled = $true) [ordered]@{ Id = [guid]::new(([System.Security.Cryptography.MD5]::HashData([System.Text.Encoding]::UTF8.GetBytes("sp$AppId")))).ToString(); AppId = $AppId; DisplayName = $Name; AccountEnabled = $Enabled; ServicePrincipalType = 'Application'; AppOwnerOrganizationId = $(if ($HomeApp) { $tenantId } else { 'f8cdef31-a31e-4b4a-93e4-5f571e91255a' }); PreferredSingleSignOnMode = $null; SignInAudience = $(if ($HomeApp) { 'AzureADMyOrg' } else { 'AzureADMultipleOrgs' }); AppRoleAssignmentRequired = $Assignment; CreatedDateTime = Get-DemoDate 800; HomeTenantApp = $HomeApp; IsEnterpriseAppListed = $true; SamlCertExpiry = $null; HasExpiredCreds = $false; OwnerCount = $(if ($HomeApp) { 1 } else { 0 }) } }
 Write-Demo '10-service-principals' @(
@@ -351,6 +370,7 @@ Write-Demo '10-service-principals' @(
     (& $sp (Get-DemoId 'f7000000' 2) 'Timesheet Export' $true $false)
     (& $sp (Get-DemoId 'f7000000' 3) 'Intranet Search' $true $true)
     (& $sp (Get-DemoId 'f7000000' 4) 'Plotter Gateway' $true $true)
+    (& $sp (Get-DemoId 'f7000000' 5) 'Mailbox Archiver' $true $false)
 )
 Write-Demo '10-oauth2-delegated-grants' @(@{ ClientId = 'd4000000-0000-4000-8000-000000000020'; ConsentType = 'AllPrincipals'; PrincipalId = $null; ResourceId = 'd4000000-0000-4000-8000-000000000030'; Scope = 'User.Read offline_access openid profile' })
 
@@ -405,6 +425,12 @@ Write-Demo '09-autopilot-devices' @($fleet | Where-Object AutopilotEnrolled | Fo
 Write-Demo '09-autopilot-profiles' @(@{ DisplayName = 'Fernquill Standard'; DeviceNameTemplate = 'FQ-%RAND:6%'; Assignments = 1 })
 Write-Demo '09-apple-push-cert' @{ Present = $true; AppleIdentifier = "it-apple@$domain"; ExpirationDateTime = Get-DemoDate -24; LastModifiedDateTime = Get-DemoDate 341; TopicIdentifier = 'com.apple.mgmt.External.0d3e0f9a' }
 Write-Demo '09-apple-vpp-tokens' @(@{ DisplayName = 'Fernquill Apps'; OrganizationName = 'Fernquill Engineering'; State = 'valid'; ExpirationDateTime = Get-DemoDate -190; LastSyncStatus = 'completed'; LastSyncDateTime = Get-DemoDate 0.5 })
+Write-Demo '09-apple-ade-tokens' @(@{ TokenName = 'Fernquill Apple Business Manager'; AppleIdentifier = "it-apple@$domain"; TokenType = 'dep'; TokenExpirationDateTime = Get-DemoDate -75; LastSuccessfulSyncDateTime = Get-DemoDate 0.4; LastSyncErrorCode = 0 })
+# Two certificate connectors: the second has not been heard from for twelve days (DEV-024).
+Write-Demo '09-certificate-connectors' @(
+    @{ DisplayName = 'Certificate Connector'; MachineName = 'FQ-PKI01'; State = 'active'; LastConnectionDateTime = Get-DemoDate 0.01; DaysSinceLastConnection = 0; EnrolledDateTime = Get-DemoDate 500; ConnectorVersion = '6.2406.0.1001' }
+    @{ DisplayName = 'Certificate Connector'; MachineName = 'FQ-PKI02'; State = 'inactive'; LastConnectionDateTime = Get-DemoDate 12; DaysSinceLastConnection = 12; EnrolledDateTime = Get-DemoDate 500; ConnectorVersion = '6.2301.1.0' }
+)
 Write-Demo '09-intune-mde-connector' @{ Id = 'fc780465-2017-40d4-a0c5-307022471b92'; PartnerState = 'enabled'; LastHeartbeatDateTime = Get-DemoDate 0.1; WindowsDeviceBlockedOnMissingPartnerData = $false; WindowsEnabled = $true; MacEnabled = $true; LinuxEnabled = $null; IosEnabled = $true; AndroidEnabled = $true; MicrosoftDefenderForEndpointAttachEnabled = $false }
 Write-Demo '09-intune-device-cleanup' @{ Enabled = $true; DeviceInactivityBeforeRetirementInDays = 90; Rules = @(@{ Id = 'r1'; DisplayName = 'All platforms'; PlatformType = 'all'; DeviceInactivityBeforeRetirementInDays = 90 }) }
 Write-Demo '09-intune-settings' @{ SecureByDefault = $true }
@@ -525,6 +551,8 @@ $controls = @(
 )
 $rank = 0
 Write-Demo 'def-06-secure-score-controls' @($controls | ForEach-Object { $rank++; [ordered]@{ Id = "control-$rank"; Title = $_[0]; Category = $_[1]; MaxScore = $_[2]; Score = $_[3]; ImplementationCost = Get-DemoPick @('Low', 'Moderate'); UserImpact = 'Low'; ActionType = 'Config'; Tier = 'Core'; Rank = $rank; State = $_[4]; Remediation = 'See the action in Microsoft Defender.'; ActionUrl = 'https://security.microsoft.com/securescore?viewid=actions' } })
+# Ninety days of daily scores: a slow climb, with the last fortnight flat. Nothing was undone (OP-009 passes).
+Write-Demo 'def-06-secure-score-history' @(0..89 | ForEach-Object { [ordered]@{ Date = Get-DemoDate ($_ + 0.5); CurrentScore = [Math]::Round(612.4 - [Math]::Max(0, $_ - 14) * 0.62, 1); MaxScore = 878 } })
 Write-Demo 'def-06-secure-score' @{ Present = $true; CreatedDateTime = Get-DemoDate 0.5; CurrentScore = 612.4; MaxScore = 878; LicensedUserCount = 384; ActiveUserCount = 371; ByCategory = @{ Identity = 74.2; Device = 69.8; Apps = 66.1; Data = 31.0 }; AverageComparativeScores = @(@{ Basis = 'AllTenants'; AverageScore = 48.3 }, @{ Basis = 'TotalSeats'; AverageScore = 52.9 }) }
 
 # --- Exchange Online, mail DNS, Defender for Office 365 ----------------------------------------------------------------------------
@@ -532,7 +560,7 @@ Write-Demo 'dns-01-mail-records' @(
     @{ Domain = $domain; MX = 'fernquill-example.mail.protection.outlook.com'; SPF = 'v=spf1 include:spf.protection.outlook.com -all'; DMARC = "v=DMARC1; p=quarantine; pct=100; rua=mailto:dmarc@$domain"; MTASTS = ''; TLSRPT = '' }
 )
 Write-Demo 'exo-01-audit-config' @{ UnifiedAuditLogIngestionEnabled = $true; UnifiedAuditLogFirstOptInDate = '2019-03-05T00:00:00Z'; AdminAuditLogEnabled = $true }
-Write-Demo 'exo-01-orgconfig' @{ Name = $initial; OAuth2ClientProfileEnabled = $true; DefaultAuthenticationPolicy = 'Block Basic Auth'; AuditDisabled = $false; IsDehydrated = $false; SendFromAliasEnabled = $true; MailTipsAllTipsEnabled = $true; MailTipsExternalRecipientsTipsEnabled = $true; MailTipsLargeAudienceThreshold = 25; AutoExpandingArchiveEnabled = $true; EwsEnabled = $null; ActivityBasedAuthenticationTimeoutEnabled = $true; ActivityBasedAuthenticationTimeoutInterval = '06:00:00'; ArcTrustedSealers = $null; SmtpClientAuthenticationDisabled = $null; CustomerLockboxEnabled = $true }
+Write-Demo 'exo-01-orgconfig' @{ Name = $initial; RejectDirectSend = $false; OAuth2ClientProfileEnabled = $true; DefaultAuthenticationPolicy = 'Block Basic Auth'; AuditDisabled = $false; IsDehydrated = $false; SendFromAliasEnabled = $true; MailTipsAllTipsEnabled = $true; MailTipsExternalRecipientsTipsEnabled = $true; MailTipsLargeAudienceThreshold = 25; AutoExpandingArchiveEnabled = $true; EwsEnabled = $null; ActivityBasedAuthenticationTimeoutEnabled = $true; ActivityBasedAuthenticationTimeoutInterval = '06:00:00'; ArcTrustedSealers = $null; SmtpClientAuthenticationDisabled = $null; CustomerLockboxEnabled = $true }
 Write-Demo 'exo-01-transport-config' @{ SmtpClientAuthenticationDisabled = $true; ExternalPostmasterAddress = $null; MaxRecipientEnvelopeLimit = '500'; DSNConversionMode = 'UseExchangeDSNs' }
 Write-Demo 'exo-01-auth-policies' @(@{ Name = 'Block Basic Auth'; AllowBasicAuthSmtp = $false; AllowBasicAuthPop = $false; AllowBasicAuthImap = $false })
 Write-Demo 'exo-02-accepted-domains' @(@{ DomainName = $domain; DomainType = 'Authoritative'; Default = $true; AuthenticationType = 'Managed'; InitialDomain = $false }, @{ DomainName = $initial; DomainType = 'Authoritative'; Default = $false; AuthenticationType = 'Managed'; InitialDomain = $true })

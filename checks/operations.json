@@ -201,15 +201,19 @@
         "10-app-registrations.json",
         "10-service-principals.json",
         "09-apple-push-cert.json",
-        "09-apple-vpp-tokens.json"
+        "09-apple-vpp-tokens.json",
+        "09-apple-ade-tokens.json",
+        "01-subscriptions.json"
       ],
       "evidenceOptional": [
         "09-apple-push-cert.json",
-        "09-apple-vpp-tokens.json"
+        "09-apple-vpp-tokens.json",
+        "09-apple-ade-tokens.json",
+        "01-subscriptions.json"
       ],
       "pass": "facts.expiringWithinWarning == 0",
       "affected": "facts.expiringWithinWarning",
-      "remediation": "Renew each listed item before its date: rotate the application credential, roll the SAML certificate, renew the Apple push certificate or VPP token. The full calendar is in the facts, soonest first.",
+      "remediation": "Renew each listed item before its date: rotate the application credential, roll the SAML certificate, renew the Apple push certificate, VPP token or Automated Device Enrollment token, and buy or let go the trial or the subscription that is in its grace period. The full calendar is in the facts, soonest first.",
       "effort": "S",
       "category": "fix",
       "userImpact": {
@@ -218,7 +222,7 @@
       },
       "learn": "https://learn.microsoft.com/entra/identity-platform/how-to-add-credentials",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
-      "narrative": "One calendar for every expiry that takes a service down: application secrets, SAML signing certificates, the Apple push certificate, VPP tokens. Entra Connect and domain renewals join it when their collectors exist.",
+      "narrative": "One calendar for every expiry that takes a service down: application secrets, SAML signing certificates, the Apple push certificate, VPP and Automated Device Enrollment tokens, trial subscriptions and subscriptions in their grace period. Entra Connect and domain renewals join it when their collectors exist.",
       "frameworks": {
         "nist-csf-2": "PR.PS-01",
         "iso27001": "A.8.24",
@@ -309,6 +313,77 @@
         "T1485",
         "T1486"
       ]
+    },
+    {
+      "id": "OP-009",
+      "domain": "operations",
+      "title": "Secure Score has not fallen in the last 90 days",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxSecureScoreDropPoints": 5
+      },
+      "evidence": [
+        "def-06-secure-score-history.json"
+      ],
+      "pass": "facts.secureScoreDropPoints <= thresholds.maxSecureScoreDropPoints",
+      "remediation": [
+        "Open Secure Score, History, and find the day the score fell.",
+        "Look at what changed that day: a control that was turned off, a policy that was removed, a licence that lapsed, or new controls Microsoft added that are not yet met.",
+        "Put back what was undone, or record why it was meant."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Finding what changed asks nothing of users; putting a control back may, as that control says."
+      },
+      "learn": "https://learn.microsoft.com/defender-xdr/microsoft-secure-score-history-metrics-trends",
+      "deepLink": "https://security.microsoft.com/securescore?viewid=history",
+      "narrative": "A score that falls means something was undone: a policy removed, a setting switched off, a licence gone. Microsoft keeps 90 days of daily scores, and this compares today with the best day in that time, as a share of the maximum because the maximum moves when Microsoft adds a control. It is a tripwire for drift, not a grade.",
+      "frameworks": {
+        "nist-csf-2": "ID.IM-01",
+        "iso27001": "A.5.36",
+        "cmmc": "CA.L2-3.12.3",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "OP-010",
+      "domain": "operations",
+      "title": "No subscription is past its term",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "01-subscriptions.json"
+      ],
+      "pass": "facts.subscriptionsPastTerm == 0",
+      "affected": "facts.subscriptionsPastTerm",
+      "remediation": [
+        "For each subscription listed, decide whether it is still wanted.",
+        "Renew it in the Microsoft 365 admin center, Billing, Your products, or with the partner it was bought through, before the date shown.",
+        "If it is not wanted, move its users to another licence first, so nobody loses a mailbox or a protection the day it is suspended."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "high",
+        "text": "When a subscription is suspended its users lose what it licenses: mailboxes, Office apps, or the security features of the plan."
+      },
+      "learn": "https://learn.microsoft.com/microsoft-365/commerce/subscriptions/what-if-my-subscription-expires",
+      "deepLink": "https://admin.microsoft.com/Adminportal/Home#/subscriptions",
+      "narrative": "A subscription past its term is in a grace period first, then suspended, then deleted with its data. The security features go with it: Conditional Access with Entra ID P1, Defender, Intune. This lists every subscription Microsoft marks as in its grace period, suspended or locked out. Trials that are about to end are on the expiry calendar.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-08",
+        "iso27001": "A.5.9",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

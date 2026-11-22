@@ -357,7 +357,7 @@
     },
     {
       "collector": "Intune",
-      "match": "^(Apple push certificate|Apple VPP tokens|Enrollment restrictions|Autopilot devices|Device cleanup rules)$",
+      "match": "^(Apple push certificate|Apple VPP tokens|Apple ADE tokens|Certificate connectors|Enrollment restrictions|Autopilot devices|Device cleanup rules)$",
       "roles": [
         "Global Reader",
         "Intune Administrator"
@@ -686,6 +686,29 @@
         "BackupRestore-Configuration.Read.All"
       ],
       "note": "Graph read of Microsoft 365 Backup status and protection policies (verify the least role)."
+    },
+    {
+      "collector": "Entra",
+      "match": "^Subscriptions$",
+      "roles": [
+        "Global Reader"
+      ],
+      "scopes": [
+        "Directory.Read.All"
+      ]
+    },
+    {
+      "collector": "Entra",
+      "match": "^Application sign-in activity$",
+      "roles": [
+        "Reports Reader",
+        "Security Reader",
+        "Global Reader"
+      ],
+      "scopes": [
+        "AuditLog.Read.All"
+      ],
+      "licence": "Microsoft Entra ID P1"
     }
   ]
 }

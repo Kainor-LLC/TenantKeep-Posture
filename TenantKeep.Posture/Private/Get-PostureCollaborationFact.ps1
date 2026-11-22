@@ -20,7 +20,7 @@ function Get-PostureCollaborationFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxAnonymousLinkDays = 30; maxGuestExpireDays = 60 }
+    $t = @{ maxAnonymousLinkDays = 30; maxGuestExpireDays = 60; minOneDriveRetentionDays = 30; maxIdleSignOutMinutes = 480 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -55,6 +55,34 @@ function Get-PostureCollaborationFact {
         $facts.sharingDomainRestricted = $facts.sharingDomainRestrictionMode -in @('AllowList', 'BlockList')
         $facts.legacyAuthProtocolsEnabled = (& $v $spo 'LegacyAuthProtocolsEnabled') -eq $true
     }
+    # CL-017 to CL-019: three settings Graph carries whichever way the rest was read. A departed user's OneDrive
+    # (the admin read has that one too), sync limited to the organisation's own domain-joined computers, and
+    # signing idle browser sessions out. A value Graph did not return is no answer.
+    $graphSettings = & $load 'spo-tenant-settings-graph'
+    $keepDays = $(if ($null -ne $graphSettings) { & $v $graphSettings 'deletedUserPersonalSiteRetentionPeriodInDays' })
+    if ($null -eq $keepDays -and $null -ne $spo -and -not $graphOnly) { $keepDays = & $v $spo 'OrphanedPersonalSitesRetentionPeriod' }
+    if ($null -eq $keepDays -or "$keepDays" -eq '') { $notEvaluated['CL-017'] = 'How long a deleted user''s OneDrive is kept was not in what was read (Graph''s SharePoint settings, or the SharePoint admin read).' }
+    else { $facts.oneDriveRetentionDays = [int]$keepDays }
+    if ($null -eq $graphSettings) { foreach ($id in 'CL-018', 'CL-019') { $notEvaluated[$id] = 'spo-tenant-settings-graph.json was not collected: the Entra collector reads it through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
+    else {
+        $restricted = & $v $graphSettings 'isUnmanagedSyncAppForTenantRestricted'
+        if ($null -eq $restricted) { $notEvaluated['CL-018'] = 'Graph did not return whether OneDrive sync is limited to the organisation''s computers.' }
+        else {
+            $syncDomains = @(& $v $graphSettings 'allowedDomainGuidsForSyncApp' | Where-Object { $_ })
+            $facts.oneDriveSyncAllowedDomains = $syncDomains.Count
+            # On, with at least one domain named: on with none named lets no domain-joined computer sync, or all, depending on the client (verify), so it is not counted as limited.
+            $facts.oneDriveSyncRestricted = [bool]($restricted -eq $true -and $syncDomains.Count -gt 0)
+        }
+        $idle = & $v $graphSettings 'idleSessionSignOut'
+        $idleOn = $(if ($null -ne $idle) { & $v $idle 'isEnabled' })
+        if ($null -eq $idleOn) { $notEvaluated['CL-019'] = 'Graph did not return the idle session sign-out setting.' }
+        else {
+            $facts.idleSignOutEnabled = [bool]($idleOn -eq $true)
+            $facts.idleSignOutMinutes = $(if ($facts.idleSignOutEnabled) { [int][Math]::Round([double](& $v $idle 'signOutAfterInSeconds') / 60) } else { $null })
+            $facts.idleSignOutWithinLimit = [bool]($facts.idleSignOutEnabled -and $facts.idleSignOutMinutes -gt 0 -and $facts.idleSignOutMinutes -le [int]$t.maxIdleSignOutMinutes)
+        }
+    }
+
     # With Graph alone: OneDrive and Anyone links still answer when the tenant level rules Anyone out, since neither
     # can be more open than the tenant. The rest needs the admin read.
     if ($graphOnly) {

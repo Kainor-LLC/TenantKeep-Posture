@@ -9,7 +9,7 @@ function Get-ExchangeFixtureObject {
 
     $o = { param([hashtable] $h) [pscustomobject]$h }
     switch ($Name) {
-        'Get-OrganizationConfig' { & $o @{ Name = 'contoso.example'; OAuth2ClientProfileEnabled = $true; DefaultAuthenticationPolicy = 'Block Basic'; AuditDisabled = $false; ArcTrustedSealers = @(); SmtpClientAuthenticationDisabled = $true; CustomerLockboxEnabled = $false; Identity = 'contoso.example' } }
+        'Get-OrganizationConfig' { & $o @{ Name = 'contoso.example'; RejectDirectSend = $false; OAuth2ClientProfileEnabled = $true; DefaultAuthenticationPolicy = 'Block Basic'; AuditDisabled = $false; ArcTrustedSealers = @(); SmtpClientAuthenticationDisabled = $true; CustomerLockboxEnabled = $false; Identity = 'contoso.example' } }
         'Get-TransportConfig' { & $o @{ SmtpClientAuthenticationDisabled = $false; ExternalPostmasterAddress = $null; MaxRecipientEnvelopeLimit = 'Unlimited' } }
         'Get-AuthenticationPolicy' { & $o @{ Name = 'Block Basic'; AllowBasicAuthSmtp = $false; AllowBasicAuthImap = $false; AllowBasicAuthPop = $false } }
         'Get-AdminAuditLogConfig' { & $o @{ UnifiedAuditLogIngestionEnabled = $true; UnifiedAuditLogFirstOptInDate = [datetime]'2024-01-01'; AdminAuditLogEnabled = $true } }

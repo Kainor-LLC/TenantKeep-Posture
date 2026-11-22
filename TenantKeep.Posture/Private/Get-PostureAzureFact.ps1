@@ -21,7 +21,7 @@ function Get-PostureAzureFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxOwnersPerSubscription = 3; minTaggedPct = 95; maxUserResourceScopeAssignments = 10; maxServicePrincipalOwners = 0 }
+    $t = @{ maxOwnersPerSubscription = 3; minTaggedPct = 95; maxUserResourceScopeAssignments = 10; maxServicePrincipalOwners = 0; minPolicyCompliancePct = 80 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -340,6 +340,57 @@ function Get-PostureAzureFact {
         $facts.entraDomainServicesWeak = $weakDs.Count
         if (@(& $rows $ds).Count -eq 0) { $notEvaluated['AZ-028'] = 'No Entra Domain Services in the subscriptions.' }
         $affected.entraDomainServicesWeak = @($weakDs)
+    }
+
+    # AZ-029: what Azure Policy found. The share of evaluated resources that break no policy, across the
+    # subscriptions, and the assignments most resources break. No evaluated resources is no answer: either nothing
+    # is assigned (AZ-002 and AZ-008 say so) or the first evaluation has not run.
+    $compliance = & $load 'az-03-policy-compliance'
+    if ($null -eq $compliance) { & $missing @('AZ-029') 'az-03-policy-compliance' }
+    else {
+        $evaluated = [long](@(& $rows $compliance | ForEach-Object { [long](& $v $_ 'Resources') } | Measure-Object -Sum).Sum)
+        $breaking = [long](@(& $rows $compliance | ForEach-Object { [long](& $v $_ 'NonCompliant') } | Measure-Object -Sum).Sum)
+        $facts.policyEvaluatedResources = $evaluated
+        $facts.policyNonCompliantResources = $breaking
+        if ($evaluated -eq 0) { $notEvaluated['AZ-029'] = 'Azure Policy has evaluated no resources in the subscriptions that were read: nothing is assigned, or the first evaluation has not run.' }
+        else {
+            $facts.policyCompliancePct = [Math]::Round(100.0 * ($evaluated - $breaking) / $evaluated, 1)
+            $names = @{}; foreach ($a in @(& $rows (& $load 'az-03-policy-assignments'))) { $names[([string](& $v $a 'Id')).ToLowerInvariant()] = [string](& $v $a 'DisplayName') }
+            $worst = @(& $rows (& $load 'az-03-policy-noncompliant-assignments') | Sort-Object { - [long](& $v $_ 'Resources') })
+            $facts.policyNonCompliantAssignments = $worst.Count
+            $affected.policyNonCompliantAssignments = @($worst | ForEach-Object {
+                    $id = ([string](& $v $_ 'AssignmentId')).ToLowerInvariant()
+                    [ordered]@{ name = $(if ($names.ContainsKey($id) -and $names[$id]) { $names[$id] } else { [string](& $v $_ 'Assignment') }); detail = "$([long](& $v $_ 'Resources')) resource(s) not compliant" }
+                })
+        }
+    }
+
+    # AZ-030: Azure Lighthouse. Another tenant holding a role over a subscription or resource group here, by an
+    # offer that was accepted once and stays until someone removes it. Roles that only read are left alone; a
+    # delegation with any other role, or one whose roles could not be read, is listed to be justified.
+    $lighthouse = & $load 'az-17-lighthouse-delegations'
+    if ($null -eq $lighthouse) { & $missing @('AZ-030') 'az-17-lighthouse-delegations' }
+    else {
+        # Built-in roles that read and change nothing, and the role that lets the managing tenant end its own delegation.
+        $readOnly = @{
+            'acdd72a7-3385-48ef-bd42-f606fba81ae7' = 'Reader'; '39bc4728-0917-49c7-9d2c-d95423bc2eb4' = 'Security Reader'; '43d0d8ad-25c7-4714-9337-8ba259a9fe05' = 'Monitoring Reader'
+            '73c42c96-874c-492b-b04d-ab87d138a893' = 'Log Analytics Reader'; '91c1777a-f3dc-4fae-b103-61d183457e46' = 'Managed Services Registration assignment Delete Role'
+        }
+        $known = @{ 'b24988ac-6180-42a0-ab88-20f7382dd24c' = 'Contributor'; '8e3af657-a8ff-443c-a75c-2fe8c4bcb635' = 'Owner'; '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9' = 'User Access Administrator'; '9980e02c-c2be-4d73-94e8-173b1dc7cf3c' = 'Virtual Machine Contributor'; 'fb1c8493-542b-48eb-b624-b4c8fea62acd' = 'Security Admin' }
+        $roleName = { param([string] $Id) if ($readOnly.ContainsKey($Id)) { $readOnly[$Id] } elseif ($known.ContainsKey($Id)) { $known[$Id] } else { "role $Id" } }
+        $all = @(& $rows $lighthouse)
+        $toJustify = @(foreach ($d in $all) {
+                $roles = @((([string](& $v $d 'Roles')) + ';' + ([string](& $v $d 'EligibleRoles'))) -split ';' | Where-Object { $_ } | Sort-Object -Unique)
+                $beyondRead = @($roles | Where-Object { -not $readOnly.ContainsKey($_) })
+                $read = (& $v $d 'DefinitionRead')
+                if ("$read" -ne 'False' -and $read -ne $false -and $beyondRead.Count -eq 0) { continue }
+                $where = $(if ([string](& $v $d 'ResourceGroup')) { "resource group $([string](& $v $d 'ResourceGroup')) in $([string](& $v $d 'SubscriptionId'))" } else { "subscription $([string](& $v $d 'SubscriptionId'))" })
+                $who = $(if ([string](& $v $d 'ManagedByTenantName')) { [string](& $v $d 'ManagedByTenantName') } elseif ([string](& $v $d 'ManagedByTenantId')) { "tenant $([string](& $v $d 'ManagedByTenantId'))" } else { 'a tenant that could not be read' })
+                [ordered]@{ name = "$(if ([string](& $v $d 'Offer')) { [string](& $v $d 'Offer') } else { 'Delegation' }), managed by $who"; detail = "$where`: $(if ($beyondRead.Count -gt 0) { @($beyondRead | ForEach-Object { & $roleName $_ }) -join ', ' } else { 'roles could not be read' })" }
+            })
+        $facts.lighthouseDelegations = $all.Count
+        $facts.lighthouseWriteDelegations = $toJustify.Count
+        $affected.lighthouseWriteDelegations = @($toJustify)
     }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; notes = $notes; evidence = @('az-01-subscriptions.json', 'az-05-role-assignments.json', 'az-12-open-management-ports.json', 'az-13-budgets.json', 'az-14-backup-vaults.json', 'az-15-sentinel.json', 'az-16-entra-domain-services.json') }

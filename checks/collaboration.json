@@ -652,6 +652,128 @@
       "attack": [
         "T1530"
       ]
+    },
+    {
+      "id": "CL-017",
+      "domain": "collaboration",
+      "title": "A departed user's OneDrive is kept long enough to hand over",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "minOneDriveRetentionDays": 30
+      },
+      "evidence": [
+        "spo-tenant-settings-graph.json",
+        "spo-tenant-settings.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings-graph.json",
+          "spo-tenant-settings.json"
+        ]
+      ],
+      "pass": "facts.oneDriveRetentionDays >= thresholds.minOneDriveRetentionDays",
+      "remediation": [
+        "SharePoint admin center, Settings, OneDrive, Retention: set the days to keep a deleted user's OneDrive.",
+        "Make sure the leaver process names who gets access (the manager, by default) and that someone looks before the days run out.",
+        "Where files must be kept longer for legal reasons, use a Purview retention policy on OneDrive; this setting is only the grace period."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "None. It only changes how long files stay after an account is deleted."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/set-retention",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=settings&modern=true",
+      "narrative": "When an account is deleted its OneDrive is kept for a set number of days and then deleted for good. Thirty days is Microsoft's default, and it is short when the leaver's manager is on holiday or nobody was told. This reports the number and fails below the threshold, which the profile can raise to match how the organisation hands work over.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-11",
+        "iso27001": "A.5.11",
+        "cmmc": "MP.L2-3.8.9",
+        "cisa-scuba": ""
+      }
+    },
+    {
+      "id": "CL-018",
+      "domain": "collaboration",
+      "title": "OneDrive sync limited to the organisation's own computers",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "identityModel": [
+          "hybrid-connect",
+          "hybrid-cloud-sync",
+          "hybrid-adfs"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings-graph.json"
+      ],
+      "pass": "facts.oneDriveSyncRestricted",
+      "remediation": [
+        "Get the GUID of each Active Directory domain: (Get-ADDomain).ObjectGUID.",
+        "SharePoint admin center, Settings, OneDrive, Sync: allow syncing only on computers joined to specific domains, and enter the GUIDs.",
+        "Leave Macs allowed or blocked as the organisation needs; the setting has its own switch for them."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Someone who syncs OneDrive to a home computer, or to a work computer that is not joined to the domain, stops syncing there. The browser still works."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/allow-syncing-only-on-specific-domains",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=settings&modern=true",
+      "narrative": "The sync app copies whole libraries onto a disk. On a personal computer that copy is outside every control the organisation has: no encryption it manages, no wipe, no leaver process. Limiting sync to computers joined to the organisation's own domains keeps the copies on machines it runs. This is the setting for domain-joined Windows computers; where devices are Entra joined, a Conditional Access policy that requires a compliant device does the same job and the Conditional Access checks cover it.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1530"
+      ]
+    },
+    {
+      "id": "CL-019",
+      "domain": "collaboration",
+      "title": "Idle browser sessions are signed out of SharePoint and OneDrive",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxIdleSignOutMinutes": 480
+      },
+      "evidence": [
+        "spo-tenant-settings-graph.json"
+      ],
+      "pass": "facts.idleSignOutWithinLimit",
+      "remediation": [
+        "SharePoint admin center, Policies, Access control, Idle session sign-out: turn it on.",
+        "Choose when to sign people out and how long before that to warn them; an hour with a five minute warning is a common start.",
+        "Tell people first: a session left open in a browser tab will ask them to sign in again."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who leaves SharePoint or OneDrive open in a browser and walks away is signed out and signs in again when they come back. Devices that are compliant or domain joined and kept signed in are not affected."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/sign-out-inactive-users",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=accessControl&modern=true",
+      "narrative": "A browser left signed in on a shared or borrowed computer is the organisation's files open to whoever sits down next. Idle session sign-out ends a SharePoint or OneDrive browser session after a period with no activity. The check passes when it is on and signs out within the threshold.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.10",
+        "cisa-scuba": ""
+      }
     }
   ]
 }

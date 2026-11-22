@@ -185,8 +185,11 @@ function Invoke-PostureDefenderCollection {
 
     Invoke-PostureStep -Label 'Secure Score' -Folder $Folder -Script {
         # SecurityEvents.Read.All. The latest score plus the control profiles (spec 4.12); Microsoft's numbers are reported, never the grade.
-        $scores = @(& $get 'security/secureScores?$top=1')   # @( ) outside the call: a one-element array unrolls on return
+        # Ninety days of daily scores, which is what Microsoft keeps: the newest is the score, and the rest say
+        # whether it has fallen (a control undone, a licence that lapsed).
+        $scores = @(& $get 'security/secureScores?$top=90' | Sort-Object { ConvertTo-PostureUtcDateTime (& $v $_ 'createdDateTime') } -Descending)   # @( ) outside the call: a one-element array unrolls on return
         $s = $(if ($scores.Count -gt 0) { $scores[0] } else { $null })
+        & $save @($scores | ForEach-Object { [ordered]@{ Date = (& $v $_ 'createdDateTime'); CurrentScore = (& $v $_ 'currentScore'); MaxScore = (& $v $_ 'maxScore') } }) 'def-06-secure-score-history' $true
         $byCategory = [ordered]@{}
         $scoreOf = @{}
         foreach ($c in @(& $v $s 'controlScores')) {

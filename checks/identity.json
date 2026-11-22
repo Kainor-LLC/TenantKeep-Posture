@@ -945,6 +945,51 @@
         "T1059.009",
         "T1087.004"
       ]
+    },
+    {
+      "id": "ID-024",
+      "domain": "identity",
+      "title": "No application holds Graph permissions it has stopped using",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "unusedAppDays": 90
+      },
+      "evidence": [
+        "10-graph-app-permissions.json",
+        "10-service-principals.json",
+        "10-app-signin-activity.json"
+      ],
+      "pass": "facts.unusedAppsWithPermissions == 0",
+      "affected": "facts.unusedAppsWithPermissions",
+      "remediation": [
+        "For each application listed, find its owner and ask whether it is still in use.",
+        "Remove the application permissions of one that is not, or delete its enterprise application and app registration.",
+        "For one that runs rarely (a yearly job), record it as an exception with its owner and when it next runs."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "None for an application nobody uses. One that runs once a year stops the next time it runs if its permissions were removed, so ask first."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/recommendation-remove-unused-apps",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "An application permission works with no user present, for as long as the application has a credential. An application that has not signed in for months and still holds permissions on Microsoft Graph is access nobody is watching: its secret can be in an old script, a retired server or a former supplier's hands. Applications made in the last 90 days are too new to judge and are left out.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1098.001",
+        "T1078.004"
+      ]
     }
   ]
 }

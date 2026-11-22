@@ -1043,6 +1043,44 @@
         "T1204.002",
         "T1566.003"
       ]
+    },
+    {
+      "id": "EM-028",
+      "domain": "email",
+      "title": "Direct Send is rejected",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-01-orgconfig.json"
+      ],
+      "pass": "facts.directSendRejected",
+      "remediation": [
+        "Find what sends mail to your own domains without signing in: printers, scanners, line-of-business applications and outside services that send as your domain.",
+        "Give each one a way that still works: SMTP client submission with a mailbox, or a partner inbound connector that matches its certificate or its address.",
+        "Then turn Direct Send off: Set-OrganizationConfig -RejectDirectSend $true. It takes about half an hour to apply.",
+        "Watch the message trace for rejected mail for a week and add a connector for anything that was missed."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "A printer or application that sends unauthenticated mail as your own domain with no connector stops delivering until it has one."
+      },
+      "learn": "https://learn.microsoft.com/powershell/module/exchangepowershell/set-organizationconfig",
+      "deepLink": "https://admin.exchange.microsoft.com/#/connectors",
+      "narrative": "Direct Send lets anything on the internet hand mail to your tenant's own endpoint with no sign-in, saying it is from one of your own addresses. It was meant for printers. It is also how a message that claims to be from your finance director reaches a mailbox without passing your sender checks the way outside mail does. With it rejected, mail from your own domains has to come through a connector or a signed-in sender.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.21",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "attack": [
+        "T1566.002"
+      ]
     }
   ]
 }

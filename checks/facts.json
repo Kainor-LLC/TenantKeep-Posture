@@ -363,7 +363,17 @@
     "backupVaultsUnprotected": "Backup vaults without soft delete or immutability",
     "sentinelWorkspaces": "Microsoft Sentinel workspaces",
     "sentinelWithCoreConnectors": "Sentinel workspaces receiving Entra, Microsoft 365 and Defender XDR",
-    "entraDomainServicesWeak": "Entra Domain Services managed domains with legacy protocols on"
+    "entraDomainServicesWeak": "Entra Domain Services managed domains with legacy protocols on",
+    "secureScoreDropPoints": "Secure Score fall from its best day (points of 100)",
+    "subscriptionsPastTerm": "Subscriptions past their term",
+    "certificateConnectorsSilent": "Certificate connectors not connected",
+    "unusedAppsWithPermissions": "Applications with Graph permissions and no recent sign-in",
+    "policyCompliancePct": "Resources compliant with Azure Policy (%)",
+    "lighthouseWriteDelegations": "Azure Lighthouse delegations with more than read access",
+    "directSendRejected": "Direct Send rejected",
+    "oneDriveRetentionDays": "Days a deleted user's OneDrive is kept",
+    "oneDriveSyncRestricted": "OneDrive sync limited to the organisation's domains",
+    "idleSignOutWithinLimit": "Idle sessions signed out within the limit"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -423,6 +433,12 @@
     "minPartnerMacCompliantPct": "Minimum Macs compliant in Entra (%)",
     "minCloudManagedGroupPct": "Minimum groups from AD managed in Entra (%)",
     "minProfileCompletePct": "Minimum members with job title and department (%)",
-    "minUpdateGraceDays": "Minimum grace period after an update deadline (days)"
+    "minUpdateGraceDays": "Minimum grace period after an update deadline (days)",
+    "maxSecureScoreDropPoints": "Secure Score, largest fall accepted (points of 100)",
+    "maxConnectorSilentDays": "Certificate connector, days without contact",
+    "unusedAppDays": "Application unused after (days)",
+    "minPolicyCompliancePct": "Azure Policy compliance, minimum (%)",
+    "minOneDriveRetentionDays": "Deleted user's OneDrive kept at least (days)",
+    "maxIdleSignOutMinutes": "Idle session sign-out, at most (minutes)"
   }
 }

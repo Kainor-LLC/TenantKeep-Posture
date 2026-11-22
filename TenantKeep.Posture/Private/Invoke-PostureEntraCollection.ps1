@@ -87,6 +87,13 @@ function Invoke-PostureEntraCollection {
         @($flat | ForEach-Object { [pscustomobject]$_ }) | Export-Csv -Path "$skuCsv.part"
         [System.IO.File]::Move("$skuCsv.part", $skuCsv, $true)
     } | Out-Null
+    Invoke-PostureStep -Label 'Subscriptions' -Folder $Folder -Script {
+        # What the tenant has bought, with what the SKU list does not say: whether it is a trial, its state
+        # (Enabled, Warning for the grace period, Suspended, LockedOut, Deleted) and the date it moves to the next
+        # state if nothing is done. For a paid subscription that renews by itself that date is the next renewal.
+        $subs = & $get 'directory/subscriptions'
+        & $save @($subs | ForEach-Object { [ordered]@{ SkuPartNumber = (& $v $_ 'skuPartNumber'); SkuId = (& $v $_ 'skuId'); Status = (& $v $_ 'status'); IsTrial = (& $v $_ 'isTrial'); TotalLicenses = (& $v $_ 'totalLicenses'); CreatedDateTime = (& $v $_ 'createdDateTime'); NextLifecycleDateTime = (& $v $_ 'nextLifecycleDateTime') } }) '01-subscriptions' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Hybrid sync features' -Folder $Folder -Script {
         & $save (& $get 'directory/onPremisesSynchronization') '01-onprem-sync-features'
     } | Out-Null
@@ -640,6 +647,20 @@ function Invoke-PostureEntraCollection {
         $grants = & $get "servicePrincipals/$($graphSp.id)/appRoleAssignedTo?`$top=999"
         $flat = @($grants | ForEach-Object { [ordered]@{ PrincipalDisplayName = (& $v $_ 'principalDisplayName'); PrincipalId = (& $v $_ 'principalId'); PrincipalType = (& $v $_ 'principalType'); Permission = $roleMap[[string](& $v $_ 'appRoleId')]; CreatedDateTime = (& $v $_ 'createdDateTime') } } | Sort-Object { $_.Permission })
         & $save $flat '10-graph-app-permissions' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Application sign-in activity' -Folder $Folder -Script {
+        # When each application last signed in, as itself or for a user, as the client or as the resource: one row
+        # for each application Entra has seen sign in. AuditLog.Read.All; beta only. An application that is not in
+        # the list has no sign-in on record. (verify) how far back the record goes on a live tenant.
+        $null = & $streamed 'reports/servicePrincipalSignInActivities' '10-app-signin-activity' {
+            # The latest of the kinds of sign-in the report keeps apart.
+            $last = $null
+            foreach ($kind in 'lastSignInActivity', 'delegatedClientSignInActivity', 'delegatedResourceSignInActivity', 'applicationAuthenticationClientSignInActivity', 'applicationAuthenticationResourceSignInActivity') {
+                $when = & $date (& $v $_ "$kind.lastSignInDateTime")
+                if ($when -and (-not $last -or $when -gt $last)) { $last = $when }
+            }
+            [ordered]@{ AppId = (& $v $_ 'appId'); LastSignIn = $(if ($last) { $last.ToString('o') } else { $null }) }
+        } 'beta'
     } | Out-Null
     Invoke-PostureStep -Label 'Delegated OAuth2 grants' -Folder $Folder -Script {
         # Every delegated grant, hundreds of thousands where user consent was ever open: written as the pages arrive.

@@ -999,6 +999,45 @@
         "cmmc": "AC.L2-3.1.18",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-024",
+      "domain": "devices",
+      "title": "Every Intune certificate connector is connected",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxConnectorSilentDays": 3
+      },
+      "evidence": [
+        "09-certificate-connectors.json"
+      ],
+      "pass": "facts.certificateConnectorsSilent == 0",
+      "affected": "facts.certificateConnectorsSilent",
+      "remediation": [
+        "On each server listed, check that the Intune certificate connector services are running and that the server can reach Intune.",
+        "Look at the connector's event log (Applications and Services Logs, Microsoft, Intune, CertificateConnectors) for why it stopped.",
+        "Sign the connector in again or reinstall it, and remove from Intune any connector whose server is gone."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "While a connector is down no device gets a new or renewed certificate, so Wi-Fi, VPN and email that sign in with one stop working as certificates run out."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/certificate-connector-overview",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/TenantAdminConnectorsMenu/~/certificateConnectors",
+      "narrative": "The certificate connector is a Windows server on the network that hands certificates from the organisation's own certificate authority to Intune devices. Nothing in the cloud says when it stops, and the first sign is a device that cannot join the Wi-Fi weeks later. A connector Intune calls inactive, or one not heard from for days, is listed. A tenant with no connector passes: there is nothing to lose.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-04",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.10",
+        "cisa-scuba": ""
+      }
     }
   ]
 }
