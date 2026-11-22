@@ -67,7 +67,7 @@ measured and what was answered.
 | Field | Values | Drives |
 |---|---|---|
 | `licenses` | E3, E5, BusinessPremium, P1, P2, Governance, EntraSuite, Intune, IntuneSuite, MDO1, MDO2, MDE1, MDE2, MDEBusiness, MDI, MDCA, IP1, Purview, the Purview add-ons, Copilot, SAM (licensing/features.json lists every token) | A check whose `license` list has no overlap is "Not evaluated (requires X)". Detected from service plans; a bundle expands to what it contains and Plan 2 includes Plan 1 |
-| `goals` | licensing/goals.json ids, for example phishing-resistant-mfa, device-risk, copilot-data | The Licensing view's advisor: what the licences cover for these goals and the smallest addition that would. Empty: the core goals |
+| `goals` | licensing/goals.json ids, for example phishing-resistant-mfa, device-risk, copilot-data | The Licensing view's advisor: what the licences cover for these goals and the one combination it recommends to cover the rest (guide, section 8e). Empty: the core goals |
 | `platforms` | windows, macOS, linux, iOS, android | `applicableWhen.platforms` on device and endpoint checks; CA-005 requires compliance per desktop platform in scope |
 | `identityModel` | cloud-only, hybrid-connect, hybrid-cloud-sync, hybrid-adfs | Whether the hybrid domain renders |
 | `byod` | none, mam, mdm | Mobile checks and targets |

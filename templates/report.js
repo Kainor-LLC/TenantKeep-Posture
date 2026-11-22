@@ -106,7 +106,9 @@
     var count = $('checks-count'); if (count) { count.textContent = shown + ' of ' + rows.length; }
   }
   [search, fStatus, fDomain, fSev].forEach(function (el) { if (el) { el.addEventListener('input', applyFilters); el.addEventListener('change', applyFilters); } });
-  // Licensing: recompute the options when goals or vendor toggles change (templates/licensing.js); nothing is saved.
+  // Licensing: recompute the recommendation when goals or vendor toggles change (templates/licensing.js); nothing is
+  // saved. The page holds no price and chooses on function alone, so the answer the report was built with is kept
+  // and put back whenever the choices are the ones the page opened with.
   var licData = $('data-licensing') ? JSON.parse($('data-licensing').textContent) : null;
   var live = $('advice-live');
   function adviceState() {
@@ -118,19 +120,37 @@
     });
     return { goals: goals, thirdParty: tp, seats: licData.seats };
   }
+  function adviceKey() { var st = adviceState(); return JSON.stringify([st.goals.slice().sort(), Object.keys(st.thirdParty).sort().map(function (k) { return k + '=' + st.thirdParty[k]; })]); }
+  var adviceStart = (licData && live) ? { key: adviceKey(), html: live.innerHTML, forText: $('advice-for') ? $('advice-for').textContent : '' } : null;
+  function recommendationHtml(rec) {
+    var parts = '<div class="advice-card advice-rec"><h4><span class="chip">Recommended</span> ' + esc(rec.title) + '</h4><ul class="advice-skus">';
+    rec.licences.forEach(function (l) {
+      parts += '<li><strong>' + esc(l.name) + '</strong> <code class="tech">' + esc(l.sku) + '</code>' + (l.verify ? ' <span class="tech">(verify: ' + esc(l.verify) + ')</span>' : '');
+      if (l.covers.length) { parts += '<br><span class="adv-why">Covers: ' + esc(l.covers.join('; ')) + '.</span>'; }
+      if (l.neededBy.length) { parts += '<br><span class="adv-why">Needed first by ' + esc(l.neededBy.join(', ')) + '.</span>'; }
+      if (l.brings.length) { parts += '<br><span class="muted">Brings ' + esc(l.brings.join(', ')) + '.</span>'; }
+      parts += '</li>';
+    });
+    parts += '</ul>';
+    if (rec.replaces.length) { parts += '<p><strong>Takes the place of</strong> ' + esc(rec.replaces.map(function (r) { return r.name; }).join(', ')) + ': ' + esc(rec.replaces[0].by) + ' includes what ' + (rec.replaces.length > 1 ? 'they bring' : 'it brings') + ' for these goals.</p>'; }
+    if (rec.keeps.length) { parts += '<p><strong>Stays as it is</strong> ' + esc(rec.keeps.join(', ')) + '.</p>'; }
+    if (rec.noLonger.length) { parts += '<p><strong>No longer included after the move</strong> ' + esc(rec.noLonger.join(', ')) + '.</p>'; }
+    if (rec.redundant.length) { parts += '<p class="muted"><strong>Overlaps with a product you use</strong> ' + esc(rec.redundant.map(function (r) { return r.name + ' (' + r.vendor + ')'; }).join(', ')) + '.</p>'; }
+    if (rec.alsoIncludes.length) { parts += '<p class="muted"><strong>Also includes</strong> ' + esc(rec.alsoIncludes.join(', ')) + '.</p>'; }
+    return parts + '</div>';
+  }
   function renderAdvice() {
     if (!licData || !live || typeof tkLicenseAdvice !== 'function') { return; }
+    var forEl = $('advice-for');
+    if (adviceStart && adviceKey() === adviceStart.key) { live.innerHTML = adviceStart.html; if (forEl) { forEl.textContent = adviceStart.forText; } return; }
     var a = tkLicenseAdvice(licData, adviceState());
     var goalName = {}; licData.goals.forEach(function (g) { goalName[g.id] = g.name; });
-    var forEl = $('advice-for'); if (forEl) { forEl.textContent = 'For ' + (adviceState().goals.length ? 'the goals ticked below' : 'the core goals') + ': ' + a.goals.map(function (id) { return goalName[id]; }).join('; ') + '.'; }
+    if (forEl) { forEl.textContent = 'For ' + (adviceState().goals.length ? 'the goals ticked below' : 'the core goals') + ': ' + a.goals.map(function (id) { return goalName[id]; }).join('; ') + '.'; }
     if (a.met) { live.innerHTML = '<p class="banner ready"><strong>Covered.</strong> The licences you hold, with the products you named, include every feature these goals need. The work is configuration: see Recommendations.</p>'; return; }
-    var cards = a.options.map(function (o) {
-      return '<div class="advice-card"><h4>' + esc(o.title) + '</h4><ul class="advice-skus">' + o.skus.map(function (s) { return '<li><strong>' + esc(s.name) + '</strong> <code class="tech">' + esc(s.sku) + '</code>' + (s.verify ? ' <span class="tech">(verify: ' + esc(s.verify) + ')</span>' : '') + '</li>'; }).join('') + '</ul>' +
-        (o.adds.length ? '<p><strong>Adds</strong> ' + esc(o.adds.join(', ')) + '.</p>' : '') +
-        (o.redundant.length ? '<p class="muted"><strong>Already covered</strong> ' + esc(o.redundant.map(function (r) { return r.name + ' (' + r.vendor + ')'; }).join(', ')) + '.</p>' : '') +
-        (o.alsoIncludes.length ? '<p class="muted"><strong>Also includes</strong> ' + esc(o.alsoIncludes.join(', ')) + '.</p>' : '') + '</div>';
-    }).join('');
-    live.innerHTML = '<p>Missing: ' + esc(a.missing.map(function (g) { return g.join(' or '); }).join('; ')) + '.</p><div class="advice-options">' + cards + '</div><p class="hint">For ' + licData.seats + ' licensed users. Compare these with your Microsoft partner; prices and eligibility are theirs to quote.</p>';
+    var body = a.recommended ? recommendationHtml(a.recommended) : '<p class="banner">No combination of the licences this report knows covers these goals together. Take the missing features above to your Microsoft partner.</p>';
+    live.innerHTML = '<p>Missing: ' + esc(a.missing.map(function (g) { return g.join(' or '); }).join('; ')) + '.</p>' + body +
+      '<p class="hint">For ' + licData.seats + ' licensed users. Eligibility and terms are your Microsoft partner\'s to confirm.</p>' +
+      a.prerequisite.map(function (q) { return '<p class="hint">' + esc(q) + '</p>'; }).join('');
   }
   Array.prototype.slice.call(document.querySelectorAll('.adv-goal, .adv-cat, .adv-name')).forEach(function (el) { el.addEventListener(el.type === 'text' ? 'input' : 'change', renderAdvice); });
   // Licensing: show only the goals not covered.

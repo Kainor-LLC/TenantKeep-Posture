@@ -25,6 +25,12 @@ function New-PostureReport {
         One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
     .PARAMETER LicensePath
         TenantKeep licence file. Default: TENANTKEEP_LICENSE, <Client>/tenantkeep.lic, then ~/tenantkeep/tenantkeep.lic. Without a valid Full licence only the Conditional Access domain is evaluated and the report says so (docs/licensing.md).
+    .PARAMETER PriceFile
+        A licence price file of your own, such as a Microsoft partner's price sheet in the columns docs/guide.md lists.
+        Default: the TENANTKEEP_PRICE_FILE environment variable. Used only inside the licensing advisor, to choose
+        between licence combinations that already cover the goals; without one it chooses on function alone. No
+        price, total or comparison is written to any report. The console says which file was used, what it assumes
+        and whether it was last checked more than 35 days ago, and a run folder keeps that in logs/licensing-basis.json.
     .PARAMETER Previous
         An earlier run's checks.json, or the folder holding one, for the Trend view: score and domain deltas, checks
         that started or stopped failing, affected counts that moved.
@@ -62,6 +68,7 @@ function New-PostureReport {
         [string] $Previous,
         [string] $OutputPath,
         [string] $LicensePath,
+        [string] $PriceFile,
         [switch] $Redact,
         [switch] $PassThru
     )
@@ -99,7 +106,14 @@ function New-PostureReport {
         if (-not (Test-Path -LiteralPath $prevPath -PathType Leaf)) { throw "Previous checks.json not found: $prevPath" }
         $previousRun = Get-Content -Raw -LiteralPath $prevPath | ConvertFrom-Json -AsHashtable -Depth 20
     }
-    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement
+    # A licence price file of the report owner's own, when one is named here or in TENANTKEEP_PRICE_FILE: the advisor
+    # uses it to choose between combinations that already cover the goals. Nothing of it goes into the report. What
+    # it was and how the choice was made go to the console and, in a run folder, to the logs.
+    $pricePath = $(if ($PriceFile) { $PriceFile } elseif ($env:TENANTKEEP_PRICE_FILE) { $env:TENANTKEEP_PRICE_FILE } else { $null })
+    $priceInfo = $null
+    $licenceRecord = @{}
+    if ($pricePath) { $priceInfo = Read-PosturePriceFile -Path $pricePath }
+    $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement -LicensePrice $(if ($priceInfo) { $priceInfo.price } else { @{} }) -LicenseRecord $licenceRecord
     # The ranked findings for tools and AI: findings.json, embedded in the HTML, and the top of the Markdown.
     $report.findings = ConvertTo-PostureFindingsDocument -Report $report
 
@@ -112,6 +126,29 @@ function New-PostureReport {
         foreach ($d in $outFolder, $checksFolder) { if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force -WhatIf:$false | Out-Null } }
         Save-PostureJsonFile -Path $checksPath -InputObject $run -Confirm:$false
         $written.Add($checksPath)
+    }
+    if ($priceInfo) {
+        $b = $priceInfo.basis
+        $term = "$(switch ($b['term']) { 'P1M' { 'one-month term' } 'P1Y' { 'one-year term' } 'P3Y' { 'three-year term' } default { "term $($b['term'])" } }) billed $(([string]$b['billingCycle']).ToLowerInvariant())"
+        $age = $(if ($null -ne $b['ageDays']) { "checked $(([string]$b['checkedUtc']).Substring(0, 10)) ($($b['ageDays']) day(s) ago)" } else { 'no record of when it was checked' })
+        Write-Information "Licence prices: $($b['file']), $age, $(@($b['market'], $b['currency'] | Where-Object { $_ }) -join ' '), $term; $($b['licencesPriced']) licence(s) priced." -InformationAction Continue
+        $mode = [string]$licenceRecord['mode']
+        $how = switch ($mode) {
+            'priced' { 'The licence recommendation was chosen with these prices.' }
+            'function' { "The licence recommendation was chosen on function alone: $($licenceRecord['why'])$(if (@($licenceRecord['withoutPrice']).Count) { " ($(@($licenceRecord['withoutPrice']) -join '; '))" })." }
+            'none' { 'The licences held cover the goals; there was nothing to choose.' }
+            default { 'This report has no licensing section, so the prices were not used.' }
+        }
+        Write-Information $how -InformationAction Continue
+        if (@($b['ambiguous']).Count) { Write-Warning "The price file gives two prices on one date for: $(@($b['ambiguous']) -join '; '). Those licences were treated as having no price." }
+        if ($b['stale']) { Write-Warning $(if ($null -ne $b['ageDays']) { "The licence prices were last checked $($b['ageDays']) days ago, more than $($b['staleAfterDays']). Refresh the price file before relying on this recommendation." } else { "The price file has no record of when it was checked (no $([System.IO.Path]::GetFileNameWithoutExtension([string]$b['file'])).meta.json beside it), so the prices may be out of date." }) }
+        # In a run folder the record is kept with the logs. With -OutputPath everything lands in one folder that may be
+        # handed on, so there it is the console only.
+        if (-not $OutputPath -and $PSCmdlet.ShouldProcess((Join-Path $checksFolder 'licensing-basis.json'), 'Write how the licence recommendation was chosen')) {
+            $basisPath = Join-Path $checksFolder 'licensing-basis.json'
+            Save-PostureJsonFile -Path $basisPath -InputObject ([ordered]@{ generatedUtc = [datetime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ', [cultureinfo]::InvariantCulture); priceFile = $b; choice = [ordered]@{ mode = $mode; why = [string]$licenceRecord['why']; withoutPrice = @($licenceRecord['withoutPrice']); combinations = $licenceRecord['combinations'] } }) -Confirm:$false
+            $written.Add($basisPath)
+        }
     }
     # Every affected list in full as a CSV per check; the page carries the first 500 of each, so a check with tens
     # of thousands of objects does not make the report too heavy to open.

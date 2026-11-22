@@ -124,7 +124,8 @@
         "entraP1",
         "intune",
         "labels"
-      ]
+      ],
+      "companion": true
     },
     {
       "sku": "EMSPREMIUM",
@@ -138,7 +139,8 @@
         "mdca",
         "labels",
         "purviewIp"
-      ]
+      ],
+      "companion": true
     },
     {
       "sku": "IDENTITY_THREAT_PROTECTION",

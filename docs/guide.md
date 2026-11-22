@@ -329,6 +329,59 @@ names of affected accounts, devices and sites replaced by placeholders (user-003
 the same value throughout. logs/redaction-key.csv maps them back; keep it. Replacement is by pattern and by the names
 the report lists, so read the copy before sending it.
 
+## 8e. The licence recommendation
+
+The Licensing view says which goals the licences cover, and for the rest it recommends one combination: licences to
+add to what the tenant holds, or a suite to move to with the add-ons it still needs. Each licence comes with the
+reason it is there: the goals it covers, what it brings, and when another licence in the combination needs it first
+(ID Governance needs Entra ID P1). It also says what a move takes the place of, what stays, what overlaps with a
+product named in the profile's `thirdParty`, and which licences the tenant holds today where one includes all of
+another.
+
+How the one combination is chosen. Every combination that works is built from the rules in `licensing/`: it covers
+every chosen goal, brings what its own licences need first, and takes away no goal the tenant meets today. Then:
+
+- **On function alone**, which is what every run does unless you give it prices: the fewest licences, then keeping
+  the suite the tenant holds, then the least overlap with other products.
+- **With a price file of your own**, the lowest total for a user, then the same order. Only when every licence in the
+  comparison has a price; if one is missing the whole choice goes back to function, and the run tells you which.
+
+The module ships no prices and fetches none. A Microsoft partner's price sheet is confidential, so it stays where you
+keep it and is read from there:
+
+```powershell
+New-PostureReport -Evidence ~/tenantkeep/evidence/20261120-0957 -PriceFile ~/pricing/data/licenses.csv
+$env:TENANTKEEP_PRICE_FILE = "$HOME/pricing/data/licenses.csv"     # or once, in your PowerShell profile, for every run
+```
+
+The file is a CSV. These columns are read; others are ignored, a partner's own price among them:
+
+| Column | What |
+|---|---|
+| `ProductName` | Microsoft's name for the licence |
+| `PartNumber` | Optional. The SKU part number (`SPE_E5`), for a licence whose name in the sheet differs |
+| `Term`, `BillingCycle` | `P1M`, `P1Y`, `P3Y`; `Monthly`, `Annual`, `Triennial`. Only rows of the assumed pair are used, so every figure compared is in the same unit |
+| `Erp` | What a customer pays for one user |
+| `EffectiveDate` | `yyyy-MM-dd`. The latest row that has taken effect is the one used |
+| `Market`, `Currency` | Optional. Rows of another market or currency than the file's own record are skipped |
+
+Beside it, `licenses.meta.json` may say when the sheet was last checked and what to assume:
+`{ "checkedUtc": "2026-11-22T09:17:00Z", "market": "US", "currency": "USD", "assume": { "term": "P1Y", "billingCycle": "Monthly" } }`.
+Without it the term is one year billed monthly and the age is unknown.
+
+What is written where:
+
+- **In every report** (HTML, Markdown, findings.json, the redacted copies): the recommended combination and its
+  reasons. No amount, no total, no comparison between combinations, and no word about what anything is worth. The
+  page recomputes on function alone when a reader ticks other goals, because it holds no figures to choose with, and
+  goes back to the report's own answer when the reader returns to the starting choices.
+- **For you only**: the console says which file was used, when it was last checked, the market and term assumed, how
+  many licences had a figure, whether the choice used them, and warns when the sheet was last checked more than 35
+  days ago. A run folder keeps the same in `logs/licensing-basis.json`. With `-OutputPath` everything lands in one
+  folder that may be handed on, so there it is the console only.
+
+Not licensing advice: it is a starting point to take to a Microsoft partner, who confirms eligibility and terms.
+
 ## 9. Next run, and the trend
 
 ```powershell

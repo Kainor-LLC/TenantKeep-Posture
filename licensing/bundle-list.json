@@ -44,11 +44,13 @@
     },
     {
       "sku": "EMS",
-      "kind": "suite"
+      "kind": "suite",
+      "companion": true
     },
     {
       "sku": "EMSPREMIUM",
-      "kind": "suite"
+      "kind": "suite",
+      "companion": true
     },
     {
       "sku": "IDENTITY_THREAT_PROTECTION",

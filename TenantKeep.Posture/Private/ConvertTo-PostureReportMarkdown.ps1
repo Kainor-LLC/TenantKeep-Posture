@@ -198,12 +198,25 @@ function ConvertTo-PostureReportMarkdown {
         & $line "For the $(if ($ad.goalSource -eq 'profile') { 'goals in the profile' } else { 'core goals' }): $(if ($ad.met) { 'covered by the licences held.' } else { "missing $(& $esc (@($ad.missing | ForEach-Object { @($_) -join ' or ' }) -join '; '))." })"
         & $line
         if (-not $ad.met) {
-            foreach ($o in @($ad.options)) {
-                & $line "- $(& $esc $o.title): $(& $esc (@($o.skus | ForEach-Object { $_.name }) -join ' + '))$(if (@($o.adds).Count) { "; adds $(& $esc (@($o.adds) -join ', '))" })$(if (@($o.redundant).Count) { "; already covered: $(& $esc (@($o.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', '))" })$(if (@($o.alsoIncludes).Count) { "; also includes $(& $esc (@($o.alsoIncludes) -join ', '))" })."
+            $rec = $ad.recommended
+            if (-not $rec) { & $line 'No combination of the licences this report knows covers these goals together.' }
+            else {
+                & $line "Recommended: $(& $esc $rec.title)."
+                & $line
+                foreach ($l in @($rec.licences)) {
+                    & $line "- $(& $esc $l.name)$(if (@($l.covers).Count) { ": covers $(& $esc (@($l.covers) -join '; '))" })$(if (@($l.neededBy).Count) { "; needed first by $(& $esc (@($l.neededBy) -join ', '))" })$(if (@($l.brings).Count) { "; brings $(& $esc (@($l.brings) -join ', '))" })."
+                }
+                if (@($rec.replaces).Count) { & $line "- Takes the place of $(& $esc (@($rec.replaces | ForEach-Object { $_.name }) -join ', '))." }
+                if (@($rec.keeps).Count) { & $line "- Stays as it is: $(& $esc (@($rec.keeps) -join ', '))." }
+                if (@($rec.noLonger).Count) { & $line "- No longer included after the move: $(& $esc (@($rec.noLonger) -join ', '))." }
+                if (@($rec.redundant).Count) { & $line "- Overlaps with a product in use: $(& $esc (@($rec.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', '))." }
+                if (@($rec.alsoIncludes).Count) { & $line "- Also includes $(& $esc (@($rec.alsoIncludes) -join ', '))." }
             }
-            & $line "For $($ad.seats) licensed users. No prices: compare the options with your Microsoft partner."
+            & $line
+            & $line "For $($ad.seats) licensed users. Eligibility and terms are your Microsoft partner's to confirm."
             & $line
         }
+        foreach ($ho in @($ad.heldOverlap)) { & $line "Held today and overlapping: everything in $(& $esc $ho.licence) is also in $(& $esc $ho.includedIn)."; & $line }
         $open = @($r.licenseAdvice.goals | Where-Object { -not $_.met })
         if ($open.Count) { & $line "Goals not covered: $(& $esc (@($open | ForEach-Object { $_.name }) -join '; '))."; & $line }
         & $line (& $esc $ad.note)

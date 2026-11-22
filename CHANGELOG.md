@@ -4,6 +4,21 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
+## Unreleased
+
+- The licensing advisor recommends one combination (2026-11-22), in place of a list of options to compare: licences
+  to add, or a suite to move to with the add-ons it still needs. Each licence comes with the goals it covers, what it
+  brings and what needs it first; a move says what it takes the place of and what stays. The search no longer stops
+  at three add-ons, brings what an add-on needs first (ID Governance needs Entra ID P1), and never takes away a goal
+  the tenant meets today. Licences held today where one includes all of another are listed. `findings.json` carries
+  `licensing.advice.recommended` in place of `options`.
+- `New-PostureReport -PriceFile`, or `TENANTKEEP_PRICE_FILE` (2026-11-22): a licence price file of your own lets the
+  advisor choose between combinations that all work by the lowest total for a user. The module ships and fetches no
+  prices, and nothing of the file reaches a report: no amount, total or comparison, in the page's data either. The
+  console and `logs/licensing-basis.json` say which file was used, what it assumes and whether it is more than 35
+  days old. Without a file, or when one licence in the comparison has no figure, the choice is on function alone.
+  Guide, section 8e.
+
 ## 0.4.0-alpha (2026-11-21)
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
