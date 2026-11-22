@@ -34,7 +34,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   org-wide app settings and each app's availability, which CL-014 goes by. The Teams module reads them with a token
   no permission of the TenantKeep Posture app provides, so with the switch it signs in by itself, with a device
   code, when the run reaches Teams. The session must be the run's tenant and account. Without the switch the two
-  steps say "Not readable with this sign-in" and name the switch. Not yet run against a live tenant.
+  steps say "Not readable with this sign-in" and name the switch.
+- The Teams module's own sign-in when Conditional Access refuses it (2026-11-22, from the first live run): a tenant
+  that blocks device code sign-in answered AADSTS53003, and the run then advised entering the code again and would
+  have asked a second time for the second read. Now it says once that the tenant's policy refused the sign-in, as a
+  read this sign-in cannot make with nothing to collect again, and puts the run's own Teams session back. On Windows
+  the switch signs in through a browser window instead of a device code (not yet run live); elsewhere the Teams
+  module offers only the code.
 - A logo on the report and an icon on its browser tab (2026-11-22). The TenantKeep mark by default. In a licensed
   tier the organisation's own logo and icon take its place, read from its Entra company branding when the branding
   has them (`01-company-branding-logos`; pictures only, by their first bytes, and never above half a megabyte). A

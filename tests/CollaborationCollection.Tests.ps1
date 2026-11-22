@@ -168,7 +168,7 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         # Start-PostureRun -TeamsAppSignIn: the first read that meets the missing token signs the Teams module in by
         # itself, once, and both reads are made with that session.
         BeforeAll { $env:TKP_COLLAB_CONNECTED = '1' }
-        AfterEach { InModuleScope TenantKeep.Posture { $script:PostureTeamsAppSignIn = $false; $script:PostureTeamsOwnSession = $false } }
+        AfterEach { InModuleScope TenantKeep.Posture { $script:PostureTeamsAppSignIn = $false; $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null } }
 
         It 'signs in once and reads both' {
             InModuleScope TenantKeep.Posture {
@@ -187,24 +187,107 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
             Should -Invoke -ModuleName TenantKeep.Posture Connect-PostureTeamsOwnSession -Times 1 -Exactly -Scope It
         }
 
-        It 'says the sign-in was not completed, which a second attempt can fix' {
+        It 'passes on what the sign-in said: not completed, which a second attempt can fix' {
             InModuleScope TenantKeep.Posture {
                 $script:PostureTeamsAppSignIn = $true; $script:PostureTeamsOwnSession = $false
-                Mock Connect-PostureTeamsOwnSession { throw 'The code expired before anyone entered it.' }
+                Mock Connect-PostureTeamsOwnSession { throw 'The Teams sign-in for the app settings was not completed: The code expired before anyone entered it. If the code ran out, run again with -TeamsAppSignIn and enter it.' }
                 Mock Invoke-PostureTeamsCommand -ParameterFilter { $Name -in 'Get-M365UnifiedTenantSettings', 'Get-AllM365TeamsApps' } { throw "The given key 'https://substrate.office.com' was not present in the dictionary." }
             }
             $folder = Join-Path $script:Root 'teams-own-sign-in-failed'
             $r = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue 6>$null
             $lines = @($r.Errors | Where-Object { $_ -match '^Teams org-wide app settings :: ' })
             $lines.Count | Should -Be 1
-            $lines[0] | Should -Match 'The Teams sign-in for the app settings was not completed: The code expired before anyone entered it\. Run again with -TeamsAppSignIn'
+            $lines[0] | Should -Match ':: The Teams sign-in for the app settings was not completed: The code expired before anyone entered it\. If the code ran out, run again with -TeamsAppSignIn'
             InModuleScope TenantKeep.Posture -Parameters @{ text = ($lines[0] -replace '^[^:]+ :: ', '') } { param($text) Get-PostureFailureCause -Message $text } | Should -Not -Be 'notReadable' -Because 'entering the code next time fixes it'
+        }
+
+        It 'says a Conditional Access refusal as a read this sign-in cannot make, on both steps, with nothing to collect again' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureTeamsAppSignIn = $true; $script:PostureTeamsOwnSession = $false
+                Mock Connect-PostureTeamsOwnSession { throw "Not readable with this sign-in: Conditional Access in this tenant refused the Teams module's own sign-in, which outside Windows can only be made with a device code. That is the tenant's policy working, and nothing in the run changes it." }
+                Mock Invoke-PostureTeamsCommand -ParameterFilter { $Name -in 'Get-M365UnifiedTenantSettings', 'Get-AllM365TeamsApps' } { throw "The given key 'https://substrate.office.com' was not present in the dictionary." }
+            }
+            $folder = Join-Path $script:Root 'teams-own-sign-in-refused'
+            $r = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue 6>$null
+            $lines = @($r.Errors | Where-Object { $_ -match '^Teams (org-wide app settings|app availability) :: ' })
+            $lines.Count | Should -Be 2
+            foreach ($line in $lines) {
+                $line | Should -Match ':: Not readable with this sign-in: Conditional Access in this tenant refused'
+                $line | Should -Not -Match 'Run again|enter the code'
+                InModuleScope TenantKeep.Posture -Parameters @{ text = ($line -replace '^[^:]+ :: ', '') } { param($text) Get-PostureFailureCause -Message $text } | Should -Be 'notReadable'
+            }
+        }
+
+        It 'asks once when Conditional Access refuses the device code, remembers the answer, and puts the run''s session back' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureSession = @{ tenantId = '11111111-1111-1111-1111-111111111111'; account = 'admin@contoso.example'; tokens = @{} }
+                $script:Asked = 0; $script:Closed = 0
+                Mock Test-PostureTeamsBrowserSignIn { $false }
+                Mock Connect-PostureService { }
+                Set-Item -Path Function:\Disconnect-MicrosoftTeams -Value { $script:Closed++ }
+                # The message the Teams module passes on from the sign-in service (seen live 2026-11-22 as error 53003).
+                Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, $AccountId, [switch] $UseDeviceAuthentication) $script:Asked++; throw "AADSTS53003: Access has been blocked by Conditional Access policies. The access policy does not allow token issuance.`r`nTrace ID: 00000000-0000-0000-0000-000000000000" }
+                try {
+                    $first = $null; try { Connect-PostureTeamsOwnSession 6>$null } catch { $first = [string]$_.Exception.Message }
+                    $first | Should -Match '^Not readable with this sign-in: Conditional Access in this tenant refused the Teams module''s own sign-in, which outside Windows can only be made with a device code\.'
+                    $first | Should -Match 'On Windows the Teams module signs in through the browser instead'
+                    $first | Should -Not -Match 'Trace ID|Run again'
+                    Get-PostureFailureCause -Message $first | Should -Be 'notReadable'
+                    $second = $null; try { Connect-PostureTeamsOwnSession 6>$null } catch { $second = [string]$_.Exception.Message }
+                    $second | Should -Be $first
+                    $script:Asked | Should -Be 1 -Because 'the second read must not prompt again'
+                    Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'teams' }
+                    $script:PostureTeamsOwnSession | Should -BeFalse
+                }
+                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSessionRefused = $null; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
+            }
+        }
+
+        It 'says what else it could be when the code simply was not entered' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureSession = @{ tenantId = '11111111-1111-1111-1111-111111111111'; account = 'admin@contoso.example'; tokens = @{} }
+                Mock Test-PostureTeamsBrowserSignIn { $false }
+                Mock Connect-PostureService { }
+                Set-Item -Path Function:\Disconnect-MicrosoftTeams -Value { }
+                Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, $AccountId, [switch] $UseDeviceAuthentication) throw 'Verification code expired before contacting the server.' }
+                try {
+                    $said = $null; try { Connect-PostureTeamsOwnSession 6>$null } catch { $said = [string]$_.Exception.Message }
+                    $said | Should -Match '^The Teams sign-in for the app settings was not completed: Verification code expired before contacting the server\. If the code ran out, run again with -TeamsAppSignIn and enter it\.'
+                    $said | Should -Match 'Conditional Access blocks device code sign-in in this tenant and running again will say the same'
+                    Get-PostureFailureCause -Message $said | Should -Not -Be 'notReadable'
+                }
+                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSessionRefused = $null; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
+            }
+        }
+
+        It 'signs in through the browser, as the run''s account, where the Teams module can (Windows), and by device code elsewhere' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureSession = @{ tenantId = '11111111-1111-1111-1111-111111111111'; account = 'admin@contoso.example'; tokens = @{} }
+                $script:Seen = [System.Collections.Generic.List[hashtable]]::new()
+                Set-Item -Path Function:\Disconnect-MicrosoftTeams -Value { }
+                Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, $AccountId, [switch] $UseDeviceAuthentication) $script:Seen.Add(@{ tenant = $TenantId; account = $AccountId; device = [bool]$UseDeviceAuthentication }); [pscustomobject]@{ TenantId = $TenantId; Account = 'admin@contoso.example' } }
+                try {
+                    Mock Test-PostureTeamsBrowserSignIn { $true }
+                    Connect-PostureTeamsOwnSession 6>$null
+                    $script:PostureTeamsOwnSession = $false
+                    Mock Test-PostureTeamsBrowserSignIn { $false }
+                    Connect-PostureTeamsOwnSession 6>$null
+                    $script:Seen[0]['device'] | Should -BeFalse
+                    $script:Seen[0]['account'] | Should -Be 'admin@contoso.example'
+                    $script:Seen[0]['tenant'] | Should -Be '11111111-1111-1111-1111-111111111111'
+                    $script:Seen[1]['device'] | Should -BeTrue
+                    $script:Seen[1]['account'] | Should -BeNullOrEmpty
+                }
+                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
+            }
         }
 
         It 'refuses a Teams session of another tenant or another account, and closes it' {
             InModuleScope TenantKeep.Posture {
                 $script:PostureSession = @{ tenantId = '11111111-1111-1111-1111-111111111111'; account = 'admin@contoso.example'; tokens = @{} }
                 $script:Closed = 0
+                Mock Test-PostureTeamsBrowserSignIn { $false }
+                Mock Connect-PostureService { }
                 # Stand-ins for the Teams module's two cmdlets, set by name (the module is not installed where the tests run).
                 Set-Item -Path Function:\Disconnect-MicrosoftTeams -Value { $script:Closed++ }
                 Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, [switch] $UseDeviceAuthentication) [pscustomobject]@{ TenantId = $TenantId; Account = 'someone.else@contoso.example' } }
@@ -212,11 +295,12 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
                     { Connect-PostureTeamsOwnSession 6>$null } | Should -Throw '*was someone.else@contoso.example, not the run''s*'
                     $script:Closed | Should -Be 2 -Because 'the session before it and the mismatched one'
                     $script:PostureTeamsOwnSession | Should -BeFalse
+                    Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'teams' }
                     Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, [switch] $UseDeviceAuthentication) [pscustomobject]@{ TenantId = $TenantId; Account = 'admin@contoso.example' } }
                     Connect-PostureTeamsOwnSession 6>$null
                     $script:PostureTeamsOwnSession | Should -BeTrue
                 }
-                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSession = $false; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
+                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
             }
         }
     }

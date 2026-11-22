@@ -63,11 +63,13 @@ function Start-PostureRun {
         Read every member's per-user MFA state. Default: all of them up to 5,000 members; above that a sample, every
         admin and 1,000 at random, and the check says it judged a sample.
     .PARAMETER TeamsAppSignIn
-        Let the Teams module sign in by itself, with a device code, to read the two app settings the one sign-in
-        cannot (the org-wide app settings and each app's availability, which the Teams apps check goes by). The
-        Teams module reads them with a token no permission of the TenantKeep Posture app provides. The code is shown
-        when the run reaches Teams, near its end, and must be entered by the account the run signed in as. Without
-        the switch those two steps say "Not readable with this sign-in" and that check has no answer.
+        Let the Teams module sign in by itself to read the two app settings the one sign-in cannot (the org-wide
+        app settings and each app's availability, which the Teams apps check goes by). The Teams module reads them
+        with a token no permission of the TenantKeep Posture app provides. It asks when the run reaches Teams, near
+        its end, and the sign-in must be the account the run signed in as: a browser window on Windows, a code to
+        enter elsewhere (the Teams module has no browser sign-in outside Windows). A tenant whose Conditional
+        Access blocks device code sign-in refuses the code, and the run says so once. Without the switch those two
+        steps say "Not readable with this sign-in" and that check has no answer.
     .PARAMETER Redact
         Also write share/ with the report, report.md and findings.json with the tenant's people and places replaced
         by placeholders, for a report that goes to an AI service or a third party (New-PostureReport -Redact).
@@ -128,8 +130,11 @@ function Start-PostureRun {
     Write-Host 'Sign in once with an admin account that has the read roles (Get-PostureRequirement lists them).'
     Write-Host 'Every service uses that one sign-in; Purview may ask once more, before collection starts.'
     $script:PostureTeamsAppSignIn = [bool]$TeamsAppSignIn
-    $script:PostureTeamsOwnSession = $false
-    if ($TeamsAppSignIn) { Write-Host 'Teams will ask for a sign-in of its own near the end of the run: a code to enter in a browser, as the same account.' }
+    $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null
+    if ($TeamsAppSignIn) {
+        if (Test-PostureTeamsBrowserSignIn) { Write-Host 'Teams will ask for a sign-in of its own near the end of the run: a browser window, as the same account.' }
+        else { Write-Host 'Teams will ask for a sign-in of its own near the end of the run: a code to enter in a browser, as the same account. A tenant whose Conditional Access blocks device code sign-in refuses it, and the two reads then stay unread.' }
+    }
     $connect = @{}
     if ($TenantId) { $connect.TenantId = $TenantId }
     if ($DeviceCode) { $connect.DeviceCode = $true } elseif ($NoBrowser) { $connect.NoBrowser = $true }
@@ -340,7 +345,7 @@ function Start-PostureRun {
         }
     }
     finally {
-        $script:PostureTeamsAppSignIn = $false; $script:PostureTeamsOwnSession = $false
+        $script:PostureTeamsAppSignIn = $false; $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null
         Stop-PostureTokenServer -Server $tokenServer -Confirm:$false
         Complete-PostureProgress -Confirm:$false
         Disable-PostureKeepAwake -Handle $awake

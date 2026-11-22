@@ -4,6 +4,8 @@ $script:PostureConnected = @{}
 # Start-PostureRun -TeamsAppSignIn asks for the Teams module's own sign-in; set once it has been made in this run.
 $script:PostureTeamsAppSignIn = $false
 $script:PostureTeamsOwnSession = $false
+# What that sign-in was refused with, so the second read of a run gets the same answer and no second prompt.
+$script:PostureTeamsOwnSessionRefused = $null
 
 function Connect-PostureService {
     <#
@@ -78,11 +80,23 @@ function Connect-PostureService {
     Write-Verbose "$Name session opened for $account in $tenantId."
 }
 
+function Test-PostureTeamsBrowserSignIn {
+    <#
+    .SYNOPSIS
+        Whether the Teams module can sign in through a browser here. On Windows it can. Elsewhere its browser
+        sign-in fails loading a Windows library (docs/collection.md), which leaves the device code.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    [bool]$IsWindows
+}
+
 function Connect-PostureTeamsOwnSession {
     <#
     .SYNOPSIS
-        Signs the Teams module in through Microsoft's own Teams app, by device code, for the two reads the one
-        sign-in cannot make (Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps).
+        Signs the Teams module in through Microsoft's own Teams app, for the two reads the one sign-in cannot make
+        (Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps): in the browser on Windows, by device code elsewhere.
     .DESCRIPTION
         Those two cmdlets ask the Teams module for a token to a Microsoft 365 service (substrate.office.com) that a
         session opened with access tokens does not carry, and that no permission on the TenantKeep Posture app
@@ -90,6 +104,12 @@ function Connect-PostureTeamsOwnSession {
         nothing stored by this module. Asked for with Start-PostureRun -TeamsAppSignIn, never otherwise: it is a
         second sign-in, and it comes when the run reaches Teams, near its end. The session must be the run's tenant
         and, when the module says who signed in, the run's account; any other is closed again and refused.
+
+        A tenant's Conditional Access can refuse the sign-in, most often by blocking device code sign-in, which is
+        the only kind the Teams module can make outside Windows (seen live 2026-11-22: AADSTS53003 on macOS). That
+        is the tenant's policy working, so it is said as a read this sign-in cannot make, with nothing to change in
+        the run. A refusal is remembered for the rest of the run: the second read gets the same answer instead of a
+        second prompt. Whatever went wrong, the session the run had is put back.
     #>
     [CmdletBinding()]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'A sign-in prompt is for the person at the console.')]
@@ -98,17 +118,42 @@ function Connect-PostureTeamsOwnSession {
     $ErrorActionPreference = 'Stop'
     $session = $script:PostureSession
     if (-not $session) { throw 'There is no sign-in to match the Teams sign-in to.' }
+    if ($script:PostureTeamsOwnSessionRefused) { throw $script:PostureTeamsOwnSessionRefused }
+    $tenantId = [string]$session['tenantId']; $runAccount = [string]$session['account']
+    $browser = Test-PostureTeamsBrowserSignIn
     Write-Host ''
-    Write-Host "Teams asks for a sign-in of its own, to read the app settings. Sign in as $([string]$session['account']); the address and the code follow." -ForegroundColor Cyan
+    Write-Host "Teams asks for a sign-in of its own, to read the app settings. Sign in as $runAccount$(if ($browser) { ' in the browser window that opens.' } else { '; the address and the code follow.' })" -ForegroundColor Cyan
     try { $null = Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue } catch { Write-Verbose 'No Teams session to close first.' }
-    $result = Connect-MicrosoftTeams -TenantId ([string]$session['tenantId']) -UseDeviceAuthentication
-    $tenant = [string]$(if ($result -and $result.PSObject.Properties['TenantId']) { $result.TenantId })
-    $account = [string]$(if ($result -and $result.PSObject.Properties['Account']) { $result.Account })
-    $wrongTenant = $tenant -and $tenant -ne [string]$session['tenantId']
-    $wrongAccount = $account -match '@' -and $account -ne [string]$session['account']
-    if ($wrongTenant -or $wrongAccount) {
-        try { $null = Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue } catch { Write-Verbose 'The mismatched Teams session did not close cleanly.' }
-        throw "The Teams sign-in was $(if ($wrongAccount) { $account } else { "to tenant $tenant" }), not the run's ($([string]$session['account']) in $([string]$session['tenantId'])). It was closed and nothing was read with it."
+    $refused = $null; $remember = $false; $result = $null
+    try {
+        if ($browser) { $result = Connect-MicrosoftTeams -TenantId $tenantId -AccountId $runAccount }
+        else { $result = Connect-MicrosoftTeams -TenantId $tenantId -UseDeviceAuthentication }
+    }
+    catch {
+        $said = ([string]$_.Exception.Message -replace '\s*[\r\n]+\s*', ' ').Trim()
+        $remember = $true
+        if ($said -match '(?i)AADSTS53\d{3,4}|conditional access') {
+            $refused = "Not readable with this sign-in: Conditional Access in this tenant refused the Teams module's own sign-in$(if (-not $browser) { ', which outside Windows can only be made with a device code' }). That is the tenant's policy working, and nothing in the run changes it.$(if (-not $browser) { ' On Windows the Teams module signs in through the browser instead, so these two reads can be collected there with -TeamsAppSignIn.' })"
+        }
+        elseif ($browser) { $refused = "The Teams sign-in for the app settings was not completed: $said Run again with -TeamsAppSignIn and finish the sign-in in the browser." }
+        else { $refused = "The Teams sign-in for the app settings was not completed: $said If the code ran out, run again with -TeamsAppSignIn and enter it. If the browser said the sign-in does not meet the tenant's criteria, Conditional Access blocks device code sign-in in this tenant and running again will say the same: these two reads can be collected on Windows, where the Teams module signs in through the browser." }
+    }
+    if (-not $refused) {
+        $tenant = [string]$(if ($result -and $result.PSObject.Properties['TenantId']) { $result.TenantId })
+        $account = [string]$(if ($result -and $result.PSObject.Properties['Account']) { $result.Account })
+        $wrongTenant = $tenant -and $tenant -ne $tenantId
+        $wrongAccount = $account -match '@' -and $account -ne $runAccount
+        if ($wrongTenant -or $wrongAccount) {
+            try { $null = Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue } catch { Write-Verbose 'The mismatched Teams session did not close cleanly.' }
+            # Not remembered: picking the right account at the next prompt fixes it.
+            $refused = "The Teams sign-in was $(if ($wrongAccount) { $account } else { "to tenant $tenant" }), not the run's ($runAccount in $tenantId). It was closed and nothing was read with it."
+        }
+    }
+    if ($refused) {
+        # The run's own Teams session was closed to make room for this one; put it back.
+        try { Connect-PostureService -Name teams } catch { Write-Verbose "The run's Teams session was not restored: $($_.Exception.Message)" }
+        if ($remember) { $script:PostureTeamsOwnSessionRefused = $refused }
+        throw $refused
     }
     $script:PostureTeamsOwnSession = $true
 }

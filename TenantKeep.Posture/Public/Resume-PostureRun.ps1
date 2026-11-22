@@ -32,8 +32,8 @@ function Resume-PostureRun {
     .PARAMETER AllowSleep
         Let the machine sleep during the run.
     .PARAMETER TeamsAppSignIn
-        With -Collector Teams: let the Teams module sign in by itself, with a device code, to read the two app
-        settings the one sign-in cannot (Start-PostureRun -TeamsAppSignIn).
+        With -Collector Teams: let the Teams module sign in by itself, in a browser window on Windows and with a
+        device code elsewhere, to read the two app settings the one sign-in cannot (Start-PostureRun -TeamsAppSignIn).
     .PARAMETER PassThru
         Return the Start-PostureRun summary, with the collectors that were collected again.
     .EXAMPLE
