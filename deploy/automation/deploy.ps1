@@ -75,8 +75,14 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
 
 function Invoke-Az {
     # Plain function on purpose: an advanced function would bind az flags such as -o and -g as its own parameters.
-    $out = & az @args 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "az $($args -join ' ') failed: $out" }
+    # az writes its warnings and notices to the error stream ("A new Bicep release is available", a preview warning).
+    # They are shown, and kept out of what is returned, so a caller that parses the output gets the output alone.
+    $all = & az @args 2>&1
+    $code = $LASTEXITCODE
+    $notes = @($all | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { [string]$_ })
+    $out = @($all | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+    if ($code -ne 0) { throw "az $($args -join ' ') failed: $((@($notes) + @($out)) -join "`n")" }
+    foreach ($note in $notes) { if ($note.Trim()) { Write-Host $note } }
     return $out
 }
 

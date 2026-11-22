@@ -39,7 +39,17 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-function Invoke-Az { $out = & az @args 2>&1; if ($LASTEXITCODE -ne 0) { throw "az $($args -join ' ') failed: $out" }; return $out }
+function Invoke-Az {
+    # az writes its warnings and notices to the error stream. They are shown, and kept out of what is returned, so a
+    # caller that parses the output gets the output alone.
+    $all = & az @args 2>&1
+    $code = $LASTEXITCODE
+    $notes = @($all | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { [string]$_ })
+    $out = @($all | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+    if ($code -ne 0) { throw "az $($args -join ' ') failed: $((@($notes) + @($out)) -join "`n")" }
+    foreach ($note in $notes) { if ($note.Trim()) { Write-Host $note } }
+    return $out
+}
 $graph = 'https://graph.microsoft.com/v1.0'
 function Get-G([string] $Url) { Invoke-Az rest --method get --url $Url -o json | ConvertFrom-Json }
 function Send-GraphPost([string] $Url, $Body) { Invoke-Az rest --method post --url $Url --headers 'Content-Type=application/json' --body ($Body | ConvertTo-Json -Depth 8 -Compress) -o json | ConvertFrom-Json }

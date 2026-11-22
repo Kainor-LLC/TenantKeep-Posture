@@ -59,8 +59,10 @@ if ($PSCmdlet.ParameterSetName -eq 'Pem') {
 }
 else {
     $digest = [System.Security.Cryptography.SHA256]::HashData($canonical)
-    $raw = & az keyvault key sign --vault-name $VaultName --name $KeyName --algorithm ES256 --digest ([Convert]::ToBase64String($digest)) --output json 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "az keyvault key sign failed: $raw" }
+    $all = & az keyvault key sign --vault-name $VaultName --name $KeyName --algorithm ES256 --digest ([Convert]::ToBase64String($digest)) --output json 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "az keyvault key sign failed: $all" }
+    # az writes its warnings and notices to the error stream; only its output is the JSON.
+    $raw = @($all | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
     $sigText = [string](($raw | ConvertFrom-Json).signature)   # base64url (confirmed against azure-cli 2.90, 2026-10-15)
     $b64 = $sigText.Replace('-', '+').Replace('_', '/'); while ($b64.Length % 4) { $b64 += '=' }
     $signature = [Convert]::FromBase64String($b64)

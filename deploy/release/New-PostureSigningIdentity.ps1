@@ -64,9 +64,14 @@ Set-StrictMode -Version Latest
 
 function Invoke-Az {
     param([Parameter(Mandatory)] [string[]] $Arguments)
-    $out = & az @Arguments --output json 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "az $($Arguments[0..1] -join ' ') failed: $out" }
-    if ($out) { $out | ConvertFrom-Json -AsHashtable -Depth 20 } else { $null }
+    # az writes its warnings and notices to the error stream; only its output is the JSON.
+    $all = & az @Arguments --output json 2>&1
+    $code = $LASTEXITCODE
+    $notes = @($all | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { [string]$_ })
+    $out = @($all | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+    if ($code -ne 0) { throw "az $($Arguments[0..1] -join ' ') failed: $((@($notes) + @($out)) -join "`n")" }
+    foreach ($note in $notes) { if ($note.Trim()) { Write-Host $note } }
+    if ($out.Count -gt 0) { $out | ConvertFrom-Json -AsHashtable -Depth 20 } else { $null }
 }
 
 foreach ($tool in 'az', 'gh') { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is not installed." } }

@@ -24,6 +24,11 @@ work landed on main.
 - The managed identity's grant script lists the same five as application roles.
 - `build.ps1 -Task AttackData` writes `attack.json` with the same line endings on Windows as elsewhere, and four
   tests no longer depend on how the platform ends a line (the first Windows CI run of them failed on that alone).
+- `deploy/automation/deploy.ps1` stopped right after the template deployment whenever the Azure CLI had something to
+  say first ("A new Bicep release is available"): the notice was read as part of the JSON. The CLI's warnings and
+  notices are now shown and kept out of what is parsed, there and in the four other places that read its output
+  (the Purview setup script, the release setup script, licence signing and the integrity manifest). A deployment
+  that stopped this way had applied the template and nothing after it; running the script again finishes it.
 - `build.ps1 -Task AttackData` prints each mapping to fix on a line of its own before it fails. The weekly upkeep
   report read them out of the error text, which PowerShell wraps to the console's width, so a long one arrived cut
   (and a test of it failed on Windows, where the console is 120 columns wide).

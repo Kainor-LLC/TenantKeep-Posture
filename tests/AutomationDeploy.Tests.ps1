@@ -407,3 +407,92 @@ Describe 'The posture runbook on a Hybrid Runbook Worker' {
         $deploy | Should -Match '--run-on \$HybridWorkerGroup'
     }
 }
+
+Describe 'az warnings stay out of what the scripts parse' {
+    BeforeAll {
+        # A stand-in az that writes a notice to the error stream before its JSON, as the real one does when a new Bicep
+        # release is out. A deployment stopped on exactly that: the notice reached ConvertFrom-Json. No Azure here.
+        $script:FakeAz = Join-Path $TestDrive 'fake-az'
+        New-Item -ItemType Directory -Path $script:FakeAz -Force | Out-Null
+        if ($IsWindows) {
+            $lines = @(
+                '@echo off'
+                '>&2 echo WARNING: A new Bicep release is available: v0.49.2. Upgrade now by running "az bicep upgrade".'
+                'if "%1"=="fail" goto fail'
+                'if "%1"=="keyvault" goto sign'
+                'echo {"properties":{"outputs":{"runbookName":{"value":"rb"}}}}'
+                'exit /b 0'
+                ':sign'
+                'echo {"signature":"AAEC"}'
+                'exit /b 0'
+                ':fail'
+                '>&2 echo ERROR: the deployment failed'
+                'exit /b 3'
+            )
+            [System.IO.File]::WriteAllText((Join-Path $script:FakeAz 'az.cmd'), ($lines -join "`r`n") + "`r`n")
+        }
+        else {
+            $lines = @(
+                '#!/bin/sh'
+                'echo ''WARNING: A new Bicep release is available: v0.49.2. Upgrade now by running "az bicep upgrade".'' >&2'
+                'case "$1" in'
+                '  fail) echo ''ERROR: the deployment failed'' >&2; exit 3 ;;'
+                '  keyvault) echo ''{"signature":"AAEC"}'' ;;'
+                '  *) echo ''{"properties":{"outputs":{"runbookName":{"value":"rb"}}}}'' ;;'
+                'esac'
+            )
+            $file = Join-Path $script:FakeAz 'az'
+            [System.IO.File]::WriteAllText($file, ($lines -join "`n") + "`n")
+            & chmod +x $file
+        }
+        $script:PathBefore = $env:PATH
+        $env:PATH = $script:FakeAz + [System.IO.Path]::PathSeparator + $env:PATH
+        $script:WrapperOf = {
+            param([string] $RelativePath)
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '..' $RelativePath), [ref]$null, [ref]$null)
+            $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Invoke-Az' }, $true).Extent.Text
+        }
+    }
+    AfterAll { $env:PATH = $script:PathBefore }
+
+    It 'the stand-in is the az these tests call' {
+        (Get-Command az -CommandType Application | Select-Object -First 1).Source | Should -BeLike (Join-Path $script:FakeAz '*')
+    }
+
+    It 'returns the output alone, shows the notice and names it when az fails: <Script>' -ForEach @(
+        @{ Script = 'deploy/automation/deploy.ps1' }
+        @{ Script = 'deploy/setup/New-PosturePurviewApp.ps1' }
+    ) {
+        Mock Write-Host { }
+        . ([scriptblock]::Create((& $script:WrapperOf $Script)))
+        $doc = Invoke-Az deployment group create -g rg -o json | ConvertFrom-Json
+        $doc.properties.outputs.runbookName.value | Should -Be 'rb'
+        Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { "$Object" -match 'A new Bicep release is available' }
+        { Invoke-Az fail -o json } | Should -Throw '*ERROR: the deployment failed*'
+    }
+
+    It 'the release setup script reads az the same way' {
+        Mock Write-Host { }
+        . ([scriptblock]::Create((& $script:WrapperOf 'deploy/release/New-PostureSigningIdentity.ps1')))
+        $doc = Invoke-Az -Arguments @('deployment', 'group', 'create')
+        $doc['properties']['outputs']['runbookName']['value'] | Should -Be 'rb'
+        Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { "$Object" -match 'A new Bicep release is available' }
+        { Invoke-Az -Arguments @('fail', 'now') } | Should -Throw '*ERROR: the deployment failed*'
+    }
+
+    It 'a licence signed through the vault takes the signature and not the notice' {
+        $out = Join-Path $TestDrive 'vault.lic'
+        $null = & (Join-Path $PSScriptRoot '..' 'deploy' 'licensing' 'New-PostureLicense.ps1') -TenantId 'aaaaaaaa-1111-2222-3333-444444444444' -Tier full -Customer 'Contoso Ltd' -KeyId test-key -VaultName v -KeyName k -OutputPath $out
+        (Get-Content -Raw -LiteralPath $out | ConvertFrom-Json).signature | Should -Be 'AAEC'
+    }
+
+    It 'no script hands az output to a JSON parser with the error stream still in it' {
+        # The two places that sign through the vault take the output apart inline; every other az call goes through a wrapper above.
+        foreach ($relative in 'build.ps1', 'deploy/licensing/New-PostureLicense.ps1') {
+            $text = Get-Content -Raw (Join-Path $PSScriptRoot '..' $relative)
+            $text | Should -Match '\$all = & az keyvault key sign' -Because "$relative keeps what az wrote apart from its notices"
+            $text | Should -Match '\$raw = @\(\$all \| Where-Object \{ \$_ -isnot \[System\.Management\.Automation\.ErrorRecord\] \}\)'
+            $text | Should -Not -Match '\$raw = & az[^\r\n]*2>&1'
+        }
+    }
+}
