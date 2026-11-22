@@ -949,6 +949,47 @@ Describe 'Invoke-PostureCollection' {
         }
     }
 
+    Context 'what a collection warns about when the run is several collections' {
+        # The scheduled run collects in several calls into one folder. Its job output read "collect (Exchange)", then
+        # eight warnings about Intune and Entra scopes and "7 step(s) failed": none of it was Exchange's.
+        It 'warns about a missing scope only when a collector in this call reads with it' {
+            # The test sign-in lacks the Intune scopes and some of Entra's (service health, risky users).
+            $null = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'scopes-intune') -Collector Intune -SkipCaSnapshot -WarningVariable intune -WarningAction SilentlyContinue 6>$null
+            $text = @($intune | ForEach-Object { [string]$_ }) -join "`n"
+            $text | Should -Match 'Scope DeviceManagementRBAC\.Read\.All not granted'
+            $text | Should -Not -Match 'Scope (ServiceHealth|ServiceMessage|IdentityRiskyUser|LifecycleWorkflows|BackupRestore-Configuration)\.' -Because 'the Entra and Azure collectors read with those, and this call runs neither'
+
+            $null = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'scopes-entra') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -WarningVariable entra -WarningAction SilentlyContinue 6>$null
+            $text = @($entra | ForEach-Object { [string]$_ }) -join "`n"
+            $text | Should -Match 'Scope ServiceHealth\.Read\.All not granted'
+            $text | Should -Match 'Scope IdentityRiskyUser\.Read\.All not granted'
+            $text | Should -Not -Match 'Scope DeviceManagement' -Because 'this call does not run the Intune collector'
+        }
+
+        It 'counts the steps that failed since this collection began, and says nothing when none did' {
+            $env:TKP_TEST_PIM = 'broken'
+            try {
+                $folder = Join-Path $script:Root 'failed-since'
+                $null = Invoke-PostureCollection -OutputFolder $folder -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -WarningVariable first -WarningAction SilentlyContinue 6>$null
+                $said = @($first | ForEach-Object { [string]$_ } | Where-Object { $_ -match 'step\(s\) failed' })
+                $said.Count | Should -Be 1
+                $said[0] | Should -Match '^\d+ step\(s\) failed; see '
+                $before = @(Get-Content -LiteralPath (Join-Path $folder 'errors.txt')).Count
+
+                $null = Invoke-PostureCollection -OutputFolder $folder -Collector Intune -SkipCaSnapshot -WarningVariable second -WarningAction SilentlyContinue 6>$null
+                @(Get-Content -LiteralPath (Join-Path $folder 'errors.txt')).Count | Should -Be $before -Because 'the Intune collection has no failure of its own here'
+                @($second | ForEach-Object { [string]$_ } | Where-Object { $_ -match 'step\(s\) failed' }) | Should -BeNullOrEmpty -Because 'the failures in errors.txt are the earlier collection''s'
+
+                $null = Invoke-PostureCollection -OutputFolder $folder -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -WarningVariable third -WarningAction SilentlyContinue 6>$null
+                $after = @(Get-Content -LiteralPath (Join-Path $folder 'errors.txt')).Count
+                $said = @($third | ForEach-Object { [string]$_ } | Where-Object { $_ -match 'step\(s\) failed' })
+                $said.Count | Should -Be 1
+                $said[0] | Should -Match "^$($after - $before) more step\(s\) failed since this collection began \($after in the run\); see "
+            }
+            finally { $env:TKP_TEST_PIM = 'ok' }
+        }
+    }
+
     Context 'scope check' {
         It 'refuses without the core scopes' {
             Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 't'; Account = 'a'; AuthType = 'Delegated'; Scopes = @('User.Read') } }

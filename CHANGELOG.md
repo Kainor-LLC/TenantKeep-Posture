@@ -29,6 +29,11 @@ work landed on main.
   notices are now shown and kept out of what is parsed, there and in the four other places that read its output
   (the Purview setup script, the release setup script, licence signing and the integrity manifest). A deployment
   that stopped this way had applied the template and nothing after it; running the script again finishes it.
+- A run made of several collections into one folder (the scheduled run, a resumed run) no longer repeats one
+  collection's news under the next. A missing scope is warned about only when a collector in that call reads with
+  it, and the closing line counts the steps that failed since that collection began and is left out when none did.
+  The first scheduled run after new roles were granted printed eight scope warnings and "7 step(s) failed" under
+  "collect (Exchange)", none of them Exchange's.
 - The sign-in line `deploy.ps1` prints before the grant script now carries `RoleManagement.ReadWrite.Directory` when
   the deployment includes posture. The grant script refuses without it, so a first deployment that followed the
   printed line was turned away. The grant script's last line now says what the scheduling guide says: Azure keeps a

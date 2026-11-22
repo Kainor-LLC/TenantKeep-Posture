@@ -169,9 +169,24 @@ function Invoke-PostureCollection {
         'SecurityIncident.Read.All'               = 'Defender incidents'
         'SecurityEvents.Read.All'                 = 'Secure Score'
     }
+    # A missing scope is worth a warning only when a collector in this call reads with it: requirements.json says
+    # which step needs which scope and whose step it is. The scheduled run collects in several calls, and a warning
+    # about an Intune scope under "collect (Exchange)" reads as an Exchange fault. The sign-in log is the Entra
+    # collector's as far as scopes go. A scope no step names is warned about in every call.
+    $readBy = @{}
+    foreach ($step in @((Get-PostureRequirementMap)['steps'])) {
+        foreach ($name in @($step['scopes'])) {
+            if (-not $name) { continue }
+            if (-not $readBy.ContainsKey([string]$name)) { $readBy[[string]$name] = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase) }
+            $null = $readBy[[string]$name].Add([string]$step['collector'])
+        }
+    }
+    $inThisCall = @($Collector | ForEach-Object { if ($_ -eq 'SignIns') { 'Entra' } else { $_ } })
     $granted = @($context.Scopes)
     foreach ($scope in $optional.Keys) {
-        if ($scope -notin $granted) { Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt." }
+        if ($scope -in $granted) { continue }
+        if ($readBy.ContainsKey($scope) -and @($inThisCall | Where-Object { $readBy[$scope].Contains($_) }).Count -eq 0) { continue }
+        Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt."
     }
     # Session-bound collectors: skipped with a warning by default, refused when named. The module never connects. Exchange,
     # Purview and Azure must be in the Graph session's tenant: a session left open for another tenant is not used.
@@ -228,6 +243,8 @@ function Invoke-PostureCollection {
         # Each collector is a progress phase, and its time and step count go into the manifest for the next run's estimate.
         $timings = [ordered]@{}
         $errorsPath = Join-Path (Get-PostureRunLayout -Folder $folder).errors 'errors.txt'
+        # What an earlier collection into this folder left: the count at the end is of the failures since now.
+        $errorsAtStart = @(if (Test-Path -LiteralPath $errorsPath) { Get-Content -LiteralPath $errorsPath }).Count
         # Collectors may run in separate processes into one folder, at the same time (Start-PostureRun runs Exchange
         # and Purview alongside the rest): the manifest is read, merged and written under the folder's lock, and
         # keeps what the other process recorded (collectors, start time, API versions, scopes, timings).
@@ -340,7 +357,11 @@ function Invoke-PostureCollection {
         $manifest = & $writeManifest -Final
         Invoke-PostureStepCompleted -Folder $folder -State collector
         $errors = @($manifest['errors'])
-        if ($errors.Count -gt 0) { Write-Warning "$($errors.Count) step(s) failed; see $errorsPath" }
+        # errors.txt is the run's, and a run is often several collections into one folder: say how many failed since
+        # this one began, and nothing when none did, so an earlier collector's failures are not read as this one's.
+        $failedSince = $errors.Count - $errorsAtStart
+        if ($failedSince -gt 0 -and $errorsAtStart -eq 0) { Write-Warning "$failedSince step(s) failed; see $errorsPath" }
+        elseif ($failedSince -gt 0) { Write-Warning "$failedSince more step(s) failed since this collection began ($($errors.Count) in the run); see $errorsPath" }
 
         if ($PassThru) {
             return [pscustomobject]@{ Folder = $folder; Collectors = @($manifest['collectors']); Files = $files.ToArray(); Errors = $errors; Manifest = $manifest }
