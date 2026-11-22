@@ -496,3 +496,17 @@ Describe 'az warnings stay out of what the scripts parse' {
         }
     }
 }
+
+Describe 'What the deployment tells the admin to run next' {
+    It 'names every scope the grant script will ask for, the Global Reader one with -IncludePosture' {
+        $deploy = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'deploy.ps1')
+        $deploy | Should -Match ([regex]::Escape('-Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All$(if ($IncludePosture) { '', RoleManagement.ReadWrite.Directory'' })')) -Because 'the grant script refuses -IncludePosture without it, and the printed line is what a first deployment follows'
+        $grant = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1')
+        $grant | Should -Match ([regex]::Escape("@('AppRoleAssignment.ReadWrite.All', 'Application.Read.All') + @(`$(if (`$IncludePosture) { 'RoleManagement.ReadWrite.Directory' }))"))
+    }
+
+    It 'says a new role can take a day to reach a job, as the scheduling guide does' {
+        (Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'automation' 'Grant-ManagedIdentityGraphRole.ps1')) | Should -Match 'for up to a day'
+        (Get-Content -Raw (Join-Path $PSScriptRoot '..' 'docs' 'scheduling.md')) | Should -Match 'after up to a day'
+    }
+}

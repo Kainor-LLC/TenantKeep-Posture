@@ -29,6 +29,10 @@ work landed on main.
   notices are now shown and kept out of what is parsed, there and in the four other places that read its output
   (the Purview setup script, the release setup script, licence signing and the integrity manifest). A deployment
   that stopped this way had applied the template and nothing after it; running the script again finishes it.
+- The sign-in line `deploy.ps1` prints before the grant script now carries `RoleManagement.ReadWrite.Directory` when
+  the deployment includes posture. The grant script refuses without it, so a first deployment that followed the
+  printed line was turned away. The grant script's last line now says what the scheduling guide says: Azure keeps a
+  managed identity's token for up to a day, so a job started sooner may run without the new roles.
 - `build.ps1 -Task AttackData` prints each mapping to fix on a line of its own before it fails. The weekly upkeep
   report read them out of the error text, which PowerShell wraps to the console's width, so a long one arrived cut
   (and a test of it failed on Windows, where the console is 120 columns wide).

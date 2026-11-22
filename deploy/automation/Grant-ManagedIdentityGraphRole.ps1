@@ -120,4 +120,4 @@ Azure, per subscription the posture run should read (ARM roles, not Graph):
 Hybrid tenants: upload the Windows collector's ad-* files to the client container under hybrid/ before each run.
 "@
 }
-Write-Host 'Done. Tokens issued to the identity from now on carry these roles; a running job may need a few minutes.'
+Write-Host 'Done. Tokens issued to the identity from now on carry these roles. Azure keeps a managed identity''s token for up to a day, so a job started before then may run without the new ones: it names what it could not read, and the next run has them.'

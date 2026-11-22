@@ -257,7 +257,8 @@ $notReady = @($imports | Where-Object State -NE 'Succeeded')
 
 Write-Host ''
 Write-Host 'Next, once, as a Global Administrator of the tenant:'
-Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All"
+# The grant script refuses without these; with -IncludePosture it also assigns Global Reader, which needs the third.
+Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All$(if ($IncludePosture) { ', RoleManagement.ReadWrite.Directory' }) -NoWelcome"
 Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })$(if ($IncludePosture -and $SharePointAdminUrl) { ' -IncludeSharePointAdminRead' })"
 if ($IncludePosture -and $SharePointAdminUrl) { Write-Host '  (-IncludeSharePointAdminRead grants Sites.FullControl.All on SharePoint Online, which the site list needs. Its help says what that means; leave -SharePointAdminUrl out to do without.)' }
 if ($IncludePosture -and $HybridWorkerGroup) {
