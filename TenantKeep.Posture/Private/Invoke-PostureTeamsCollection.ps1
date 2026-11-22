@@ -42,12 +42,19 @@ function Invoke-PostureTeamsCollection {
     # The Teams module reads both with a token for https://substrate.office.com. A session opened with access tokens
     # (the one sign-in) carries Graph and the Teams admin API only, and the module answers with a dictionary key it
     # does not have. That is said in words, with nothing to grant; CL-014 then has no answer from the run.
+    # With Start-PostureRun -TeamsAppSignIn the Teams module is signed in by itself the first time that happens
+    # (Connect-PostureTeamsOwnSession), and the read is made again.
     $appRead = {
         param([string] $Cmdlet)
         try { & $teams $Cmdlet }
         catch {
-            if ([string]$_.Exception.Message -match 'substrate\.office\.com') { throw "Not readable with this sign-in: the Teams module reads $Cmdlet with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry." }
-            throw
+            if ([string]$_.Exception.Message -notmatch 'substrate\.office\.com') { throw }
+            if (-not $script:PostureTeamsAppSignIn) { throw "Not readable with this sign-in: the Teams module reads $Cmdlet with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry. Start-PostureRun -TeamsAppSignIn reads it: Teams then asks for a sign-in of its own." }
+            if ($script:PostureTeamsOwnSession) { throw }
+            if ($script:PostureProgress) { $script:PostureProgress.label = 'waiting for the Teams sign-in (a code is shown above)'; Write-PostureProgress -Force }
+            try { Connect-PostureTeamsOwnSession }
+            catch { throw "The Teams sign-in for the app settings was not completed: $(([string]$_.Exception.Message -replace '\s*[\r\n]+\s*', ' ').Trim()) Run again with -TeamsAppSignIn and enter the code when it is shown." }
+            & $teams $Cmdlet
         }
     }
     Invoke-PostureStep -Label 'Teams org-wide app settings' -Folder $Folder -Script {

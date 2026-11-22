@@ -203,8 +203,12 @@ details.affected-list ul { margin: 6px 0; padding-left: 18px; max-height: 260px;
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 
-/* Executive mode hides the technical detail */
-body.executive .tech, body.executive #checks, body.executive #appendix { display: none !important; }
+/* Executive Mode is the short view: the Overview, Recommendations and the domain scorecards, without the technical
+   detail. Every other view, the charts of each domain and the tables of checks come back with the mode off. */
+body.executive .tech, body.executive .view-all, body.executive details.complete { display: none !important; }
+body.executive nav.views a:not([href="#overview"]):not([href="#recommendations"]):not([href="#domains"]) { display: none !important; }
+body.executive section.view:not(#overview):not(#recommendations):not(#domains) { display: none !important; }
+body.executive #domains > h3, body.executive #domains > table, body.executive #domains .area-head, body.executive #domains details.area { display: none !important; }
 
 @media print {
   :root { --bg: #fff; --fg: #000; --card: #fff; --line: #bbb; --panel: #fff; --soft: #f3f3f3; --shadow: none; }

@@ -115,7 +115,7 @@
         "Global Reader (verify)"
       ],
       "licence": "",
-      "note": "App centric management: Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps (AppName from MicrosoftTeams 7.3.0). A tenant not moved yet falls back to the app permission policy. Seen on a live run 2026-11-21: with the one sign-in the Teams module asks for a token to substrate.office.com that the session does not carry, so both steps report Not readable with this sign-in and CL-014 has no answer."
+      "note": "App centric management: Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps (AppName from MicrosoftTeams 7.3.0). A tenant not moved yet falls back to the app permission policy. Seen on a live run 2026-11-21: with the one sign-in the Teams module asks for a token to substrate.office.com that the session does not carry, so both steps report Not readable with this sign-in and CL-014 has no answer, unless the run was started with -TeamsAppSignIn: the Teams module then signs in by itself with a device code (verify on a live run)."
     },
     {
       "collector": "Purview",

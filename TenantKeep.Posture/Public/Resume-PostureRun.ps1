@@ -31,6 +31,9 @@ function Resume-PostureRun {
         Print the sign-in address instead of opening the browser, and do not open the report.
     .PARAMETER AllowSleep
         Let the machine sleep during the run.
+    .PARAMETER TeamsAppSignIn
+        With -Collector Teams: let the Teams module sign in by itself, with a device code, to read the two app
+        settings the one sign-in cannot (Start-PostureRun -TeamsAppSignIn).
     .PARAMETER PassThru
         Return the Start-PostureRun summary, with the collectors that were collected again.
     .EXAMPLE
@@ -53,6 +56,8 @@ function Resume-PostureRun {
         [switch] $DeviceCode,
         [switch] $NoBrowser,
         [switch] $AllowSleep,
+        # Passed on to Start-PostureRun: with -Collector Teams it collects the two app settings the one sign-in cannot.
+        [switch] $TeamsAppSignIn,
         [switch] $PassThru
     )
 
@@ -122,7 +127,7 @@ function Resume-PostureRun {
     }
 
     $runArgs = @{ TenantId = $runTenant; Client = $clientFolder; Folder = $folder; Collector = $again; PassThru = $true; Confirm = $false }
-    foreach ($s in 'DeviceCode', 'NoBrowser', 'AllowSleep') { if ($PSBoundParameters.ContainsKey($s)) { $runArgs[$s] = $PSBoundParameters[$s] } }
+    foreach ($s in 'DeviceCode', 'NoBrowser', 'AllowSleep', 'TeamsAppSignIn') { if ($PSBoundParameters.ContainsKey($s)) { $runArgs[$s] = $PSBoundParameters[$s] } }
     $result = Start-PostureRun @runArgs
     if ($PassThru) { $result | Add-Member -NotePropertyName Recollected -NotePropertyValue $again -PassThru; return }
     return $result.Folder

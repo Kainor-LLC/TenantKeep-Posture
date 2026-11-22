@@ -1,6 +1,9 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 # The services the broker connected with a token of its own, which Update-PostureServiceSession renews.
 $script:PostureConnected = @{}
+# Start-PostureRun -TeamsAppSignIn asks for the Teams module's own sign-in; set once it has been made in this run.
+$script:PostureTeamsAppSignIn = $false
+$script:PostureTeamsOwnSession = $false
 
 function Connect-PostureService {
     <#
@@ -75,6 +78,41 @@ function Connect-PostureService {
     Write-Verbose "$Name session opened for $account in $tenantId."
 }
 
+function Connect-PostureTeamsOwnSession {
+    <#
+    .SYNOPSIS
+        Signs the Teams module in through Microsoft's own Teams app, by device code, for the two reads the one
+        sign-in cannot make (Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps).
+    .DESCRIPTION
+        Those two cmdlets ask the Teams module for a token to a Microsoft 365 service (substrate.office.com) that a
+        session opened with access tokens does not carry, and that no permission on the TenantKeep Posture app
+        provides. The module's own sign-in can get it. Still delegated, still bounded by the admin's own roles,
+        nothing stored by this module. Asked for with Start-PostureRun -TeamsAppSignIn, never otherwise: it is a
+        second sign-in, and it comes when the run reaches Teams, near its end. The session must be the run's tenant
+        and, when the module says who signed in, the run's account; any other is closed again and refused.
+    #>
+    [CmdletBinding()]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'A sign-in prompt is for the person at the console.')]
+    param()
+
+    $ErrorActionPreference = 'Stop'
+    $session = $script:PostureSession
+    if (-not $session) { throw 'There is no sign-in to match the Teams sign-in to.' }
+    Write-Host ''
+    Write-Host "Teams asks for a sign-in of its own, to read the app settings. Sign in as $([string]$session['account']); the address and the code follow." -ForegroundColor Cyan
+    try { $null = Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue } catch { Write-Verbose 'No Teams session to close first.' }
+    $result = Connect-MicrosoftTeams -TenantId ([string]$session['tenantId']) -UseDeviceAuthentication
+    $tenant = [string]$(if ($result -and $result.PSObject.Properties['TenantId']) { $result.TenantId })
+    $account = [string]$(if ($result -and $result.PSObject.Properties['Account']) { $result.Account })
+    $wrongTenant = $tenant -and $tenant -ne [string]$session['tenantId']
+    $wrongAccount = $account -match '@' -and $account -ne [string]$session['account']
+    if ($wrongTenant -or $wrongAccount) {
+        try { $null = Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue } catch { Write-Verbose 'The mismatched Teams session did not close cleanly.' }
+        throw "The Teams sign-in was $(if ($wrongAccount) { $account } else { "to tenant $tenant" }), not the run's ($([string]$session['account']) in $([string]$session['tenantId'])). It was closed and nothing was read with it."
+    }
+    $script:PostureTeamsOwnSession = $true
+}
+
 function Update-PostureServiceSession {
     <#
     .SYNOPSIS
@@ -89,6 +127,8 @@ function Update-PostureServiceSession {
     $ErrorActionPreference = 'Stop'
     $session = $script:PostureSession
     if (-not $session -or -not $script:PostureConnected.ContainsKey($Name)) { return }
+    # A Teams session the module opened by itself renews by itself; connecting again with tokens would replace it.
+    if ($Name -eq 'teams' -and $script:PostureTeamsOwnSession) { return }
     if (-not ($session['refreshToken'] -or ($session.ContainsKey('tokenPipe') -and $session['tokenPipe']))) { return }
     $resources = $(if ($Name -eq 'teams') { @('graph', 'teams') } else { @($Name) })
     $soon = [datetime]::UtcNow.AddMinutes(10)

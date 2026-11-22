@@ -27,6 +27,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Executive Mode is a short view (2026-11-22): the Overview, Recommendations and the domain scorecards, without the
+  technical detail. It used to hide two tabs and some columns, and read like the full report. A link to a view it
+  does not have lands on the Overview. `-Template Executive` opens the page that way; the button switches.
+- `Start-PostureRun -TeamsAppSignIn` (2026-11-22) reads the two Teams app settings the one sign-in cannot: the
+  org-wide app settings and each app's availability, which CL-014 goes by. The Teams module reads them with a token
+  no permission of the TenantKeep Posture app provides, so with the switch it signs in by itself, with a device
+  code, when the run reaches Teams. The session must be the run's tenant and account. Without the switch the two
+  steps say "Not readable with this sign-in" and name the switch. Not yet run against a live tenant.
 - A logo on the report and an icon on its browser tab (2026-11-22). The TenantKeep mark by default. In a licensed
   tier the organisation's own logo and icon take its place, read from its Entra company branding when the branding
   has them (`01-company-branding-logos`; pictures only, by their first bytes, and never above half a megabyte). A

@@ -86,6 +86,16 @@ Describe 'The page a reader opens' {
         $script:Page | Should -Match 'beforeprint' -Because 'a printed report has every section open'
     }
 
+    It 'keeps three views in Executive Mode and sends a link to any other to the Overview' {
+        # It used to hide two tabs and the technical detail, and looked the same as the full report.
+        $script:Css | Should -Match 'body\.executive nav\.views a:not\(\[href="#overview"\]\):not\(\[href="#recommendations"\]\):not\(\[href="#domains"\]\) \{ display: none !important; \}'
+        $script:Css | Should -Match 'body\.executive section\.view:not\(#overview\):not\(#recommendations\):not\(#domains\) \{ display: none !important; \}'
+        $script:Css | Should -Match 'body\.executive #domains > h3, body\.executive #domains > table, body\.executive #domains \.area-head, body\.executive #domains details\.area \{ display: none !important; \}' -Because 'the scorecards stay; the charts and the tables of checks are detail'
+        $script:Page | Should -Match "var execViews = \['overview', 'recommendations', 'domains'\];"
+        $script:Page | Should -Match "classList\.contains\('executive'\) && execViews\.indexOf\(view\.id\) < 0\) \{ show\('overview'\); return; \}"
+        foreach ($view in 'overview', 'recommendations', 'domains') { $script:Page | Should -Match "<section class=`"view[^`"]*`" id=`"$view`"" }
+    }
+
     It 'folds each ATT&CK tactic into a section with its standing, and opens one from the bars above it' {
         # A column for each tactic left the short tactics standing beside the long ones with holes under them.
         $attack = [regex]::Match($script:Page, '<section class="view" id="attack">(.*?)</section>', 'Singleline').Groups[1].Value

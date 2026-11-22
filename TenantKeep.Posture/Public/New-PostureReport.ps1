@@ -19,7 +19,8 @@ function New-PostureReport {
     .PARAMETER Client
         Client folder with brand.json, profile.json and exceptions.json.
     .PARAMETER Template
-        Executive (cover, summary, scorecards, recommendations) or Full. Default Full.
+        Executive opens the page in Executive Mode: the Overview, Recommendations and the domain scorecards, without
+        the technical detail. The button on the page switches either way. Full is the default.
     .PARAMETER Format
         One or more of Html, Markdown, Pdf. Default: Html and Markdown. Pdf always writes the HTML too.
     .PARAMETER LicensePath

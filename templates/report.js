@@ -59,10 +59,13 @@
     links.forEach(function (a) { if (a.getAttribute('href') === '#' + id) { a.setAttribute('aria-current', 'page'); } else { a.removeAttribute('aria-current'); } });
     window.scrollTo(0, 0);
   }
+  // Executive Mode keeps three views (templates/report.css hides the rest); a link to any other lands on the Overview.
+  var execViews = ['overview', 'recommendations', 'domains'];
   // A view id shows that view; any other element id (a finding card, a tactic) shows the view holding it, then scrolls to it.
   function route() {
     var el = $((location.hash || '#overview').substring(1)), view = el && el.closest ? el.closest('section.view') : null;
     if (!view) { show('overview'); return; }
+    if (document.body.classList.contains('executive') && execViews.indexOf(view.id) < 0) { show('overview'); return; }
     show(view.id);
     // A link to a folded section (a tactic from the bars above it) opens the section it lands on.
     if (el.tagName === 'DETAILS') { el.open = true; }
@@ -72,7 +75,14 @@
   route();
 
   var exec = $('toggle-exec');
-  function setExec(on) { document.body.classList.toggle('executive', on); if (exec) { exec.setAttribute('aria-pressed', on ? 'true' : 'false'); } try { localStorage.setItem('tkp-exec', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ } }
+  function setExec(on) {
+    document.body.classList.toggle('executive', on);
+    if (exec) { exec.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    try { localStorage.setItem('tkp-exec', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+    // Switched on from a view the short one does not have: back to the Overview, not to an empty page.
+    var current = document.querySelector('section.view.active');
+    if (on && current && execViews.indexOf(current.id) < 0) { show('overview'); }
+  }
   if (exec) {
     exec.addEventListener('click', function () { setExec(!document.body.classList.contains('executive')); });
     var saved = null; try { saved = localStorage.getItem('tkp-exec'); } catch (e) { saved = null; }

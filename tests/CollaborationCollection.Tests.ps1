@@ -164,6 +164,63 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         }
     }
 
+    Context 'the Teams app reads with the Teams module''s own sign-in' {
+        # Start-PostureRun -TeamsAppSignIn: the first read that meets the missing token signs the Teams module in by
+        # itself, once, and both reads are made with that session.
+        BeforeAll { $env:TKP_COLLAB_CONNECTED = '1' }
+        AfterEach { InModuleScope TenantKeep.Posture { $script:PostureTeamsAppSignIn = $false; $script:PostureTeamsOwnSession = $false } }
+
+        It 'signs in once and reads both' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureTeamsAppSignIn = $true; $script:PostureTeamsOwnSession = $false
+                Mock Connect-PostureTeamsOwnSession { $script:PostureTeamsOwnSession = $true }
+                Mock Invoke-PostureTeamsCommand -ParameterFilter { $Name -in 'Get-M365UnifiedTenantSettings', 'Get-AllM365TeamsApps' } {
+                    if (-not $script:PostureTeamsOwnSession) { throw "The given key 'https://substrate.office.com' was not present in the dictionary." }
+                    . $env:TKP_COLLAB_FIXTURE; @(Get-CollaborationFixtureObject -Name $Name)
+                }
+            }
+            $folder = Join-Path $script:Root 'teams-own-sign-in'
+            $r = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue 6>$null
+            @($r.Errors | Where-Object { $_ -match '^Teams (org-wide app settings|app availability) :: ' }) | Should -BeNullOrEmpty
+            Join-Path $folder 'teams-app-settings.json' | Should -Exist
+            Join-Path $folder 'teams-app-availability.json' | Should -Exist
+            Should -Invoke -ModuleName TenantKeep.Posture Connect-PostureTeamsOwnSession -Times 1 -Exactly -Scope It
+        }
+
+        It 'says the sign-in was not completed, which a second attempt can fix' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureTeamsAppSignIn = $true; $script:PostureTeamsOwnSession = $false
+                Mock Connect-PostureTeamsOwnSession { throw 'The code expired before anyone entered it.' }
+                Mock Invoke-PostureTeamsCommand -ParameterFilter { $Name -in 'Get-M365UnifiedTenantSettings', 'Get-AllM365TeamsApps' } { throw "The given key 'https://substrate.office.com' was not present in the dictionary." }
+            }
+            $folder = Join-Path $script:Root 'teams-own-sign-in-failed'
+            $r = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue 6>$null
+            $lines = @($r.Errors | Where-Object { $_ -match '^Teams org-wide app settings :: ' })
+            $lines.Count | Should -Be 1
+            $lines[0] | Should -Match 'The Teams sign-in for the app settings was not completed: The code expired before anyone entered it\. Run again with -TeamsAppSignIn'
+            InModuleScope TenantKeep.Posture -Parameters @{ text = ($lines[0] -replace '^[^:]+ :: ', '') } { param($text) Get-PostureFailureCause -Message $text } | Should -Not -Be 'notReadable' -Because 'entering the code next time fixes it'
+        }
+
+        It 'refuses a Teams session of another tenant or another account, and closes it' {
+            InModuleScope TenantKeep.Posture {
+                $script:PostureSession = @{ tenantId = '11111111-1111-1111-1111-111111111111'; account = 'admin@contoso.example'; tokens = @{} }
+                $script:Closed = 0
+                # Stand-ins for the Teams module's two cmdlets, set by name (the module is not installed where the tests run).
+                Set-Item -Path Function:\Disconnect-MicrosoftTeams -Value { $script:Closed++ }
+                Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, [switch] $UseDeviceAuthentication) [pscustomobject]@{ TenantId = $TenantId; Account = 'someone.else@contoso.example' } }
+                try {
+                    { Connect-PostureTeamsOwnSession 6>$null } | Should -Throw '*was someone.else@contoso.example, not the run''s*'
+                    $script:Closed | Should -Be 2 -Because 'the session before it and the mismatched one'
+                    $script:PostureTeamsOwnSession | Should -BeFalse
+                    Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($TenantId, [switch] $UseDeviceAuthentication) [pscustomobject]@{ TenantId = $TenantId; Account = 'admin@contoso.example' } }
+                    Connect-PostureTeamsOwnSession 6>$null
+                    $script:PostureTeamsOwnSession | Should -BeTrue
+                }
+                finally { $script:PostureSession = $null; $script:PostureTeamsOwnSession = $false; Remove-Item Function:\Connect-MicrosoftTeams, Function:\Disconnect-MicrosoftTeams -ErrorAction SilentlyContinue }
+            }
+        }
+    }
+
     Context 'not connected' {
         BeforeAll { $env:TKP_COLLAB_CONNECTED = '0' }
 
