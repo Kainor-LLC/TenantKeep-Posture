@@ -324,7 +324,7 @@ Describe 'The licensing section of a report' {
         # is in Microsoft's own product names.
         $script:CostWords = '(?i)\b(price|prices|priced|pricing|cost|costs|costly|cheap|cheaper|cheapest|expensive|inexpensive|saves?|savings?|budget|discount|discounts|margin|afford|affordable|dollar|dollars|spend|fee|fees)\b|[$\u20AC\u00A3]\s?\d'
         $script:Sentinel = '1001\.01|1051\.02|3301\.07|5501\.13|6007\.77'
-        $script:Section = { param([string] $Html) $i = $Html.IndexOf('<h3>What To Add</h3>'); if ($i -lt 0) { return '' }; $j = $Html.IndexOf('Seats Assigned', $i); if ($j -lt 0) { $j = [math]::Min($Html.Length, $i + 20000) }; ($Html.Substring($i, $j - $i) -replace '<[^>]+>', ' ') }
+        $script:Section = { param([string] $Html) $i = $Html.IndexOf('<section class="view" id="licensing">'); if ($i -lt 0) { return '' }; $j = $Html.IndexOf('Seats Assigned', $i); if ($j -lt 0) { $j = [math]::Min($Html.Length, $i + 20000) }; ($Html.Substring($i, $j - $i) -replace '<[^>]+>', ' ') }
         $env:TENANTKEEP_PRICE_FILE = $null
     }
     AfterAll { if (Test-Path $script:LicRoot) { Remove-Item -LiteralPath $script:LicRoot -Recurse -Force } }

@@ -175,10 +175,13 @@ var tkLicenseAdvice = (function () {
         if (small.features.every(function (x) { return big.features.indexOf(x) >= 0; })) { heldOverlap.push({ licence: small.name, includedIn: big.name }); found = true; }
       });
     });
+    // Each gap once, in the order met: two goals that lack the same feature are one thing to buy.
+    var missingSeen = {}, missingOnce = [];
+    groups.forEach(function (grp) { var k = grp.join('|'); if (!missingSeen[k]) { missingSeen[k] = true; missingOnce.push(grp.map(function (x) { return feat[x].name; })); } });
     return {
       goals: chosen.map(function (g) { return g.id; }),
       met: groups.length === 0,
-      missing: groups.map(function (grp) { return grp.map(function (x) { return feat[x].name; }); }),
+      missing: missingOnce,
       recommended: recommended,
       heldOverlap: heldOverlap,
       prerequisite: prerequisite

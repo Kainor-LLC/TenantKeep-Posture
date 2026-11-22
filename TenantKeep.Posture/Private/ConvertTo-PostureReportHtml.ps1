@@ -591,7 +591,7 @@ function ConvertTo-PostureReportHtml {
     # Licensing: what the tenant holds and uses, what each goal needs, and what to add. No prices anywhere.
     if ($r.licensing) {
         $la = $(if ($r.Contains('licenseAdvice')) { $r.licenseAdvice } else { $null })
-        & $w '<section class="view" id="licensing"><h2>Licensing</h2><p class="lede">What the tenant holds, what is switched on, what each security goal needs, and the smallest change that covers the goals. No prices: take the answer to your Microsoft partner.</p>'
+        & $w '<section class="view" id="licensing"><h2>Licensing</h2><p class="lede">What the tenant holds, what is switched on, what each security goal needs, and the combination of licences that covers the goals. Take the answer to your Microsoft partner.</p>'
         if ($la) {
             $ad = $la.advice
             $goalNames = @{}; foreach ($g in $la.goals) { $goalNames[[string]$g.id] = $g.name }

@@ -285,6 +285,10 @@ function Get-PostureLicenseAdvice {
         }
     }
 
+    $missingOnce = [System.Collections.Generic.List[object]]::new()
+    $missingSeen = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($grp in $groups) { if ($missingSeen.Add((@($grp) -join '|'))) { $missingOnce.Add(@($grp | ForEach-Object { & $nameOf $_ })) } }
+
     if ($null -ne $Record) {
         $Record['mode'] = $(if ($groups.Count -eq 0) { 'none' } elseif ($usePrice) { 'priced' } else { 'function' })
         $Record['why'] = $(if ($groups.Count -eq 0) { 'the goals are covered; nothing to choose' } elseif ($usePrice) { 'every licence in the comparison has a price' } elseif ($null -eq $Price -or $Price.get_Count() -eq 0) { 'no price file' } else { "$($withoutPrice.Count) licence(s) in the comparison have no price" })
@@ -299,7 +303,8 @@ function Get-PostureLicenseAdvice {
             goals        = @($chosen | ForEach-Object { $_.id })
             goalSource   = $(if ($Goal.Count) { 'profile' } else { 'core' })
             met          = ($groups.Count -eq 0)
-            missing      = @($groups | ForEach-Object { , @($_ | ForEach-Object { & $nameOf $_ }) })
+            # Each gap once, in the order met: two goals that lack the same feature are one thing to buy.
+            missing      = $missingOnce.ToArray()
             # One combination, or nothing when the goals are covered or no licence in the data covers them.
             recommended  = $recommended
             heldOverlap  = $heldOverlap.ToArray()
