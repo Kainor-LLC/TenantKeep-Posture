@@ -188,6 +188,15 @@ Describe 'Outgoing commits (pre-push)' {
         # next, and one that names it in the message. All three would be published by a push.
         $script:Repo = Join-Path $TestDrive 'repo'
         New-Item -ItemType Directory -Path $script:Repo | Out-Null
+        # Git's own variables decide which repository a git command acts on, and a git hook sets them: run under the
+        # pre-push hook from a linked worktree, this block once committed its fixtures to the real repository. So the
+        # variables are cleared here, whoever runs the tests, and a decoy stands in to prove it: GIT_DIR is pointed
+        # at an empty repository first, and a test below fails if anything reached it.
+        $script:Decoy = Join-Path $TestDrive 'decoy.git'
+        & git init --quiet --bare $script:Decoy 2>&1 | Out-Null
+        $script:GitEnvBefore = @{}
+        $env:GIT_DIR = $script:Decoy
+        foreach ($name in @(& git rev-parse --local-env-vars)) { if ($name -and (Test-Path "Env:$name")) { $script:GitEnvBefore[$name] = (Get-Item "Env:$name").Value; Remove-Item "Env:$name" } }
         $git = { param([string[]] $GitArgs) & git -C $script:Repo -c user.name=test -c user.email=test@contoso.example -c core.hooksPath=/dev/null -c commit.gpgsign=false @GitArgs 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { throw "git $($GitArgs -join ' ') failed" } }
         & $git @('init', '--quiet')
         Set-Content -LiteralPath (Join-Path $script:Repo 'a.txt') -Value 'clean'
@@ -200,6 +209,24 @@ Describe 'Outgoing commits (pre-push)' {
         Set-Content -LiteralPath (Join-Path $script:Repo 'b.txt') -Value 'more'
         & $git @('add', '.'); & $git @('commit', '--quiet', '-m', 'Fourth, for Woodgrove Bank')
         $script:Deny = [regex]::new('woodgrove[\s._-]*bank', 'IgnoreCase')
+    }
+
+    It 'keeps its fixture commits in its own throwaway repository, whatever git environment the tests were started in' {
+        Join-Path $script:Repo '.git' | Should -Exist
+        @(& git --git-dir $script:Decoy for-each-ref) | Should -BeNullOrEmpty -Because 'a commit there would have gone to the real repository under a git hook'
+        (& git -C $script:Repo rev-list --count HEAD).Trim() | Should -Be '4'
+        $script:GitEnvBefore.ContainsKey('GIT_DIR') | Should -BeTrue -Because 'the block cleared the variable it had set'
+        $env:GIT_DIR | Should -BeNullOrEmpty
+    }
+
+    It 'clears git''s own variables in the pre-push hook before the tests run, and in the build''s test task' {
+        $hook = Get-Content -Raw (Join-Path $PSScriptRoot '..' '.githooks' 'pre-push')
+        $clear = $hook.IndexOf('unset $(git rev-parse --local-env-vars)')
+        $clear | Should -BeGreaterThan 0
+        $clear | Should -BeLessThan $hook.IndexOf('./build.ps1 -Task Analyze, Test')
+        $clear | Should -BeGreaterThan $hook.IndexOf('Test-StagedSecrets.ps1" -Outgoing') -Because 'the scan of the outgoing commits is this repository''s own git and needs them'
+        $build = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'build.ps1')
+        $build | Should -Match "(?s)function Invoke-Test \{\s+Write-Task 'Test'\s+Clear-GitHookEnvironment"
     }
 
     It 'finds the text in a commit even though a later commit removed it, and in a message' {

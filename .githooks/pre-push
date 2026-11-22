@@ -19,6 +19,11 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 done
 echo "pre-push: analyzer and tests (set TENANTKEEP_SKIP_PREPUSH=1 to bypass once)"
 if [ "${TENANTKEEP_SKIP_PREPUSH:-}" = "1" ]; then echo "pre-push: analyzer and tests skipped by request"; exit 0; fi
+# Git runs a hook with its own variables set, and from a linked worktree GIT_DIR is the absolute path of this
+# repository. The tests make throwaway repositories of their own; with that variable in place every git command
+# they run acts on this repository instead (seen 2026-11-22: a test's fixture commits reached main). Clear them all
+# before anything that is not this hook's own git runs.
+unset $(git rev-parse --local-env-vars)
 # -Command, not -File: an array parameter only parses from the PowerShell command line.
 pwsh -NoProfile -Command './build.ps1 -Task Analyze, Test -SkipInstall' >/tmp/tenantkeep-prepush.log 2>&1 || {
   grep -E "PSScriptAnalyzer reported|\[-\]|Tests Passed|Failed:" /tmp/tenantkeep-prepush.log | sed 's/\x1b\[[0-9;]*m//g' | head -20

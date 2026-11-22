@@ -527,8 +527,17 @@ function Invoke-Analyze {
     Write-Host 'PSScriptAnalyzer: clean'
 }
 
+function Clear-GitHookEnvironment {
+    # Under a git hook, git's own variables are set, and from a linked worktree GIT_DIR is this repository's
+    # absolute path: a test that makes a throwaway repository would then commit to this one. Tests run without them.
+    $names = @(& git rev-parse --local-env-vars 2>$null)
+    if (-not $names.Count) { $names = @('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_PREFIX', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES') }
+    foreach ($name in $names) { if ($name -and (Test-Path "Env:$name")) { Remove-Item "Env:$name" } }
+}
+
 function Invoke-Test {
     Write-Task 'Test'
+    Clear-GitHookEnvironment
     Install-BuildDependency -Name Pester -MinimumVersion 5.5.0
     Import-Module Pester
     New-Item -ItemType Directory -Path $OutRoot -Force | Out-Null
