@@ -4,7 +4,23 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
-## Unreleased
+## 0.4.0-alpha (2026-11-21)
+
+The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
+
+- The catalog went from 204 checks in 13 domains to 282 in 15 (catalog 2026.11.2). User experience and network
+  access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
+- The report draws what it used to list: outcomes, charts, sign-in flows, licensing options, an inventory, and a
+  card for each failed check that says what was found and what users will notice when it is fixed.
+- A check is judged only on evidence it has. What could not be read has no answer; it never passes and never fails.
+- Collection and the report hold no long list in memory. Measured on a made-up tenant of 300,000 users.
+- A run that stops carries on: after a failed step, after a sign-in that ended, and in Azure Automation after the
+  three-hour limit.
+- Evidence collected elsewhere has one way in. The two Windows collectors ship with the module, and "To complete
+  this assessment" in the report says who has to run what and where to bring it.
+- The consent changed. Two permissions are gone, five read-only ones are new, and the scheduled run no longer holds
+  full control of SharePoint unless asked. An admin consents again once; until then each new read says which
+  permission it lacks.
 
 - Five new read permissions on the consent, and what they read (2026-11-21, catalog 2026.11.2). All are read-only
   delegated scopes on Microsoft Graph, added together so a tenant consents again once. A tenant on the earlier
