@@ -685,7 +685,7 @@
       "scopes": [
         "BackupRestore-Configuration.Read.All"
       ],
-      "note": "Graph read of Microsoft 365 Backup protection policies. The service status needs BackupRestore-Control.Read.All, which Microsoft documents for backup controller applications and the module does not ask for: it is read when Graph allows and unknown otherwise (verify the least role)."
+      "note": "Graph read of Microsoft 365 Backup protection policies. The service status needs BackupRestore-Control.Read.All, which Microsoft documents for backup controller applications and the module does not ask for: it is read when Graph allows and unknown otherwise. Seen on a live run 2026-11-21: a Global Administrator with the permission consented was refused the policies as well, in a tenant without Microsoft 365 Backup; the step then reports Not readable with this sign-in (verify whether a tenant with the service on answers)."
     },
     {
       "collector": "Entra",

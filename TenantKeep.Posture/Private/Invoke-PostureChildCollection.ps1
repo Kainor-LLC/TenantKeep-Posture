@@ -8,8 +8,8 @@ function Start-PostureChildCollection {
         Start-PostureRun gives Exchange and Purview their own process. The child gets access tokens only (never the
         refresh token), as one JSON document on standard input: not an argument, not an environment variable, not a
         file. It shares the parent's console, so a Purview device code or sign-in prompt reaches the admin, and is
-        otherwise quiet: its progress goes to a file the parent draws. The exit code says whether every named
-        collector ran.
+        otherwise quiet: its progress goes to a file the parent draws, and the files it writes are counted by the
+        parent when it ends, not listed as they arrive. The exit code says whether every named collector ran.
     .PARAMETER Request
         tokens (graph), account, tenantId, tenantName, folder, profilePath, collectors, purviewSignIn
         (browser or device), progressFile and estimates (optional).
@@ -118,7 +118,9 @@ function Invoke-PostureChildCollection {
             try {
                 Set-PostureProgressPhase -Name $collector -Label $(if ($collector -eq 'Purview') { 'waiting for the Purview sign-in' } else { 'connecting' }) -Confirm:$false
                 Connect-PostureService -Name $collector.ToLowerInvariant()
-                Invoke-PostureCollection -Collector $collector -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null
+                # 6>$null: the list of files as they are written would land on the console the main process is
+                # drawing its progress on, and overwrite it. The sign-in above is not silenced; this is.
+                Invoke-PostureCollection -Collector $collector -SkipCaSnapshot -OutputFolder $folder @profileParam 6>$null | Out-Null
             }
             catch {
                 $failed++

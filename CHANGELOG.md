@@ -29,11 +29,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - Four fixes from the first run of this version against a live tenant (2026-11-21):
   - Azure Lighthouse delegations (AZ-030) were asked of a Resource Graph table that does not exist, and Azure
     answered Bad Request. The table is `managedservicesresources`.
-  - Microsoft 365 Backup (OP-008) lost its whole read to one refusal. The service's status is behind a permission
-    the module does not ask for (`BackupRestore-Control.Read.All`, which Microsoft documents for backup controller
-    applications). The protection policies are now read with the permission the module holds; when the status is
-    refused it is recorded as not read, a workload without an active policy still fails the check, and three active
-    policies with an unknown status have no answer.
+  - Microsoft 365 Backup (OP-008) told a Global Administrator to grant a role they held and collect again. Microsoft
+    refuses the read to this sign-in even with the permission consented, in a tenant without the service at least;
+    it documents these reads for backup controller applications. With the permission on the sign-in the step now
+    says "Not readable with this sign-in", with nothing to grant, and OP-008 says the same. Where the policies can
+    be read and only the service's status is refused (it is behind `BackupRestore-Control.Read.All`, which the
+    module does not ask for), the status is recorded as not read: a workload without an active policy still fails
+    the check, and three active policies with an unknown status have no answer.
   - The two Teams reads for app centric management cannot be made with the one sign-in: the Teams module wants a
     token the sign-in does not carry. Run Health now says "Not readable with this sign-in" with nothing to grant,
     and CL-014 has no answer from such a run. It used to fall back to the old app permission policy, which a tenant
@@ -42,6 +44,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     `Resume-PostureRun`. It was a path and nothing else, so a bare name started a second client folder in whatever
     directory the admin was in, without the licence of the real one. A folder that exists where you are, and
     anything written as a path, is still that folder.
+- The second process no longer writes over the progress display (2026-11-21). Exchange and Purview collect in a
+  process of their own, and it listed its files on the console the main process was drawing its progress on: lines
+  ran into each other and the bar looked stuck. It is quiet now, and the main process says how many files it wrote
+  when it ends.
+- The per-user MFA count moves with every batch. It was redrawn every 500 accounts, so a sample of 1,000 stood at
+  "20 of 1,004" for most of the step.
+- The closing lines of a run offer `Resume-PostureRun` only when collecting again can change something. With
+  nothing but missing licences and reads Microsoft does not give the sign-in, they say so.
 - Five new read permissions on the consent, and what they read (2026-11-21, catalog 2026.11.2). All are read-only
   delegated scopes on Microsoft Graph, added together so a tenant consents again once. A tenant on the earlier
   consent keeps working: the five reads fail with the permission named, and the report's "To complete this

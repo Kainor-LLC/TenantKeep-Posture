@@ -279,6 +279,9 @@ function Start-PostureRun {
             Set-PostureProgressPhase -Name 'Second' -Label 'waiting for the second process' -Confirm:$false
             $exit = Wait-PostureChildCollection -Process $childProcess
             if ($exit -ne 0) { $skipped['Exchange or Purview'] = "The second process reported $exit failed collector(s); see errors.txt in the run folder." }
+            # The second process lists nothing as it goes (it would write over this process's progress display).
+            $secondFiles = @(Get-ChildItem -LiteralPath $folder -File -Filter '*.json' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^(exo|pv)-' }).Count
+            Write-Host "$($child -join ' and ') (second process): $secondFiles file(s) written."
         }
 
         # 5. The Active Directory read the client folder holds (hybrid/, from the Windows collector), through the same
@@ -353,9 +356,14 @@ function Start-PostureRun {
             Write-Host "  $($steps -join '; ')" -ForegroundColor Yellow
             foreach ($advice in @($group.Group | ForEach-Object { Get-PostureFailureAdvice -Failure $_ } | Select-Object -Unique)) { Write-Host "    $advice" }
         }
-        $defaultClients = Join-Path $HOME 'tenantkeep' 'clients'
-        $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($runLayout.root -replace "'", "''")'" })
-        Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
+        # Only when collecting again can change something: a licence the tenant does not have, or a read Microsoft
+        # does not give this sign-in, says the same the second time.
+        if (@($failures | Where-Object { [string]$_['cause'] -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) {
+            $defaultClients = Join-Path $HOME 'tenantkeep' 'clients'
+            $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($runLayout.root -replace "'", "''")'" })
+            Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
+        }
+        else { Write-Host '  None of these is fixed by collecting again.' }
     }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }
     # What the assessment still lacks, the same rows the report's overview shows.

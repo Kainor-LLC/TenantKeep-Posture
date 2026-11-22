@@ -301,7 +301,16 @@ function Invoke-PostureAzureCollection {
         # status unknown (ServiceStatusRead false) and the step done. The check is then decided by the policies when
         # they already fail it, and has no answer otherwise.
         $active = { param([string] $kind) @(Invoke-PostureGraphRequest -Uri "solutions/backupRestore/$kind" -ApiVersion 'v1.0' | Where-Object { [string](& $v $_ 'status') -eq 'active' }).Count }
-        $row = [ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') }
+        $context = Get-MgContext
+        $carries = [bool]($context -and 'BackupRestore-Configuration.Read.All' -in @($context.Scopes))
+        try { $row = [ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') } }
+        catch {
+            # Seen on a live run: a Global Administrator with the permission consented is refused the policies too.
+            # With the permission on the sign-in there is nothing an admin can grant, so the step says that and does
+            # not send anyone to grant a role. Without the permission the refusal is the ordinary one.
+            if ($carries -and (Get-PostureHttpStatus -ErrorRecord $_) -eq 403) { throw 'Not readable with this sign-in: Microsoft 365 Backup refused the read of its protection policies although the sign-in carries BackupRestore-Configuration.Read.All. Microsoft documents these reads for registered backup controller applications, and a tenant that never turned the service on may answer the same way (verify).' }
+            throw
+        }
         try {
             $svc = Invoke-PostureGraphRequest -Uri 'solutions/backupRestore' -ApiVersion 'v1.0' -Single
             $row.ServiceStatus = (& $v $svc 'serviceStatus.status'); $row.ServiceStatusRead = $true

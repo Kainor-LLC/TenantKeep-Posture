@@ -250,12 +250,15 @@ Describe 'The child process hand-off' {
         InModuleScope TenantKeep.Posture -Parameters @{ root = $script:Root } {
             $script:ChildCalls = [System.Collections.Generic.List[string]]::new()
             Mock Connect-PostureService { $script:ChildCalls.Add("connect:$Name"); if ($Name -eq 'purview') { throw 'no purview for you' } }
-            Mock Invoke-PostureCollection { $script:ChildCalls.Add("collect:$($Collector -join '+'):$(Split-Path $OutputFolder -Leaf)") }
+            # The collection lists each file as it writes it. In the second process that list must not reach the console.
+            Mock Invoke-PostureCollection { $script:ChildCalls.Add("collect:$($Collector -join '+'):$(Split-Path $OutputFolder -Leaf)"); Write-Information 'exo-01-orgconfig.json                            1' -InformationAction Continue }
             $exp = [datetime]::UtcNow.AddMinutes(50).ToString('o')
             $json = @{ clientId = 'c'; tenantId = 't'; tenantName = 'contoso'; account = 'a@b'; folder = (Join-Path $root 'run1'); profilePath = ''; collectors = @('Exchange', 'Purview'); purviewSignIn = 'device'; tokens = @{ graph = @{ accessToken = 'g'; expiresUtc = $exp }; exchange = @{ accessToken = 'e'; expiresUtc = $exp } } } | ConvertTo-Json -Depth 10
             New-Item -ItemType Directory -Path (Join-Path $root 'run1') -Force | Out-Null
-            $failed = Invoke-PostureChildCollection -InputJson $json 6>$null
+            $all = @(Invoke-PostureChildCollection -InputJson $json 6>&1)
+            $failed = @($all | Where-Object { $_ -is [int] })[0]
             $failed | Should -Be 1
+            @($all | Where-Object { $_ -is [System.Management.Automation.InformationRecord] -and "$_" -match '\.json\s+\d' }) | Should -BeNullOrEmpty -Because 'the main process draws its progress on the same console, and a line written from here lands on top of it'
             @($script:ChildCalls) | Should -Be @('connect:graph', 'connect:purview', 'connect:exchange', 'collect:Exchange:run1') -Because 'Purview signs in first, while the admin is still at the screen'
             Get-Content -Raw (Join-Path $root 'run1' 'errors.txt') | Should -Match 'Purview collector :: no purview for you'
             $script:PostureSession['refreshToken'] | Should -Be ''

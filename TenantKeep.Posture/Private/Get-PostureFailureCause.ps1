@@ -171,7 +171,7 @@ function Get-PostureFailureAdvice {
         }
         'licence' { return $(if ($licence) { "Needs $licence. Without it the checks that read this stay not applicable; nothing to grant." } else { 'The tenant is not licensed for this; nothing to grant.' }) }
         'notProvisioned' { return 'Not set up in this tenant, so there was nothing to read. Nothing to grant.' }
-        'notReadable' { return 'The service''s own module reads this with a token this sign-in does not carry. Nothing to grant, and collecting again says the same; the check that needs it has no answer from this run.' }
+        'notReadable' { return 'Microsoft does not give this read to the sign-in the run uses; the message says why. Nothing to grant, and collecting again says the same. The check that needs it has no answer from this run.' }
         'throttled' { return 'Microsoft asked the run to slow down. Resume-PostureRun tries again.' }
         'network' { return 'A network or service error. Resume-PostureRun tries again.' }
         'token' { return 'The sign-in ran out before this step. Resume-PostureRun signs in again and collects it.' }

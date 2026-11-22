@@ -60,7 +60,11 @@ function Get-PostureOperationsFact {
 
     # Microsoft 365 Backup (OP-008), read by the Azure collector: on, and protecting all three workloads.
     $mb = & $load 'az-11-m365-backup'
-    if ($null -eq $mb) { $notEvaluated['OP-008'] = 'az-11-m365-backup.json was not collected (the Azure collector reads it; set the profile''s azure answer and grant BackupRestore-Configuration.Read.All).' }
+    if ($null -eq $mb) {
+        # A run that tried and was refused with the permission in hand has nothing to grant; say that, not "grant".
+        $backupRefused = @(Read-PostureRunFailure -Folder $Evidence | Where-Object { $_ -and [string]$_['step'] -eq 'Microsoft 365 Backup' -and [string]$_['cause'] -eq 'notReadable' }).Count -gt 0
+        $notEvaluated['OP-008'] = $(if ($backupRefused) { 'Microsoft 365 Backup could not be read with this sign-in (Run Health says why). A backup product named in the profile covers this check.' } else { 'az-11-m365-backup.json was not collected (the Azure collector reads it; set the profile''s azure answer and grant BackupRestore-Configuration.Read.All).' })
+    }
     else {
         # The service's status is behind a permission the module does not ask for. When it was not read it is unknown:
         # the policies alone fail the check when a workload has none, and the check has no answer when all three have.

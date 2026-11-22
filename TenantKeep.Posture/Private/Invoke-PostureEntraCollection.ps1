@@ -525,7 +525,9 @@ function Invoke-PostureEntraCollection {
                             if ($delay -gt 0) { Start-Sleep -Seconds $delay }
                         }
                     }
-                    if ($script:PostureProgress -and ($i / 20) % 25 -eq 0) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $tally.rows) of $('{0:N0}' -f $members.Count) accounts"; Write-PostureProgress }
+                    # After every batch: the display draws at most four times a second by itself. Every 500 accounts, as it
+                    # was, left a sample of 1,000 standing at "20 of 1,004" for most of the step.
+                    if ($script:PostureProgress) { $script:PostureProgress.label = "Per-user MFA state: $('{0:N0}' -f $tally.rows) of $('{0:N0}' -f $members.Count) accounts"; Write-PostureProgress }
                 }
             }
             # Per-user MFA is legacy and Microsoft is retiring it, so most tenants have none. Up to 5,000 members, or with

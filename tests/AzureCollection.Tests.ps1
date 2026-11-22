@@ -166,6 +166,40 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
         }
     }
 
+    Context 'Microsoft 365 Backup when Graph refuses the policies as well' {
+        # Seen on a live run: a Global Administrator with the permission consented, in a tenant without Microsoft 365
+        # Backup, is refused. Run Health told the admin to grant a role they held and to collect again.
+        BeforeAll {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -ParameterFilter { $Uri -like 'solutions/backupRestore/*' } { throw "Response status code does not indicate success: Forbidden (Forbidden). [GET https://graph.microsoft.com/v1.0/$Uri]" }
+        }
+
+        It 'says there is nothing to grant when the sign-in carries the permission, and OP-008 says the same' {
+            Mock -ModuleName TenantKeep.Posture Get-MgContext { [pscustomobject]@{ TenantId = 'tenant-guid'; Account = 'reader@contoso.example'; AuthType = 'Delegated'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'BackupRestore-Configuration.Read.All') } }
+            $folder = Join-Path $script:Root 'backup-refused-with-permission'
+            $r = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            $line = @($r.Errors | Where-Object { $_ -like 'Microsoft 365 Backup :: *' })
+            $line.Count | Should -Be 1
+            $line[0] | Should -Match ' :: Not readable with this sign-in: Microsoft 365 Backup refused the read of its protection policies although the sign-in carries BackupRestore-Configuration\.Read\.All'
+            Join-Path $folder 'az-11-m365-backup.json' | Should -Not -Exist
+            InModuleScope TenantKeep.Posture -Parameters @{ folder = $folder } {
+                param($folder)
+                $failure = @(Read-PostureRunFailure -Folder $folder | Where-Object { [string]$_['step'] -eq 'Microsoft 365 Backup' })[0]
+                $failure['cause'] | Should -Be 'notReadable'
+                Get-PostureFailureAdvice -Failure $failure | Should -Match 'Nothing to grant'
+                Clear-PostureEvidenceCache
+                (Get-PostureOperationsFact -Evidence $folder).notEvaluated['OP-008'] | Should -Match 'could not be read with this sign-in'
+            }
+        }
+
+        It 'is an ordinary refusal when the sign-in does not carry the permission' {
+            $r = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder (Join-Path $script:Root 'backup-refused-without-permission') -PassThru -WarningAction SilentlyContinue
+            $line = @($r.Errors | Where-Object { $_ -like 'Microsoft 365 Backup :: *' })
+            $line.Count | Should -Be 1
+            $line[0] | Should -Not -Match 'Not readable with this sign-in'
+            $line[0] | Should -Match 'Forbidden'
+        }
+    }
+
     Context 'every subscription read in detail' {
         It 'marks each enabled subscription as read once the per-subscription reads are done' {
             $subs = @(& $script:Read 'az-01-subscriptions')
