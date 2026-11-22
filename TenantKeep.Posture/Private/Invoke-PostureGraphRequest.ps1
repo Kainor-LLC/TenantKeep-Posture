@@ -108,6 +108,9 @@ function Invoke-PostureGraphStream {
     $null = $script:GraphApiVersionsUsed.Add($ApiVersion)
     Add-PostureCallRecord -Service graph -Method GET -Target $url
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-stream-$([guid]::NewGuid().ToString('n'))"
+    # Written to a file, the Graph module draws a progress bar of its own ("WriteRequestProgressActivity") and leaves
+    # it on the screen under the run's. Silenced for this call only.
+    $ProgressPreference = 'SilentlyContinue'
     try {
         Write-Verbose "GET $url"
         try { $null = Invoke-MgGraphRequest -Method GET -Uri $url -OutputFilePath $temp -ErrorAction Stop }

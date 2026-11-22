@@ -32,6 +32,8 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   has them (`01-company-branding-logos`; pictures only, by their first bytes, and never above half a megabyte). A
   logo named in brand.json still wins, and `preparedBy.icon` is new there for the tab. A copy made with `-Redact`
   never carries the organisation's logo, and a report prepared under another name shows no TenantKeep mark.
+- The second process names the step it is on from its first step. The line under the run's progress bar said
+  "starting" for as long as the first step took, which for Purview is the longest one.
 - The ATT&CK view has a section for each tactic, folded until asked for, with its techniques across the page. A
   column for each tactic left the short ones beside the long ones with holes under them. A tactic's bar above
   opens its section, and the tactics sit beside their donut.

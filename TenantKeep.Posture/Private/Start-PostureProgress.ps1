@@ -95,7 +95,9 @@ function Step-PostureProgress {
     if (-not $PSCmdlet.ShouldProcess($Label, 'Show step')) { return }
     $p.phases[$p.current].stepsDone++
     $p.label = $Label
-    Write-PostureProgress
+    # In the second process the state goes to a file, once for each step: the first step of a phase starts within
+    # the quarter second the screen is spared, and its name would otherwise wait for the step after it.
+    Write-PostureProgress -Force:([bool]$p.file)
 }
 
 function Get-PostureProgressState {

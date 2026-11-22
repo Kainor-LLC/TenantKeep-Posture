@@ -46,6 +46,13 @@ Describe 'The image read' {
         }
     }
 
+    It 'draws no progress bar of the Graph module''s own' {
+        # Seen on a live run: three bars named WriteRequestProgressActivity stayed on the screen under the run's.
+        $text = InModuleScope TenantKeep.Posture { (Get-Command Invoke-PostureGraphStream).Definition }
+        $text.IndexOf("`$ProgressPreference = 'SilentlyContinue'") | Should -BeGreaterThan -1
+        $text.IndexOf("`$ProgressPreference = 'SilentlyContinue'") | Should -BeLessThan $text.IndexOf('Invoke-MgGraphRequest') -Because 'it is set before the request is made'
+    }
+
     It 'answers nothing for a picture that is not there, and refuses one that is too large' {
         InModuleScope TenantKeep.Posture {
             Mock Add-PostureCallRecord { }
