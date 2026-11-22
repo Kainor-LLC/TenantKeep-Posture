@@ -196,6 +196,29 @@ Describe 'What a run still lacks' {
         $after.files | Should -Be 1
     }
 
+    It 'offers the command to collect again only when collecting again can change something' {
+        # Seen on a live run: five steps that wait for a licence or for a read Microsoft does not give the sign-in,
+        # under "After granting a role, collect only what failed" and a command that would have said the same again.
+        $run = & $script:NewRun 'no-retry'
+        $errors = Join-Path $run 'errors' 'errors.jsonl'
+        @(
+            @{ collector = 'Teams'; step = 'Teams app availability'; message = 'Not readable with this sign-in: the Teams module reads Get-AllM365TeamsApps with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry.' }
+            @{ collector = 'Entra'; step = 'Lifecycle workflows'; message = 'Forbidden: Entra ID Governance (Entra Suite) is not licensed in this tenant, or LifecycleWorkflows.Read.All was not consented. GV-005 needs that licence.' }
+        ) | ForEach-Object { $_ | ConvertTo-Json -Compress } | Set-Content $errors
+        $r = New-PostureReport -Evidence (Join-Path $run 'evidence') -PassThru 6>$null
+        $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+        $html | Should -Match '2 step\(s\) could not be read\. Each row says why\. None of them is fixed by collecting again'
+        $html | Should -Not -Match 'id="cmd-resume"'
+        $html | Should -Match 'Run Health</a> says why for each; none of them is fixed by collecting again'
+        (Get-Content -Raw (@($r.Files) -like '*.md')[0]) | Should -Match '2 step\(s\) could not be read\. None of them is fixed by collecting again'
+
+        Add-Content $errors (@{ collector = 'Entra'; step = 'Risky users'; message = 'Response status code does not indicate success: Forbidden (Forbidden).' } | ConvertTo-Json -Compress)
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache -Confirm:$false }
+        $again = Get-Content -Raw (@((New-PostureReport -Evidence (Join-Path $run 'evidence') -PassThru 6>$null).Files) -like '*.html')[0]
+        $again | Should -Match 'After granting a role, collect only what failed'
+        $again | Should -Match '<code id="cmd-resume">Resume-PostureRun -Path '
+    }
+
     It 'says nothing in the Conditional Access tier, where the other domains are not waiting for evidence' {
         $run = & $script:NewRun 'free-tier'
         InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }

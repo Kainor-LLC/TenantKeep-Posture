@@ -267,7 +267,8 @@ function ConvertTo-PostureReportMarkdown {
     if ($rh -and @($rh.failures).Count -gt 0) {
         & $line '### Run health'
         & $line
-        & $line "$(@($rh.failures).Count) step(s) could not be read. After granting a role, collect only what failed: ``$($rh.resume)``"
+        if (@($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) { & $line "$(@($rh.failures).Count) step(s) could not be read. After granting a role, collect only what failed: ``$($rh.resume)``" }
+        else { & $line "$(@($rh.failures).Count) step(s) could not be read. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in." }
         & $line
         & $table @('Domain', 'Step', 'Why', 'What to do') @($rh.failures | ForEach-Object { , @($_.collector, $_.step, $_.causeLabel, $_.advice) })
     }

@@ -79,8 +79,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   when it ends.
 - The per-user MFA count moves with every batch. It was redrawn every 500 accounts, so a sample of 1,000 stood at
   "20 of 1,004" for most of the step.
-- The closing lines of a run offer `Resume-PostureRun` only when collecting again can change something. With
-  nothing but missing licences and reads Microsoft does not give the sign-in, they say so.
+- The closing lines of a run, and Run Health in the report, offer `Resume-PostureRun` only when collecting again
+  can change something. With nothing but missing licences and reads Microsoft does not give the sign-in, they say
+  so.
 - Five new read permissions on the consent, and what they read (2026-11-21, catalog 2026.11.2). All are read-only
   delegated scopes on Microsoft Graph, added together so a tenant consents again once. A tenant on the earlier
   consent keeps working: the five reads fail with the permission named, and the report's "To complete this

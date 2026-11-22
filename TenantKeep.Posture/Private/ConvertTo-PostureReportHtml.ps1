@@ -111,7 +111,7 @@ function ConvertTo-PostureReportHtml {
     }
     if ($rh -and @($rh.failures).Count -gt 0) {
         $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
-        & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says what to grant and how to collect just those again.</div>"
+        & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says why for each$(if (@($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) { ', what to grant, and how to collect just those again' } else { '; none of them is fixed by collecting again' }).</div>"
     }
     # What the assessment still lacks, each piece with who can add it and how. The rows are data (the completion
     # block of checks/catalog.json through Get-PostureCompletion); nothing here knows a check or a collector.
@@ -704,11 +704,17 @@ function ConvertTo-PostureReportHtml {
     }
     if (-not $rh -or @($rh.failures).Count -eq 0) { if (-not $interrupted) { & $w '<p class="banner ready"><strong>Every collection step ran.</strong> Nothing to grant and nothing to collect again.</p>' } }
     else {
-        & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why and what to do. After granting a role, collect only what failed, into the same run, then refresh this page:</p>"
-        & $w "<div class=`"cmd`"><code id=`"cmd-resume`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume`">Copy</button></div>"
+        # The command to collect again is offered only when collecting again can change something: a licence the
+        # tenant does not have, or a read Microsoft does not give the sign-in, says the same the second time.
+        $canRetry = @($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count
+        if ($canRetry -gt 0) {
+            & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why and what to do. After granting a role, collect only what failed, into the same run, then refresh this page:</p>"
+            & $w "<div class=`"cmd`"><code id=`"cmd-resume`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume`">Copy</button></div>"
+        }
+        else { & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in.</p>" }
         & $w '<table><thead><tr><th>Domain</th><th>Step</th><th>Why</th><th>What To Do</th></tr></thead><tbody>'
         foreach ($f in $rh.failures) {
-            & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)<details class=`"tech`"><summary>Microsoft's message</summary><code>$(& $h $f.message)</code></details></td></tr>"
+            & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)<details class=`"tech`"><summary>The message</summary><code>$(& $h $f.message)</code></details></td></tr>"
         }
         & $w '</tbody></table>'
         # For support: each failure as text with the tenant's names taken out, one at a time or all together.
