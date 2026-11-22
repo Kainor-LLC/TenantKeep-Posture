@@ -25,6 +25,7 @@ Describe 'Why a step failed' {
         @{ Text = 'The operation has timed out.'; Cause = 'network' }
         @{ Text = 'InvalidAuthenticationToken: Lifetime validation failed, the token is expired.'; Cause = 'token' }
         @{ Text = 'One or more properties are invalid. Parameter name: msLAPS-PasswordExpirationTime'; Cause = 'unknown' }
+        @{ Text = 'Not readable with this sign-in: the Teams module reads Get-AllM365TeamsApps with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry.'; Cause = 'notReadable' }
     ) {
         InModuleScope TenantKeep.Posture -Parameters @{ Text = $Text } { param($Text) Get-PostureFailureCause -Message $Text } | Should -Be $Cause
     }

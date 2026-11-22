@@ -57,6 +57,30 @@ function Find-PostureRunFolder {
     return $null
 }
 
+function Resolve-PostureClientPath {
+    <#
+    .SYNOPSIS
+        The folder -Client means on Start-PostureRun: a folder that exists, a path, or the name of a client under
+        ~/tenantkeep/clients.
+    .DESCRIPTION
+        "-Client contoso" used to be a path and nothing else, so it started a second client folder named contoso in
+        whatever directory the admin was in, without the licence and the exceptions of the real one, while
+        Resume-PostureRun read the same words as the client's name. A bare name that is no folder here is now the
+        client of that name. Anything with a separator, a drive or a leading ~ or dot is a path, as before.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)] [string] $Client,
+        [string] $ClientsRoot = (Join-Path $HOME 'tenantkeep' 'clients')
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $bare = $Client -notmatch '[\\/]' -and -not $Client.StartsWith('.') -and -not $Client.StartsWith('~') -and -not [System.IO.Path]::IsPathRooted($Client)
+    if ($bare -and -not (Test-Path -LiteralPath $Client -PathType Container)) { return (Join-Path $ClientsRoot $Client) }
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Client)
+}
+
 function Get-PostureOutputRoot {
     <#
     .SYNOPSIS

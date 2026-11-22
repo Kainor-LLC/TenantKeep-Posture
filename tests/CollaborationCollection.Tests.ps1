@@ -130,6 +130,40 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         }
     }
 
+    Context 'the Teams app reads under a sign-in with access tokens' {
+        # Seen on a live run: the Teams module wants a token for substrate.office.com, a session opened with access
+        # tokens has none, and the module says so with a missing dictionary key.
+        BeforeAll {
+            $env:TKP_COLLAB_CONNECTED = '1'
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureTeamsCommand -ParameterFilter { $Name -in 'Get-M365UnifiedTenantSettings', 'Get-AllM365TeamsApps' } { throw "The given key 'https://substrate.office.com' was not present in the dictionary." }
+            $script:NoApps = Join-Path $script:Root 'teams-no-app-reads'
+            $script:NoAppsResult = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $script:NoApps -PassThru -WarningAction SilentlyContinue
+        }
+
+        It 'says in words what could not be read, and that there is nothing to grant' {
+            $lines = @($script:NoAppsResult.Errors | Where-Object { $_ -match '^Teams (org-wide app settings|app availability) :: ' })
+            $lines.Count | Should -Be 2
+            $lines | ForEach-Object { $_ | Should -Match ' :: Not readable with this sign-in: the Teams module reads Get-(M365UnifiedTenantSettings|AllM365TeamsApps) with a Microsoft 365 token' }
+            Join-Path $script:NoApps 'teams-app-settings.json' | Should -Not -Exist
+            Join-Path $script:NoApps 'teams-app-permission-policies.json' | Should -Exist -Because 'the other Teams reads are not touched'
+            InModuleScope TenantKeep.Posture -Parameters @{ folder = $script:NoApps } {
+                param($folder)
+                $failure = @(Read-PostureRunFailure -Folder $folder | Where-Object { [string]$_['step'] -eq 'Teams org-wide app settings' })[0]
+                $failure['cause'] | Should -Be 'notReadable'
+                Get-PostureFailureAdvice -Failure $failure | Should -Match 'Nothing to grant'
+            }
+        }
+
+        It 'gives CL-014 no answer instead of judging a moved tenant on the old permission policy' {
+            $profilePath = Join-Path $script:Root 'profile.json'
+            '{ "version": 1, "externalCollaboration": "governed", "licenses": ["BusinessPremium", "P1"] }' | Set-Content -LiteralPath $profilePath
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $r = @((Invoke-PostureChecks -Evidence $script:NoApps -Domain collaboration -ProfilePath $profilePath -PassThru).results | Where-Object id -eq 'CL-014')[0]
+            $r.status | Should -Be 'notEvaluated'
+            $r.reason | Should -Match 'could not be read in this run'
+        }
+    }
+
     Context 'not connected' {
         BeforeAll { $env:TKP_COLLAB_CONNECTED = '0' }
 

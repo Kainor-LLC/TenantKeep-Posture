@@ -72,3 +72,42 @@ Describe 'Run folders' {
         Get-Content -Raw (Join-Path $l.root 'README.txt') | Should -Match 'report\.html\s+Open this'
     }
 }
+
+Describe 'What -Client means on Start-PostureRun' {
+    # "-Client contoso" was a path and nothing else: a live run started a second client folder in the directory the
+    # admin was in, with no licence in it, while Resume-PostureRun read the same words as the client's name.
+    BeforeAll {
+        $script:ClientRoot = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-clientpath-$([guid]::NewGuid().ToString('n'))"
+        $script:Clients = Join-Path $script:ClientRoot 'clients'
+        $script:Here = Join-Path $script:ClientRoot 'somewhere'
+        New-Item -ItemType Directory -Path (Join-Path $script:Clients 'contoso'), (Join-Path $script:Here 'local-folder') -Force | Out-Null
+    }
+    AfterAll { if (Test-Path $script:ClientRoot) { Remove-Item -LiteralPath $script:ClientRoot -Recurse -Force } }
+
+    It 'takes a bare name as the client of that name, whether or not it exists yet' {
+        InModuleScope TenantKeep.Posture -Parameters @{ clients = $script:Clients; here = $script:Here } {
+            param($clients, $here)
+            Push-Location $here
+            try {
+                Resolve-PostureClientPath -Client 'contoso' -ClientsRoot $clients | Should -Be (Join-Path $clients 'contoso')
+                Resolve-PostureClientPath -Client 'fabrikam' -ClientsRoot $clients | Should -Be (Join-Path $clients 'fabrikam') -Because 'a new client starts under the clients folder, not where the admin happens to be'
+                Join-Path $here 'contoso' | Should -Not -Exist
+            }
+            finally { Pop-Location }
+        }
+    }
+
+    It 'takes a folder that exists where you are, and anything written as a path, as that folder' {
+        InModuleScope TenantKeep.Posture -Parameters @{ clients = $script:Clients; here = $script:Here } {
+            param($clients, $here)
+            Push-Location $here
+            try {
+                Resolve-PostureClientPath -Client 'local-folder' -ClientsRoot $clients | Should -Be (Join-Path $here 'local-folder')
+                Resolve-PostureClientPath -Client (Join-Path '.' 'new-here') -ClientsRoot $clients | Should -Be (Join-Path $here 'new-here')
+                $absolute = Join-Path $here 'elsewhere'
+                Resolve-PostureClientPath -Client $absolute -ClientsRoot $clients | Should -Be $absolute
+            }
+            finally { Pop-Location }
+        }
+    }
+}

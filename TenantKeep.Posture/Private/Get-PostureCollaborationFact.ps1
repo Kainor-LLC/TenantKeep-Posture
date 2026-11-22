@@ -180,6 +180,11 @@ function Get-PostureCollaborationFact {
     # permission policies (verify: Microsoft's cmdlet page lists DefaultApp, GlobalApp and PrivateApp without saying which
     # is which). A tenant not moved yet, or evidence from before this read, falls back to the global permission policy.
     $appSettings = & $load 'teams-app-settings'
+    # The fallback is for a tenant not moved yet and for evidence from before this read. A run that tried the read and
+    # could not make it is neither: the old permission policy is not what a moved tenant goes by, so judging on it
+    # would answer for the wrong setting.
+    $appSettingsFailed = $false
+    if ($null -eq $appSettings) { $appSettingsFailed = @(Read-PostureRunFailure -Folder $Evidence | Where-Object { $_ -and [string]$_['step'] -eq 'Teams org-wide app settings' }).Count -gt 0 }
     $thirdParty = @($(if ($null -ne $appSettings) { & $rows $appSettings | Where-Object { [string](& $v $_ 'SettingName') -eq 'GlobalApp' } }) | Select-Object -First 1)
     $apps = & $load 'teams-app-permission-policies'
     if ($thirdParty.Count -and [string](& $v $thirdParty[0] 'SettingValue')) {
@@ -196,6 +201,7 @@ function Get-PostureCollaborationFact {
         }
         $affected.thirdPartyAppsRestricted = @($(if (-not $facts.thirdPartyAppsRestricted) { [ordered]@{ name = 'Org-wide app settings'; detail = "every third-party app is available to everyone unless it is limited one by one$tally" } }))
     }
+    elseif ($appSettingsFailed) { $notEvaluated['CL-014'] = 'The org-wide app settings could not be read in this run (Run Health says why), and the older app permission policy is not what a tenant on app centric management goes by.' }
     elseif ($null -ne $apps) {
         $global = @(& $rows $apps | Where-Object { [string]$_.Identity -match 'Global$' } | Select-Object -First 1)
         $facts.thirdPartyAppsRestricted = [bool]($global.Count -gt 0 -and [string](& $v $global[0] 'GlobalCatalogAppsType') -eq 'AllowedAppList')

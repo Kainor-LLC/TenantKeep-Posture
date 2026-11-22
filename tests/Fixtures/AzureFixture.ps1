@@ -18,6 +18,8 @@ function Get-AzureFixtureQuery {
         "policyinsights/policystates'.*by subscriptionId" { & $o @{ subscriptionId = 'sub-1'; Resources = 40; NonCompliant = 12 }; & $o @{ subscriptionId = 'sub-2'; Resources = 10; NonCompliant = 3 }; break }
         "policyinsights/policystates'.*by assignmentId" { & $o @{ assignmentId = '/providers/microsoft.management/managementgroups/lz/providers/microsoft.authorization/policyassignments/mcsb'; assignment = 'mcsb'; Resources = 11 }; & $o @{ assignmentId = '/subscriptions/sub-2/providers/microsoft.authorization/policyassignments/tags'; assignment = 'tags'; Resources = 4 }; break }
         # Azure Lighthouse: a partner with Contributor on a subscription, one that only reads a resource group, and an assignment whose definition cannot be read.
+        # Asked of any other table, Azure answers Bad Request (a live run met that with the table's name misspelt).
+        "^(?!managedservicesresources \|).*managedservices/registration" { throw "Operation returned an invalid status code 'BadRequest'" }
         "managedservices/registrationassignments'" {
             & $o @{ id = '/subscriptions/sub-1/providers/Microsoft.ManagedServices/registrationAssignments/a1'; subscriptionId = 'sub-1'; resourceGroup = ''; definitionId = '/subscriptions/sub-1/providers/microsoft.managedservices/registrationdefinitions/d1' }
             & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.ManagedServices/registrationAssignments/a2'; subscriptionId = 'sub-1'; resourceGroup = 'rg1'; definitionId = '/subscriptions/sub-1/providers/microsoft.managedservices/registrationdefinitions/d2' }

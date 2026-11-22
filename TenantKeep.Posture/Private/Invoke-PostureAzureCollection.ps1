@@ -164,9 +164,10 @@ function Invoke-PostureAzureCollection {
     Invoke-PostureStep -Label 'Azure Lighthouse delegations' -Folder $Folder -Script {
         # Subscriptions and resource groups another tenant manages through Azure Lighthouse: who, under which offer,
         # with which roles. The assignment says where, the definition says who and what; they are read apart and
-        # joined here. A delegation whose definition cannot be read keeps its row, with its roles unknown.
-        $assignments = & $q "managedserviceresources | where type == 'microsoft.managedservices/registrationassignments' | project id, subscriptionId, resourceGroup, definitionId = tolower(tostring(properties.registrationDefinitionId))"
-        $definitions = & $q "managedserviceresources | where type == 'microsoft.managedservices/registrationdefinitions' | project definitionId = tolower(id), offer = tostring(properties.registrationDefinitionName), managedByTenantId = tostring(properties.managedByTenantId), managedByTenantName = tostring(properties.managedByTenantName), authorizations = properties.authorizations, eligible = properties.eligibleAuthorizations"
+        # joined here. A delegation whose definition cannot be read keeps its row, with its roles unknown. The Resource
+        # Graph table is managedservicesresources, "services" in the plural; any other spelling is a bad request.
+        $assignments = & $q "managedservicesresources | where type == 'microsoft.managedservices/registrationassignments' | project id, subscriptionId, resourceGroup, definitionId = tolower(tostring(properties.registrationDefinitionId))"
+        $definitions = & $q "managedservicesresources | where type == 'microsoft.managedservices/registrationdefinitions' | project definitionId = tolower(id), offer = tostring(properties.registrationDefinitionName), managedByTenantId = tostring(properties.managedByTenantId), managedByTenantName = tostring(properties.managedByTenantName), authorizations = properties.authorizations, eligible = properties.eligibleAuthorizations"
         $byDefinition = @{}; foreach ($d in $definitions) { $byDefinition[(& $str $d.definitionId)] = $d }
         $roleIds = { param($list) @(@($list) | Where-Object { $_ } | ForEach-Object { ((& $str (& $v $_ 'roleDefinitionId')) -split '/')[-1].ToLowerInvariant() } | Where-Object { $_ } | Sort-Object -Unique) }
         & $save @($assignments | ForEach-Object {
@@ -293,10 +294,20 @@ function Invoke-PostureAzureCollection {
         & $save $final 'az-01-subscriptions' $true
     } | Out-Null
     Invoke-PostureStep -Label 'Microsoft 365 Backup' -Folder $Folder -Script {
-        # Microsoft 365 Backup through Graph: whether the service is on and which workloads have an active policy.
-        $svc = Invoke-PostureGraphRequest -Uri 'solutions/backupRestore' -ApiVersion 'v1.0' -Single
+        # Microsoft 365 Backup through Graph: which workloads have an active protection policy, and whether the service
+        # is on. The policies are read with BackupRestore-Configuration.Read.All, which the module asks for. The
+        # service's own status is behind another permission, BackupRestore-Control.Read.All, which Microsoft documents
+        # for registered backup controller applications and the module does not ask for: a refusal there leaves the
+        # status unknown (ServiceStatusRead false) and the step done. The check is then decided by the policies when
+        # they already fail it, and has no answer otherwise.
         $active = { param([string] $kind) @(Invoke-PostureGraphRequest -Uri "solutions/backupRestore/$kind" -ApiVersion 'v1.0' | Where-Object { [string](& $v $_ 'status') -eq 'active' }).Count }
-        & $saveOne ([ordered]@{ ServiceStatus = (& $v $svc 'serviceStatus.status'); SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') }) 'az-11-m365-backup'
+        $row = [ordered]@{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = (& $active 'sharePointProtectionPolicies'); OneDrivePolicies = (& $active 'oneDriveForBusinessProtectionPolicies'); ExchangePolicies = (& $active 'exchangeProtectionPolicies') }
+        try {
+            $svc = Invoke-PostureGraphRequest -Uri 'solutions/backupRestore' -ApiVersion 'v1.0' -Single
+            $row.ServiceStatus = (& $v $svc 'serviceStatus.status'); $row.ServiceStatusRead = $true
+        }
+        catch { if ((Get-PostureHttpStatus -ErrorRecord $_) -ne 403) { throw } }
+        & $saveOne $row 'az-11-m365-backup'
     } | Out-Null
 
     $errorsPath = Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.txt'

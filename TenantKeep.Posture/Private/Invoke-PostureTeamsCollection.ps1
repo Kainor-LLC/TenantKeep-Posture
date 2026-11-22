@@ -39,14 +39,25 @@ function Invoke-PostureTeamsCollection {
 
     # App centric management, which Microsoft moved tenants to from April 2025: each app is available to everyone, to
     # named users and groups, or to no one, and an org-wide setting per kind of app decides the default for new ones.
+    # The Teams module reads both with a token for https://substrate.office.com. A session opened with access tokens
+    # (the one sign-in) carries Graph and the Teams admin API only, and the module answers with a dictionary key it
+    # does not have. That is said in words, with nothing to grant; CL-014 then has no answer from the run.
+    $appRead = {
+        param([string] $Cmdlet)
+        try { & $teams $Cmdlet }
+        catch {
+            if ([string]$_.Exception.Message -match 'substrate\.office\.com') { throw "Not readable with this sign-in: the Teams module reads $Cmdlet with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry." }
+            throw
+        }
+    }
     Invoke-PostureStep -Label 'Teams org-wide app settings' -Folder $Folder -Script {
-        $rows = @(& $teams 'Get-M365UnifiedTenantSettings' | Where-Object { $_ } | ForEach-Object {
+        $rows = @(& $appRead 'Get-M365UnifiedTenantSettings' | Where-Object { $_ } | ForEach-Object {
                 [ordered]@{ SettingName = [string](Get-PostureValue $_ 'SettingName'); SettingValue = [string](Get-PostureValue $_ 'SettingValue'); Users = (@(Get-PostureValue $_ 'Users') -join ';'); Groups = (@(Get-PostureValue $_ 'Groups') -join ';') }
             })
         & $save $rows 'teams-app-settings' $false
     } | Out-Null
     Invoke-PostureStep -Label 'Teams app availability' -Folder $Folder -Script {
-        $rows = @(& $teams 'Get-AllM365TeamsApps' | Where-Object { $_ } | ForEach-Object {
+        $rows = @(& $appRead 'Get-AllM365TeamsApps' | Where-Object { $_ } | ForEach-Object {
                 [ordered]@{
                     Id = [string](Get-PostureValue $_ 'Id'); AppName = [string](Get-PostureValue $_ 'AppName'); IsBlocked = [string](Get-PostureValue $_ 'IsBlocked')
                     AvailableTo = [string](Get-PostureValue $_ 'AvailableTo.AssignmentType'); AvailableToChangedUtc = [string](Get-PostureValue $_ 'AvailableTo.LastUpdatedTimestamp')

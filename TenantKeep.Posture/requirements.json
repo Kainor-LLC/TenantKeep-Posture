@@ -115,7 +115,7 @@
         "Global Reader (verify)"
       ],
       "licence": "",
-      "note": "App centric management: Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps (AppName from MicrosoftTeams 7.3.0). A tenant not moved yet falls back to the app permission policy (verify that both read through the token the module signs in with)."
+      "note": "App centric management: Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps (AppName from MicrosoftTeams 7.3.0). A tenant not moved yet falls back to the app permission policy. Seen on a live run 2026-11-21: with the one sign-in the Teams module asks for a token to substrate.office.com that the session does not carry, so both steps report Not readable with this sign-in and CL-014 has no answer."
     },
     {
       "collector": "Purview",
@@ -685,7 +685,7 @@
       "scopes": [
         "BackupRestore-Configuration.Read.All"
       ],
-      "note": "Graph read of Microsoft 365 Backup status and protection policies (verify the least role)."
+      "note": "Graph read of Microsoft 365 Backup protection policies. The service status needs BackupRestore-Control.Read.All, which Microsoft documents for backup controller applications and the module does not ask for: it is read when Graph allows and unknown otherwise (verify the least role)."
     },
     {
       "collector": "Entra",

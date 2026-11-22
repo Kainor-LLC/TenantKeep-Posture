@@ -86,6 +86,9 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
         }
 
         It 'reads the Azure Lighthouse delegations with who manages what, with which roles, and keeps one whose definition cannot be read' {
+            # The fixture answers the Resource Graph table Microsoft documents, managedservicesresources, and refuses
+            # any other spelling the way Azure does.
+            @($script:Result.Errors | Where-Object { $_ -like 'Azure Lighthouse delegations*' }) | Should -BeNullOrEmpty
             $rows = @(& $script:Read 'az-17-lighthouse-delegations')
             $rows.Count | Should -Be 3
             $rows[0].ManagedByTenantName | Should -Be 'Fabrikam Managed Services'
@@ -138,6 +141,28 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             $by['AZ-022'].status | Should -Be 'pass' -Because ('the sample has an all-apps MFA policy: ' + $by['AZ-022'].reason)
             $by['ID-014'].status | Should -Be 'pass' -Because 'sign-in and audit logs go to a workspace'
             $by['OP-007'].status | Should -Be 'pass'
+        }
+    }
+
+    Context 'Microsoft 365 Backup when Graph will not give the service status' {
+        # The status is behind BackupRestore-Control.Read.All, which the module does not ask for. A live run met the
+        # refusal and lost the whole step; the policies are read with the permission the module does hold.
+        It 'keeps the policies, records the status as not read, and does not fail the step' {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -ParameterFilter { $Uri -eq 'solutions/backupRestore' } { throw 'Response status code does not indicate success: Forbidden (Forbidden). [GET https://graph.microsoft.com/v1.0/solutions/backupRestore]' }
+            $folder = Join-Path $script:Root 'backup-status-refused'
+            $r = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder $folder -PassThru -WarningAction SilentlyContinue
+            @($r.Errors | Where-Object { $_ -like 'Microsoft 365 Backup*' }) | Should -BeNullOrEmpty
+            $b = Get-Content -Raw (Join-Path $folder 'az-11-m365-backup.json') | ConvertFrom-Json -AsHashtable
+            $b.ServiceStatusRead | Should -BeFalse
+            $b.ServiceStatus | Should -BeNullOrEmpty
+            $b.SharePointPolicies | Should -Be 1
+            $b.ExchangePolicies | Should -Be 0
+        }
+
+        It 'still fails the step when the refusal is something else' {
+            Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest -ParameterFilter { $Uri -eq 'solutions/backupRestore' } { throw 'Response status code does not indicate success: InternalServerError (Internal Server Error).' }
+            $r = Invoke-PostureCollection -Collector Azure -SkipCaSnapshot -OutputFolder (Join-Path $script:Root 'backup-status-broken') -PassThru -WarningAction SilentlyContinue
+            @($r.Errors | Where-Object { $_ -like 'Microsoft 365 Backup :: *InternalServerError*' }).Count | Should -Be 1
         }
     }
 

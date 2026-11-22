@@ -45,7 +45,7 @@ function Resolve-PostureStepRequirement {
 function Get-PostureFailureCause {
     <#
     .SYNOPSIS
-        Classifies an error message: licence, token, module, unavailable, permission, throttled, notProvisioned, network or unknown.
+        Classifies an error message: notReadable, licence, token, module, unavailable, permission, throttled, notProvisioned, network or unknown.
     .DESCRIPTION
         Licence comes before permission because Graph answers a missing licence with 403 too. The patterns are the
         error texts Graph, Exchange Online, Security & Compliance, PnP and Azure return (the ones seen on live runs
@@ -58,6 +58,9 @@ function Get-PostureFailureCause {
     param([AllowEmptyString()] [string] $Message)
 
     $m = [string]$Message
+    # What the module itself says when a read cannot be made with the sign-in it has. First, because the sentence
+    # names a token and would otherwise read as a sign-in that ran out.
+    if ($m -match '(?i)^Not readable with this sign-in') { return 'notReadable' }
     if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant|premium licen[cs]e)') { return 'licence' }
     # A consent that is missing comes back as invalid_grant, like an ended sign-in, and is a grant to make.
     if ($m -match '(?i)(AADSTS65001|consent_required|AADSTS650\d\d)') { return 'permission' }
@@ -168,6 +171,7 @@ function Get-PostureFailureAdvice {
         }
         'licence' { return $(if ($licence) { "Needs $licence. Without it the checks that read this stay not applicable; nothing to grant." } else { 'The tenant is not licensed for this; nothing to grant.' }) }
         'notProvisioned' { return 'Not set up in this tenant, so there was nothing to read. Nothing to grant.' }
+        'notReadable' { return 'The service''s own module reads this with a token this sign-in does not carry. Nothing to grant, and collecting again says the same; the check that needs it has no answer from this run.' }
         'throttled' { return 'Microsoft asked the run to slow down. Resume-PostureRun tries again.' }
         'network' { return 'A network or service error. Resume-PostureRun tries again.' }
         'token' { return 'The sign-in ran out before this step. Resume-PostureRun signs in again and collects it.' }

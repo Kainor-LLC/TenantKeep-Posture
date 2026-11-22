@@ -41,7 +41,8 @@ function Start-PostureRun {
         Inside it, report.html, report.md, findings.csv and findings.json sit at the top and evidence/, affected/,
         errors/ and logs/ hold the rest.
     .PARAMETER Client
-        The client folder (profile.json, exceptions.json, tenantkeep.lic, imports/, hybrid/). Default:
+        The client folder (profile.json, exceptions.json, tenantkeep.lic, imports/, hybrid/), or the name of one
+        under ~/tenantkeep/clients. A bare name that is not a folder where you are is taken as that name. Default:
         ~/tenantkeep/clients/<tenant display name, lower case, spaces to dashes>/, created on first run.
     .PARAMETER OutRoot
         Where run folders go, for this run. Default: outputRoot in the client's profile.json (New-PostureProfile
@@ -131,7 +132,7 @@ function Start-PostureRun {
         if (-not $slug) { $slug = [string]$session.tenantId }
         $Client = Join-Path $HOME 'tenantkeep' 'clients' $slug
     }
-    $Client = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Client)
+    $Client = Resolve-PostureClientPath -Client $Client
     New-Item -ItemType Directory -Path $Client, (Join-Path $Client 'imports'), (Join-Path $Client 'hybrid') -Force | Out-Null
     $null = Set-PostureFolderPrivate -Path $Client -Confirm:$false
     $profilePath = Join-Path $Client 'profile.json'

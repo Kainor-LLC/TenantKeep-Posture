@@ -21,7 +21,27 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - The consent changed. Two permissions are gone, five read-only ones are new, and the scheduled run no longer holds
   full control of SharePoint unless asked. An admin consents again once; until then each new read says which
   permission it lacks.
+- Run against a live tenant with a normal sign-in and through the scheduled run. Not yet seen live: the five new
+  reads through the scheduled run's identity (Azure keeps its old token for up to a day; a run without them says
+  which permission it lacks), the reads that need Microsoft 365 E5, a federated domain's certificate, and the
+  Windows AD collector's changes on a real domain.
 
+- Four fixes from the first run of this version against a live tenant (2026-11-21):
+  - Azure Lighthouse delegations (AZ-030) were asked of a Resource Graph table that does not exist, and Azure
+    answered Bad Request. The table is `managedservicesresources`.
+  - Microsoft 365 Backup (OP-008) lost its whole read to one refusal. The service's status is behind a permission
+    the module does not ask for (`BackupRestore-Control.Read.All`, which Microsoft documents for backup controller
+    applications). The protection policies are now read with the permission the module holds; when the status is
+    refused it is recorded as not read, a workload without an active policy still fails the check, and three active
+    policies with an unknown status have no answer.
+  - The two Teams reads for app centric management cannot be made with the one sign-in: the Teams module wants a
+    token the sign-in does not carry. Run Health now says "Not readable with this sign-in" with nothing to grant,
+    and CL-014 has no answer from such a run. It used to fall back to the old app permission policy, which a tenant
+    moved to app centric management no longer goes by.
+  - `Start-PostureRun -Client contoso` means the client named contoso under `~/tenantkeep/clients`, as it does on
+    `Resume-PostureRun`. It was a path and nothing else, so a bare name started a second client folder in whatever
+    directory the admin was in, without the licence of the real one. A folder that exists where you are, and
+    anything written as a path, is still that folder.
 - Five new read permissions on the consent, and what they read (2026-11-21, catalog 2026.11.2). All are read-only
   delegated scopes on Microsoft Graph, added together so a tenant consents again once. A tenant on the earlier
   consent keeps working: the five reads fail with the permission named, and the report's "To complete this

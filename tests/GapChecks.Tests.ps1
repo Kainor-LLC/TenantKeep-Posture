@@ -66,5 +66,17 @@ Describe 'Gap checks from existing evidence' {
         $vendor = & $script:Checks $d @('operations') '{ "version": 1, "thirdParty": { "backup": "Veeam" } }'
         $vendor['OP-008'].status | Should -Be 'coveredBy'
     }
+
+    It 'judges OP-008 on the policies when the service status could not be read, and has no answer when they would pass it' {
+        $plain = '{ "version": 1, "thirdParty": { "backup": "none" } }'
+        $gap = Join-Path $script:Root 'backup-status-unknown-gap'
+        & $script:Write $gap 'az-11-m365-backup' @{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = 1; OneDrivePolicies = 0; ExchangePolicies = 0 }
+        (& $script:Checks $gap @('operations') $plain)['OP-008'].status | Should -Be 'fail' -Because 'two workloads have no active policy, whatever the service status is'
+        $all = Join-Path $script:Root 'backup-status-unknown-all'
+        & $script:Write $all 'az-11-m365-backup' @{ ServiceStatus = $null; ServiceStatusRead = $false; SharePointPolicies = 1; OneDrivePolicies = 1; ExchangePolicies = 1 }
+        $r = (& $script:Checks $all @('operations') $plain)['OP-008']
+        $r.status | Should -Be 'notEvaluated' -Because 'three active policies do not say the service is not locked'
+        $r.reason | Should -Match 'm365BackupEnabled'
+    }
 }
 

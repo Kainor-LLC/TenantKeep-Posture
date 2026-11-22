@@ -62,7 +62,10 @@ function Get-PostureOperationsFact {
     $mb = & $load 'az-11-m365-backup'
     if ($null -eq $mb) { $notEvaluated['OP-008'] = 'az-11-m365-backup.json was not collected (the Azure collector reads it; set the profile''s azure answer and grant BackupRestore-Configuration.Read.All).' }
     else {
-        $facts.m365BackupEnabled = [string](& $v $mb 'ServiceStatus') -eq 'enabled'
+        # The service's status is behind a permission the module does not ask for. When it was not read it is unknown:
+        # the policies alone fail the check when a workload has none, and the check has no answer when all three have.
+        $backupStatus = [string](& $v $mb 'ServiceStatus')
+        $facts.m365BackupEnabled = $(if ($backupStatus) { $backupStatus -eq 'enabled' } else { $null })
         $facts.m365BackupWorkloadsProtected = @('SharePointPolicies', 'OneDrivePolicies', 'ExchangePolicies' | Where-Object { [int](& $v $mb $_) -gt 0 }).Count
     }
 
