@@ -134,6 +134,43 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             $by['AZ-036'].status | Should -Be 'pass'
         }
 
+        It 'works out which public IPs have DDoS protection, their own or their network''s, and which it cannot place' {
+            $ips = @(& $script:Read 'az-21-public-ip-ddos')
+            @($ips | ForEach-Object { "$($_.Name)=$($_.Protected)" }) | Should -Be @('pip-web=False', 'pip-fw=True', 'pip-lb=True', 'pip-odd=') -Because 'an address attached to nothing is left out, and one that cannot be placed is unknown, not unprotected'
+            ($ips | Where-Object Name -eq 'pip-lb').VirtualNetwork | Should -Be 'vnet-hub' -Because 'a load balancer is placed through the interface behind it'
+            ($ips | Where-Object Name -eq 'pip-web').AttachedTo | Should -Be 'network interface'
+        }
+
+        It 'reads the diagnostic settings of firewalls, gateways, Front Door and protected addresses, and counts what it could not read' {
+            $rows = @(& $script:Read 'az-20-network-diagnostics')
+            @($rows | ForEach-Object { "$($_.Kind)/$($_.Name): $($_.Read) $($_.LogsToDestination) $($_.Destinations)".Trim() }) | Should -Be @(
+                'Azure Firewall/fw1: True True Log Analytics'
+                'Application Gateway/agw1: True False'
+                'Front Door/fd1: True False'
+                'Public IP with DDoS protection/pip-fw: True True Storage'
+                'Public IP with DDoS protection/pip-lb: False False'
+            ) -Because 'a setting with every category off sends nothing, and a refusal is not a missing setting'
+            $summary = & $script:Read 'az-20-network-diagnostics-summary'
+            $summary.Resources | Should -Be 5
+            $summary.NotRead | Should -Be 1
+            $summary.BeyondLimit | Should -Be 0
+        }
+
+        It 'judges logging and DDoS protection, and leaves out what it could not read or place' {
+            $profilePath = Join-Path $script:Root 'profile-ddos.json'
+            '{ "version": 1, "azure": "workloads", "identityModel": "cloud", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath
+            $run = Invoke-PostureChecks -Evidence $script:Folder -Domain azure -ProfilePath $profilePath -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by['AZ-037'].status | Should -Be 'fail'
+            @($by['AZ-037'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @(
+                'Application Gateway: agw1: no diagnostic setting, Prod (sub-1)'
+                'Front Door: fd1: no log category sent to a workspace, storage account or event hub, Sandbox (sub-2)'
+            )
+            $by['AZ-038'].status | Should -Be 'fail'
+            @($by['AZ-038'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('pip-web: inherits from vnet-prod, which has no DDoS protection plan, attached to a network interface, Prod (sub-1)')
+            $by['AZ-038'].observed.publicIpsUnprotected | Should -Be 1
+        }
+
         It 'judges policy compliance and the delegations that can change things' {
             $profilePath = Join-Path $script:Root 'profile-az.json'
             '{ "version": 1, "azure": "workloads", "identityModel": "cloud", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath

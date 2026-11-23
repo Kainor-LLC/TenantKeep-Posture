@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Seventy-four new checks, most from settings the run already collects, two from new reads on permissions already held and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Seventy-six new checks, most from settings the run already collects, two from new reads on permissions already held and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -85,7 +85,9 @@
         "AZ-033": "New: whether Application Gateway WAF policies in use are on, in Prevention, reading request bodies and running the default rules. Needs an Azure collection made with this version or later.",
         "AZ-034": "New: whether Application Gateway WAF policies in use have bot rules, the HTTP DDoS rules, a rate limit and a challenge. Needs an Azure collection made with this version or later.",
         "AZ-035": "New: the same basics for Front Door WAF policies in use. Needs an Azure collection made with this version or later.",
-        "AZ-036": "New: the same bot and flood protection for Front Door WAF policies in use. Needs an Azure collection made with this version or later."
+        "AZ-036": "New: the same bot and flood protection for Front Door WAF policies in use. Needs an Azure collection made with this version or later.",
+        "AZ-037": "New: whether Azure Firewalls, Application Gateway WAFs, Front Door profiles and DDoS-protected public IPs send their logs somewhere. Needs an Azure collection made with this version or later.",
+        "AZ-038": "New: whether public IP addresses in use have DDoS protection, their own or their virtual network's. Needs an Azure collection made with this version or later."
       }
     },
     {

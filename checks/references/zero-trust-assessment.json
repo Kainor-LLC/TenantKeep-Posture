@@ -866,33 +866,13 @@
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
     },
-    "25533": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
     "25535": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+      "reason": "noReadApi",
+      "note": "Azure works out the effective routes of a network interface through a long-running POST per interface. The module sends no such request, and there is no GET that answers it."
     },
     "26885": {
       "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26886": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26887": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26888": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26889": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+      "note": "Metrics on DDoS-protected public IPs: the diagnostic settings are read for AZ-037, which judges the log categories; the metrics half is still to be judged."
     },
     "27000": {
       "reason": "planned",

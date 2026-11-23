@@ -234,8 +234,13 @@ kinds), `az-16-entra-domain-services` (the managed domain's security settings), 
 Firewall policy's tier, threat intelligence mode, intrusion detection mode and whether TLS inspection is set up) and
 `az-19-waf-policies` (each Application Gateway and Front Door WAF policy: whether it is attached, on and in Prevention,
 whether it reads request bodies, which of the default, bot and HTTP DDoS rule sets it has, and how many rate limit,
-JavaScript challenge and CAPTCHA rules are on; the rules themselves are not saved), read through Resource Graph and ARM
-GETs (verify the vault, Sentinel, Entra Domain Services, firewall and WAF property paths on a tenant that has them). The Defender
+JavaScript challenge and CAPTCHA rules are on; the rules themselves are not saved), `az-21-public-ip-ddos` (each
+public IP that is attached to something: its protection mode, what it is attached to, the virtual network it sits in,
+and whether it is protected, by itself or by the network's DDoS plan; unknown where the network cannot be worked
+out) and `az-20-network-diagnostics` with its summary (for each Azure Firewall, Application Gateway with a WAF, Front
+Door profile and DDoS-protected public IP, whether a diagnostic setting sends a log category to a workspace, a
+storage account or an event hub; one request per resource, the first 200), read through Resource Graph and ARM GETs
+(verify the vault, Sentinel, Entra Domain Services, firewall, WAF and DDoS property paths on a tenant that has them). The Defender
 collector's Secure Score controls carry each control's points and Microsoft's action link.
 
 ## What the Windows collector writes (hybrid)

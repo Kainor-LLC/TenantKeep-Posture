@@ -1553,6 +1553,110 @@
         "T1190",
         "T1110.003"
       ]
+    },
+    {
+      "id": "AZ-037",
+      "domain": "azure",
+      "title": "Firewalls, web application firewalls and DDoS-protected addresses keep their logs",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-20-network-diagnostics.json",
+        "az-20-network-diagnostics-summary.json"
+      ],
+      "evidenceOptional": [
+        "az-20-network-diagnostics-summary.json"
+      ],
+      "pass": "facts.networkResourcesWithoutLogs == 0",
+      "affected": "facts.networkResourcesWithoutLogs",
+      "remediation": [
+        "Open each listed resource in the Azure portal, Monitoring, Diagnostic settings.",
+        "Add a setting that sends its log categories to the Log Analytics workspace your security team reads, or to a storage account or event hub.",
+        "An Azure Policy that deploys the setting keeps new firewalls and gateways from starting without one."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users."
+      },
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/essentials/diagnostic-settings",
+      "deepLink": "https://portal.azure.com/#view/Microsoft_Azure_Monitoring/AzureMonitoringBrowseBlade/~/diagnosticsLogs",
+      "narrative": "A firewall that blocks an attack and keeps no log leaves nothing to investigate with: not what was tried, not from where, not what got through before the rule matched. These resources write no log anywhere until a diagnostic setting tells them to.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "26886",
+          "26887",
+          "26888",
+          "26889"
+        ]
+      },
+      "attack": [
+        "T1685.002"
+      ]
+    },
+    {
+      "id": "AZ-038",
+      "domain": "azure",
+      "title": "Public IP addresses in use have DDoS protection",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-21-public-ip-ddos.json"
+      ],
+      "pass": "facts.publicIpsUnprotected == 0",
+      "affected": "facts.publicIpsUnprotected",
+      "remediation": [
+        "Decide which shape fits: a DDoS protection plan on the virtual networks that hold public-facing workloads, or IP protection on the few addresses that matter.",
+        "For a plan, create it once and turn on DDoS protection on each virtual network, choosing that plan.",
+        "For single addresses, open the public IP, Protect, and turn on IP protection.",
+        "Remove public IPs that nothing needs to be reached on."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users."
+      },
+      "learn": "https://learn.microsoft.com/azure/ddos-protection/ddos-protection-overview",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FPublicIpAddresses",
+      "narrative": "Every public IP gets Azure's basic infrastructure protection, which defends Azure and not your application. An address that carries a site or a gateway and has neither IP protection nor a protected virtual network has no tuned mitigation, no attack telemetry and nobody to call while a flood is on.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-04",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25533"
+        ]
+      },
+      "attack": [
+        "T1190"
+      ]
     }
   ]
 }

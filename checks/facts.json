@@ -489,7 +489,12 @@
     "appGatewayWafFloodGaps": "Application Gateway WAF policies without bot or flood protection",
     "frontDoorWafPolicies": "Front Door WAF policies in use",
     "frontDoorWafBasicGaps": "Front Door WAF policies missing a basic",
-    "frontDoorWafFloodGaps": "Front Door WAF policies without bot or flood protection"
+    "frontDoorWafFloodGaps": "Front Door WAF policies without bot or flood protection",
+    "networkResourcesWithLogsRead": "Firewalls, gateways, Front Door profiles and protected addresses read",
+    "networkResourcesWithoutLogs": "Of those, sending no log anywhere",
+    "publicIpsInUse": "Public IP addresses in use",
+    "publicIpsDdosUnknown": "Addresses whose virtual network could not be worked out",
+    "publicIpsUnprotected": "Public IP addresses without DDoS protection"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

@@ -12,6 +12,37 @@ function Get-AzureFixtureQuery {
         # Network security policies. A Premium firewall policy that only alerts on threat intelligence and has no TLS
         # inspection, beside a Standard one that denies; an Application Gateway WAF policy in Detection with no flood
         # rules, beside one that is attached to nothing; a Front Door Premium policy with everything on.
+        # Public IPs and what they are attached to. pip-web inherits from a network with no DDoS plan; pip-fw has its own
+        # protection; pip-lb inherits, through a load balancer and the interface behind it, from a network that has a
+        # plan; pip-odd is attached to something this run cannot place; pip-spare is attached to nothing.
+        "publicipaddresses'.*ddosSettings" {
+            & $o @{ id = '/subscriptions/sub-1/resourcegroups/rg-web/providers/microsoft.network/publicipaddresses/pip-web'; name = 'pip-web'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; mode = 'VirtualNetworkInherited'; ipConfig = '/subscriptions/sub-1/resourcegroups/rg-web/providers/microsoft.network/networkinterfaces/nic-web/ipconfigurations/ipconfig1' }
+            & $o @{ id = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/publicipaddresses/pip-fw'; name = 'pip-fw'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; mode = 'Enabled'; ipConfig = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/azurefirewalls/fw1/azurefirewallipconfigurations/c1' }
+            & $o @{ id = '/subscriptions/sub-1/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/pip-lb'; name = 'pip-lb'; subscriptionId = 'sub-1'; resourceGroup = 'rg-app'; mode = 'VirtualNetworkInherited'; ipConfig = '/subscriptions/sub-1/resourcegroups/rg-app/providers/microsoft.network/loadbalancers/lb1/frontendipconfigurations/fe' }
+            & $o @{ id = '/subscriptions/sub-1/resourcegroups/rg-x/providers/microsoft.network/publicipaddresses/pip-odd'; name = 'pip-odd'; subscriptionId = 'sub-1'; resourceGroup = 'rg-x'; mode = 'VirtualNetworkInherited'; ipConfig = '/subscriptions/sub-1/resourcegroups/rg-x/providers/microsoft.network/somethings/x/ipconfigurations/y' }
+            & $o @{ id = '/subscriptions/sub-1/resourcegroups/rg-x/providers/microsoft.network/publicipaddresses/pip-spare'; name = 'pip-spare'; subscriptionId = 'sub-1'; resourceGroup = 'rg-x'; mode = ''; ipConfig = '' }
+            break
+        }
+        "mv-expand ipc = properties\.ipConfigurations" {
+            & $o @{ owner = '/subscriptions/sub-1/resourcegroups/rg-web/providers/microsoft.network/networkinterfaces/nic-web'; vnet = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/virtualnetworks/vnet-prod' }
+            & $o @{ owner = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/azurefirewalls/fw1'; vnet = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/virtualnetworks/vnet-hub' }
+            & $o @{ owner = '/subscriptions/sub-1/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/nic-app'; vnet = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/virtualnetworks/vnet-hub' }
+            break
+        }
+        "gatewayIPConfigurations" { @(); break }
+        "backendAddressPools" { & $o @{ owner = '/subscriptions/sub-1/resourcegroups/rg-app/providers/microsoft.network/loadbalancers/lb1'; nic = '/subscriptions/sub-1/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/nic-app' }; break }
+        "virtualnetworks'.*enableDdosProtection" {
+            & $o @{ vnet = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/virtualnetworks/vnet-prod'; name = 'vnet-prod'; ddos = $false }
+            & $o @{ vnet = '/subscriptions/sub-1/resourcegroups/rg-net/providers/microsoft.network/virtualnetworks/vnet-hub'; name = 'vnet-hub'; ddos = $true }
+            break
+        }
+        # What the diagnostic settings are read for: a firewall, a gateway with a WAF and a Front Door profile.
+        "microsoft\.cdn/profiles'" {
+            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-net/providers/Microsoft.Network/azureFirewalls/fw1'; name = 'fw1'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; kind = 'Azure Firewall' }
+            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw1'; name = 'agw1'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; kind = 'Application Gateway' }
+            & $o @{ id = '/subscriptions/sub-2/resourceGroups/rg-edge/providers/Microsoft.Cdn/profiles/fd1'; name = 'fd1'; subscriptionId = 'sub-2'; resourceGroup = 'rg-edge'; kind = 'Front Door' }
+            break
+        }
         "microsoft\.network/firewallpolicies'" {
             & $o @{ name = 'fw-hub'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; tier = 'Premium'; threatIntelMode = 'Alert'; idpsMode = 'Deny'; tlsCa = ''; firewalls = 1 }
             & $o @{ name = 'fw-edge'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; tier = 'Standard'; threatIntelMode = 'Deny'; idpsMode = ''; tlsCa = ''; firewalls = 1 }
@@ -89,6 +120,13 @@ function Get-AzureFixtureRequest {
     # A subscription that refuses one read: TKP_AZ_REFUSE names the subscription, and its security contacts are denied.
     if ($env:TKP_AZ_REFUSE -and $Path -match "/subscriptions/$([regex]::Escape($env:TKP_AZ_REFUSE))/providers/Microsoft\.Security/securityContacts") { throw "GET $Path returned 403: AuthorizationFailed: the client does not have authorization to perform action Microsoft.Security/securityContacts/read" }
     switch -Regex ($Path) {
+        # Diagnostic settings of the network resources: the firewall sends logs to a workspace, the gateway has no
+        # setting, Front Door has one with every category off, one protected address sends to storage and the other refuses.
+        'azureFirewalls/fw1/providers/Microsoft\.Insights/diagnosticSettings' { @{ name = 'to-law'; properties = @{ workspaceId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.OperationalInsights/workspaces/law'; logs = @(@{ categoryGroup = 'allLogs'; enabled = $true }) } }; break }
+        'applicationGateways/agw1/providers/Microsoft\.Insights/diagnosticSettings' { @(); break }
+        'profiles/fd1/providers/Microsoft\.Insights/diagnosticSettings' { @{ name = 'empty'; properties = @{ workspaceId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.OperationalInsights/workspaces/law'; logs = @(@{ category = 'FrontDoorAccessLog'; enabled = $false }) } }; break }
+        'publicipaddresses/pip-fw/providers/Microsoft\.Insights/diagnosticSettings' { @{ name = 'to-storage'; properties = @{ storageAccountId = '/subscriptions/sub-1/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/logs'; logs = @(@{ category = 'DDoSProtectionNotifications'; enabled = $true }) } }; break }
+        'publicipaddresses/pip-lb/providers/Microsoft\.Insights/diagnosticSettings' { throw 'GET returned 403: AuthorizationFailed' }
         '/subscriptions/sub-1/providers/Microsoft\.Security/pricings' { @{ name = 'VirtualMachines'; properties = @{ pricingTier = 'Standard'; subPlan = 'P2' } }, @{ name = 'StorageAccounts'; properties = @{ pricingTier = 'Free' } }, @{ name = 'Arm'; properties = @{ pricingTier = 'Standard' } }, @{ name = 'CloudPosture'; properties = @{ pricingTier = 'Free' } }; break }
         '/subscriptions/sub-2/providers/Microsoft\.Security/pricings' { @{ name = 'StorageAccounts'; properties = @{ pricingTier = 'Standard' } }, @{ name = 'Arm'; properties = @{ pricingTier = 'Free' } }; break }
         '/subscriptions/sub-1/providers/Microsoft\.Security/securityContacts' { @{ name = 'default'; properties = @{ emails = 'soc@contoso.example'; isEnabled = $true; alertNotifications = @{ state = 'On'; minimalSeverity = 'High' }; notificationsByRole = @{ roles = @('Owner') } } }; break }

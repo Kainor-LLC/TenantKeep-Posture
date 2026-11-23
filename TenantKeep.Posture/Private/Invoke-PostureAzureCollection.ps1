@@ -290,6 +290,58 @@ function Invoke-PostureAzureCollection {
         )
         & $save @($waf | Where-Object { $_ }) 'az-19-waf-policies' $true
     } | Out-Null
+    # The public IPs found to be protected, kept for the diagnostic settings step that follows.
+    $protectedIps = [System.Collections.Generic.List[object]]::new()
+    Invoke-PostureStep -Label 'Public IP DDoS protection' -Folder $Folder -Script {
+        # A public IP is protected when DDoS protection is on for the address itself, or when it inherits it from a
+        # virtual network that has a DDoS protection plan. Which virtual network an address sits in is worked out from
+        # what it is attached to: a network interface, a firewall, a bastion, a gateway, an application gateway, or a
+        # load balancer (through the interfaces behind it). An address attached to nothing is left out, and one whose
+        # network cannot be worked out is saved as unknown, not as unprotected. (verify the property paths live.)
+        $ips = & $q "resources | where type =~ 'microsoft.network/publicipaddresses' | project id = tolower(id), name, subscriptionId, resourceGroup, mode = tostring(properties.ddosSettings.protectionMode), ipConfig = tolower(tostring(properties.ipConfiguration.id))"
+        $attached = @($ips | Where-Object { & $str $_.ipConfig })
+        $vnetOf = @{}; $nicOfBalancer = @{}; $vnetDdos = @{}; $vnetName = @{}
+        $kindName = @{ networkinterfaces = 'network interface'; azurefirewalls = 'Azure Firewall'; loadbalancers = 'load balancer'; applicationgateways = 'application gateway'; bastionhosts = 'Bastion host'; virtualnetworkgateways = 'virtual network gateway' }
+        if ($attached.Count -gt 0) {
+            foreach ($row in @(& $q "resources | where type in~ ('microsoft.network/networkinterfaces', 'microsoft.network/azurefirewalls', 'microsoft.network/bastionhosts', 'microsoft.network/virtualnetworkgateways') | mv-expand ipc = properties.ipConfigurations | extend subnetId = tolower(tostring(ipc.properties.subnet.id)) | where isnotempty(subnetId) | project owner = tolower(id), vnet = tostring(split(subnetId, '/subnets/')[0]) | distinct owner, vnet")) { $vnetOf[(& $str $row.owner)] = (& $str $row.vnet) }
+            foreach ($row in @(& $q "resources | where type =~ 'microsoft.network/applicationgateways' | mv-expand ipc = properties.gatewayIPConfigurations | extend subnetId = tolower(tostring(ipc.properties.subnet.id)) | where isnotempty(subnetId) | project owner = tolower(id), vnet = tostring(split(subnetId, '/subnets/')[0]) | distinct owner, vnet")) { $vnetOf[(& $str $row.owner)] = (& $str $row.vnet) }
+            foreach ($row in @(& $q "resources | where type =~ 'microsoft.network/loadbalancers' | mv-expand pool = properties.backendAddressPools | mv-expand ipc = pool.properties.backendIPConfigurations | project owner = tolower(id), nic = tostring(split(tolower(tostring(ipc.id)), '/ipconfigurations/')[0]) | distinct owner, nic")) { if (-not $nicOfBalancer.ContainsKey((& $str $row.owner))) { $nicOfBalancer[(& $str $row.owner)] = (& $str $row.nic) } }
+            foreach ($row in @(& $q "resources | where type =~ 'microsoft.network/virtualnetworks' | project vnet = tolower(id), name, ddos = tobool(properties.enableDdosProtection)")) { $vnetDdos[(& $str $row.vnet)] = [bool]($row.ddos -eq $true); $vnetName[(& $str $row.vnet)] = (& $str $row.name) }
+        }
+        & $save @($attached | ForEach-Object {
+                $owner = [regex]::Replace((& $str $_.ipConfig), '/[a-z]*ipconfigurations/[^/]+$', '')
+                $ownerType = (($owner -split '/providers/microsoft.network/')[-1] -split '/')[0]
+                $vnet = $(if ($vnetOf.ContainsKey($owner)) { $vnetOf[$owner] } elseif ($nicOfBalancer.ContainsKey($owner) -and $vnetOf.ContainsKey($nicOfBalancer[$owner])) { $vnetOf[$nicOfBalancer[$owner]] } else { '' })
+                $mode = $(if (& $str $_.mode) { & $str $_.mode } else { 'Disabled' })
+                $protected = $(if ($mode -eq 'Enabled') { $true } elseif ($mode -ne 'VirtualNetworkInherited') { $false } elseif ($vnet -and $vnetDdos.ContainsKey($vnet)) { [bool]$vnetDdos[$vnet] } else { $null })
+                if ($protected -eq $true) { $protectedIps.Add([pscustomobject]@{ id = (& $str $_.id); name = (& $str $_.name); subscriptionId = (& $str $_.subscriptionId); resourceGroup = (& $str $_.resourceGroup); kind = 'Public IP with DDoS protection' }) }
+                [ordered]@{ Id = (& $str $_.id); Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup); ProtectionMode = $mode; AttachedTo = $(if ($kindName.ContainsKey($ownerType)) { $kindName[$ownerType] } else { $ownerType }); VirtualNetwork = $(if ($vnet -and $vnetName.ContainsKey($vnet)) { $vnetName[$vnet] } else { '' }); Protected = $protected }
+            }) 'az-21-public-ip-ddos' $true
+    } | Out-Null
+    Invoke-PostureStep -Label 'Network diagnostic settings' -Folder $Folder -Script {
+        # Whether the things that see attacks write down what they see: each Azure Firewall, each Application Gateway
+        # with a web application firewall, each Front Door profile and each public IP with DDoS protection, and whether
+        # one of its diagnostic settings sends a log category to a workspace, a storage account or an event hub. One
+        # request per resource, so the first 200 are read and the rest are counted.
+        $targets = @(& $q "resources | where type in~ ('microsoft.network/azurefirewalls', 'microsoft.network/applicationgateways', 'microsoft.cdn/profiles') | extend kind = case(type =~ 'microsoft.network/azurefirewalls', 'Azure Firewall', type =~ 'microsoft.network/applicationgateways', 'Application Gateway', 'Front Door') | where kind != 'Application Gateway' or tostring(properties.sku.tier) startswith 'WAF' | where kind != 'Front Door' or tostring(sku.name) in~ ('Standard_AzureFrontDoor', 'Premium_AzureFrontDoor') | project id, name, subscriptionId, resourceGroup, kind")
+        $targets += @($protectedIps.ToArray())
+        $limit = 200
+        $rows = @($targets | Select-Object -First $limit | ForEach-Object {
+                $target = $_
+                $row = [ordered]@{ Kind = (& $str $target.kind); Name = (& $str $target.name); SubscriptionId = (& $str $target.subscriptionId); ResourceGroup = (& $str $target.resourceGroup); Read = $true; Settings = 0; LogsToDestination = $false; Destinations = '' }
+                try {
+                    $settings = @(& $rest "$(& $str $target.id)/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview")
+                    $sending = @($settings | Where-Object { $_ -and @(@(& $v $_ 'properties.logs') | Where-Object { $_ -and (& $v $_ 'enabled') -eq $true }).Count -gt 0 -and ((& $v $_ 'properties.workspaceId') -or (& $v $_ 'properties.storageAccountId') -or (& $v $_ 'properties.eventHubAuthorizationRuleId')) })
+                    $row.Settings = $settings.Count
+                    $row.LogsToDestination = [bool]($sending.Count -gt 0)
+                    $row.Destinations = (@($(if (@($sending | Where-Object { & $v $_ 'properties.workspaceId' }).Count) { 'Log Analytics' }), $(if (@($sending | Where-Object { & $v $_ 'properties.storageAccountId' }).Count) { 'Storage' }), $(if (@($sending | Where-Object { & $v $_ 'properties.eventHubAuthorizationRuleId' }).Count) { 'Event Hub' })) | Where-Object { $_ }) -join ', '
+                }
+                catch { $row.Read = $false }
+                $row
+            })
+        & $save $rows 'az-20-network-diagnostics' $true
+        & $saveOne ([ordered]@{ Resources = $targets.Count; Read = @($rows | Where-Object { $_.Read }).Count; NotRead = @($rows | Where-Object { -not $_.Read }).Count; BeyondLimit = [Math]::Max(0, $targets.Count - $limit) }) 'az-20-network-diagnostics-summary'
+    } | Out-Null
     Invoke-PostureStep -Label 'Entra Domain Services' -Folder $Folder -Script {
         $ds = & $q "resources | where type =~ 'microsoft.aad/domainservices' | project name, subscriptionId, s = properties.domainSecuritySettings"
         & $save @($ds | ForEach-Object { [ordered]@{ Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); NtlmV1 = (& $str (& $v $_.s 'ntlmV1')); TlsV1 = (& $str (& $v $_.s 'tlsV1')); SyncNtlmPasswords = (& $str (& $v $_.s 'syncNtlmPasswords')); KerberosRc4Encryption = (& $str (& $v $_.s 'kerberosRc4Encryption')); KerberosArmoring = (& $str (& $v $_.s 'kerberosArmoring')); LdapSigning = (& $str (& $v $_.s 'ldapSigning')); ChannelBinding = (& $str (& $v $_.s 'channelBinding')) } }) 'az-16-entra-domain-services' $true

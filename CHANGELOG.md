@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 356 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 358 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -35,6 +35,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   is not judged, a tenant with none of the resource gets no answer with the reason, and what is saved is flags and
   counts, not the rules. Eighteen more of the assessment's tests now name a check. They need an Azure collection
   made with this version.
+- Two more Azure network checks (2026-11-23). Firewalls, web application firewalls, Front Door profiles and
+  DDoS-protected addresses keep their logs: one of each resource's diagnostic settings sends a log category
+  somewhere (AZ-037). Public IP addresses in use have DDoS protection, their own or their virtual network's
+  (AZ-038); the network is worked out from what the address is attached to, and an address that cannot be placed
+  is unknown, not unprotected. One Zero Trust Assessment test is marked as having no read: routing through the
+  firewall is answered only by a long-running POST per network interface, which the module does not send.
+- A Power BI refusal for a missing licence now gets advice that names the licence alone (2026-11-23, from the
+  first live run): a Global Administrator was being told to get the Fabric Administrator role as well.
 - A sixteenth domain, Power Platform and Power BI (2026-11-23, catalog 2026.11.3), with fifteen checks and two new
   collectors. It is optional: a tenant approves two more permissions on the TenantKeep app from a second link, and
   a tenant that has not is told so, with the link, while the rest of the run is unchanged.

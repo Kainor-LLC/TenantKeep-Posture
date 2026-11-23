@@ -567,7 +567,7 @@
     },
     {
       "collector": "Azure",
-      "match": "^(Management ports open to the internet|Backup vault protection|Microsoft Sentinel|Network security policies|Entra Domain Services)$",
+      "match": "^(Management ports open to the internet|Backup vault protection|Microsoft Sentinel|Network security policies|Public IP DDoS protection|Network diagnostic settings|Entra Domain Services)$",
       "roles": [
         "Reader"
       ],

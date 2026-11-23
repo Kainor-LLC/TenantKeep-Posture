@@ -364,6 +364,39 @@ function Get-PostureAzureFact {
         }
     }
 
+    # AZ-037: the firewalls, gateways, Front Door profiles and DDoS-protected addresses whose logs go nowhere. A
+    # resource whose settings could not be read is not counted as a gap.
+    $diag = & $load 'az-20-network-diagnostics'
+    if ($null -eq $diag) { & $missing @('AZ-037') 'az-20-network-diagnostics' }
+    else {
+        $seen = @(& $rows $diag | Where-Object { $_.Read -ne $false })
+        $facts.networkResourcesWithLogsRead = $seen.Count
+        if (@(& $rows $diag).Count -eq 0) { $notEvaluated['AZ-037'] = 'No Azure Firewall, Application Gateway WAF, Front Door profile or DDoS-protected public IP in the subscriptions.' }
+        elseif ($seen.Count -eq 0) { $notEvaluated['AZ-037'] = 'The diagnostic settings of the network resources could not be read (Monitoring Reader or Reader on the subscriptions).' }
+        $silent = @($seen | Where-Object { $_.LogsToDestination -ne $true })
+        $facts.networkResourcesWithoutLogs = $silent.Count
+        $affected.networkResourcesWithoutLogs = @($silent | ForEach-Object { [ordered]@{ name = "$([string]$_.Kind): $([string]$_.Name)"; detail = "$(if ([int]$_.Settings -eq 0) { 'no diagnostic setting' } else { 'no log category sent to a workspace, storage account or event hub' }), $(& $label $_.SubscriptionId)" } })
+        $diagSummary = & $load 'az-20-network-diagnostics-summary'
+        $left = $(if ($null -ne $diagSummary) { [int](& $v $diagSummary 'NotRead') + [int](& $v $diagSummary 'BeyondLimit') } else { 0 })
+        if ($left -gt 0 -and -not $notEvaluated.ContainsKey('AZ-037')) { $notes['AZ-037'] = "$left more resource(s) were not read (refused, or beyond the first 200) and are not judged." }
+    }
+
+    # AZ-038: public IP addresses in use without DDoS protection, their own or their virtual network's. An address
+    # whose network could not be worked out is unknown and is not counted either way.
+    $ddos = & $load 'az-21-public-ip-ddos'
+    if ($null -eq $ddos) { & $missing @('AZ-038') 'az-21-public-ip-ddos' }
+    else {
+        $ipRows = @(& $rows $ddos)
+        $known = @($ipRows | Where-Object { $null -ne $_.Protected })
+        $facts.publicIpsInUse = $ipRows.Count
+        $facts.publicIpsDdosUnknown = $ipRows.Count - $known.Count
+        if ($ipRows.Count -eq 0) { $notEvaluated['AZ-038'] = 'No public IP address attached to anything in the subscriptions.' }
+        elseif ($known.Count -eq 0) { $notEvaluated['AZ-038'] = 'None of the public IP addresses could be matched to a virtual network, so whether they inherit DDoS protection is not known.' }
+        $bare = @($known | Where-Object { $_.Protected -ne $true })
+        $facts.publicIpsUnprotected = $bare.Count
+        $affected.publicIpsUnprotected = @($bare | Select-Object -First 500 | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "$(if ([string]$_.ProtectionMode -eq 'VirtualNetworkInherited') { "inherits from $(if ($_.VirtualNetwork) { $_.VirtualNetwork } else { 'its virtual network' }), which has no DDoS protection plan" } else { 'DDoS protection is off for this address' }), attached to a $([string]$_.AttachedTo), $(& $label $_.SubscriptionId)" } })
+    }
+
     # AZ-027: a Sentinel workspace receives Entra, Microsoft 365 and Defender XDR.
     $sentinel = & $load 'az-15-sentinel'
     if ($null -eq $sentinel) { & $missing @('AZ-027') 'az-15-sentinel' }
