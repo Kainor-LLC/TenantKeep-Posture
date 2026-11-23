@@ -338,6 +338,27 @@ Describe 'New-PostureClientApp.ps1' {
         finally { Remove-Item Env:TKP_CLIENTAPP_OWNS -ErrorAction SilentlyContinue }
     }
 
+    It 'ships every manifest with a note Entra accepts: 1 to 1,024 characters' {
+        # Entra answered 400 to the whole update when app.json carried a note of 1,090 characters (2026-11-23).
+        foreach ($file in 'app.json', 'app-services.json', 'app-sharepoint.json') {
+            $notes = [string](Get-Content -LiteralPath (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' $file) -Raw | ConvertFrom-Json -AsHashtable)['notes']
+            $notes.Length | Should -BeGreaterThan 0 -Because "$file says what the registration is for"
+            $notes.Length | Should -BeLessOrEqual 1024 -Because "Entra refuses a longer note on a registration, and $file is at $($notes.Length)"
+        }
+    }
+
+    It 'refuses a note Entra would refuse before it asks Graph for anything' {
+        $env:TKP_CLIENTAPP_EXISTS = '1'
+        $long = Get-Content -LiteralPath $script:AppJson -Raw | ConvertFrom-Json -AsHashtable -Depth 10
+        $long['notes'] = 'x' * 1025
+        $long | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $script:AppJson
+        { & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' } | Should -Throw '*1025 characters long; Entra accepts 1 to 1,024*Nothing was changed.'
+        $long['notes'] = ''
+        $long | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $script:AppJson
+        { & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' } | Should -Throw '*0 characters long*'
+        @(& $script:ReadRequests).Count | Should -Be 0 -Because 'a registration is updated whole or not at all, and the answer is known before the first request'
+    }
+
     It 'refuses a session in another tenant and writes nothing under -WhatIf' {
         $env:TKP_CLIENTAPP_EXISTS = '0'
         { & $script:Script -AppJsonPath $script:AppJson -TenantId '22222222-2222-2222-2222-222222222222' } | Should -Throw '*only runs in 22222222*'

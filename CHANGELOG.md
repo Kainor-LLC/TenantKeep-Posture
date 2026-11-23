@@ -160,6 +160,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     one it does name, and says when the tenant is clean. `-WhatIf` only lists. Taking a permission off a
     registration does not take it away from an organisation that had approved it, so this has to be run in each
     such tenant, by its own administrator.
+  - The note on the shared registration was 1,090 characters and Entra accepts 1,024, so the first live update
+    was refused whole and changed nothing (2026-11-23). The note is shorter, `New-PostureClientApp.ps1` now says so
+    before it asks Graph for anything, and a test holds all three manifests to the limit.
   - Not yet seen live: the second sign-in itself, and the Teams module taking its Graph token from one app and its
     Teams token from the other (both are the same administrator's delegated tokens).
 - Six checks on Azure network security (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment,

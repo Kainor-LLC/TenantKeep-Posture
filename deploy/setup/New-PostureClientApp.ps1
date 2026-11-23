@@ -73,6 +73,10 @@ if ('Application.ReadWrite.All' -notin @($ctx.Scopes)) { throw 'The Graph sessio
 $appJsonPath = (Resolve-Path -LiteralPath $AppJsonPath).Path
 $manifest = Get-Content -LiteralPath $appJsonPath -Raw | ConvertFrom-Json -AsHashtable
 $name = [string]$manifest['displayName']
+# The note is kept on the registration (Branding & properties > Internal notes). Entra refuses the whole update when
+# it is empty or longer than 1,024 characters (seen live 2026-11-23), so that is said here, before anything is asked.
+$notes = [string]$manifest['notes']
+if ($notes.Length -lt 1 -or $notes.Length -gt 1024) { throw "The notes in $(Split-Path $appJsonPath -Leaf) are $($notes.Length) characters long; Entra accepts 1 to 1,024. Shorten them and run again. Nothing was changed." }
 
 # 2. Scope values to ids, per resource, from the service principals in this tenant. The registration carries what
 #    this product asks for (resources) and what a product sharing the app asks for (sharedWith), each scope once.
@@ -110,7 +114,7 @@ $fields = @{
     # No consent page for an app that is never consented organisation-wide (app-sharepoint.json leaves it empty).
     web                    = @{ redirectUris = @(@([string]$manifest['consentRedirectUri']) | Where-Object { $_ }); implicitGrantSettings = @{ enableAccessTokenIssuance = $false; enableIdTokenIssuance = $false } }
     requiredResourceAccess = @($required)
-    notes                  = [string]$manifest['notes']
+    notes                  = $notes
     info                   = @{ privacyStatementUrl = 'https://tenantkeep.app/licensing/'; termsOfServiceUrl = 'https://tenantkeep.app/licensing/'; marketingUrl = 'https://tenantkeep.app/' }
 }
 # The registration is found by the client id app.json records, so a change of name renames it and does not create a
