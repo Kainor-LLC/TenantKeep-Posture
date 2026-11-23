@@ -38,16 +38,22 @@ What you need:
   more than the account can.
 - On a tenant whose Conditional Access demands phishing-resistant MFA, a new read-only account has no passkey to sign
   in with yet: issue it a Temporary Access Pass, sign in once and register a passkey.
-- Consent, once per tenant. TenantKeep Posture is a multi-tenant app published by Kainor with delegated, read-only
+- Consent, once per tenant. TenantKeep is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
+- Azure, Teams and Power Platform are read through a second app, TenantKeep Posture for Azure, Teams and Power
+  Platform. Microsoft offers no read-only permission for those three APIs, only one to act as the signed-in
+  administrator, so they are kept off the TenantKeep app, which holds read-only permissions only. An admin approves
+  the second app once, from its own link; a run in a tenant that has not skips those three, prints the link and
+  collects everything else. Where it is approved, its sign-in follows the first as the same account, and the
+  browser usually passes it without asking.
 - Exchange and Purview sign in through the Exchange module's own Microsoft app, not the TenantKeep app.
   Exchange Online's only delegated permission reads "Manage Exchange configuration" on a consent screen and Security
   and Compliance PowerShell issues no token to a third-party app at all, so the app asks for neither. The Exchange
   module may open one window for the same admin (a device code with `-DeviceCode` or `-NoBrowser`); it often reuses
   its own earlier sign-in and asks nothing, and one sign-in covers both. The run starts them first, so that prompt
   comes within a minute of your sign-in; after it the run needs nothing from you. The module renews its own tokens
-  however long Exchange takes. Everything else comes from the one sign-in, with one exception.
+  however long Exchange takes. Everything else comes from the sign-ins above, with one exception.
 - Two Teams reads need the Teams module's own sign-in: the org-wide app settings and each app's availability, which
   the Teams apps check (CL-014) goes by. The Teams module reads them with a token no permission of the TenantKeep
   app provides. `Start-PostureRun -TeamsAppSignIn` lets the module sign in by itself as the same admin: a
@@ -420,9 +426,10 @@ and launchd samples in deploy/schedules run it from a machine you already have.
 
 ## 9b. Power Platform and Power BI
 
-These checks are optional and read with two more permissions on the TenantKeep app. A tenant approves them once, from
-a second link that names only those two; the first approval is not asked for again. A run in a tenant that has not
-approved them says so under what it skipped, gives the link, and collects everything else.
+These checks are optional, and each product is approved from a link of its own; nothing approved earlier is asked for
+again. Power BI has a read-only permission, Tenant.Read.All, which goes on the TenantKeep app. Power Platform has
+none, so its permission goes on the second app, the one Azure and Teams are read through. A run in a tenant that has
+not approved one says so under what it skipped, gives the link for it, and collects everything else.
 
 The account that signs in needs a role each product accepts, and neither has a read-only one for these settings:
 
@@ -481,4 +488,5 @@ Invoke-PostureCollection -Collector Purview -SkipCaSnapshot -OutputFolder $folde
 
 The macOS sign-in workarounds are in docs/collection.md. Copy the AD collector's files into `$folder` for hybrid
 tenants, then continue at section 6. Or sign in once with a registration of your own that carries the same delegated
-permissions as app.json: `Connect-PostureSession -ClientId <your app id>` and `Start-PostureRun` from there.
+permissions as app.json: `Connect-PostureSession -ClientId <your app id>` and `Start-PostureRun` from there
+(`Connect-PostureSession -Services -ClientId <id>` for one of your own with the permissions app-services.json lists).

@@ -9,9 +9,10 @@ decisions; `(verify)` marks what has not been proven live yet.
 | Part | Where it lives | What it is |
 |---|---|---|
 | Module `TenantKeep.Posture` | this repo, PowerShell Gallery and signed zips | Collectors, check engine, catalog, report renderers, licence verifier. Read-only against the tenant, always. |
-| Check catalog and baselines | `checks/`, `baselines/` | Data, not code: 204 checks in 13 domains, baselines that select and weight them, framework crosswalks. |
+| Check catalog and baselines | `checks/`, `baselines/` | Data, not code: the checks, one file per domain, baselines that select and weight them, framework crosswalks. |
 | Report | `templates/`, rendered by the module | One self-contained HTML file per run (inline CSS and JS, no CDN), plus Markdown and optional PDF. |
-| Sign-in app **TenantKeep** | one app registration in the Kainor tenant, manifest in `TenantKeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated, read-only permissions and no credentials, shared with the TenantKeep On-Call app for what that reads (`sharedWith` in the manifest); everything that writes lives in other registrations. Customers approve Posture's permissions once, through a link that names them. `Connect-PostureSession` signs the admin in with PKCE on a loopback port, asking the browser only to sign in, then fetches what the organisation approved with the refresh token and brokers a token per service from that one sign-in. |
+| Sign-in app **TenantKeep** | one app registration in the Kainor tenant, manifest in `TenantKeep.Posture/app.json`, registered by `deploy/setup/New-PostureClientApp.ps1` | A multi-tenant public client with delegated permissions and no credentials, shared with the TenantKeep On-Call app for what that reads (`sharedWith` in the manifest). Every permission on it is read-only by its name, on every API; everything that writes lives in other registrations. Customers approve Posture's permissions once, through a link that names them. `Connect-PostureSession` signs the admin in with PKCE on a loopback port, asking the browser only to sign in, then fetches what the organisation approved with the refresh token and brokers the Graph and Power BI tokens from that sign-in. |
+| Second app **TenantKeep Posture for Azure, Teams and Power Platform** | one more registration in the Kainor tenant, manifest in `TenantKeep.Posture/app-services.json`, registered by the same script | The three APIs that offer no read-only permission (Azure Service Management, the Teams admin API, the Power Platform admin API) are read through this one, which Posture alone signs in to, so the shared app stays read-only on every API. `Connect-PostureSession -Services` signs the same admin in to it; `Start-PostureRun` does that by itself when a run reads one of the three and the organisation has approved the app. |
 | Windows AD collector | `collectors/windows/Get-ADBaseline.ps1` | Standalone read-only script for a domain-joined machine; its files join the evidence folder. |
 | Customer-side setup | `deploy/setup/`, `deploy/automation/Grant-ManagedIdentityGraphRole.ps1` | The only tenant writes in the repo: app registration, consents, role grants. Run once by the customer's admin, never by the module. |
 | Automation deployment | `deploy/automation/` (Bicep, deploy.ps1), `deploy/schedules/` (runbooks) | Option B: an Automation account in the customer's subscription with a managed identity, a nightly Conditional Access cycle and a monthly full posture cycle. |
@@ -21,8 +22,9 @@ decisions; `(verify)` marks what has not been proven live yet.
 ## A run, end to end
 
 1. **Sign in.** Locally, once: `Start-PostureRun` opens the browser for the admin's sign-in to the TenantKeep Posture
-   app, then gets a delegated token per service (Graph, SharePoint, Teams, Azure, and where the tenant approved
-   the optional reads, Power BI and Power Platform) from the refresh token it holds in memory. `Connect-PostureService` is the only file in the module that opens a session, always with one of
+   app, then gets a delegated token per service from the refresh token it holds in memory: Graph, and Power BI where the
+   tenant approved it. Azure, Teams and Power Platform get theirs from a second sign-in, to the second app, which
+   follows the first when the run reads one of them; SharePoint from its own optional app. `Connect-PostureService` is the only file in the module that opens a session, always with one of
    those tokens, except Exchange and Purview: Security and Compliance PowerShell issues no delegated token to a
    third-party app, and Exchange Online's only delegated scope reads "Manage" on a consent screen, so both sign the same
    admin in through the Exchange module's own app, which renews its own tokens. Exchange and Purview run in a second

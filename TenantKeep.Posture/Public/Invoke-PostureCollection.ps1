@@ -197,10 +197,11 @@ function Invoke-PostureCollection {
         Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
         Purview    = @{ test = { Test-PosturePurviewSession -TenantId $tenant }; hint = "Connect-IPPSSession -UserPrincipalName <reader> (in tenant $tenant)" }
         Azure      = @{ test = { Test-PostureAzureSession -TenantId $tenant }; hint = "Connect-AzAccount -Tenant $tenant" }
-        # Power BI and Power Platform are read with a token, not a module session: the run's own sign-in, or for
-        # Power BI in a scheduled run the Azure session of the managed identity. Neither is collected unless named.
+        # Power BI and Power Platform are read with a token, not a module session: the run's own sign-in (the second
+        # one for Power Platform), or for Power BI in a scheduled run the Azure session of the managed identity.
+        # Neither is collected unless named.
         PowerBI       = @{ test = { Test-PosturePowerSession -TenantId $tenant }; hint = 'Start-PostureRun, which signs in (a scheduled run: Connect-AzAccount -Identity)' }
-        PowerPlatform = @{ test = { [bool]$script:PostureSession }; hint = 'Start-PostureRun, which signs in; Power Platform is not read in a scheduled run' }
+        PowerPlatform = @{ test = { [bool]($script:PostureSession -and $script:PostureSession.ContainsKey('services') -and $script:PostureSession['services']) }; hint = 'Start-PostureRun, which signs in (or Connect-PostureSession, then Connect-PostureSession -Services); Power Platform is not read in a scheduled run' }
     }
     $run = @{}
     $run['Defender'] = $Collector -contains 'Defender'

@@ -32,6 +32,7 @@ BeforeAll {
             if ($env:TKP_CLIENTAPP_OWNS -eq $Matches[1]) { return @{ value = @(@{ id = 'obj-1'; appId = $Matches[1]; publisherDomain = 'kainor.com'; verifiedPublisher = @{ verifiedPublisherId = $null } }) } }
             return @{ value = @() }
         }
+        if ($u -match "applications\?\`$filter=displayName eq 'TenantKeep Posture for Azure, Teams and Power Platform'") { return @{ value = @() } }
         if ($u -match "applications\?\`$filter=displayName eq 'TenantKeep'") {
             if ($env:TKP_CLIENTAPP_EXISTS -eq '1') { return @{ value = @(@{ id = 'obj-1'; appId = 'aaaaaaaa-0000-0000-0000-000000000001'; publisherDomain = 'kainor.example'; verifiedPublisher = @{ verifiedPublisherId = $null } }) } }
             return @{ value = @() }
@@ -93,16 +94,13 @@ Describe 'TenantKeep.Posture/app.json' {
         $graphScopes | Should -Not -Contain 'Reports.Read.All' -Because 'no collector reads a usage report'
     }
 
-    It 'holds read permissions only, in what Posture asks for and in what a product sharing the app asks for' {
-        # The shared read app cannot write: every scope is a sign-in basic or reads, by its name. Three APIs offer no
-        # read-only scope at all, so Posture's own list (and only it) may name the one scope each of them has:
-        # user_impersonation on the Teams admin API and on Azure Service Management, and User on the PowerApps
-        # Service, whose admin API answers the tenant settings, DLP policies and tenant isolation that Microsoft's
-        # newer Power Platform API has no read permission for. The module's request entry points are what keep
-        # those three to reads (the read-only guard tests).
+    It 'holds read permissions only, on every API, in what Posture asks for and in what a product sharing the app asks for' {
+        # The shared read app cannot write: every scope is a sign-in basic or reads, by its name, with no exception
+        # for any API. A refresh token for a registration can be redeemed for any API a tenant granted it, so one
+        # broader permission anywhere would make "read permissions only" untrue in every tenant that approved it.
+        # The three APIs that offer no read-only scope (Azure Service Management, the Teams admin API, the PowerApps
+        # Service) are on the second app, app-services.json, and must never come back here (decided 2026-11-23).
         $basics = 'openid', 'profile', 'offline_access', 'User.Read'
-        $noReadOnlyScope = '48ac35b8-9aa8-4d74-927d-1f4a14a0b239', '797f4846-ba00-4fd7-ba43-dac1f8f63013'
-        $powerApps = '475226c6-020e-4fb2-8a90-7a972cbfc1d4'
         $reads = '^[A-Za-z-]+\.(Read|ReadBasic)\.(All|Directory|AzureADGroup)$'
         # The pattern above is what makes a scope a read. This second list is the words Microsoft uses for the rest,
         # looked for after the first dot so that a resource named RoleManagement or PrivilegedEligibilitySchedule passes.
@@ -110,19 +108,18 @@ Describe 'TenantKeep.Posture/app.json' {
         $shared = @($script:Manifest['sharedWith'])
         $shared.Count | Should -Be 1
         $shared[0]['product'] | Should -Be 'TenantKeep On-Call'
+        @($script:Manifest['resources'].name) | Should -Be @('graph', 'powerbi') -Because 'Microsoft Graph and Power BI are the APIs Posture reads that have read-only permissions'
+        @($script:Manifest['resources'].appId) | Should -Not -Contain '797f4846-ba00-4fd7-ba43-dac1f8f63013' -Because 'Azure Service Management has no read-only permission'
+        @($script:Manifest['resources'].appId) | Should -Not -Contain '48ac35b8-9aa8-4d74-927d-1f4a14a0b239' -Because 'the Teams admin API has no read-only permission'
+        @($script:Manifest['resources'].appId) | Should -Not -Contain '475226c6-020e-4fb2-8a90-7a972cbfc1d4' -Because 'the PowerApps Service has no read-only permission'
         foreach ($resource in @($script:Manifest['resources'])) {
             foreach ($scope in @($resource['scopes'])) {
-                if ($scope -eq 'user_impersonation') { $resource['appId'] | Should -BeIn $noReadOnlyScope -Because 'only the Teams admin API and Azure Service Management are read through a scope that is not read-only by name'; continue }
-                if ($scope -eq 'User') {
-                    $resource['appId'] | Should -Be $powerApps -Because 'only the PowerApps Service is read through the scope User'
-                    $resource['optional'] | Should -BeTrue -Because 'a customer approves the Power Platform read separately, knowing what it is'
-                    continue
-                }
-                if ($scope -in $basics) { continue }
-                $scope | Should -Match $reads -Because "$scope is on the read app"
+                if ($scope -in $basics) { $resource['name'] | Should -Be 'graph'; continue }
+                $scope | Should -Match $reads -Because "$scope on $($resource['label']) is on the read app"
                 $scope | Should -Not -Match $writes
             }
         }
+        @(@($script:Manifest['resources'] | Where-Object { $_['name'] -eq 'powerbi' })[0]['scopes']) | Should -Be @('Tenant.Read.All')
         foreach ($product in $shared) {
             foreach ($resource in @($product['resources'])) {
                 $resource['appId'] | Should -Be '00000003-0000-0000-c000-000000000000' -Because "$($product['product']) reads through Microsoft Graph only"
@@ -145,20 +142,84 @@ Describe 'TenantKeep.Posture/app.json' {
             $scopes = [uri]::UnescapeDataString(([regex]::Match($link, 'scope=([^&]+)')).Groups[1].Value) -split ' '
             $scopes | Should -Contain 'https://graph.microsoft.com/Policy.Read.All'
             $scopes | Should -Contain 'openid'
-            $scopes | Should -Contain '48ac35b8-9aa8-4d74-927d-1f4a14a0b239/user_impersonation'
-            $scopes | Should -Contain 'https://management.core.windows.net//user_impersonation' -Because 'Azure writes its address with the slash'
+            @($scopes | Where-Object { $_ -notmatch '^(openid|profile|offline_access|https://graph\.microsoft\.com/[A-Za-z.-]+)$' }).Count | Should -Be 0 -Because 'the first link names Microsoft Graph reads and nothing else'
+            @($scopes | Where-Object { $_ -match 'user_impersonation' }).Count | Should -Be 0 -Because 'Azure and Teams are approved on the second app'
             $scopes | Should -Not -Contain 'https://graph.microsoft.com/DeviceLocalCredential.Read.All' -Because 'a customer who wants a report is not asked to approve a LAPS password read'
             $scopes | Should -Not -Contain 'https://graph.microsoft.com/BitLockerKey.Read.All'
             @($scopes | Where-Object { $_ -match '\.default$' }).Count | Should -Be 0 -Because '.default would ask for everything registered on the shared app'
             $link | Should -Match 'redirect_uri=https%3A%2F%2Ftenantkeep\.app%2Fconsent%2F&state=posture$'
             Get-PostureConsentLink | Should -Match 'microsoftonline\.com/organizations/v2\.0/adminconsent'
-            $teams = [uri]::UnescapeDataString(([regex]::Match((Get-PostureConsentLink -Resource teams), 'scope=([^&]+)')).Groups[1].Value)
-            $teams | Should -Be '48ac35b8-9aa8-4d74-927d-1f4a14a0b239/user_impersonation' -Because 'one API alone, in case Microsoft refuses a link that names several'
-            # Power BI and Power Platform are approved from a second link, by a customer who wants those checks.
-            @($scopes | Where-Object { $_ -match 'powerbi|powerapps' }).Count | Should -Be 0 -Because 'a tenant that approved the first link is not asked again, and nobody approves Power Platform without choosing to'
+            { Get-PostureConsentLink -Resource teams } | Should -Throw "*app.json names no permission for 'teams'*"
+            # Power BI is approved from a link of its own, by a customer who wants those checks.
+            @($scopes | Where-Object { $_ -match 'powerbi|powerapps' }).Count | Should -Be 0 -Because 'a tenant that approved the first link is not asked again'
             $second = Get-PostureConsentLink -TenantId '33333333-3333-3333-3333-333333333333' -Optional
             $second | Should -Match '^https://login\.microsoftonline\.com/33333333-3333-3333-3333-333333333333/v2\.0/adminconsent\?client_id=e5b148e7-9689-40b2-9b09-9d0bef133049&scope='
-            ([uri]::UnescapeDataString(([regex]::Match($second, 'scope=([^&]+)')).Groups[1].Value) -split ' ') | Should -Be @('https://analysis.windows.net/powerbi/api/Tenant.Read.All', 'https://service.powerapps.com//User') -Because 'the second link names the two optional APIs and nothing else'
+            ([uri]::UnescapeDataString(([regex]::Match($second, 'scope=([^&]+)')).Groups[1].Value) -split ' ') | Should -Be @('https://analysis.windows.net/powerbi/api/Tenant.Read.All') -Because 'the optional link of the read app names Power BI and nothing else'
+        }
+    }
+}
+
+Describe 'TenantKeep.Posture/app-services.json' {
+    BeforeAll {
+        $script:ServicesManifest = Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'app-services.json'
+        $script:Services = Get-Content -LiteralPath $script:ServicesManifest -Raw | ConvertFrom-Json -AsHashtable
+    }
+
+    It 'is the one place the three APIs without a read-only permission are named, and holds nothing else' {
+        $script:Services['displayName'] | Should -Be 'TenantKeep Posture for Azure, Teams and Power Platform'
+        $script:Services['redirectUri'] | Should -Be 'http://localhost'
+        $script:Services['consentRedirectUri'] | Should -Match '^https://tenantkeep\.app/'
+        $script:Services['clientId'] | Should -Match '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$' -Because 'empty until the registration is created, then its id'
+        $script:Services['clientId'] | Should -Not -Be 'e5b148e7-9689-40b2-9b09-9d0bef133049' -Because 'it is a registration of its own'
+        $script:Services.ContainsKey('sharedWith') | Should -BeFalse -Because 'only Posture signs in to it; TenantKeep On-Call never does'
+        $script:Services.ContainsKey('api') | Should -BeFalse
+        $by = @{}; foreach ($resource in @($script:Services['resources'])) { $by[[string]$resource['name']] = $resource }
+        @($script:Services['resources'].name) | Should -Be @('graph', 'teams', 'azure', 'powerplatform')
+        @($by['graph']['scopes']) | Should -Be @('openid', 'profile', 'offline_access', 'User.Read') -Because 'Graph only for the sign-in itself: every Graph read stays on the read app'
+        $by['graph']['signIn'] | Should -BeTrue
+        $by['teams']['appId'] | Should -Be '48ac35b8-9aa8-4d74-927d-1f4a14a0b239'
+        @($by['teams']['scopes']) | Should -Be @('user_impersonation')
+        $by['azure']['appId'] | Should -Be '797f4846-ba00-4fd7-ba43-dac1f8f63013'
+        $by['azure']['audience'] | Should -Be 'https://management.core.windows.net/'
+        @($by['azure']['scopes']) | Should -Be @('user_impersonation')
+        $by['powerplatform']['appId'] | Should -Be '475226c6-020e-4fb2-8a90-7a972cbfc1d4'
+        @($by['powerplatform']['scopes']) | Should -Be @('User')
+        $by['powerplatform']['optional'] | Should -BeTrue -Because 'a customer approves the Power Platform read separately, knowing what it is'
+        $by['teams'].ContainsKey('optional') | Should -BeFalse
+        $by['azure'].ContainsKey('optional') | Should -BeFalse
+    }
+
+    It 'shares no API with the read app but the sign-in, and the module knows which sign-in each token comes from' {
+        $main = Get-Content -LiteralPath $script:ShippedManifest -Raw | ConvertFrom-Json -AsHashtable
+        $both = @($script:Services['resources'].appId | Where-Object { $_ -in @($main['resources'].appId) })
+        $both | Should -Be @('00000003-0000-0000-c000-000000000000')
+        Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+        InModuleScope TenantKeep.Posture {
+            Get-PostureResourceApp -Resource graph | Should -Be 'main' -Because 'the second app names Graph only so that a person can sign in to it'
+            Get-PostureResourceApp -Resource powerbi | Should -Be 'main'
+            foreach ($api in 'azure', 'teams', 'powerplatform') { Get-PostureResourceApp -Resource $api | Should -Be 'services' }
+            Get-PostureResourceApp -Resource sharepoint | Should -Be 'sharepoint'
+            Get-PostureResourceScope -Resource azure | Should -Be 'https://management.core.windows.net//.default'
+            Get-PostureResourceScope -Resource teams | Should -Be '48ac35b8-9aa8-4d74-927d-1f4a14a0b239/.default'
+            Get-PostureResourceScope -Resource powerplatform | Should -Be 'https://service.powerapps.com//.default'
+            Get-PostureResourceScope -Resource powerbi | Should -Be 'https://analysis.windows.net/powerbi/api/.default'
+        }
+    }
+
+    It 'gives customers links that each name what signing in needs and the APIs chosen, and no Graph read' {
+        Import-Module (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'TenantKeep.Posture.psd1') -Force
+        InModuleScope TenantKeep.Posture {
+            $id = 'cccccccc-0000-0000-0000-000000000003'
+            $scopeOf = { param($link) [uri]::UnescapeDataString(([regex]::Match($link, 'scope=([^&]+)')).Groups[1].Value) -split ' ' }
+            $link = Get-PostureConsentLink -App services -ClientId $id -TenantId '33333333-3333-3333-3333-333333333333'
+            $link | Should -Match '^https://login\.microsoftonline\.com/33333333-3333-3333-3333-333333333333/v2\.0/adminconsent\?client_id=cccccccc-0000-0000-0000-000000000003&scope='
+            $link | Should -Match 'redirect_uri=https%3A%2F%2Ftenantkeep\.app%2Fconsent%2F&state=posture$'
+            & $scopeOf $link | Should -Be @('openid', 'profile', 'offline_access', 'https://graph.microsoft.com/User.Read', '48ac35b8-9aa8-4d74-927d-1f4a14a0b239/user_impersonation', 'https://management.core.windows.net//user_impersonation') -Because 'Azure writes its address with the slash, and Power Platform is approved separately'
+            & $scopeOf (Get-PostureConsentLink -App services -ClientId $id -Optional) | Should -Be @('openid', 'profile', 'offline_access', 'https://graph.microsoft.com/User.Read', 'https://service.powerapps.com//User') -Because 'the link is enough alone for a customer who wants Power Platform and neither of the others'
+            & $scopeOf (Get-PostureConsentLink -App services -ClientId $id -Resource azure) | Should -Be @('openid', 'profile', 'offline_access', 'https://graph.microsoft.com/User.Read', 'https://management.core.windows.net//user_impersonation')
+            { Get-PostureConsentLink -App services -ClientId $id -Resource powerbi } | Should -Throw "*app-services.json names no permission for 'powerbi'*"
+            $empty = Get-PostureAppManifest -Name services; $empty['clientId'] = ''
+            { Get-PostureConsentLink -Manifest $empty } | Should -Throw '*app-services.json carries no client id yet*' -Because 'a link with no app in it would look real and approve nothing'
         }
     }
 }
@@ -187,9 +248,7 @@ Describe 'New-PostureClientApp.ps1' {
         $domain[0].Body.publisherDomain | Should -Be 'kainor.com'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
-        @($create[0].Body.requiredResourceAccess).Count | Should -Be 5 -Because 'Graph, Teams and Azure, and the two a customer approves separately, Power BI and Power Platform; Exchange signs in through its own module, and SharePoint full control lives only in the separate SharePoint app'
-        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Contain '00000009-0000-0000-c000-000000000000' -Because 'Power BI is registered so that a customer can approve it'
-        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Contain '475226c6-020e-4fb2-8a90-7a972cbfc1d4'
+        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Be @('00000003-0000-0000-c000-000000000000', '00000009-0000-0000-c000-000000000000') -Because 'Graph, and Power BI so that a customer can approve it; Azure, Teams and Power Platform are on the second app, Exchange signs in through its own module, and SharePoint full control lives only in the separate SharePoint app'
         @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Not -Contain '00000007-0000-0ff1-ce00-000000000000'
         foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
@@ -208,6 +267,34 @@ Describe 'New-PostureClientApp.ps1' {
         $printed | Should -Match 'https://graph\.microsoft\.com/Policy\.Read\.All'
         $printed | Should -Not -Match 'DeviceLocalCredential|\.default' -Because 'the link names what Posture asks for, not everything registered'
         $text | Should -Match 'also carries what TenantKeep On-Call asks for'
+    }
+
+    It 'registers the second app from app-services.json: the three APIs, no credentials, and links that carry the sign-in' {
+        $env:TKP_CLIENTAPP_EXISTS = '0'
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..' 'TenantKeep.Posture' 'app-services.json') -Destination $script:AppJson -Force
+        (Get-Content -LiteralPath $script:AppJson -Raw) -replace '"clientId":\s*"[^"]*"', '"clientId": ""' | Set-Content -LiteralPath $script:AppJson -NoNewline
+        $out = & $script:Script -AppJsonPath $script:AppJson -TenantId '11111111-1111-1111-1111-111111111111' -WarningAction SilentlyContinue 6>&1
+        $requests = & $script:ReadRequests
+        $create = @($requests | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match 'applications$' })
+        $create.Count | Should -Be 1
+        $create[0].Body.displayName | Should -Be 'TenantKeep Posture for Azure, Teams and Power Platform'
+        $create[0].Body.signInAudience | Should -Be 'AzureADMultipleOrgs'
+        $create[0].Body.isFallbackPublicClient | Should -BeTrue
+        $create[0].Body.publicClient.redirectUris | Should -Be @('http://localhost') -Because 'no phone or Mac app signs in to this one'
+        $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
+        $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
+        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Be @('00000003-0000-0000-c000-000000000000', '48ac35b8-9aa8-4d74-927d-1f4a14a0b239', '797f4846-ba00-4fd7-ba43-dac1f8f63013', '475226c6-020e-4fb2-8a90-7a972cbfc1d4')
+        foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
+        $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]
+        @($graphAccess.resourceAccess).id | Should -Be @('id-openid', 'id-profile', 'id-offline_access', 'id-User.Read') -Because 'no Graph read is registered on the second app'
+        (Get-Content -LiteralPath $script:AppJson -Raw | ConvertFrom-Json).clientId | Should -Be 'aaaaaaaa-0000-0000-0000-000000000001'
+        $text = $out -join "`n"
+        $links = @([regex]::Matches($text, 'scope=([^&\s]+)') | ForEach-Object { [uri]::UnescapeDataString($_.Groups[1].Value) })
+        $links.Count | Should -Be 2
+        $links[0] | Should -Be 'openid profile offline_access https://graph.microsoft.com/User.Read 48ac35b8-9aa8-4d74-927d-1f4a14a0b239/user_impersonation https://management.core.windows.net//user_impersonation'
+        $links[1] | Should -Be 'openid profile offline_access https://graph.microsoft.com/User.Read https://service.powerapps.com//User'
+        $text | Should -Match 'Customers approve TenantKeep Posture for Azure, Teams and Power Platform \(Skype and Teams Tenant Admin API, Azure Service Management\) once'
+        $text | Should -Not -Match 'also carries what'
     }
 
     It 'writes the client id before verifying, and waits for a new registration to replicate before setVerifiedPublisher' {

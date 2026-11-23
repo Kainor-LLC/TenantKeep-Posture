@@ -1,7 +1,9 @@
 # Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 # A run that outlives its sign-in. An admin account is the account most likely to have a Conditional Access sign-in
 # frequency of a few hours; past it the identity platform refuses every renewal, for Graph, SharePoint, Teams and
-# Azure alike, until the admin signs in again. This file is what happens then:
+# Azure alike, until the admin signs in again. A run holds up to three sign-ins (the main app, the second app for
+# Azure, Teams and Power Platform, and SharePoint's), and each ends and is renewed by itself. This file is what
+# happens then:
 #   - In a run with someone at the console, the run pauses and asks the same admin to sign in again, then repeats
 #     the request it was making (Restore-PostureSignIn, called from Get-PostureToken).
 #   - Otherwise, or when the new sign-in does not complete, the run records once that the sign-in ended. The steps
@@ -10,7 +12,8 @@
 # Before any of that, the run says what to expect: Get-PostureSignInFrequencyNotice reads the Conditional Access
 # snapshot for a sign-in frequency that applies to the account.
 
-# Which sign-in has ended in this process: 'main' (everything but SharePoint) or 'sharepoint', each with when and why.
+# Which sign-in has ended in this process: 'main' (Graph, Power BI), 'services' (Azure, Teams, Power Platform) or
+# 'sharepoint', each with when and why.
 $script:PostureSessionEnded = @{}
 $script:PostureSignInRenewalLimit = 3
 
@@ -58,10 +61,20 @@ function Get-PostureEndedSignIn {
     param([string] $Collector = $script:PostureCurrentCollector)
 
     if ($script:PostureSessionEnded.get_Count() -eq 0 -or -not $Collector -or $Collector -in 'Exchange', 'Purview') { return $null }
-    $holder = $(if ($Collector -eq 'SharePoint') { 'sharepoint' } else { 'main' })
-    if (-not $script:PostureSessionEnded.ContainsKey($holder)) { return $null }
-    $record = $script:PostureSessionEnded[$holder]
-    return @{ holder = $holder; utc = $record.utc; reason = $record.reason }
+    # Teams is connected with a token of each: its own from the second app, and a Graph token from the main one.
+    $holders = switch ($Collector) {
+        'SharePoint' { @('sharepoint') }
+        'Azure' { @('services') }
+        'PowerPlatform' { @('services') }
+        'Teams' { @('services', 'main') }
+        default { @('main') }
+    }
+    foreach ($holder in $holders) {
+        if (-not $script:PostureSessionEnded.ContainsKey($holder)) { continue }
+        $record = $script:PostureSessionEnded[$holder]
+        return @{ holder = $holder; utc = $record.utc; reason = $record.reason }
+    }
+    return $null
 }
 
 function Restore-PostureSignIn {
@@ -75,7 +88,8 @@ function Restore-PostureSignIn {
         there, since everything collected so far was read as the first account. At most three new sign-ins in one
         run. The token service that renews for the second process gets the new refresh token as well.
     .PARAMETER Holder
-        main, or sharepoint for the SharePoint app's own sign-in.
+        main; services for the second app's sign-in (Azure, Teams and Power Platform); sharepoint for the
+        SharePoint app's.
     .PARAMETER Reason
         The identity platform's message for the refused renewal.
     #>
@@ -84,7 +98,7 @@ function Restore-PostureSignIn {
     [OutputType([void])]
     param(
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Session,
-        [Parameter(Mandatory)] [ValidateSet('main', 'sharepoint')] [string] $Holder,
+        [Parameter(Mandatory)] [ValidateSet('main', 'sharepoint', 'services')] [string] $Holder,
         [Parameter(Mandatory)] [AllowEmptyString()] [string] $Reason
     )
 
@@ -106,11 +120,12 @@ function Restore-PostureSignIn {
     if ($renewed -ge $script:PostureSignInRenewalLimit) { & $stop "it was renewed $renewed times in this run already$(if ($code) { " ($code)" })." }
 
     $account = [string]$Session['account']
-    $target = $(if ($Holder -eq 'sharepoint') { $Session['sharepoint'] } else { $Session })
-    $appName = $(if ($Holder -eq 'sharepoint') { 'TenantKeep Posture for SharePoint' } else { [string](Get-PostureAppManifest)['displayName'] })
+    $target = $(if ($Holder -eq 'main') { $Session } else { $Session[$Holder] })
+    $appName = $(if ($Holder -eq 'sharepoint') { 'TenantKeep Posture for SharePoint' } else { [string](Get-PostureAppManifest -Name $Holder)['displayName'] })
     # The main app is shared with TenantKeep On-Call, so its browser step asks only to sign in, as the first sign-in
-    # does (Connect-PostureSession); the Graph token is fetched with the new refresh token below. The SharePoint app
-    # holds one permission and is asked for it directly.
+    # does (Connect-PostureSession); the Graph token is fetched with the new refresh token below. The second app's
+    # browser step asks the same, and its three APIs are asked for afterwards, one token at a time. The SharePoint
+    # app holds one permission and is asked for it directly.
     $resourceScope = $(if ($Holder -eq 'sharepoint') { Get-PostureResourceScope -Resource sharepoint -TenantName $Session['tenantName'] } else { 'https://graph.microsoft.com/User.Read' })
     $mode = [string]$(if ($Session.Contains('signInMode')) { $Session['signInMode'] } else { 'browser' })
     Write-Host ''
@@ -122,7 +137,7 @@ function Restore-PostureSignIn {
         if ([string]$claims['tid'] -ne [string]$Session['tenantId']) { throw "the new sign-in went to tenant $($claims['tid']), not the run's tenant" }
         if ($who -and -not [string]::Equals($who, $account, [System.StringComparison]::OrdinalIgnoreCase)) { throw "the new sign-in was as $who, and the run is $account's" }
         if (-not $tokens['refresh_token']) { throw 'the new sign-in returned no refresh token' }
-        if ($Holder -ne 'sharepoint') {
+        if ($Holder -eq 'main') {
             $renewedRefresh = [string]$tokens['refresh_token']
             $tokens = Invoke-PostureTokenRequest -Endpoint token -TenantId ([string]$Session['tenantId']) -Form @{ grant_type = 'refresh_token'; client_id = [string]$target['clientId']; refresh_token = $renewedRefresh; scope = 'https://graph.microsoft.com/.default' }
             if (-not ($tokens.ContainsKey('refresh_token') -and $tokens['refresh_token'])) { $tokens['refresh_token'] = $renewedRefresh }
@@ -134,7 +149,12 @@ function Restore-PostureSignIn {
     $target['refreshToken'] = [string]$tokens['refresh_token']
     $Session['signInsRenewed'] = $renewed + 1
     $Session['signedInUtc'] = $now
-    $Session['tokens'][$(if ($Holder -eq 'sharepoint') { 'sharepoint' } else { 'graph' })] = @{ accessToken = [string]$tokens['access_token']; expiresUtc = $now.AddSeconds([int]$tokens['expires_in']); scope = [string]$(if ($tokens.ContainsKey('scope')) { $tokens['scope'] }) }
+    if ($Holder -eq 'services') {
+        # The browser's token is a Graph token of the second app, which nothing reads with: the cached Graph token
+        # stays the main sign-in's, and the three APIs get new tokens from the new refresh token when next asked.
+        foreach ($resource in @((Get-PostureAppManifest -Name services)['byName'].get_Keys())) { if ($resource -ne 'graph') { $null = $Session['tokens'].Remove($resource) } }
+    }
+    else { $Session['tokens'][$(if ($Holder -eq 'sharepoint') { 'sharepoint' } else { 'graph' })] = @{ accessToken = [string]$tokens['access_token']; expiresUtc = $now.AddSeconds([int]$tokens['expires_in']); scope = [string]$(if ($tokens.ContainsKey('scope')) { $tokens['scope'] }) } }
     # The second process renews through the token service, which holds its own copy of the session.
     if ($Holder -eq 'main' -and $script:PostureTokenServer -and $script:PostureTokenServer['session']) { $script:PostureTokenServer['session']['refreshToken'] = [string]$tokens['refresh_token'] }
     Write-Host "Signed in again as $account. Carrying on." -ForegroundColor Green

@@ -21,12 +21,42 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - The consent changed. Two permissions are gone, five read-only ones are new, and the scheduled run no longer holds
   full control of SharePoint unless asked. An admin consents again once; until then each new read says which
   permission it lacks.
+- Azure, Teams and Power Platform are read through a second app with an approval of its own, because Microsoft
+  offers no read-only permission for those three. The TenantKeep app now holds read-only permissions on every API.
+  A tenant that approved an earlier version removes the older grants with one script.
 - Run against a live tenant with a normal sign-in and through the scheduled run. Not yet seen live: the five new
   reads through the scheduled run's identity (Azure keeps its old token for up to a day; a run without them says
   which permission it lacks), the reads that need Microsoft 365 E5, the two that need a tenant that syncs from
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- The TenantKeep app is read-only on every API, and a second app reads Azure, Teams and Power Platform
+  (2026-11-23). Three APIs offer no read-only permission, only one to act as the signed-in administrator: Azure
+  Service Management, the Teams admin API and the Power Platform admin API. Until now the TenantKeep app held those
+  beside its Graph reads, with the module's request entry points as the limit. That was not enough for an app that
+  is shared with TenantKeep On-Call and described as holding read permissions only: a refresh token for an app can
+  be redeemed for any API an organisation granted that app, so one broader permission anywhere on it reaches every
+  tenant that approved it. What changed:
+  - `app.json` names Microsoft Graph and Power BI (Tenant.Read.All, optional) and nothing else. The test that
+    guards it has no exceptions left: every scope is a sign-in basic or read-only by its name, on every API.
+  - `app-services.json` is a second registration, TenantKeep Posture for Azure, Teams and Power Platform, which
+    Posture alone signs in to. It holds the three permissions (Power Platform's optional, from a link of its own)
+    and the Graph sign-in scopes, with no Graph read. `deploy/setup/New-PostureClientApp.ps1 -AppJsonPath
+    TenantKeep.Posture/app-services.json` registers it.
+  - `Connect-PostureSession -Services` is the second sign-in, as the same account in the same tenant, with its
+    refresh token held apart from the main one. `Start-PostureRun` makes it by itself when a run reads one of the
+    three. Graph is asked first whether the organisation has the app, so a tenant that never approved it sees no
+    second browser window: the three are skipped with the link, and the rest of the run is the same. An organisation
+    that approved the app without one of the APIs gets the link for that one.
+  - A sign-in that ends during a long run is renewed for the app it belongs to. When the second app's sign-in is
+    the one that ended, Azure, Teams and Power Platform stop and everything else carries on.
+  - `deploy/setup/Remove-PostureStaleGrant.ps1`, for a tenant that approved an earlier version: it removes every
+    delegated permission the TenantKeep app holds there that its published manifest no longer names, keeps every
+    one it does name, and says when the tenant is clean. `-WhatIf` only lists. Taking a permission off a
+    registration does not take it away from an organisation that had approved it, so this has to be run in each
+    such tenant, by its own administrator.
+  - Not yet seen live: the second sign-in itself, and the Teams module taking its Graph token from one app and its
+    Teams token from the other (both are the same administrator's delegated tokens).
 - Six checks on Azure network security (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment,
   read through Resource Graph with the Azure permission already held. Azure Firewall denies what threat
   intelligence and intrusion detection flag (AZ-031) and, on Premium, inspects encrypted traffic (AZ-032).
@@ -44,8 +74,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - A Power BI refusal for a missing licence now gets advice that names the licence alone (2026-11-23, from the
   first live run): a Global Administrator was being told to get the Fabric Administrator role as well.
 - A sixteenth domain, Power Platform and Power BI (2026-11-23, catalog 2026.11.3), with fifteen checks and two new
-  collectors. It is optional: a tenant approves two more permissions on the TenantKeep app from a second link, and
-  a tenant that has not is told so, with the link, while the rest of the run is unchanged.
+  collectors. It is optional, and each product is approved from a link of its own: Power BI's permission on the
+  TenantKeep app, Power Platform's on the second app (the entry above). A tenant that has not approved one is told
+  so, with the link, while the rest of the run is unchanged.
   - Power BI (`-Collector PowerBI`, BI-001 to BI-008): Publish to web, guest access, inviting outside users,
     service principals and their profiles, resource key authentication, R and Python visuals, sensitivity labels.
     One read of the Fabric admin API with Tenant.Read.All, which is read-only by name. The account needs Fabric
@@ -54,13 +85,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   - Power Platform (`-Collector PowerPlatform`, PP-001 to PP-007): who may create environments, trial environments
     and Power Pages sites, sharing apps with Everyone, DLP policies on the default and on every other environment,
     tenant isolation. The settings are on Power Platform's older admin API, which has no read-only permission and
-    no read-only role, so the app holds its one permission and the module keeps the run to reads: three GETs and
-    the one POST Microsoft made the way to list tenant settings, from a single file with a test of its own. For the
-    same reason a scheduled run does not read Power Platform.
+    no read-only role, so the second app holds its one permission and the module keeps the run to reads: three
+    GETs and the one POST Microsoft made the way to list tenant settings, from a single file with a test of its
+    own. For the same reason a scheduled run does not read Power Platform.
   - Seventeen policies of CISA's SCuBA baselines for the two products are now accounted for: fifteen by a check,
     one out of scope with the reason, one planned. SCuBA coverage goes from 82 to 97 of 109 policies.
-  - `deploy/setup/New-PostureClientApp.ps1` registers the two APIs and prints the second link. The main consent
-    link is unchanged, so a tenant that approved it is not asked again.
+  - `deploy/setup/New-PostureClientApp.ps1` registers each API on its app and prints the link for it. Nothing a
+    tenant approved for Microsoft Graph is asked for again.
   - A scheduled run can read Power BI, and it is opt-in: `deploy.ps1 -IncludePowerBI` sets one variable,
     `Grant-ManagedIdentityGraphRole.ps1 -IncludePowerBI` puts the identity in a security group and grants it
     nothing, and a Fabric administrator names that group in the tenant setting for read-only admin APIs.
@@ -150,7 +181,7 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   the TenantKeep On-Call app for what that reads; the client id is unchanged, and so is every consent already given.
   `app.json` lists what Posture asks for under `resources` and what On-Call asks for under `sharedWith`. Nothing on
   the app can write: every write lives in a separate On-Call app, and a test fails if a scope that could is added
-  here. Two things changed in the sign-in because the app is shared. The link an unapproved tenant is given now names
+  here. (On 2026-11-23 that was made true of every API, not only Graph: see the entry on the second app.) Two things changed in the sign-in because the app is shared. The link an unapproved tenant is given now names
   Posture's permissions one by one (the older link approved everything registered, which would now include On-Call's
   reads, a LAPS password and a BitLocker key among them). And the browser step asks only to sign the admin in; what
   the organisation approved is fetched with the refresh token, which can show no prompt. In a tenant that uses both

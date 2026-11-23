@@ -87,14 +87,16 @@ Describe 'Connect-PostureSession in the browser flow' {
 
     It 'hands out a token per resource from the refresh token, caches it, and rotates the refresh token' {
         InModuleScope TenantKeep.Posture {
-            $azure = Get-PostureToken -Resource azure
+            $powerBi = Get-PostureToken -Resource powerbi
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-2'
-            Get-PostureToken -Resource azure | Should -Be $azure
-            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -ParameterFilter { $Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://management.core.windows.net//.default' }
+            Get-PostureToken -Resource powerbi | Should -Be $powerBi
+            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -ParameterFilter { $Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://analysis.windows.net/powerbi/api/.default' }
             { Get-PostureToken -Resource sharepoint } | Should -Throw '*its own sign-in*' -Because 'the main app asks for no SharePoint permission'
             { Get-PostureToken -Resource exchange } | Should -Throw '*names no resource*' -Because 'Exchange signs in through its own module; the app asks for no Exchange permission'
-            Get-PostureToken -Resource azure | Should -Be $azure
-            Get-PostureToken -Resource teams | Should -Be 'token-for-48ac35b8-9aa8-4d74-927d-1f4a14a0b239/.default'
+            Get-PostureToken -Resource powerbi | Should -Be $powerBi
+            # The app this sign-in is to holds read-only permissions only, so it has no token for an API without one.
+            foreach ($api in 'azure', 'teams', 'powerplatform') { { Get-PostureToken -Resource $api } | Should -Throw '*read through a second sign-in: Connect-PostureSession -Services*' -Because $api }
+            Should -Invoke Invoke-PostureTokenRequest -Times 0 -Exactly -ParameterFilter { $Form['scope'] -match 'management\.core|48ac35b8|powerapps' } -Because 'the main refresh token is never sent for one of those three'
             (Get-PostureToken -Resource graph -AsSecureString) | Should -BeOfType [securestring]
             { Get-PostureToken -Resource nothing } | Should -Throw '*names no resource*'
         }

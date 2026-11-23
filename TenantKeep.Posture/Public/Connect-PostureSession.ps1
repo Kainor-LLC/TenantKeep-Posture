@@ -2,12 +2,12 @@
 function Connect-PostureSession {
     <#
     .SYNOPSIS
-        One sign-in for every service the posture run reads. Opens the browser, holds the session in memory.
+        The sign-in a posture run reads with. Opens the browser, holds the session in memory.
     .DESCRIPTION
         Signs the admin in to the TenantKeep app (a multi-tenant public client with delegated, read-only
         permissions; see app.json and docs/plan-one-signin.md) with the authorization code flow and PKCE on a loopback
-        port, in plain PowerShell. From that one sign-in the module gets a token for each service as it needs one
-        (Get-PostureToken) and opens the Graph session right away. The refresh token lives in this process only and
+        port, in plain PowerShell. From that sign-in the module gets a token for Graph, and for Power BI where the
+        organisation approved it (Get-PostureToken), and opens the Graph session right away. The refresh token lives in this process only and
         is never written to disk. Every token is the signed-in admin's, bounded by that admin's own roles.
 
         The browser step asks only to sign the admin in; what the organisation approved for Graph is then fetched
@@ -18,7 +18,14 @@ function Connect-PostureSession {
         policy that blocks the sign-in is reported with the app id, so the admin can allow it; the module does not
         work around it. Pass -TenantId to refuse a sign-in to any other tenant.
 
-        -SharePoint adds the second, optional sign-in for the SharePoint admin read: TenantKeep Posture for SharePoint
+        -Services adds the second sign-in, to TenantKeep Posture for Azure, Teams and Power Platform
+        (app-services.json). Those three APIs offer no read-only permission, only one to act as the signed-in
+        administrator, so they are kept off the TenantKeep app, which holds read-only permissions on every API. An
+        organisation approves the second app separately, and one that wants none of the three never does. It signs
+        in as the account already signed in, to the same tenant; the browser usually passes it without asking.
+        Start-PostureRun does this on its own when the run reads one of the three.
+
+        -SharePoint adds the optional sign-in for the SharePoint admin read: TenantKeep Posture for SharePoint
         (app-sharepoint.json), the only app that asks for SharePoint full control. It is never consented for the whole
         organisation; deploy/setup/Grant-PostureSharePointAccess.ps1 grants it to named admins and requires
         assignment, so anyone else is refused. It signs in as the account already signed in, to the same tenant.
@@ -32,7 +39,10 @@ function Connect-PostureSession {
         Print the sign-in URL instead of opening the browser.
     .PARAMETER ClientId
         A customer-owned app registration with the same delegated permissions, instead of the Kainor-owned one. With
-        -SharePoint, the customer-owned SharePoint registration (deploy/setup/New-PostureSharePointApp.ps1).
+        -Services, a registration with the permissions app-services.json lists. With -SharePoint, the customer-owned
+        SharePoint registration (deploy/setup/New-PostureSharePointApp.ps1).
+    .PARAMETER Services
+        Sign in to TenantKeep Posture for Azure, Teams and Power Platform as well, after the main sign-in.
     .PARAMETER SharePoint
         Sign in to TenantKeep Posture for SharePoint as well, after the main sign-in, for the SharePoint admin read.
     .PARAMETER TimeoutSeconds
@@ -42,6 +52,9 @@ function Connect-PostureSession {
         Invoke-PostureCollection -OutRoot ~/tenantkeep/evidence
     .EXAMPLE
         Connect-PostureSession -DeviceCode
+    .EXAMPLE
+        Connect-PostureSession -TenantId contoso.onmicrosoft.com
+        Connect-PostureSession -Services
     .EXAMPLE
         Connect-PostureSession -TenantId contoso.onmicrosoft.com
         Connect-PostureSession -SharePoint
@@ -55,12 +68,15 @@ function Connect-PostureSession {
         [Parameter(ParameterSetName = 'Browser')] [switch] $NoBrowser,
         [ValidatePattern('^[0-9a-fA-F-]{36}$')] [string] $ClientId,
         [ValidateRange(30, 1800)] [int] $TimeoutSeconds = 300,
-        [switch] $SharePoint
+        [switch] $SharePoint,
+        [switch] $Services
     )
 
     $ErrorActionPreference = 'Stop'
     Set-StrictMode -Version Latest
+    if ($SharePoint -and $Services) { throw 'One at a time: -Services, then -SharePoint.' }
     if ($SharePoint) { return (Connect-PostureSharePointSession -ClientId $ClientId -DeviceCode:$DeviceCode -NoBrowser:$NoBrowser -TimeoutSeconds $TimeoutSeconds) }
+    if ($Services) { return (Connect-PostureServicesSession -ClientId $ClientId -DeviceCode:$DeviceCode -NoBrowser:$NoBrowser -TimeoutSeconds $TimeoutSeconds) }
 
     $manifest = Get-PostureAppManifest
     $clientId = $(if ($ClientId) { $ClientId } else { [string]$manifest['clientId'] })

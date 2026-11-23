@@ -8,14 +8,14 @@ PowerShell 7. Mac first; Windows and Linux supported.
 ## Status
 
 Pre-release 0.3.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), Authenticode-signed by Kainor LLC. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
-one sign-in, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
+one command, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
 Windows-only Active Directory script), thirteen check domains, the interactive report, the findings list, the
 Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
 first tagged release, the Marketplace listing, the trial licence on first run.
 
 ## Use
 
-Two lines. The sign-in is delegated, read-only, and the only one (Purview opens a second window of its own).
+Two lines. The sign-in is delegated and read-only. Azure, Teams and Power Platform are read through a second app with a sign-in of its own, because Microsoft offers no read-only permission for them, and Purview opens one more window.
 
 ```powershell
 Install-PSResource TenantKeep.Posture -Prerelease   # or Install-Module TenantKeep.Posture -AllowPrerelease; from a clone: Import-Module ./TenantKeep.Posture

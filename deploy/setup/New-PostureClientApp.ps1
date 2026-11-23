@@ -4,12 +4,22 @@
 .SYNOPSIS
     Kainor-side, once: registers the multi-tenant public client that Start-PostureRun signs in to, from the manifest
     the module ships (TenantKeep.Posture/app.json), and marks it publisher verified. Run it again with
+    -AppJsonPath TenantKeep.Posture/app-services.json for the second app (Azure, Teams and Power Platform) and with
     -AppJsonPath TenantKeep.Posture/app-sharepoint.json for the optional SharePoint app.
 .DESCRIPTION
-    This is the one app registration behind the one sign-in (docs/plan-one-signin.md). It lives in the Kainor tenant
-    and is used by every customer tenant after their admin consents once. It is a public client: no secret, no
-    certificate, nothing to leak. Every permission is delegated and read-only, so a token is always the signed-in
-    admin's, bounded by that admin's own roles.
+    app.json is the app registration behind the sign-in (docs/plan-one-signin.md). It lives in the Kainor tenant and
+    is used by every customer tenant after their admin consents once. It is a public client: no secret, no
+    certificate, nothing to leak. Every permission is delegated and read-only by its name, on every API, so a token
+    is always the signed-in admin's, bounded by that admin's own roles, and cannot change anything.
+
+    app-services.json is a second registration of the same kind for the three APIs that offer no read-only
+    permission (Azure Service Management, the Teams admin API, the Power Platform admin API). It is Posture's alone:
+    the shared app stays read-only on every API, because a refresh token for a registration can be redeemed for any
+    API a tenant granted it.
+
+    Running the script again for a manifest that has lost a permission takes the permission off the registration.
+    What a tenant already approved stays granted there until it is removed: Remove-PostureStaleGrant.ps1, run in
+    each tenant that approved the app before, takes away every grant the manifest no longer names.
 
     What it does, in order, and only against the Kainor tenant:
       1. Reads app.json: display name, redirect URIs and, per resource, the delegated scope values.
@@ -168,15 +178,19 @@ if ([string]$manifest['consentRedirectUri']) {
     # The link names what this product asks for and nothing else: a link for everything registered would have a
     # customer approve the permissions of the product that shares the app.
     $basics = 'openid', 'profile', 'offline_access'
-    # A resource marked optional (Power BI, Power Platform) has a second link, so a customer who approved the first
-    # is not asked again and one who does not want those checks approves nothing for them.
+    # A resource marked optional (Power BI, Power Platform) has a link of its own, so a customer who approved the
+    # first is not asked again and one who does not want those checks approves nothing for them. A resource marked
+    # signIn (the second app's Graph entry: what signing in to it needs) goes in every link of its app.
     $isOptional = { param($resource) [bool]($resource.ContainsKey('optional') -and $resource['optional']) }
+    $isSignIn = { param($resource) [bool]($resource.ContainsKey('signIn') -and $resource['signIn']) }
     $nameScopes = { param($resources) @(foreach ($resource in @($resources)) { foreach ($value in @($resource['scopes'])) { if ($value -in $basics) { [string]$value } else { "$($resource['audience'])/$value" } } }) | Select-Object -Unique }
     $consent = { param($scopes) "https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=$($app.appId)&scope=$([uri]::EscapeDataString((@($scopes) -join ' ')))&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))&state=posture" }
+    $signInResources = @($manifest['resources'] | Where-Object { & $isSignIn $_ })
     $link = & $consent (& $nameScopes @($manifest['resources'] | Where-Object { -not (& $isOptional $_) }))
+    $what = $(if ($signInResources.Count -gt 0) { "$name ($(@($manifest['resources'] | Where-Object { -not (& $isOptional $_) -and -not (& $isSignIn $_) } | ForEach-Object { $_['label'] }) -join ', '))" } else { 'what TenantKeep Posture reads' })
     Write-Host @"
 
-Done. Customers approve what TenantKeep Posture reads once, with an admin account, at:
+Done. Customers approve $what once, with an admin account, at:
   $link
 Start-PostureRun prints that link when a tenant has not approved it yet. Nothing else is created anywhere.
 "@
@@ -185,7 +199,7 @@ Start-PostureRun prints that link when a tenant has not approved it yet. Nothing
         Write-Host @"
 
 The checks for $(@($optionalResources | ForEach-Object { $_['label'] }) -join ' and ') are approved separately, by a customer who wants them, at:
-  $(& $consent (& $nameScopes $optionalResources))
+  $(& $consent (& $nameScopes (@($signInResources) + @($optionalResources))))
 A run without that approval says so and gives this link; everything else in the run is unaffected.
 "@
     }

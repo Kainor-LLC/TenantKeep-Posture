@@ -45,9 +45,10 @@ function Invoke-PosturePowerPlatformCollection {
         The Power Platform collector: the tenant settings, the environments, the DLP policies and the tenant
         isolation policy, from the Power Platform admin API.
     .DESCRIPTION
-        Needs the run's own sign-in, as a Power Platform Administrator, with the Power Platform permission approved
-        on the TenantKeep app. That API has no read-only permission and no read-only role, so what makes this a read
-        is the code: three GETs and the one POST Microsoft made the way to list tenant settings
+        Needs the run's second sign-in (Connect-PostureSession -Services), as a Power Platform Administrator, with
+        the Power Platform permission approved on that second app. The API has no read-only permission and no
+        read-only role, which is why the permission is never on the TenantKeep app, and what makes this a read is
+        the code: three GETs and the one POST Microsoft made the way to list tenant settings
         (Invoke-PosturePowerRequest.ps1). Not collected in a scheduled run: an unattended identity would have to be
         registered with full Power Platform administration. Never connects.
     .PARAMETER TenantId

@@ -179,12 +179,12 @@ Describe 'The Power BI and Power Platform collectors' {
 }
 
 Describe 'A tenant that has not approved the optional reads' {
-    It 'is told so with the second consent link, and the reason names nothing else' {
+    It 'is told so with the consent link for that one read, and the reason names nothing else' {
         InModuleScope TenantKeep.Posture {
             $reason = Get-PosturePowerSkipReason -Collector PowerBI -Message 'AADSTS65001: The user or administrator has not consented to use the application.' -TenantId '33333333-3333-3333-3333-333333333333'
             $reason | Should -Match '^This tenant has not approved the Power BI read\. It is optional'
             $reason | Should -Match 'https://login\.microsoftonline\.com/33333333-3333-3333-3333-333333333333/v2\.0/adminconsent\?client_id='
-            [uri]::UnescapeDataString($reason) | Should -Match 'powerbi/api/Tenant\.Read\.All https://service\.powerapps\.com//User'
+            [uri]::UnescapeDataString($reason) | Should -Match 'client_id=e5b148e7-9689-40b2-9b09-9d0bef133049&scope=https://analysis\.windows\.net/powerbi/api/Tenant\.Read\.All&' -Because 'Power BI has a read-only permission, which is on the read app; Power Platform has none and is approved on the second app (tests/ServicesSignIn.Tests.ps1)'
             [uri]::UnescapeDataString($reason) | Should -Not -Match 'graph\.microsoft\.com' -Because 'what was approved before is not asked for again'
             Get-PosturePowerSkipReason -Collector PowerPlatform -Message 'something else went wrong' | Should -Be 'The Power Platform sign-in failed: something else went wrong'
         }

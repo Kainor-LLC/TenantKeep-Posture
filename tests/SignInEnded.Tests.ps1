@@ -60,7 +60,7 @@ Describe 'A renewal the identity platform refuses' {
             Mock Invoke-PostureTokenRequest { throw $Refused }
             { Get-PostureToken -Resource graph } | Should -Throw '*The sign-in ended at * UTC and could not be renewed: there is no one to ask in this run (AADSTS70043).*Resume-PostureRun*'
             $script:PostureSessionEnded.ContainsKey('main') | Should -BeTrue
-            { Get-PostureToken -Resource azure } | Should -Throw '*The sign-in ended at *'
+            { Get-PostureToken -Resource powerbi } | Should -Throw '*The sign-in ended at *'
             Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -Because 'a sign-in known to have ended is not asked about again'
             Should -Invoke Invoke-PostureSignIn -Times 0 -Exactly
             Get-PostureFailureCause -Message "The sign-in ended at 14:02 UTC and could not be renewed: there is no one to ask in this run (AADSTS70043). Resume-PostureRun carries on after a new sign-in." | Should -Be 'token'
@@ -80,7 +80,7 @@ Describe 'A renewal the identity platform refuses' {
             }
             # The token service of the second process holds a copy of the session; it gets the new refresh token too.
             $script:PostureTokenServer = @{ pipe = 'p'; session = [hashtable]::Synchronized(@{ refreshToken = 'refresh-1' }) }
-            Get-PostureToken -Resource azure | Should -Be "token-for-$(Get-PostureResourceScope -Resource azure)-with-refresh-2"
+            Get-PostureToken -Resource powerbi | Should -Be "token-for-$(Get-PostureResourceScope -Resource powerbi)-with-refresh-2"
             Should -Invoke Invoke-PostureSignIn -Times 1 -Exactly -ParameterFilter { $LoginHint -eq 'admin@contoso.example' -and $DeviceCode -and $TenantId -eq '33333333-3333-3333-3333-333333333333' -and $Scope -match 'offline_access https://graph\.microsoft\.com/User\.Read$' } -Because 'the browser step asks only to sign in: the app is shared, and a request for everything it holds could offer more than this product asks for'
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-2'
             $script:PostureSession['signInsRenewed'] | Should -Be 1
@@ -191,8 +191,11 @@ Describe 'A step whose sign-in has ended' {
     AfterEach { InModuleScope TenantKeep.Posture { $script:PostureSessionEnded.Clear(); $script:PostureJournalFolder = $null; $script:PostureCurrentCollector = $null } }
 
     It 'is not attempted for <Collector>: <Runs>' -ForEach @(
-        @{ Collector = 'Entra'; Runs = $false }, @{ Collector = 'Azure'; Runs = $false }, @{ Collector = 'Teams'; Runs = $false }
-        # SharePoint has a sign-in of its own, and Exchange and Purview sign in through the Exchange module.
+        # Teams is connected with a Graph token of the main sign-in beside its own, so it waits on both.
+        @{ Collector = 'Entra'; Runs = $false }, @{ Collector = 'PowerBI'; Runs = $false }, @{ Collector = 'Teams'; Runs = $false }
+        # Azure and Power Platform read through the second app's sign-in, SharePoint through its own, and Exchange
+        # and Purview sign in through the Exchange module.
+        @{ Collector = 'Azure'; Runs = $true }, @{ Collector = 'PowerPlatform'; Runs = $true }
         @{ Collector = 'SharePoint'; Runs = $true }, @{ Collector = 'Exchange'; Runs = $true }, @{ Collector = 'Purview'; Runs = $true }
     ) {
         InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Run; Collector = $Collector; Runs = $Runs } {
@@ -205,6 +208,14 @@ Describe 'A step whose sign-in has ended' {
                 (Get-PostureJournalState -Folder $F).steps["$Collector|Something"].state | Should -Be 'skipped'
                 Join-Path $F 'errors.txt' | Should -Not -Exist -Because 'the collection writes one line for the domain, not one for each step'
             }
+        }
+    }
+
+    It 'stops Azure, Teams and Power Platform, and nothing else, when the second app''s sign-in is the one that ended' {
+        InModuleScope TenantKeep.Posture {
+            $ended = $script:PostureSessionEnded['main']; $script:PostureSessionEnded.Clear(); $script:PostureSessionEnded['services'] = $ended
+            foreach ($collector in 'Azure', 'Teams', 'PowerPlatform') { (Get-PostureEndedSignIn -Collector $collector).holder | Should -Be 'services' -Because $collector }
+            foreach ($collector in 'Entra', 'Intune', 'Defender', 'PowerBI', 'SharePoint', 'Exchange', 'Purview') { Get-PostureEndedSignIn -Collector $collector | Should -BeNullOrEmpty -Because $collector }
         }
     }
 

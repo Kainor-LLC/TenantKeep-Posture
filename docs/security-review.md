@@ -24,10 +24,11 @@ the Azure Automation option yourself.
 
 | Sign-in | What it reads | Permissions |
 |---|---|---|
-| **TenantKeep** (Kainor's multi-tenant public client, shared with the TenantKeep On-Call app for what that reads) | Entra, Intune, Defender, Teams, Azure, and SharePoint tenant settings through Graph | Delegated read scopes only. Posture's are under `resources` in `TenantKeep.Posture/app.json`, and the approval link names exactly those. On-Call's are under `sharedWith` and are approved from On-Call's own link. Nothing on the app can write; a test fails if that changes. No SharePoint permission. |
+| **TenantKeep** (Kainor's multi-tenant public client, shared with the TenantKeep On-Call app for what that reads) | Entra, Intune, Defender, SharePoint tenant settings through Graph, and Power BI where approved | Delegated permissions that are read-only by name, on every API. Posture's are under `resources` in `TenantKeep.Posture/app.json`, and the approval link names exactly those. On-Call's are under `sharedWith` and are approved from On-Call's own link. Nothing on the app can write; a test fails if that changes. No SharePoint, Azure, Teams or Power Platform permission. |
+| **TenantKeep Posture for Azure, Teams and Power Platform** (Kainor's second public client, Posture's alone) | Azure subscriptions, Teams policies and, where approved, Power Platform settings | The one delegated permission each of those three APIs offers, listed in `TenantKeep.Posture/app-services.json`. None is read-only by name, which is why they are not on the app above. Approved separately; an organisation that reads none of the three never approves it. |
 | **TenantKeep Posture for SharePoint** (optional, Kainor's second public client) | The SharePoint settings Graph does not return: default links, Anyone link expiry, guest expiry, the site list | Delegated SharePoint `AllSites.FullControl` plus the sign-in scopes, listed in `TenantKeep.Posture/app-sharepoint.json`. See below. |
 | **Exchange Online PowerShell** (Microsoft's own app, through the ExchangeOnlineManagement module) | Exchange Online and Purview configuration | The administrator's own Exchange and Purview roles. The module runs `Get-` commands only. |
-| **Azure** (through Az.Accounts) | Subscriptions, Defender for Cloud, policy, role assignments, Microsoft 365 pay-as-you-go spend | The administrator's own Azure roles (Reader, Security Reader, Cost Management Reader). |
+| **Azure** (through Az.Accounts, with a token from the second app above) | Subscriptions, Defender for Cloud, policy, role assignments, Microsoft 365 pay-as-you-go spend | The administrator's own Azure roles (Reader, Security Reader, Cost Management Reader). |
 
 Delegated means the app can never do more than the administrator signed in to it could do anyway, and only while that
 person is signed in.
@@ -64,11 +65,19 @@ run) and what the record shows afterwards (below).
   by id, the Cost Management cost query, and the listing of the Power Platform tenant settings, which Microsoft made
   a POST and which goes to one fixed address with no body. The same tests fail on a SharePoint, Teams or Exchange
   command that is not a read, and on any connection made outside the sign-in code.
-- **Where Microsoft offers no read-only permission, the code is the limit.** Three APIs have none: the Teams admin
-  API, Azure Service Management, and the Power Platform admin API. The app holds the one delegated permission each
-  has, and the entry points above are what keep the run to reads. Power Platform's is optional and approved from a
-  second link, so an organisation that does not want that domain never grants it. Power BI's optional permission,
-  Tenant.Read.All, is read-only by name.
+- **Where Microsoft offers no read-only permission, a separate app and the code are the limit.** Three APIs have
+  none: the Teams admin API, Azure Service Management, and the Power Platform admin API. Their permissions are not
+  on the TenantKeep app, which holds read-only permissions on every API. They are on a second app, TenantKeep
+  Posture for Azure, Teams and Power Platform, which an organisation approves separately and only Posture signs in
+  to. The reason is how refresh tokens work: one for an app can be redeemed for any API the organisation granted
+  that app, so a broader permission on the shared app would reach every tenant that approved it. On the second app
+  the entry points above are what keep the run to reads. Power Platform's permission is optional within it and
+  approved from a link of its own. Power BI's optional permission, Tenant.Read.All, is read-only by name and is on
+  the TenantKeep app.
+- **A tenant that approved an earlier version can check what it still holds.** Until 2026-11-23 the TenantKeep app
+  named the Azure and Teams permissions itself. Taking them off the registration does not take them away from an
+  organisation that had approved them. `deploy/setup/Remove-PostureStaleGrant.ps1 -WhatIf` lists every permission
+  the app holds in your tenant that its published manifest does not name; without `-WhatIf` it removes them.
 - **Releases are checked when they load.** The integrity manifest lists every file with its hash, signed with Kainor's
   key; the module checks it when it loads and the report says what it found. Authenticode signatures on every file
   follow once the signing account is validated (until then the zip is named unsigned).

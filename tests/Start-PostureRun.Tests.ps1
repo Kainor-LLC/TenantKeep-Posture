@@ -21,7 +21,12 @@ Describe 'Start-PostureRun' {
             $script:TestOutRoot = $outRoot
             $script:TestTid = $tid
             $script:Calls = [System.Collections.Generic.List[string]]::new()
-            Mock Connect-PostureSession { if ($SharePoint) { $script:Calls.Add('signin:sharepoint'); return @{} }; $script:Calls.Add('signin'); @{ tenantId = $script:TestTid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'aaaaaaaa-0000-0000-0000-000000000001'; scopes = @('Policy.Read.All'); expiresUtc = [datetime]::UtcNow.AddHours(1) } }
+            # The second app's manifest with a client id, whether or not the shipped one carries its own yet.
+            $script:TestManifests = @{ main = (Get-PostureAppManifest); sharepoint = (Get-PostureAppManifest -Name sharepoint); services = (Get-PostureAppManifest -Name services) }
+            $script:TestManifests.services['clientId'] = 'cccccccc-0000-0000-0000-000000000003'
+            Mock Get-PostureAppManifest { $script:TestManifests[$(if ($Name) { $Name } else { 'main' })] }
+            Mock Test-PostureServicesAccess { @{ status = 'present'; reason = '' } }
+            Mock Connect-PostureSession { if ($SharePoint) { $script:Calls.Add('signin:sharepoint'); return @{} }; if ($Services) { $script:Calls.Add('signin:services'); return @{} }; $script:Calls.Add('signin'); @{ tenantId = $script:TestTid; tenantName = 'contoso'; tenantDisplayName = 'Contoso Ltd'; account = 'admin@contoso.example'; clientId = 'aaaaaaaa-0000-0000-0000-000000000001'; scopes = @('Policy.Read.All'); expiresUtc = [datetime]::UtcNow.AddHours(1) } }
             Mock Assert-PostureGraphScope { @{ TenantId = $script:TestTid; Account = 'admin@contoso.example'; Scopes = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'ThreatHunting.Read.All') } }
             Mock Connect-PostureService { $script:Calls.Add("connect:$Name") }
             # The size of the tenant, asked before collecting: a large one, so the preview has something to say.
@@ -73,7 +78,7 @@ Describe 'Start-PostureRun' {
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
-            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'signin:sharepoint', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure+PowerBI+PowerPlatform', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
+            @($script:Calls) | Should -Be @('signin', 'signin:services', 'connect:azure', 'signin:sharepoint', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure+PowerBI+PowerPlatform', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
             $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder 'logs' '.progress-child.json')
             @($script:ChildRequest['tokens'].Keys) | Should -Be @('graph') -Because 'Exchange and Purview sign in through the Exchange module in that process'
@@ -177,7 +182,51 @@ Describe 'Start-PostureRun' {
             $result.Skipped['SharePoint'] | Should -Match 'Install-Module PnP.PowerShell'
             $result.Skipped['Azure'] | Should -Match 'Az.Accounts'
             $result.Report | Should -BeNullOrEmpty
-            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+SignIns+Intune+Defender+PowerBI+PowerPlatform', 'profile', 'sleep-ok')
+            @($script:Calls) | Should -Be @('signin', 'signin:services', 'awake', 'collect:Entra+SignIns+Intune+Defender+PowerBI+PowerPlatform', 'profile', 'sleep-ok') -Because 'Power Platform needs no module, so the second sign-in is still made for it'
+        }
+    }
+
+    It 'skips Azure, Teams and Power Platform with the link, and opens no second sign-in, when the organisation has not approved the second app' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            Mock Test-PostureServicesAccess { @{ status = 'absent'; reason = 'This organisation has not approved TenantKeep Posture for Azure, Teams and Power Platform, the app they are read through. An administrator approves it once, here: https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=cccccccc-0000-0000-0000-000000000003' } }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru 6>$null
+            foreach ($name in 'Azure', 'Teams', 'PowerPlatform') { $result.Skipped[$name] | Should -Match 'not read: This organisation has not approved .*adminconsent\?client_id=' -Because $name }
+            $result.Skipped['PowerPlatform'] | Should -Match '^Power Platform not read'
+            @($script:Calls) | Should -Not -Contain 'signin:services' -Because 'a tenant that never approved the app sees no second browser window'
+            @($script:Calls) | Should -Not -Contain 'connect:azure'
+            @($script:Calls) | Should -Not -Contain 'connect:teams'
+            @($script:Calls | Where-Object { $_ -like 'collect:Entra*' }) | Should -Be @('collect:Entra+SignIns+Intune+Defender+PowerBI') -Because 'Power BI is on the main app, and the rest of the run is the same'
+            @($script:Calls) | Should -Contain 'collect:SharePoint'
+            Mock Test-PostureServicesAccess { @{ status = 'present'; reason = '' } }
+        }
+    }
+
+    It 'makes no second sign-in for a run that reads none of the three, and says why when that sign-in fails' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            $null = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, PowerBI -SkipReport -NoBrowser -PassThru 6>$null
+            @($script:Calls) | Should -Not -Contain 'signin:services'
+            Should -Invoke Test-PostureServicesAccess -Times 0 -Exactly -Scope It
+            @($script:Calls) | Should -Contain 'collect:Entra+PowerBI'
+            $script:Calls.Clear()
+            Mock Connect-PostureSession { throw 'A Conditional Access policy blocked the sign-in to TenantKeep Posture for Azure, Teams and Power Platform (app id cccccccc-0000-0000-0000-000000000003).' } -ParameterFilter { $Services }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, Azure, Teams -SkipReport -NoBrowser -PassThru 6>$null
+            $result.Skipped['Azure'] | Should -Match '^Azure not read: A Conditional Access policy blocked the sign-in'
+            $result.Skipped['Teams'] | Should -Match '^Teams not read: A Conditional Access policy'
+            @($script:Calls) | Should -Not -Contain 'connect:azure'
+            @($script:Calls) | Should -Contain 'collect:Entra' -Because 'the rest of the run is the same'
+        }
+    }
+
+    It 'gives the link for one API when the organisation approved the second app without it' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            Mock Connect-PostureService { throw 'Sign-in failed (invalid_grant): AADSTS65001: The user or administrator has not consented to use the application.' } -ParameterFilter { $Name -eq 'azure' }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -Collector Entra, Azure, Teams -SkipReport -NoBrowser -PassThru 6>$null
+            $result.Skipped['Azure'] | Should -Match '^Azure not read: this organisation has not approved the Azure read\. An administrator approves it once, here: https://login\.microsoftonline\.com/.+client_id=cccccccc-0000-0000-0000-000000000003'
+            [uri]::UnescapeDataString($result.Skipped['Azure']) | Should -Match 'User\.Read https://management\.core\.windows\.net//user_impersonation&' -Because 'the link names Azure and what signing in needs, and no other API'
+            @($script:Calls) | Should -Contain 'collect:Teams' -Because 'Teams was approved and is read'
         }
     }
 
@@ -193,7 +242,7 @@ Describe 'Start-PostureRun' {
         }
     }
 
-    It 'leaves Power BI and Power Platform out, with the second consent link, when the tenant has not approved them' {
+    It 'leaves Power BI and Power Platform out, each with its own consent link, when the tenant has not approved them' {
         InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
             $script:Calls.Clear()
             # The broker's answer for a permission nobody approved: only for the two optional resources.
@@ -203,6 +252,11 @@ Describe 'Start-PostureRun' {
                 $result.Skipped[$name] | Should -Match 'has not approved' -Because $name
                 $result.Skipped[$name] | Should -Match 'v2\.0/adminconsent\?client_id=' -Because 'the reason carries the link that fixes it'
             }
+            $result.Skipped['PowerBI'] | Should -Match 'client_id=e5b148e7-9689-40b2-9b09-9d0bef133049' -Because 'Power BI has a read-only permission, which is on the main app'
+            $result.Skipped['PowerPlatform'] | Should -Match 'client_id=cccccccc-0000-0000-0000-000000000003' -Because 'Power Platform has none, so it is approved on the second app'
+            [uri]::UnescapeDataString($result.Skipped['PowerBI']) | Should -Not -Match 'powerapps'
+            [uri]::UnescapeDataString($result.Skipped['PowerPlatform']) | Should -Not -Match 'powerbi|user_impersonation' -Because 'each link names one optional API'
+            @($script:Calls) | Should -Contain 'signin:services' -Because 'the second app is in the tenant; only Power Platform was not approved on it'
             @($script:Calls | Where-Object { $_ -like 'collect:*' -and $_ -match 'PowerBI|PowerPlatform' }).Count | Should -Be 0
             @($script:Calls | Where-Object { $_ -like 'collect:Entra*' }).Count | Should -Be 1 -Because 'the rest of the run is the same'
             Mock Get-PostureToken { 'tok' }

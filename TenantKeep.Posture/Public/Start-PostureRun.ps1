@@ -2,9 +2,14 @@
 function Start-PostureRun {
     <#
     .SYNOPSIS
-        One sign-in, one command: collects every domain, builds the profile, writes the report and opens it.
+        One command: signs in, collects every domain, builds the profile, writes the report and opens it.
     .DESCRIPTION
-        Signs the admin in once (Connect-PostureSession), then runs the whole posture cycle from that sign-in:
+        Signs the admin in once (Connect-PostureSession), then runs the whole posture cycle from that sign-in.
+        Azure, Teams and Power Platform are read through a second app, TenantKeep Posture for Azure, Teams and
+        Power Platform: those APIs offer no read-only permission, so they are kept off the TenantKeep app, which
+        holds read-only permissions only. When the run reads one of them and the organisation has approved that
+        app, its sign-in follows the first, as the same account; the browser usually passes it without asking. An
+        organisation that has not approved it gets those three skipped, with the link, and no second window.
 
           1. Exchange and Purview start first, in a second process, tokens handed over standard input (the Exchange
              and PnP modules do not share a process well on macOS). Purview is the one service with a sign-in of its
@@ -12,8 +17,9 @@ function Start-PostureRun {
              may open for the same admin (a device code with -DeviceCode or -NoBrowser). Starting it first puts that
              prompt in the first minute; after it the run needs nothing from anyone.
           2. At the same time, in this process: the Graph-based collectors (Entra, Intune, Defender when the token
-             carries ThreatHunting.Read.All) and Azure when the profile does not say azure: none and the Az modules
-             are installed, then SharePoint and Teams with tokens from the broker.
+             carries ThreatHunting.Read.All), Power BI and Power Platform where the organisation approved them, and
+             Azure when the profile does not say azure: none and the Az modules are installed, then SharePoint and
+             Teams with tokens from the broker.
           3. Hybrid: the client folder's hybrid/ad-* files, from the Windows collector, are brought into the run
              through Import-PostureEvidence's checks.
           4. The profile: created from the evidence on the first run, discovered keys refreshed on later runs, every
@@ -126,9 +132,10 @@ function Start-PostureRun {
         $check
     }
 
-    # 1. One sign-in.
+    # 1. The sign-in.
     Write-Host 'Sign in once with an admin account that has the read roles (Get-PostureRequirement lists them).'
-    Write-Host 'Every service uses that one sign-in; Purview may ask once more, before collection starts.'
+    if (@($Collector | Where-Object { $_ -in 'Azure', 'Teams', 'PowerPlatform' }).Count -gt 0) { Write-Host 'Azure, Teams and Power Platform are read through a second app: its sign-in follows, and the browser passes it by itself or asks you to pick the same account.' }
+    Write-Host 'Purview may ask once more, before collection starts.'
     $script:PostureTeamsAppSignIn = [bool]$TeamsAppSignIn
     $script:PostureTeamsOwnSession = $false; $script:PostureTeamsOwnSessionRefused = $null
     if ($TeamsAppSignIn) {
@@ -178,25 +185,13 @@ function Start-PostureRun {
         if ('ThreatHunting.Read.All' -in @($context.Scopes)) { $main += 'Defender' }
         else { $skipped['Defender'] = 'ThreatHunting.Read.All is not on the token; the tenant consented without it.' }
     }
+    # The modules first: a collector whose module is missing is skipped, and is no reason for a second sign-in.
+    $azureReady = $false
     if ('Azure' -in $Collector) {
         $az = @('Az.Accounts', 'Az.ResourceGraph' | ForEach-Object { & $usable $_ })
-        if (@($az | Where-Object { $_.status -eq 'missing' }).Count -eq 0) {
-            try { Connect-PostureService -Name azure; $main += 'Azure' }
-            catch { $skipped['Azure'] = "Azure sign-in failed: $($_.Exception.Message)" }
-        }
+        if (@($az | Where-Object { $_.status -eq 'missing' }).Count -eq 0) { $azureReady = $true }
         else { $skipped['Azure'] = 'Az.Accounts and Az.ResourceGraph are not installed; the Azure domain was not collected. Set azure: none in the profile if there is nothing in Azure.' }
     }
-    # Power BI and Power Platform are read with this sign-in once the tenant has approved the second link. The token
-    # is asked for now: a tenant that has not approved them is told before the run starts, with the link, and the
-    # rest of the run is the same either way.
-    foreach ($svc in 'PowerBI', 'PowerPlatform') {
-        if ($svc -notin $Collector) { continue }
-        try { $null = Get-PostureToken -Resource $svc.ToLowerInvariant(); $main += $svc }
-        catch { $skipped[$svc] = Get-PosturePowerSkipReason -Collector $svc -Message ([string]$_.Exception.Message) -TenantId ([string]$session.tenantId) }
-    }
-    if ($main.Count -eq 0 -and -not $into) { $main = @('Entra') }
-    # Into an existing run, the Conditional Access snapshot is kept when it is there.
-    $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath (Get-PostureRunLayout -Folder $into).evidence -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
     $need = @{ SharePoint = 'PnP.PowerShell'; Teams = 'MicrosoftTeams' }
     $localPlan = [System.Collections.Generic.List[string]]::new()
     # $svc, never $name: PowerShell variables ignore case, so a loop over $name would overwrite -Name.
@@ -206,6 +201,42 @@ function Start-PostureRun {
         if ($check.status -eq 'missing') { $skipped[$svc] = $check.message; continue }
         $localPlan.Add($svc)
     }
+    # Azure, Teams and Power Platform are read through the second app (app-services.json): the three APIs that offer
+    # no read-only permission, kept off the app this run signed in to, which holds read-only permissions only. Graph
+    # says first whether the organisation has that app at all, so one that never approved it sees no second browser
+    # window: the three are skipped with the link, and the rest of the run is the same.
+    $viaServices = @(@($(if ($azureReady) { 'Azure' }), $(if ($localPlan.Contains('Teams')) { 'Teams' }), $(if ('PowerPlatform' -in $Collector) { 'PowerPlatform' })) | Where-Object { $_ })
+    if ($viaServices.Count -gt 0) {
+        $servicesReason = ''
+        $access = Test-PostureServicesAccess -TenantId ([string]$session.tenantId)
+        if ($access.status -in 'present', 'unknown') {
+            $second = @{ Services = $true }
+            if ($DeviceCode) { $second.DeviceCode = $true } elseif ($NoBrowser) { $second.NoBrowser = $true }
+            try { $null = Connect-PostureSession @second }
+            catch { $servicesReason = (([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim() }
+        }
+        else { $servicesReason = [string]$access.reason }
+        if ($servicesReason) {
+            foreach ($svc in $viaServices) { $skipped[$svc] = "$(@{ Azure = 'Azure'; Teams = 'Teams'; PowerPlatform = 'Power Platform' }[$svc]) not read: $servicesReason" }
+            $azureReady = $false
+            $null = $localPlan.Remove('Teams')
+        }
+    }
+    if ($azureReady) {
+        try { Connect-PostureService -Name azure; $main += 'Azure' }
+        catch { $skipped['Azure'] = Get-PostureServicesSkipReason -Collector Azure -Message ([string]$_.Exception.Message) -TenantId ([string]$session.tenantId) }
+    }
+    # Power BI (the main sign-in) and Power Platform (the second) are each optional and approved from a link of
+    # their own. The token is asked for now: a tenant that has not approved one is told before the run starts, with
+    # the link, and the rest of the run is the same either way.
+    foreach ($svc in 'PowerBI', 'PowerPlatform') {
+        if ($svc -notin $Collector -or $skipped.Contains($svc)) { continue }
+        try { $null = Get-PostureToken -Resource $svc.ToLowerInvariant(); $main += $svc }
+        catch { $skipped[$svc] = Get-PosturePowerSkipReason -Collector $svc -Message ([string]$_.Exception.Message) -TenantId ([string]$session.tenantId) }
+    }
+    if ($main.Count -eq 0 -and -not $into) { $main = @('Entra') }
+    # Into an existing run, the Conditional Access snapshot is kept when it is there.
+    $caDone = [bool]($into -and @(Get-ChildItem -LiteralPath (Get-PostureRunLayout -Folder $into).evidence -Filter 'policies.json' -File -ErrorAction SilentlyContinue).Count -gt 0)
     # The SharePoint admin read has its own app, granted to named admins only. Graph says first whether this admin
     # holds it, so a tenant that never set it up sees no second browser window; the SharePoint checks then use what
     # Graph returns (the Entra collector reads it).
@@ -292,7 +323,7 @@ function Start-PostureRun {
         $local = [System.Collections.Generic.List[string]]::new()
         foreach ($svc in $localPlan) {
             try { Connect-PostureService -Name $svc.ToLowerInvariant(); $local.Add($svc) }
-            catch { $skipped[$svc] = "$svc sign-in failed: $($_.Exception.Message)" }
+            catch { $skipped[$svc] = $(if ($svc -eq 'Teams') { Get-PostureServicesSkipReason -Collector Teams -Message ([string]$_.Exception.Message) -TenantId ([string]$session.tenantId) } else { "$svc sign-in failed: $($_.Exception.Message)" }) }
         }
         if ($local.Count -gt 0) {
             try { Invoke-PostureCollection -Collector @($local) -SkipCaSnapshot -OutputFolder $folder @profileParam | Out-Null }

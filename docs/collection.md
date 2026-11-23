@@ -330,8 +330,9 @@ active anonymous links, inactive sites) are not collected yet.
 
 ## What the Power BI and Power Platform collectors write
 
-Two collectors behind two optional permissions, approved from a second consent link (`Start-PostureRun` prints it when
-a tenant has not approved them, and collects everything else as usual). Neither uses a PowerShell module: the requests
+Two collectors behind two optional permissions, each approved from a consent link of its own (`Start-PostureRun`
+prints it when a tenant has not approved one, and collects everything else as usual). Power BI's permission is on
+the TenantKeep app; Power Platform's is on the second app, TenantKeep Posture for Azure, Teams and Power Platform. Neither uses a PowerShell module: the requests
 are made by the module's own entry points in `Invoke-PosturePowerRequest.ps1`, which allow GET on the two admin APIs
 and one POST, the listing of the Power Platform tenant settings.
 
@@ -344,8 +345,8 @@ and one POST, the listing of the Power Platform tenant settings.
 | `pp-04-tenant-isolation` | `GET tenants/{id}/tenantIsolationPolicy` | Whether isolation is off, and how many tenants are on the allow list (counted, not saved). Feeds PP-005 |
 
 Power Platform needs a Power Platform Administrator. Its admin API has no read-only permission and no read-only role,
-so the permission the app holds there (User on the PowerApps Service) is not a read permission by name; what makes
-the run a read is the entry point. For the same reason a scheduled run does not read Power Platform: an unattended
+so the permission it is read with (User on the PowerApps Service) is not a read permission by name. That is why it
+is on the second app and never on the TenantKeep app, and what makes the run a read is the entry point. For the same reason a scheduled run does not read Power Platform: an unattended
 identity would have to be registered with full Power Platform administration. Commercial cloud only for now.
 
 ## SharePoint and Teams setup

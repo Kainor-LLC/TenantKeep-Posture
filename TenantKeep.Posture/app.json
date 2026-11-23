@@ -4,7 +4,7 @@
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "https://tenantkeep.app/consent/",
-  "notes": "TenantKeep: one registration that TenantKeep Posture and TenantKeep On-Call both sign in to for everything they read. Public client, delegated read permissions only, no credentials, and it exposes nothing. Owned by Kainor LLC; the manifest is published in the Posture source repository. resources is what Posture asks for. sharedWith is what On-Call asks for, by name, when a customer approves it from On-Call's own link; Posture never requests those. A resource marked optional is approved from a second link and only by a customer who wants those checks: Power BI (Tenant.Read.All, read-only by name) and Power Platform, whose admin API has no read-only permission at all, so like the Teams admin API and Azure it is read through the one permission it has, by code that only reads. Nothing that writes is here: every write lives in a separate On-Call app, and SharePoint full control lives only in the optional app-sharepoint.json, granted to named admins.",
+  "notes": "TenantKeep: one registration that TenantKeep Posture and TenantKeep On-Call both sign in to for everything they read. Public client, no credentials, and it exposes nothing. Every permission on it is read-only by its name, on every API: a refresh token for a registration can be redeemed for any API a tenant granted it, so one broader permission anywhere would make that untrue. resources is what Posture asks for: the Graph reads, and Power BI's Tenant.Read.All, which is optional and approved from a link of its own. sharedWith is what On-Call asks for, by name, when a customer approves it from On-Call's own link; Posture never requests those. The APIs that have no read-only permission at all (Azure Service Management, the Teams admin API, the Power Platform admin API) are read through a second registration, app-services.json. Nothing that writes is here: every write lives in a separate On-Call app, and SharePoint full control lives only in the optional app-sharepoint.json, granted to named admins. Owned by Kainor LLC; the manifest is published in the Posture source repository.",
   "resources": [
     {
       "name": "graph",
@@ -53,24 +53,6 @@
       ]
     },
     {
-      "name": "teams",
-      "label": "Skype and Teams Tenant Admin API",
-      "appId": "48ac35b8-9aa8-4d74-927d-1f4a14a0b239",
-      "audience": "48ac35b8-9aa8-4d74-927d-1f4a14a0b239",
-      "scopes": [
-        "user_impersonation"
-      ]
-    },
-    {
-      "name": "azure",
-      "label": "Azure Service Management",
-      "appId": "797f4846-ba00-4fd7-ba43-dac1f8f63013",
-      "audience": "https://management.core.windows.net/",
-      "scopes": [
-        "user_impersonation"
-      ]
-    },
-    {
       "name": "powerbi",
       "label": "Power BI Service",
       "appId": "00000009-0000-0000-c000-000000000000",
@@ -78,16 +60,6 @@
       "optional": true,
       "scopes": [
         "Tenant.Read.All"
-      ]
-    },
-    {
-      "name": "powerplatform",
-      "label": "Power Platform (PowerApps Service)",
-      "appId": "475226c6-020e-4fb2-8a90-7a972cbfc1d4",
-      "audience": "https://service.powerapps.com/",
-      "optional": true,
-      "scopes": [
-        "User"
       ]
     }
   ],

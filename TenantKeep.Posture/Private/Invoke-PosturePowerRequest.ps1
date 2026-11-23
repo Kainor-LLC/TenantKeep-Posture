@@ -5,7 +5,9 @@
 #
 # Read-only by construction. Fabric: GET, on the admin read addresses. Power Platform: GET, plus one POST that
 # Microsoft made the way to list the tenant settings; its address is fixed in the function that sends it and it
-# carries no body. The Power Platform API has no read-only permission, so this file is what keeps it to reads.
+# carries no body. The Power Platform API has no read-only permission, so this file is what keeps it to reads, and
+# its permission lives on the second app (app-services.json), never on the shared read app. Power BI's permission,
+# Tenant.Read.All, is read-only by name and is on the main app.
 $script:PosturePowerHost = @{ powerbi = 'https://api.fabric.microsoft.com'; powerplatform = 'https://api.bap.microsoft.com' }
 
 function Get-PosturePowerToken {
@@ -14,8 +16,9 @@ function Get-PosturePowerToken {
         An access token for Power BI or Power Platform: from the run's sign-in, or in a scheduled run from the
         managed identity's Azure session.
     .DESCRIPTION
-        A signed-in run has the broker (Get-PostureToken), which asks for the resource app.json names with the
-        delegated permission the customer approved. A scheduled run has no sign-in of the module's: there the token
+        A signed-in run has the broker (Get-PostureToken), which asks for the resource its manifest names with the
+        delegated permission the customer approved: Power BI from the main sign-in, Power Platform from the second
+        one. A scheduled run has no sign-in of the module's: there the token
         comes from the Azure session the runbook opened as the managed identity. Power BI accepts that identity when
         the customer has let its security group call the read-only admin APIs; Power Platform does not accept an
         identity that is not registered as a management application, which this product does not ask for.
@@ -26,7 +29,7 @@ function Get-PosturePowerToken {
 
     $ErrorActionPreference = 'Stop'
     if ($script:PostureSession) { return [string](Get-PostureToken -Resource $Service) }
-    $audience = [string](Get-PostureAppManifest)['byName'][$Service]['audience']
+    $audience = [string](Get-PostureAppManifest -Name (Get-PostureResourceApp -Resource $Service))['byName'][$Service]['audience']
     return [string](Get-PostureAzureResourceToken -ResourceUrl $audience)
 }
 
@@ -51,8 +54,9 @@ function Get-PosturePowerSkipReason {
         Why a run is not collecting Power BI or Power Platform, in words, from what the sign-in service answered
         when the token was asked for.
     .DESCRIPTION
-        The usual reason is that the tenant has not approved the permission yet: these two are approved from a
-        second link, and the reason carries it. Anything else is passed on as the service said it.
+        The usual reason is that the tenant has not approved the permission yet. Each is optional and approved
+        from a link of its own, which the reason carries: Power BI on the main app, Power Platform on the second
+        app (the one Azure and Teams are read through). Anything else is passed on as the service said it.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -67,8 +71,9 @@ function Get-PosturePowerSkipReason {
     # AADSTS65001: no consent. AADSTS650057 and AADSTS70011: the permission is not one this app holds in the tenant
     # (verify the last two on a live run; the wording is from Microsoft's error list).
     if ($Message -match 'AADSTS65001|AADSTS650057|AADSTS70011|consent') {
-        $link = Get-PostureConsentLink -TenantId $TenantId -Optional
-        return "This tenant has not approved the $label read. It is optional: an administrator approves it once, with the Power BI and Power Platform reads together, here: $link"
+        $link = $(try { Get-PostureConsentLink -TenantId $TenantId -Optional -App $(if ($Collector -eq 'PowerPlatform') { 'services' } else { 'main' }) } catch { '' })
+        if (-not $link) { return "This tenant has not approved the $label read, and this build carries no app id to approve it with yet." }
+        return "This tenant has not approved the $label read. It is optional: an administrator approves it once, here: $link"
     }
     # AADSTS500011 and AADSTS650052: the tenant has no service principal for the API, which is a tenant that never
     # used the product (verify on a live run).

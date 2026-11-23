@@ -65,6 +65,10 @@ function Connect-PostureService {
             Connect-PnPOnline -Url "https://$($session['tenantName'])-admin.sharepoint.com" -AccessToken $token
         }
         'teams' {
+            # The Teams module takes a Graph token and a Teams token. The Teams one comes from the second app, which
+            # holds the Teams permission; the Graph one stays the main sign-in's, the token the Teams reads ran with
+            # before the two apps were split. Both are delegated tokens of the same admin in the same tenant
+            # (verify on a live run that the module takes the pair from two apps).
             $tokens = @((Get-PostureToken -Resource graph), (Get-PostureToken -Resource teams))
             Connect-MicrosoftTeams -AccessTokens $tokens | Out-Null
         }
