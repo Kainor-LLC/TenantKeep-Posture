@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "A hundred and twenty-eight new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "A hundred and thirty new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -139,7 +139,9 @@
         "ID-045": "New: whether a service principal holds a secret or certificate of its own, a SAML signing certificate aside. Needs an Entra collection from this version.",
         "ID-046": "New: whether a credential has been added to the service principal of a Microsoft application. Needs an Entra collection from this version.",
         "GV-012": "New: whether an enterprise application published by another organisation lets every account sign in without an assignment.",
-        "CA-028": "New: whether a named location is marked as trusted."
+        "CA-028": "New: whether a named location is marked as trusted.",
+        "DEV-027": "New: whether each platform that has managed devices has a compliance policy that is assigned.",
+        "CA-029": "New: whether an enabled policy requires an app protection policy on iOS and on Android."
       }
     },
     {

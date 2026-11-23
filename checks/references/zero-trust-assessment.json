@@ -606,18 +606,6 @@
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
     },
-    "24541": {
-      "reason": "planned",
-      "note": "An Intune policy or tenant setting."
-    },
-    "24542": {
-      "reason": "planned",
-      "note": "An Intune policy or tenant setting."
-    },
-    "24543": {
-      "reason": "planned",
-      "note": "An Intune policy or tenant setting."
-    },
     "24545": {
       "reason": "planned",
       "note": "An Intune policy or tenant setting."
@@ -671,10 +659,6 @@
       "note": "An Intune policy or tenant setting."
     },
     "24823": {
-      "reason": "planned",
-      "note": "An Intune policy or tenant setting."
-    },
-    "24827": {
       "reason": "planned",
       "note": "An Intune policy or tenant setting."
     },

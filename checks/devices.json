@@ -1161,6 +1161,56 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
       }
+    },
+    {
+      "id": "DEV-027",
+      "domain": "devices",
+      "title": "Every platform in the fleet has an assigned compliance policy",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "mdm:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-compliance-policies.json",
+        "09-intune-managed-devices.json"
+      ],
+      "pass": "facts.platformsWithoutCompliancePolicy == 0",
+      "affected": "facts.platformsWithoutCompliancePolicy",
+      "remediation": [
+        "In Intune, Devices, Compliance, create a policy for each platform listed: encryption, a minimum operating system version, a screen lock, and the Defender risk level where you have it.",
+        "Assign it to all devices of that platform.",
+        "Then decide what a device with no policy counts as (DEV-017)."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Devices that fall short are marked noncompliant and, where Conditional Access asks for a compliant device, lose access until they are fixed."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/device-compliance-get-started",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies",
+      "narrative": "Compliance is what Conditional Access goes by when it asks for a managed, healthy device. A platform with managed devices and no assigned compliance policy is judged on nothing: every phone or Mac of that kind is as compliant as the tenant's default says, whatever state it is in. The platforms listed have devices in Intune and no policy assigned.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "24541",
+          "24542",
+          "24543"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

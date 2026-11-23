@@ -958,10 +958,6 @@
       "reason": "planned",
       "note": "The device registration policy."
     },
-    "MT.1093": {
-      "reason": "planned",
-      "note": "An Intune tenant or policy setting."
-    },
     "MT.1095": {
       "reason": "planned",
       "note": "An Intune tenant or policy setting."

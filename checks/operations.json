@@ -235,6 +235,11 @@
         "iso27001": "A.8.24",
         "cmmc": "SC.L2-3.13.10",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1093"
+        ]
       }
     },
     {

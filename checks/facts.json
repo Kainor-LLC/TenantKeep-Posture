@@ -566,7 +566,12 @@
     "servicePrincipalsWithCredentials": "Service principals with a credential of their own",
     "microsoftAppsWithCredentials": "Microsoft applications with a credential added",
     "thirdPartyAppsOpenToAll": "Applications from other organisations open to every account",
-    "trustedNamedLocations": "Named locations marked as trusted"
+    "trustedNamedLocations": "Named locations marked as trusted",
+    "fleetPlatforms": "Platforms with managed devices",
+    "platformsWithoutCompliancePolicy": "Platforms with no assigned compliance policy",
+    "appProtectionPolicies": "Policies that require an app protection policy",
+    "appProtectionForIos": "A policy requires protected apps on iOS",
+    "appProtectionForAndroid": "A policy requires protected apps on Android"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

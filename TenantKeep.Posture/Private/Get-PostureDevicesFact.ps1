@@ -270,6 +270,20 @@ function Get-PostureDevicesFact {
     # Defender for a risk level, so a device under attack stops counting as compliant. Files collected before the
     # setting was read (2026-11-20) do not carry it.
     $cp = & $load '09-intune-compliance-policies'
+    # DEV-027: every platform that has managed devices has a compliance policy that is assigned. Without one the
+    # devices of that platform are judged on nothing (and DEV-017 decides whether that reads as compliant).
+    if ($null -eq $cp) { & $missing @('DEV-027') '09-intune-compliance-policies' }
+    elseif (-not $haveManaged) { $notEvaluated['DEV-027'] = '09-intune-managed-devices.json was not collected, so which platforms are in the fleet is not known.' }
+    else {
+        $family = { param([string] $name) switch -Regex ($name) { '^(?i)windows' { 'Windows'; break } '^(?i)mac' { 'macOS'; break } '^(?i)(ios|ipados)' { 'iOS'; break } '^(?i)(android|aosp)' { 'Android'; break } default { $null } } }
+        $withPolicy = @($cp | Where-Object { $_ -and [int](& $v $_ 'Assignments') -gt 0 } | ForEach-Object { & $family ([string](& $v $_ 'Type')) } | Where-Object { $_ } | Sort-Object -Unique)
+        $fleet = @($plat.get_Keys() | ForEach-Object { & $family ([string]$_) } | Where-Object { $_ } | Sort-Object -Unique)
+        $bare = @($fleet | Where-Object { $_ -notin $withPolicy })
+        $facts.fleetPlatforms = $fleet.Count
+        $facts.platformsWithoutCompliancePolicy = $bare.Count
+        $affected.platformsWithoutCompliancePolicy = @($bare | ForEach-Object { [ordered]@{ name = $_; detail = 'devices of this platform are managed, and no assigned compliance policy covers them' } })
+        if ($fleet.Count -eq 0) { $notEvaluated['DEV-027'] = 'No managed Windows, macOS, iOS or Android device.' }
+    }
     $hasKey = { param($o, [string] $k) if ($o -is [System.Collections.IDictionary]) { $o.Contains($k) } else { $null -ne $o.PSObject.Properties[$k] } }
     if ($null -eq $cp) { & $missing @('DEV-015') '09-intune-compliance-policies' }
     elseif (@($cp | Where-Object { $_ -and (& $hasKey $_ 'DeviceThreatProtectionEnabled') }).Count -eq 0 -and @($cp | Where-Object { $_ }).Count -gt 0) {

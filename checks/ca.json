@@ -1296,6 +1296,55 @@
       "attack": [
         "T1078.004"
       ]
+    },
+    {
+      "id": "CA-029",
+      "domain": "ca",
+      "title": "Phones reach your data only through protected apps",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "iOS",
+          "android"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.appProtectionForIos && facts.appProtectionForAndroid",
+      "remediation": [
+        "Create app protection policies in Intune for iOS and Android first, assigned to the people who use a phone for work (EP-018).",
+        "Create a Conditional Access policy for Office 365 on the device platforms iOS and Android with the grant Require app protection policy.",
+        "Run it report-only for a week: it stops the built-in mail app and any app Intune cannot protect."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "On a phone, mail and files open only in apps Intune protects, such as Outlook and Teams. The phone's own mail app stops working for work mail."
+      },
+      "learn": "https://learn.microsoft.com/intune/device-security/conditional-access-integration/create-app-based-policy",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A phone that is not enrolled can still hold your mail and files in whatever app the person chose, with no control over copying, backup or what happens when they leave. Requiring an app protection policy keeps work data inside apps you can protect and wipe, without managing the phone itself. This check looks for an enabled policy with that grant for iOS and for Android, in one policy or two.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "24827"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

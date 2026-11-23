@@ -282,6 +282,14 @@ function Get-PostureCaFact {
     $forWorkloads = @($rawOn | Where-Object { (& $hasAny $_ 'conditions.clientApplications.includeServicePrincipals') -and @(Get-PostureValue $_ 'grantControls.builtInControls') -contains 'block' })
     $facts.workloadRiskPolicies = @($forWorkloads | Where-Object { & $hasAny $_ 'conditions.servicePrincipalRiskLevels' }).Count
     $facts.workloadLocationPolicies = @($forWorkloads | Where-Object { (& $hasAny $_ 'conditions.locations.includeLocations') -or (& $hasAny $_ 'conditions.locations.excludeLocations') }).Count
+    # CA-029: phones and tablets reach the organisation's data only through apps under an app protection policy. One
+    # policy with no platform condition covers both; otherwise iOS and Android each need to be named by a policy.
+    $protectedApps = @($rawOn | Where-Object { @(Get-PostureValue $_ 'grantControls.builtInControls') -contains 'compliantApplication' })
+    $names = { param($policy) @(Get-PostureValue $policy 'conditions.platforms.includePlatforms' | Where-Object { $_ } | ForEach-Object { [string]$_ }) }
+    $covers = { param([string] $platform) @($protectedApps | Where-Object { $n = @(& $names $_); $n.Count -eq 0 -or $n -contains 'all' -or $n -contains $platform }).Count -gt 0 }
+    $facts.appProtectionPolicies = $protectedApps.Count
+    $facts.appProtectionForIos = & $covers 'iOS'
+    $facts.appProtectionForAndroid = & $covers 'android'
 
     return @{
         available    = $true

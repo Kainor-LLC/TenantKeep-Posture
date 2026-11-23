@@ -987,3 +987,63 @@ Describe 'Application credentials, tenant restrictions and trusted locations (ca
         @($run.results | Where-Object { $_.id -eq 'CA-028' })[0].status | Should -Be 'fail'
     }
 }
+
+Describe 'Compliance policies for the fleet and protected apps on phones (catalog 2026.11.3)' {
+    BeforeAll {
+        $script:Fleet = {
+            param([string[]] $Systems, [object[]] $Policies)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            $n = 0
+            # Rows as the Intune collector saves them: every property the provider reads is there.
+            $devices = @($Systems | ForEach-Object {
+                    $n++
+                    $row = @{ Id = "d$n"; DeviceName = "device-$n"; UserPrincipalName = "user$n@contoso.example"; OperatingSystem = $_; OSVersion = '1.0'; SkuFamily = ''; ComplianceState = 'compliant'; ManagementAgent = 'mdm'; JoinType = 'azureADJoined' }
+                    $row += @{ DeviceEnrollmentType = 'userEnrollment'; ManagedDeviceOwnerType = 'company'; AutopilotEnrolled = $false; IsEncrypted = $true; IsSupervised = $false; LastSyncDateTime = '2026-11-20T08:00:00Z'; EnrolledDateTime = '2026-01-10T08:00:00Z' }
+                    $row += @{ Manufacturer = 'Contoso'; Model = 'Model'; SerialNumber = "SN$n"; AzureAdDeviceId = "aad-$n"; IntuneWorkloads = '' }
+                    $row
+                })
+            ConvertTo-Json -InputObject @($devices) -Depth 5 | Set-Content (Join-Path $dir '09-intune-managed-devices.json')
+            ConvertTo-Json -InputObject @($Policies) -Depth 5 | Set-Content (Join-Path $dir '09-intune-compliance-policies.json')
+            '{ "version": 1, "licenses": ["Intune", "P1"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain devices -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            @($run.results | Where-Object { $_.id -eq 'DEV-027' })[0]
+        }
+        $script:Compliance = { param([string] $Type, [int] $Assignments = 1) @{ Id = "cp-$Type"; DisplayName = $Type; Type = $Type; Assignments = $Assignments; DeviceThreatProtectionEnabled = $false; DeviceThreatProtectionRequiredSecurityLevel = 'unavailable' } }
+    }
+
+    It 'DEV-027 names each platform with managed devices and no assigned compliance policy' {
+        $all = @((& $script:Compliance 'windows10CompliancePolicy'), (& $script:Compliance 'macOSCompliancePolicy'), (& $script:Compliance 'iosCompliancePolicy'), (& $script:Compliance 'androidWorkProfileCompliancePolicy'))
+        (& $script:Fleet @('Windows', 'macOS', 'iOS', 'iPadOS', 'Android') $all).status | Should -Be 'pass'
+        $gap = & $script:Fleet @('Windows', 'macOS', 'iPadOS', 'Android') @((& $script:Compliance 'windows10CompliancePolicy'), (& $script:Compliance 'macOSCompliancePolicy' 0))
+        $gap.status | Should -Be 'fail'
+        @($gap.affected).name | Should -Be @('Android', 'iOS', 'macOS') -Because 'a policy that is assigned to nobody covers nobody, and an iPad counts as iOS'
+        (& $script:Fleet @('Windows') @((& $script:Compliance 'windows10CompliancePolicy'))).status | Should -Be 'pass' -Because 'a platform with no devices needs no policy'
+        (& $script:Fleet @('Linux') @()).reason | Should -Match '^No managed Windows, macOS, iOS or Android device'
+    }
+
+    It 'CA-029 wants protected apps required on iOS and on Android, in one policy or two' {
+        $profileJson = '{ "version": 1, "licenses": ["E5", "P1", "P2"], "platforms": ["windows", "iOS", "android"] }'
+        $judge = {
+            param([object[]] $Add)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot') -Destination $dir -Recurse
+            $path = Join-Path $dir 'policies.json'
+            $policies = @(Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 30 | Where-Object { @($_.grantControls.builtInControls) -notcontains 'compliantApplication' }) + @($Add | Where-Object { $_ })
+            ConvertTo-Json -InputObject @($policies) -Depth 30 | Set-Content -LiteralPath $path
+            $profileJson | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain ca -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            @($run.results | Where-Object { $_.id -eq 'CA-029' })[0]
+        }
+        $grant = @{ builtInControls = @('compliantApplication') }
+        $apps = @{ includeApplications = @('Office365') }
+        (& $judge @()).status | Should -Be 'fail'
+        (& $judge @(& $script:Policy 'Phones: protected apps' @{ applications = $apps; platforms = @{ includePlatforms = @('iOS', 'android') } } $grant $null)).status | Should -Be 'pass'
+        (& $judge @(& $script:Policy 'Everything: protected apps' @{ applications = $apps } $grant $null)).status | Should -Be 'pass' -Because 'a policy with no platform condition covers both'
+        (& $judge @(& $script:Policy 'iPhones only' @{ applications = $apps; platforms = @{ includePlatforms = @('iOS') } } $grant $null)).status | Should -Be 'fail' -Because 'Android is left out'
+        $two = @((& $script:Policy 'iPhones' @{ applications = $apps; platforms = @{ includePlatforms = @('iOS') } } $grant $null), (& $script:Policy 'Android' @{ applications = $apps; platforms = @{ includePlatforms = @('android') } } $grant $null))
+        (& $judge $two).status | Should -Be 'pass'
+    }
+}

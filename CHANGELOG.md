@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 410 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 412 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Two checks on devices that reach your data (2026-11-23, catalog 2026.11.3), from evidence already collected.
+  - Every platform with managed devices has a compliance policy that is assigned (DEV-027). A policy assigned to
+    nobody does not count, an iPad counts as iOS, and a platform with no devices needs no policy.
+  - Phones reach your data only through protected apps (CA-029): an enabled Conditional Access policy that requires
+    an app protection policy on iOS and on Android, in one policy or two.
+  - OP-006 already warned about Apple enrolment tokens within 30 days of expiry and is now credited with Maester's
+    test of the same thing. Zero Trust Assessment coverage goes to 199 of 364, Maester to 207 of 613.
 - Seven checks on application credentials and access (2026-11-23, catalog 2026.11.3), with no new permission.
   - App registrations: any that still sign in with a client secret (ID-043), and any with a certificate valid for
     longer than 180 days from start to end (ID-044, the limit is a threshold).
