@@ -578,13 +578,36 @@ function Invoke-Demo {
         $script:PostureEntitlementOverride = @{ licensed = $true; tier = 'full'; customer = 'Fernquill Engineering (demo)'; licenceId = 'demo'; expiresUtc = '2027-12-31T00:00:00Z'; source = 'demo tenant, made-up data' }
         $script:PostureBuildState = @{ state = 'demo'; detail = 'Sample report: Fernquill Engineering is a made-up tenant and every value in it is invented.'; version = $script:ModuleVersion; changed = @() }
     }
-    try { $null = New-PostureReport -Evidence $run -Client $made.Client }
+    # The Trend view, for one picture. The sample report is one run, so its Trend view only says what a second run
+    # would add. For the picture the same tenant is built as it was three months earlier, with five settings as they
+    # were before they were fixed and one as it was before it slipped, and the sample's evidence is rendered once
+    # more against it into a folder of its own. Neither folder is published.
+    $earlier = Join-Path $demo 'fernquill-earlier'
+    $trend = Join-Path $demo 'fernquill-trend'
+    try {
+        $null = New-PostureReport -Evidence $run -Client $made.Client
+        $before = & (Join-Path $Root 'samples' 'demo' 'New-PostureDemoRun.ps1') -Path $earlier -AsOf ([datetime]::new(2026, 8, 17, 9, 0, 0, [System.DateTimeKind]::Utc))
+        $was = {
+            param([string] $File, [scriptblock] $Change)
+            $path = Join-Path $earlier 'evidence' $File
+            $data = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 30 -NoEnumerate
+            & $Change $data
+            [System.IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $data -Depth 30), [System.Text.UTF8Encoding]::new($false))
+        }
+        & $was 'pbi-01-tenant-settings.json' { param($d) ($d | Where-Object { $_.SettingName -eq 'PublishToWeb' }).Enabled = $true }
+        & $was 'dns-01-mail-records.json' { param($d) $d[0].SPF = 'v=spf1 include:spf.protection.outlook.com ~all' }
+        & $was '02-auth-system-preferred.json' { param($d) $d.ReportSuspiciousActivityState = 'disabled' }
+        & $was 'spo-tenant-settings.json' { param($d) $d.EmailAttestationRequired = $false; $d.DefaultSharingLinkType = 'Direct' }
+        & $was 'teams-meeting-policy-global.json' { param($d) $d.AllowAnonymousUsersToDialOut = $true }
+        $null = New-PostureReport -Evidence $earlier -Client $before.Client -Format Html
+        $null = New-PostureReport -Evidence $run -Client $made.Client -Previous $earlier -OutputPath $trend -Format Html
+    }
     finally { Remove-Module $ModuleName -Force -ErrorAction SilentlyContinue }
     $report = Join-Path $run 'report.html'
     # The report names the folders it was built from. A published sample shows where they sit on a customer's machine
     # instead, and nothing from this one: the build stops if a path from this machine is left.
-    $shown = [ordered]@{ $made.Client = '~/tenantkeep/clients/fernquill'; $run = '~/tenantkeep/evidence/2026-11-16-0900' }
-    foreach ($f in Get-ChildItem -LiteralPath $run -File | Where-Object { $_.Extension -in '.html', '.md', '.json', '.csv' }) {
+    $shown = [ordered]@{ $made.Client = '~/tenantkeep/clients/fernquill'; $earlier = '~/tenantkeep/evidence/2026-08-17-0900'; $trend = '~/tenantkeep/evidence/2026-11-16-0900'; $run = '~/tenantkeep/evidence/2026-11-16-0900' }
+    foreach ($f in @(Get-ChildItem -LiteralPath $run -File | Where-Object { $_.Extension -in '.html', '.md', '.json', '.csv' }) + @(Get-Item -LiteralPath (Join-Path $trend 'report.html'))) {
         $text = [System.IO.File]::ReadAllText($f.FullName)
         foreach ($k in $shown.Keys) { $text = $text.Replace($k, $shown[$k]).Replace($k.Replace($HOME, '~'), $shown[$k]) }
         [System.IO.File]::WriteAllText($f.FullName, $text, [System.Text.UTF8Encoding]::new($false))
@@ -602,12 +625,17 @@ function Invoke-Demo {
     $screens = Join-Path $demo 'screens'
     New-Item -ItemType Directory -Path $screens -Force | Out-Null
     # A file URL by hand: [uri] reads a bare Unix path as relative. Each segment escaped, a Windows drive kept as is.
-    $url = 'file:///' + ((($report -replace '\\', '/').TrimStart('/') -split '/' | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [uri]::EscapeDataString($_) } }) -join '/')
+    $fileUrl = { param([string] $Path) 'file:///' + ((($Path -replace '\\', '/').TrimStart('/') -split '/' | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [uri]::EscapeDataString($_) } }) -join '/') }
+    $url = & $fileUrl $report
     foreach ($view in 'overview', 'recommendations', 'domains', 'checks', 'admins', 'ca', 'attack', 'copilot', 'inventory', 'licensing', 'health') {
         $png = Join-Path $screens "$view.png"
         & $browser --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferredColorScheme=1 --force-device-scale-factor=2 '--window-size=1280,860' "--screenshot=$png" "$url#$view" 2>$null | Out-Null
         if (Test-Path -LiteralPath $png) { Write-Host "  $view.png" } else { Write-Warning "No screenshot for $view." }
     }
+    # The one picture of the Trend view, from the render against the earlier run.
+    $png = Join-Path $screens 'trend.png'
+    & $browser --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferredColorScheme=1 --force-device-scale-factor=2 '--window-size=1280,860' "--screenshot=$png" "$(& $fileUrl (Join-Path $trend 'report.html'))#trend" 2>$null | Out-Null
+    if (Test-Path -LiteralPath $png) { Write-Host '  trend.png' } else { Write-Warning 'No screenshot for trend.' }
 }
 
 function Invoke-Catalog {

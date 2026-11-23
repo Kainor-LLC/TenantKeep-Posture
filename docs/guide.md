@@ -472,6 +472,10 @@ between the two runs and the check catalog changed with it, the view says so, an
 because a check changed under "Changed with the catalog", each with what changed. The Conditional Access snapshot in each folder also feeds Compare-PostureCaSnapshot for a policy-level
 diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams or email alert.
 
+<div class="shots">
+  <figure class="shot wide"><img src="https://tenantkeep.app/assets/posture/report-trend.jpg" width="1400" height="940" loading="lazy" alt="The Trend view: the score before and after, three checks that started failing, six resolved, and the affected counts that moved."><figcaption>Trend, three months on: what was fixed, what slipped, and what moved. The sample report is a first run, so this picture comes from a second run of the same made-up tenant.</figcaption></figure>
+</div>
+
 ## 9a. Without Azure
 
 Not every organisation has, or wants, anything in Azure. Local runs need no Azure at all: with `azure: none` in the

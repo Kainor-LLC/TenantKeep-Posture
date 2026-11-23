@@ -95,6 +95,10 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     each product it adds is wanted or already held.
   - The Entra Suite add-on made for tenants with Entra ID P2 is offered only where P2 is held or comes with the
     same recommendation; an E3 tenant was offered it.
+- The Trend view counts from the day the earlier evidence was collected (2026-11-23). It used to say "since" the
+  time the earlier run was last evaluated, so an old report built again today made the trend start today. Each run's
+  record now carries its collection time. The demo build takes a picture of the Trend view from an earlier run of
+  the same made-up tenant, which is built for that picture alone.
 - The guide has pictures and the footprint page has diagrams (2026-11-23). `docs/guide.md` shows eleven views of the
   report at the steps that produce them, each from the sample report of a made-up tenant. `docs/footprint.md` opens
   with what runs where and as whom, drawn: a run on your machine, the scheduled run, the sign-in apps, what Kainor

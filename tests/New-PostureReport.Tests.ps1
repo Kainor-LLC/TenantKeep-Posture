@@ -258,6 +258,16 @@ Describe 'Trend since a previous run' {
         $tr.scoreBefore | Should -Not -BeNullOrEmpty
         $md = Get-Content -Raw (Join-Path $script:Root 'trend' 'report.md')
         $md | Should -Match '## Trend since 2026-09-01'
+        # A real record carries no such stamp: it says when its evidence was collected, and that is the day the
+        # trend is counted from, however much later the earlier report was built again.
+        $record = Get-Content -Raw (Join-Path $script:Root 'out' 'checks.json') | ConvertFrom-Json -AsHashtable -Depth 20
+        $record.Contains('collectedUtc') | Should -BeTrue -Because 'New-PostureReport writes the collection time into the run record'
+        $record.collectedUtc = '2026-08-17T09:00:00Z'; $record.evaluatedUtc = '2026-11-20T10:00:00Z'
+        $collectedPath = Join-Path $script:Root 'previous-collected.json'
+        ConvertTo-Json -InputObject $record -Depth 20 | Set-Content -LiteralPath $collectedPath
+        $again = New-PostureReport -Evidence $script:Ev -Previous $collectedPath -Format Markdown -OutputPath (Join-Path $script:Root 'trend-collected') -PassThru
+        (Get-Content -Raw (Join-Path $script:Root 'trend-collected' 'report.md')) | Should -Match '## Trend since 2026-08-17' -Because 'the report was built again in November; the evidence is from August'
+        $again.Report.trend | Should -Not -BeNullOrEmpty
         $md | Should -Match 'Started failing'
         $html = Get-Content -Raw (Join-Path $script:Root 'trend' 'report.html')
         $html | Should -Match '<section class="view" id="trend"><h2>Trend since'

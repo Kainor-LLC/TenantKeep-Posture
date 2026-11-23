@@ -190,7 +190,13 @@ function ConvertTo-PostureReportModel {
             [ordered]@{ key = $d.key; label = $d.label; before = $before; after = $d.score; delta = $(if ($null -ne $before -and $null -ne $d.score) { $d.score - $before } else { $null }) }
         }
         $trend = [ordered]@{
-            previousCheckedUtc = [string]$(if ($Previous.Contains('checkedUtc')) { $Previous['checkedUtc'] } elseif ($prevResults.Count -gt 0) { $prevResults[0]['checkedUtc'] })
+            # Since when: the day the earlier evidence was collected. A record written before that was kept says
+            # when it was evaluated, which is the same day unless the report was built again later.
+            previousCheckedUtc = [string]$(
+                $since = $null
+                foreach ($k in 'checkedUtc', 'collectedUtc', 'evaluatedUtc') { if ($Previous.Contains($k) -and $Previous[$k]) { $since = $Previous[$k]; break } }
+                if (-not $since -and $prevResults.Count -gt 0) { $since = $prevResults[0]['checkedUtc'] }
+                $since)
             previousEvidence   = [string]$(if ($Previous.Contains('evidence')) { $Previous['evidence'] })
             scoreBefore        = $prevScore
             scoreAfter         = $score

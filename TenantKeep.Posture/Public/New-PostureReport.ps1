@@ -114,6 +114,9 @@ function New-PostureReport {
     $licenceRecord = @{}
     if ($pricePath) { $priceInfo = Read-PosturePriceFile -Path $pricePath }
     $report = ConvertTo-PostureReportModel -Run $run -Catalog $catalog -Evidence $evidencePath -OrgProfile $profileModel -Brand $brandModel -Exception $exceptionList -Template $Template -Previous $previousRun -BaselineModel $baselineModel -Entitlement $entitlement -LicensePrice $(if ($priceInfo) { $priceInfo.price } else { @{} }) -LicenseRecord $licenceRecord
+    # When the evidence was collected goes into the run's record, so a later run's Trend view can say "since" that
+    # day. The record's own time is when it was last evaluated, and a report can be built again months afterwards.
+    if ($report.Contains('collectedUtc') -and $report.collectedUtc) { $run.collectedUtc = (ConvertTo-PostureUtcDateTime -Value $report.collectedUtc).ToString('yyyy-MM-ddTHH:mm:ssZ') }
     # The ranked findings for tools and AI: findings.json, embedded in the HTML, and the top of the Markdown.
     $report.findings = ConvertTo-PostureFindingsDocument -Report $report
 
