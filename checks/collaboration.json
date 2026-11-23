@@ -531,6 +531,11 @@
           "meeting_autoadmitusers_v1",
           "meeting_restrictanonymousjoin_v1",
           "meeting_anonymousstartmeeting_v1"
+        ],
+        "maester": [
+          "MT.1045",
+          "MT.1046",
+          "MT.1047"
         ]
       },
       "attack": [

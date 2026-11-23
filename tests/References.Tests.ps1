@@ -33,10 +33,11 @@ Describe 'Public references the catalog is measured against' {
             $catalog = Import-PostureCheckCatalog
             $maester = @(Get-PostureReferenceCoverage -Catalog $catalog | Where-Object { $_.name -eq 'maester' })[0]
             $maester.version | Should -Be '2.3.0'
-            @($catalog.references['maester']['families']) | Should -Contain 'eidsca'
-            @($catalog.references['maester']['families']) | Should -Contain 'orca'
-            $maester.counts.total | Should -BeGreaterOrEqual 111 -Because 'a family is added once its tests have been compared with the catalog'
-            $maester.counts.covered | Should -BeGreaterOrEqual 41
+            foreach ($family in 'eidsca', 'orca', 'maester', 'xspm') { @($catalog.references['maester']['families']) | Should -Contain $family }
+            $maester.counts.total | Should -BeGreaterOrEqual 343 -Because 'a family is added once its tests have been compared with the catalog'
+            $maester.counts.covered | Should -BeGreaterOrEqual 105
+            $maester.counts.outOfScope | Should -Be 47 -Because 'Azure DevOps is the one product in Maester this report does not cover'
+            @($maester.items | Where-Object { $_.id -eq 'MT.1005' })[0].checks | Should -Be @('CA-012')
             @($maester.items | Where-Object { $_.id -eq 'EIDSCA.AT01' })[0].checks | Should -Be @('AU-005')
             @($maester.items | Where-Object { $_.id -eq 'ORCA.120.1' })[0].checks | Should -Be @('EM-006')
             @($maester.items | Where-Object { $_.id -like 'CIS.*' }).Count | Should -Be 0 -Because 'CIS benchmark content is licensed and is not reproduced'

@@ -82,6 +82,9 @@
       "references": {
         "secureScore": [
           "scid_2090"
+        ],
+        "maester": [
+          "MT.1123"
         ]
       }
     },
@@ -178,6 +181,9 @@
       "references": {
         "secureScore": [
           "scid_113"
+        ],
+        "maester": [
+          "MT.1177"
         ]
       },
       "attack": [
@@ -229,6 +235,13 @@
         "secureScore": [
           "scid_2013",
           "scid_2016"
+        ],
+        "maester": [
+          "MT.1150",
+          "MT.1153",
+          "MT.1158",
+          "MT.1164",
+          "MT.1171"
         ]
       },
       "attack": [
@@ -324,6 +337,9 @@
       "references": {
         "secureScore": [
           "scid_96"
+        ],
+        "maester": [
+          "MT.1165"
         ]
       },
       "attack": [
@@ -377,6 +393,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1178"
+        ]
       },
       "attack": [
         "T1003.001",
@@ -746,6 +767,10 @@
           "scid_5007",
           "scid_5009",
           "scid_5010"
+        ],
+        "maester": [
+          "MT.1214",
+          "MT.1215"
         ]
       },
       "attack": [

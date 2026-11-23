@@ -355,6 +355,12 @@
         "iso27001": "A.8.9",
         "cmmc": "",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1092",
+          "MT.1094"
+        ]
       }
     },
     {
@@ -511,6 +517,11 @@
         "iso27001": "A.8.16",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1098"
+        ]
       }
     },
     {
@@ -543,6 +554,11 @@
         "iso27001": "A.5.9",
         "cmmc": "",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1053"
+        ]
       },
       "attack": [
         "T1098.005"
@@ -635,6 +651,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1216"
+        ]
       }
     },
     {
@@ -714,6 +735,11 @@
         "iso27001": "A.8.1",
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1054"
+        ]
       }
     },
     {
@@ -1042,6 +1068,11 @@
         "iso27001": "A.8.24",
         "cmmc": "SC.L2-3.13.10",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1097"
+        ]
       }
     },
     {
@@ -1078,6 +1109,11 @@
         "iso27001": "A.5.3",
         "cmmc": "AC.L2-3.1.4",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1096"
+        ]
       },
       "attack": [
         "T1485"

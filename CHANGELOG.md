@@ -28,10 +28,12 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Windows AD collector's changes on a real domain.
 
 - The catalog is measured against Maester, family by family (2026-11-22). `checks/references/maester.json` lists the
-  tests of Maester 2.3.0 for the families compared so far: the Entra ID configuration tests (EIDSCA, 44) and the
-  Defender for Office 365 ones (ORCA, 67). Of those 111, 41 are covered by a check and 70 are planned, nearly all of
-  them settings in policies the run already collects. `build.ps1 -Task MaesterData` rewrites the list from a Maester
-  release. Maester's own tests, its Active Directory tests and Microsoft's Zero Trust Assessment follow.
+  tests of Maester 2.3.0 for the families compared so far: its own tests (220), the Entra ID configuration tests
+  (EIDSCA, 44), the Defender for Office 365 ones (ORCA, 67) and exposure management (12). Of those 343, 105 are
+  covered by a check, 191 are planned (most are single settings in policies the run already collects) and 47 are out
+  of scope, all of them Azure DevOps. `build.ps1 -Task MaesterData` rewrites the list from a Maester release.
+  Maester's Active Directory tests and Microsoft's Zero Trust Assessment follow. Its CISA tests are the SCuBA
+  policies above, and its CIS tests are left out because CIS benchmark content is licensed.
 - One app for everything TenantKeep reads (2026-11-22). The sign-in app is now named TenantKeep and is shared with
   the TenantKeep On-Call app for what that reads; the client id is unchanged, and so is every consent already given.
   `app.json` lists what Posture asks for under `resources` and what On-Call asks for under `sharedWith`. Nothing on

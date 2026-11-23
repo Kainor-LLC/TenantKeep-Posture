@@ -39,6 +39,11 @@
         "cmmc": "SC.L2-3.13.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "MT.1187"
+        ]
+      },
       "attack": [
         "T1537",
         "T1550.004"

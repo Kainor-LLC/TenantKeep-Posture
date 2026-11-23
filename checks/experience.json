@@ -741,6 +741,9 @@
       "references": {
         "secureScore": [
           "exo_mailtipsenabled"
+        ],
+        "maester": [
+          "MT.1039"
         ]
       }
     },

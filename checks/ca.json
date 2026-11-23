@@ -43,6 +43,10 @@
       "references": {
         "secureScore": [
           "BlockLegacyAuthentication"
+        ],
+        "maester": [
+          "MT.1009",
+          "MT.1010"
         ]
       },
       "attack": [
@@ -94,6 +98,13 @@
         "secureScore": [
           "AdminMFAV2",
           "MFARegistrationV2"
+        ],
+        "maester": [
+          "MT.1003",
+          "MT.1004",
+          "MT.1006",
+          "MT.1007",
+          "MT.1016"
         ]
       },
       "attack": [
@@ -197,6 +208,10 @@
         "secureScore": [
           "SigninRiskPolicy",
           "UserRiskPolicy"
+        ],
+        "maester": [
+          "MT.1012",
+          "MT.1013"
         ]
       },
       "attack": [
@@ -245,6 +260,12 @@
         "iso27001": "A.8.1",
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": "MS.AAD.3.7v1"
+      },
+      "references": {
+        "maester": [
+          "MT.1001",
+          "MT.1014"
+        ]
       },
       "attack": [
         "T1078.004"
@@ -532,6 +553,12 @@
         "cmmc": "",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "MT.1005",
+          "MT.1191"
+        ]
+      },
       "attack": [
         "T1531"
       ]
@@ -572,6 +599,12 @@
         "iso27001": "A.5.18",
         "cmmc": "",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1038",
+          "MT.1066"
+        ]
       }
     },
     {
@@ -685,6 +718,11 @@
         "iso27001": "A.8.5",
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.3.9v1"
+      },
+      "references": {
+        "maester": [
+          "MT.1052"
+        ]
       },
       "attack": [
         "T1528",

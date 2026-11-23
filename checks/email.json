@@ -457,7 +457,8 @@
         ],
         "maester": [
           "ORCA.118.2",
-          "ORCA.118.4"
+          "ORCA.118.4",
+          "MT.1043"
         ]
       },
       "attack": [
@@ -590,6 +591,9 @@
         "scuba": [
           "MS.EXO.4.1v1",
           "MS.EXO.4.4v1"
+        ],
+        "maester": [
+          "MT.1182"
         ]
       },
       "attack": [
@@ -1224,6 +1228,11 @@
         "iso27001": "A.8.21",
         "cmmc": "SC.L2-3.13.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1062"
+        ]
       },
       "attack": [
         "T1566.002"

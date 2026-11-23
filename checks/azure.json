@@ -460,6 +460,11 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "MT.1056"
+        ]
+      },
       "attack": [
         "T1098.003"
       ]
@@ -871,6 +876,9 @@
       "references": {
         "secureScore": [
           "aad_limited_administrative_roles"
+        ],
+        "maester": [
+          "MT.1008"
         ]
       },
       "attack": [
@@ -1040,6 +1048,11 @@
         "iso27001": "A.8.13",
         "cmmc": "",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1065"
+        ]
       },
       "attack": [
         "T1490",

@@ -46,6 +46,9 @@
       "references": {
         "secureScore": [
           "OneAdmin"
+        ],
+        "maester": [
+          "MT.1032"
         ]
       },
       "attack": [
@@ -95,6 +98,12 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": "MS.AAD.7.4v1"
       },
+      "references": {
+        "maester": [
+          "MT.1025",
+          "MT.1031"
+        ]
+      },
       "attack": [
         "T1078.004",
         "T1098.003"
@@ -143,6 +152,10 @@
       "references": {
         "secureScore": [
           "aad_admin_accounts_separate_unassigned_cloud_only"
+        ],
+        "maester": [
+          "MT.1026",
+          "MT.1081"
         ]
       },
       "attack": [
@@ -200,6 +213,9 @@
       "references": {
         "secureScore": [
           "aad_admin_accounts_separate_unassigned_cloud_only"
+        ],
+        "maester": [
+          "MT.1028"
         ]
       },
       "attack": [
@@ -325,6 +341,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1027"
+        ]
       },
       "attack": [
         "T1098.001",
@@ -456,6 +477,11 @@
         "iso27001": "A.5.17",
         "cmmc": "IA.L2-3.5.10",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1199"
+        ]
       }
     },
     {
@@ -491,6 +517,12 @@
         "iso27001": "A.8.3",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1050",
+          "MT.1051"
+        ]
       },
       "attack": [
         "T1098.003",
@@ -1005,6 +1037,11 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "MT.1186"
+        ]
+      },
       "attack": [
         "T1059.009",
         "T1087.004"
@@ -1049,6 +1086,11 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1079"
+        ]
       },
       "attack": [
         "T1098.001",
