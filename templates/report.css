@@ -96,6 +96,10 @@ tr.clickable:hover td { background: var(--soft); }
 /* A check id stays on one line: in a narrow first column it broke at its hyphen (AU- over 001). */
 #checks-table td:first-child { white-space: nowrap; }
 .scroll { overflow-x: auto; }
+/* On a phone a table wider than the screen scrolls inside its own box, and the page never scrolls sideways. Measured
+   at 390 pixels on the demo tenant's report, where the administrators table was 1,033 wide. Screen only: print is
+   as it was. */
+@media screen and (max-width: 760px) { table { display: block; overflow-x: auto; } }
 table.matrix td.on { background: var(--info-bg); font-weight: 600; }
 .muted, .tech { color: var(--muted); }
 .tech { font-size: 13px; }

@@ -67,6 +67,13 @@ Describe 'The page a reader opens' {
         [regex]::Match($script:Css, '(?m)^\.rings-wrap \{[^}]*\}').Value | Should -Match 'flex-direction: column' -Because 'the list under the rings has the card''s whole width'
     }
 
+    It 'lets a wide table scroll inside its own box on a narrow screen, and leaves print alone' {
+        $rule = [regex]::Match($script:Css, '(?m)^@media screen and \(max-width: 760px\) \{ table \{[^}]*\} \}').Value
+        $rule | Should -Not -BeNullOrEmpty -Because 'at 390 pixels the administrators table was 1,033 wide and the whole page scrolled sideways'
+        $rule | Should -Match 'display: block; overflow-x: auto'
+        $script:Page | Should -Match '@media screen and \(max-width: 760px\)' -Because 'the report carries its stylesheet inline'
+    }
+
     It 'lets the opening cards fill their rows and gives the layered rings a row of their own' {
         $script:Page | Should -Match '<div class="charts story"><figure class="chart-card'
         $depth = [regex]::Match($script:Page, '<h3>Defence in Depth</h3><div class="charts">(.*?)</div>\s*<h3>', 'Singleline').Groups[1].Value
