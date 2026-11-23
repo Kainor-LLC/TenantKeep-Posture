@@ -265,6 +265,28 @@ function Get-PostureIdentityFact {
         if ($null -eq $mayRegister) { $notEvaluated['ID-025'] = 'The authorization policy did not say whether users may register applications.' }
         else { $facts.usersCanRegisterApps = [bool]($mayRegister -eq $true) }
     }
+    # ID-030, ID-031, ID-033, ID-034: more switches of the authorization policy. Each is its own question, and one the
+    # policy did not answer has no answer.
+    if ($null -eq $authz) { foreach ($id in 'ID-030', 'ID-031', 'ID-033', 'ID-034') { & $missing $id '02-authorization-policy' } }
+    else {
+        $switch = {
+            param([string] $Id, [string] $Path, [string] $Fact, [string] $What)
+            $value = & $v $authz $Path
+            if ($null -eq $value) { $notEvaluated[$Id] = "The authorization policy did not say whether $What." } else { $facts[$Fact] = [bool]($value -eq $true) }
+        }
+        & $switch 'ID-030' 'defaultUserRolePermissions.allowedToCreateTenants' 'usersCanCreateTenants' 'users may create tenants'
+        & $switch 'ID-031' 'defaultUserRolePermissions.allowedToCreateSecurityGroups' 'usersCanCreateSecurityGroups' 'users may create security groups'
+        & $switch 'ID-034' 'allowedToUseSSPR' 'adminsCanSelfServiceReset' 'administrators may reset their own password by self-service'
+        # ID-033: two ways into the directory with nothing but an email address: signing up for a self-service
+        # subscription, and joining the tenant by proving ownership of a mailbox in one of its domains.
+        $signUp = & $v $authz 'allowedToSignUpEmailBasedSubscriptions'; $joinByEmail = & $v $authz 'allowEmailVerifiedUsersToJoinOrganization'
+        if ($null -eq $signUp -or $null -eq $joinByEmail) { $notEvaluated['ID-033'] = 'The authorization policy did not say whether people may join the tenant with an email address alone.' }
+        else {
+            $open = @($(if ($signUp -eq $true) { [ordered]@{ name = 'Email-based subscriptions'; detail = 'anyone with a mailbox in one of the tenant''s domains can sign up for a self-service subscription and get an account' } }), $(if ($joinByEmail -eq $true) { [ordered]@{ name = 'Join by email validation'; detail = 'anyone who proves they own a mailbox in one of the tenant''s domains gets an account in the directory' } })) | Where-Object { $_ }
+            $facts.emailSelfJoinWays = @($open).Count
+            $affected.emailSelfJoinWays = @($open)
+        }
+    }
     if ($null -eq $authz) { & $missing 'ID-020' '02-authorization-policy'; & $missing 'ID-021' '02-authorization-policy' }
     else {
         # Who can invite guests, and what guests can see: guests inviting guests, and guests with member access, are
@@ -296,12 +318,64 @@ function Get-PostureIdentityFact {
         $facts.bannedPasswordCount = $(if ($pv) { [int](& $v $pv 'BannedPasswordCount') } else { 0 })
         $facts.bannedPasswordOnPremEnforced = [bool]($pv -and [string](& $v $pv 'EnableBannedPasswordCheckOnPremises') -eq 'True' -and [string](& $v $pv 'BannedPasswordCheckOnPremisesMode') -eq 'Enforce')
     }
+    # More directory settings. A tenant that never changed a group of settings has no object for it, and Microsoft's
+    # defaults apply: that is an answer where the default is documented, and no answer where it is not.
+    if ($null -eq $dirSettings) { foreach ($id in 'ID-032', 'ID-036', 'ID-038', 'ID-039') { & $missing $id '02-directory-settings' } }
+    else {
+        $settingsOf = { param([string] $TemplateId) $o = @($dirSettings | Where-Object { $_ -and [string](& $v $_ 'TemplateId') -eq $TemplateId }) | Select-Object -First 1; if ($o) { & $v $o 'Values' } }
+        $isTrue = { param($x) [string]$x -match '(?i)^true$' }
+        # ID-038: smart lockout. Microsoft's defaults are ten failed sign-ins and sixty seconds.
+        $lockout = & $settingsOf '5cf42378-d67d-4f36-ba46-e8b86229381d'
+        $threshold = $(if ($lockout -and [string](& $v $lockout 'LockoutThreshold') -match '^\d+$') { [int](& $v $lockout 'LockoutThreshold') } else { 10 })
+        $seconds = $(if ($lockout -and [string](& $v $lockout 'LockoutDurationInSeconds') -match '^\d+$') { [int](& $v $lockout 'LockoutDurationInSeconds') } else { 60 })
+        $maxThreshold = [int]$(if ($t.ContainsKey('maxLockoutThreshold')) { $t.maxLockoutThreshold } else { 10 }); $minSeconds = [int]$(if ($t.ContainsKey('minLockoutSeconds')) { $t.minLockoutSeconds } else { 60 })
+        $facts.lockoutThreshold = $threshold; $facts.lockoutSeconds = $seconds
+        $facts.smartLockoutOk = [bool]($threshold -le $maxThreshold -and $seconds -ge $minSeconds)
+        # ID-032 and ID-039: Microsoft 365 groups. With no settings object everyone may create a group and no guest may own one.
+        $unified = & $settingsOf '62375ab9-6b52-47ed-826b-58e47e0e304b'
+        $facts.groupCreationOpenToAll = [bool](-not $unified -or [string](& $v $unified 'EnableGroupCreation') -eq '' -or (& $isTrue (& $v $unified 'EnableGroupCreation')))
+        $facts.guestsCanOwnGroups = [bool]($unified -and (& $isTrue (& $v $unified 'AllowGuestsToBeGroupOwner')))
+        # ID-036: a group or team owner agreeing to an app that reads the group's data. The default for a tenant with
+        # no consent settings object is not one this check can state (verify), so it has no answer there.
+        $consentSettings = & $settingsOf 'dffd5d46-495d-40a9-8e21-954ff55e198a'
+        $ownerConsent = $(if ($consentSettings) { [string](& $v $consentSettings 'EnableGroupSpecificConsent') } else { '' })
+        if (-not $ownerConsent) { $notEvaluated['ID-036'] = 'The tenant has no consent settings object, so Microsoft''s default for group owner consent applies, and the collection does not say what that is.' }
+        else { $facts.groupOwnersCanConsent = [bool](& $isTrue $ownerConsent) }
+    }
+    # ID-035: a consent request Microsoft judges risky (an unverified publisher asking for more than basic permissions)
+    # goes to an administrator. Two places say it: the authorization policy, and the consent settings object where
+    # the tenant has one. Either saying "allowed" fails; neither saying anything is Microsoft's default, which blocks
+    # (verify). Both files are needed: one alone could pass a tenant the other would fail.
+    if ($null -eq $authz) { & $missing 'ID-035' '02-authorization-policy' }
+    elseif ($null -eq $dirSettings) { & $missing 'ID-035' '02-directory-settings' }
+    else {
+        $riskyAllowed = & $v $authz 'allowUserConsentForRiskyApps'
+        $blockSetting = ''
+        $cs = @($dirSettings | Where-Object { $_ -and [string](& $v $_ 'TemplateId') -eq 'dffd5d46-495d-40a9-8e21-954ff55e198a' }) | Select-Object -First 1
+        if ($cs) { $blockSetting = [string](& $v $cs 'Values.BlockUserConsentForRiskyApps') }
+        $facts.riskyConsentAllowed = [bool]($riskyAllowed -eq $true -or $blockSetting -match '(?i)^false$')
+        $facts.riskyConsentSetting = $(if ($null -ne $riskyAllowed -or $blockSetting) { 'set' } else { 'Microsoft default' })
+    }
 
     $consent = & $load '02-admin-consent-request-policy'
     if ($null -eq $consent) { & $missing 'ID-009' '02-admin-consent-request-policy' }
     else {
         $facts.adminConsentWorkflowEnabled = [bool](& $v $consent 'isEnabled')
         $facts.adminConsentReviewers = @(& $v $consent 'reviewers').Count
+    }
+    # ID-037: a request nobody is told about waits until it expires. Judged only where the workflow is on (ID-009).
+    if ($null -eq $consent) { & $missing 'ID-037' '02-admin-consent-request-policy' }
+    elseif (-not $facts.adminConsentWorkflowEnabled) { $notEvaluated['ID-037'] = 'The admin consent workflow is off, so there are no requests to send a notice about. ID-009 comes first.' }
+    elseif ($null -eq (& $v $consent 'notifyReviewers') -or $null -eq (& $v $consent 'requestDurationInDays')) { $notEvaluated['ID-037'] = 'The admin consent request policy did not say whether reviewers are notified or how long a request lasts.' }
+    else {
+        $maxDays = [int]$(if ($t.ContainsKey('maxConsentRequestDays')) { $t.maxConsentRequestDays } else { 30 })
+        $days = [int](& $v $consent 'requestDurationInDays')
+        $gaps = @($(if ((& $v $consent 'notifyReviewers') -ne $true) { [ordered]@{ name = 'New requests'; detail = 'reviewers are not emailed when someone asks' } }),
+            $(if ((& $v $consent 'remindersEnabled') -ne $true) { [ordered]@{ name = 'Reminders'; detail = 'reviewers are not reminded before a request expires' } }),
+            $(if ($days -gt $maxDays) { [ordered]@{ name = 'Expiry'; detail = "a request stays open $days days (limit $maxDays)" } })) | Where-Object { $_ }
+        $facts.consentRequestDays = $days
+        $facts.consentRequestGaps = @($gaps).Count
+        $affected.consentRequestGaps = @($gaps)
     }
 
     $apps = & $load '10-app-registrations'

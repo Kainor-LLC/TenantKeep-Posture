@@ -176,8 +176,13 @@ function Invoke-PostureEntraCollection {
     Invoke-PostureStep -Label 'System-preferred MFA' -Folder $Folder -Script {
         # Only the beta endpoint returns systemCredentialPreferences (Microsoft offering each person their strongest
         # registered method first). The whole policy, not $select: Graph answered 400 to the $select on Kainor, 2026-11-21.
+        # The same answer carries Report suspicious activity (AU-010), which the v1.0 policy may leave out (verify).
         $p = & $one 'policies/authenticationMethodsPolicy' 'beta'
-        & $saveOne ([ordered]@{ State = (& $v $p 'systemCredentialPreferences.state') }) '02-auth-system-preferred'
+        & $saveOne ([ordered]@{
+                State = (& $v $p 'systemCredentialPreferences.state')
+                ReportSuspiciousActivityState = (& $v $p 'reportSuspiciousActivitySettings.state')
+                ReportSuspiciousActivityTarget = (& $v $p 'reportSuspiciousActivitySettings.includeTarget.id')
+            }) '02-auth-system-preferred'
     } | Out-Null
 
     Invoke-PostureStep -Label 'Directory settings' -Folder $Folder -Script {

@@ -241,9 +241,10 @@ Write-Demo '02-cross-tenant-access-defaults' @{
     tenantRestrictions = @{ usersAndGroups = @{ accessType = 'blocked'; targets = @(@{ target = 'AllUsers'; targetType = 'user' }) }; applications = @{ accessType = 'blocked'; targets = @(@{ target = 'AllApplications'; targetType = 'application' }) } }
 }
 Write-Demo '02-cross-tenant-access-partners' @(@{ tenantId = '7e1c0000-0000-4000-8000-00000000b001'; displayName = 'Brightline Partners'; inboundTrust = @{ isMfaAccepted = $true } })
-Write-Demo '02-directory-settings' @(@{ DisplayName = 'Password Rule Settings'; TemplateId = '5cf42378-d67d-4f36-ba46-e8b86229381d'; Values = @{ EnableBannedPasswordCheck = 'True'; BannedPasswordCount = 7; EnableBannedPasswordCheckOnPremises = 'False'; BannedPasswordCheckOnPremisesMode = 'Audit'; LockoutThreshold = '10'; LockoutDurationInSeconds = '60' } })
+Write-Demo '02-directory-settings' @(@{ DisplayName = 'Password Rule Settings'; TemplateId = '5cf42378-d67d-4f36-ba46-e8b86229381d'; Values = @{ EnableBannedPasswordCheck = 'True'; BannedPasswordCount = 7; EnableBannedPasswordCheckOnPremises = 'False'; BannedPasswordCheckOnPremisesMode = 'Audit'; LockoutThreshold = '10'; LockoutDurationInSeconds = '60' } },
+    @{ DisplayName = 'Consent Policy Settings'; TemplateId = 'dffd5d46-495d-40a9-8e21-954ff55e198a'; Values = @{ EnableGroupSpecificConsent = 'false'; BlockUserConsentForRiskyApps = 'True'; EnableAdminConsentRequests = 'true' } })
 Write-Demo '02-group-lifecycle-policy' @{ Present = $true; GroupLifetimeInDays = 365; ManagedGroupTypes = 'All'; AlternateNotificationEmails = "it-team@$domain" }
-Write-Demo '02-auth-system-preferred' @{ State = 'enabled' }
+Write-Demo '02-auth-system-preferred' @{ State = 'enabled'; ReportSuspiciousActivityState = 'enabled'; ReportSuspiciousActivityTarget = 'all_users' }
 Write-Demo '02-authentication-strengths' @()
 Write-Demo '02-authentication-methods-policy' @{
     policyMigrationState = 'migrationComplete'

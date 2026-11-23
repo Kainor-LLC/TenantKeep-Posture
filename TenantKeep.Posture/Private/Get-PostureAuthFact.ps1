@@ -36,6 +36,21 @@ function Get-PostureAuthFact {
     # A list of affected accounts holds 500 at most; affectedCounts carries how many there are.
     $affectedCounts = @{}
 
+    # AU-010: Report suspicious activity lets a person who gets an MFA prompt they did not start say so, which marks the
+    # account as at risk. The setting comes with the beta policy (saved beside system-preferred MFA) and, where Graph
+    # sends it, with the v1.0 policy. 'default' leaves it to Microsoft, which keeps it off for now (verify).
+    $policyV1 = & $load '02-authentication-methods-policy'; $policyBeta = & $load '02-auth-system-preferred'
+    $rsaState = $null; $rsaTarget = $null
+    if ($policyBeta -is [System.Collections.IDictionary] -and $policyBeta.Contains('ReportSuspiciousActivityState')) { $rsaState = [string](& $v $policyBeta 'ReportSuspiciousActivityState'); $rsaTarget = & $v $policyBeta 'ReportSuspiciousActivityTarget' }
+    if (-not $rsaState -and $null -ne $policyV1) { $rsaState = [string](& $v $policyV1 'reportSuspiciousActivitySettings.state'); $rsaTarget = & $v $policyV1 'reportSuspiciousActivitySettings.includeTarget.id' }
+    if (-not $rsaState) {
+        $notEvaluated['AU-010'] = $(if ($null -eq $policyV1 -and $null -eq $policyBeta) { '02-authentication-methods-policy.json was not collected.' } else { 'The authentication methods policy was collected before TenantKeep read Report suspicious activity. Collect Entra again (Resume-PostureRun -Collector Entra).' })
+    }
+    else {
+        $facts.reportSuspiciousActivityState = $rsaState
+        $facts.reportSuspiciousActivityOn = [bool]($rsaState -eq 'enabled' -and ($null -eq $rsaTarget -or [string]$rsaTarget -eq 'all_users'))
+    }
+
     $policy = & $load '02-authentication-methods-policy'
     if ($null -eq $policy) {
         foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005') { $notEvaluated[$id] = '02-authentication-methods-policy.json was not collected.' }
@@ -62,8 +77,10 @@ function Get-PostureAuthFact {
 
         $auth = & $cfg 'MicrosoftAuthenticator'
         $facts.authenticatorEnabled = & $enabled $auth
-        $facts.authenticatorAppInformation = ((& $v $auth 'featureSettings.displayAppInformationRequiredState.state') -eq 'enabled')
-        $facts.authenticatorLocationInformation = ((& $v $auth 'featureSettings.displayLocationInformationRequiredState.state') -eq 'enabled')
+        # Shown to everyone: the setting is on and not scoped to a pilot group. A policy that names no target is not held against it.
+        $shownToAll = { param([string] $Setting) $target = & $v $auth "featureSettings.$Setting.includeTarget.id"; ((& $v $auth "featureSettings.$Setting.state") -eq 'enabled') -and ($null -eq $target -or [string]$target -eq 'all_users') }
+        $facts.authenticatorAppInformation = [bool](& $shownToAll 'displayAppInformationRequiredState')
+        $facts.authenticatorLocationInformation = [bool](& $shownToAll 'displayLocationInformationRequiredState')
 
         $fido = & $cfg 'Fido2'
         $facts.fido2Enabled = & $enabled $fido

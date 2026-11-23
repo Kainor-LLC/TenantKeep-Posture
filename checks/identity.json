@@ -1417,6 +1417,445 @@
         "T1098.001",
         "T1528"
       ]
+    },
+    {
+      "id": "ID-030",
+      "domain": "identity",
+      "title": "Only administrators can create tenants",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.usersCanCreateTenants",
+      "remediation": [
+        "In the Entra admin center, open Users, User settings.",
+        "Set Restrict non-admin users from creating tenants to Yes.",
+        "Give the Tenant Creator role to the few people who do need to create one."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who needs a new tenant asks a person who holds the Tenant Creator role."
+      },
+      "learn": "https://learn.microsoft.com/entra/fundamentals/users-default-permissions",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "Anyone in the directory can create a new Entra tenant and is its Global Administrator from the first minute. That tenant is outside your policies, your logs and your offboarding, and it is a quiet place to move company data to or to run an app registration from.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1068"
+        ],
+        "zeroTrust": [
+          "21787"
+        ]
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "ID-031",
+      "domain": "identity",
+      "title": "Only administrators can create security groups",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.usersCanCreateSecurityGroups",
+      "remediation": [
+        "In the Entra admin center, open Users, User settings.",
+        "Set Users can create security groups to No.",
+        "If teams should still manage their own membership, make them owners of groups an administrator creates."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People ask for a security group instead of creating one. Owners still manage the members of their groups."
+      },
+      "learn": "https://learn.microsoft.com/entra/fundamentals/users-default-permissions",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "Security groups are what access is granted to: applications, SharePoint sites, licences, exclusions from a policy. A group anyone can create, with any name, is one that ends up in a permission list because it sounded official.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1069"
+        ]
+      },
+      "attack": [
+        "T1098"
+      ]
+    },
+    {
+      "id": "ID-032",
+      "domain": "identity",
+      "title": "Creating Microsoft 365 groups is limited to the people you choose",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "!facts.groupCreationOpenToAll",
+      "remediation": [
+        "Decide who may create a team, a group mailbox or a Planner plan, and put them in one security group.",
+        "The admin center has no switch for this. With Microsoft Graph PowerShell, set EnableGroupCreation to false and GroupCreationAllowedGroupId to that group in the Group.Unified directory setting (Microsoft's page below has the script).",
+        "Tell everyone else how to ask for one."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "People outside the chosen group can no longer create a team, a Microsoft 365 group or a plan, and ask for one instead."
+      },
+      "learn": "https://learn.microsoft.com/microsoft-365/solutions/manage-creation-of-groups",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/General",
+      "narrative": "Every Microsoft 365 group brings a mailbox, a SharePoint site and often a team, each with its own sharing. When everyone can create them, the tenant fills with groups nobody owns and sites nobody reviews, which is where overshared files and forgotten guests live.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1055"
+        ]
+      }
+    },
+    {
+      "id": "ID-033",
+      "domain": "identity",
+      "title": "Nobody gets an account with an email address alone",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "facts.emailSelfJoinWays == 0",
+      "affected": "facts.emailSelfJoinWays",
+      "remediation": [
+        "Neither setting has a switch in the admin center.",
+        "With Microsoft Graph PowerShell, as a Global Administrator: Update-MgPolicyAuthorizationPolicy -AllowedToSignUpEmailBasedSubscriptions:$false -AllowEmailVerifiedUsersToJoinOrganization:$false",
+        "Read the authorization policy back (Get-MgPolicyAuthorizationPolicy) and check both values are False."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who signs up for a Microsoft trial with a work address is told to ask an administrator."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/users/directory-self-service-signup",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "With these two settings on, anyone who can receive mail at one of your domains can create themselves an account in your directory, by signing up for a self-service product or by proving they own the address. A shared mailbox, a forgotten alias or a contractor's forwarded address is enough, and the account never went through onboarding.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.16",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.AP05",
+          "EIDSCA.AP06"
+        ]
+      },
+      "attack": [
+        "T1136.003"
+      ]
+    },
+    {
+      "id": "ID-034",
+      "domain": "identity",
+      "title": "Administrators cannot reset their own password by self-service",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.adminsCanSelfServiceReset",
+      "remediation": [
+        "The admin center has no switch for this.",
+        "With Microsoft Graph PowerShell, as a Global Administrator: Update-MgPolicyAuthorizationPolicy -AllowedToUseSspr:$false",
+        "Make sure at least two administrators can reset each other's passwords, and that the break-glass accounts are tested."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "An administrator who forgets a password asks another administrator to reset it."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/concept-sspr-policy#administrator-reset-policy-differences",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "Self-service reset for an administrator is a second way into the most powerful accounts in the tenant, and it is guarded by a phone number and a mailbox, not by the sign-in rules you wrote for administrators. Sending those resets through another administrator puts a person in the path.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.7",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.AP01"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-035",
+      "domain": "identity",
+      "title": "Risky consent requests go to an administrator",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json",
+        "02-directory-settings.json"
+      ],
+      "pass": "!facts.riskyConsentAllowed",
+      "remediation": [
+        "In the Entra admin center, open Enterprise apps, Consent and permissions, User consent settings, and check what users may consent to.",
+        "Risk-based step-up consent is on unless someone turned it off. To turn it back on with Microsoft Graph PowerShell: Update-MgPolicyAuthorizationPolicy -AllowUserConsentForRiskyApps:$false",
+        "If the tenant has a consent settings object, set BlockUserConsentForRiskyApps to true there as well."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A person who is asked to approve an app Microsoft judges risky sees that an administrator has to approve it."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-risk-based-step-up-consent",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/UserSettings",
+      "narrative": "Consent phishing sends a real Microsoft consent screen for the attacker's app. Microsoft marks a request as risky when the publisher is unverified and the app asks for more than the basics, and by default sends it to an administrator. With that switched off, the person the attacker picked is the only reviewer.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.AP09",
+          "EIDSCA.CP03"
+        ]
+      },
+      "attack": [
+        "T1528",
+        "T1671"
+      ]
+    },
+    {
+      "id": "ID-036",
+      "domain": "identity",
+      "title": "Group owners cannot consent to apps for their groups",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "!facts.groupOwnersCanConsent",
+      "remediation": [
+        "In the Entra admin center, open Enterprise apps, Consent and permissions, User consent settings.",
+        "Under Group owner consent for apps accessing data, choose Do not allow group owner consent.",
+        "Send owners who need an app in their team to the admin consent workflow."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A team owner who wants an app that reads the team's data asks an administrator."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-user-consent-groups",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/UserSettings",
+      "narrative": "An owner of a team can let an app read that team's messages and files without anyone else seeing the request. Owners are picked for running a project, not for judging what an app will do with a year of conversation.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.CP01"
+        ]
+      },
+      "attack": [
+        "T1528",
+        "T1671"
+      ]
+    },
+    {
+      "id": "ID-037",
+      "domain": "identity",
+      "title": "Admin consent requests reach a reviewer and expire",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxConsentRequestDays": 30
+      },
+      "evidence": [
+        "02-admin-consent-request-policy.json"
+      ],
+      "pass": "facts.consentRequestGaps == 0",
+      "affected": "facts.consentRequestGaps",
+      "remediation": [
+        "In the Entra admin center, open Enterprise apps, Consent and permissions, Admin consent settings.",
+        "Turn on the email notification for new requests and the reminder before a request expires.",
+        "Set the request to expire after 30 days or fewer."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users. Reviewers get an email when someone asks for an app."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/configure-admin-consent-workflow",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConsentPoliciesMenuBlade/~/AdminConsentSettings",
+      "narrative": "The workflow replaces a person approving an app on their own with a request to a reviewer. If the reviewer is never told, the request sits until it lapses, and the person who asked finds another way to get the app.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.CR02",
+          "EIDSCA.CR03",
+          "EIDSCA.CR04"
+        ]
+      }
+    },
+    {
+      "id": "ID-038",
+      "domain": "identity",
+      "title": "Smart lockout stops password guessing within ten tries",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxLockoutThreshold": 10,
+        "minLockoutSeconds": 60
+      },
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "facts.smartLockoutOk",
+      "remediation": [
+        "In the Entra admin center, open Protection, Authentication methods, Password protection.",
+        "Set Lockout threshold to 10 or lower and Lockout duration in seconds to 60 or higher.",
+        "Changing these needs Entra ID P1; Microsoft's defaults already meet the check."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who mistypes a password many times waits a minute before trying again."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/authentication/howto-password-smart-lockout",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/PasswordProtection",
+      "narrative": "Smart lockout is what makes guessing a password slow: after so many wrong tries from an unfamiliar place the account refuses further guesses for a while. A threshold raised to stop help desk calls, or a lockout shortened to seconds, gives an attacker thousands of guesses a day at every account.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "AC.L2-3.1.8",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.PR05",
+          "EIDSCA.PR06"
+        ],
+        "zeroTrust": [
+          "21849",
+          "21850"
+        ]
+      },
+      "attack": [
+        "T1110.001",
+        "T1110.003"
+      ]
+    },
+    {
+      "id": "ID-039",
+      "domain": "identity",
+      "title": "Guests cannot own Microsoft 365 groups",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-directory-settings.json"
+      ],
+      "pass": "!facts.guestsCanOwnGroups",
+      "remediation": [
+        "The admin center has no switch for this.",
+        "With Microsoft Graph PowerShell, set AllowGuestsToBeGroupOwner to false in the Group.Unified directory setting (Microsoft's page below shows how to read and change these settings).",
+        "List the groups a guest owns today and give each an owner from your own organisation."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A guest can be a member of a group or a team and can no longer be made its owner."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/users/groups-settings-cmdlets",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupsManagementMenuBlade/~/General",
+      "narrative": "The owner of a group decides who is in it, and with it who reads its mailbox, its site and its team. A guest as owner means somebody outside the organisation is adding and removing people from your data, under their own employer's security, not yours.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.ST08"
+        ]
+      },
+      "attack": [
+        "T1098"
+      ]
     }
   ]
 }

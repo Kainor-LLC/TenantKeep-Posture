@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 308 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 319 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,20 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Eleven more checks from settings the run already collects (2026-11-23, catalog 2026.11.3), each one a Maester
+  or Zero Trust Assessment test that had no check. Several have no switch in any admin center, and the
+  remediation gives the Microsoft Graph PowerShell line. Entra: only administrators can create tenants (ID-030)
+  and security groups (ID-031); creating Microsoft 365 groups is limited to the people you choose (ID-032); nobody
+  gets an account with an email address alone (ID-033); administrators cannot reset their own password by
+  self-service (ID-034); risky consent requests go to an administrator (ID-035); group owners cannot consent to
+  apps for their groups (ID-036); admin consent requests reach a reviewer and expire (ID-037); smart lockout stops
+  guessing within ten tries (ID-038); guests cannot own Microsoft 365 groups (ID-039). Sign-in: people can report
+  an MFA prompt they did not start (AU-010), which needs an Entra collection made with this version. Where a tenant
+  never changed a group of directory settings, Microsoft's default is the answer when it is documented (smart
+  lockout, group creation, guest owners) and the check has no answer when it is not (group owner consent).
+- AU-002 now asks for what its title always said (2026-11-23): Authenticator shows the app name and the sign-in
+  location, each to everyone and not to a pilot group. A tenant that shows the app name only moves from pass to
+  fail; the catalog's change list says so, so the trend does not call it a new failure.
 - Twelve more checks (2026-11-23, catalog 2026.11.3), from the SCuBA policies that were still open and the Maester
   and Zero Trust Assessment tests beside them. Purview: at least one DLP policy blocks, not only reports (PV-010); a
   DLP policy that blocks tells the person why (PV-011); the six built-in alert policies for a hijacked mailbox or

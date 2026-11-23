@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Twenty-six new checks, most from settings the run already collects and two from new reads on permissions already held, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Thirty-seven new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -36,7 +36,19 @@
         "ID-026": "New: whether anyone is alerted when a privileged role is assigned. Needs an Entra collection made with this version or later. The CISA SCuBA baseline counts only an address beyond the default recipients.",
         "ID-027": "New: whether anyone is alerted when a privileged role is activated. Needs an Entra collection made with this version or later. The CISA SCuBA baseline counts only an address beyond the default recipients.",
         "ID-028": "New: whether the tenant refuses new client secrets on applications. Needs an Entra collection made with this version or later.",
-        "ID-029": "New: whether application secrets and certificates have a maximum lifetime. Needs an Entra collection made with this version or later."
+        "ID-029": "New: whether application secrets and certificates have a maximum lifetime. Needs an Entra collection made with this version or later.",
+        "AU-002": "Now also requires Authenticator to show the sign-in location, and both the app name and the location to be shown to everyone, as the title always said. A tenant that shows the app name only moves from pass to fail.",
+        "AU-010": "New: whether people can report an MFA prompt they did not start. Needs an Entra collection made with this version or later.",
+        "ID-030": "New: whether ordinary users may create tenants.",
+        "ID-031": "New: whether ordinary users may create security groups.",
+        "ID-032": "New: whether everyone may create Microsoft 365 groups.",
+        "ID-033": "New: whether an account can be had with an email address alone.",
+        "ID-034": "New: whether administrators may reset their own password by self-service.",
+        "ID-035": "New: whether users may approve an app Microsoft judges risky.",
+        "ID-036": "New: whether group owners may consent to apps for their groups.",
+        "ID-037": "New: whether admin consent requests notify a reviewer and expire.",
+        "ID-038": "New: the smart lockout threshold and duration.",
+        "ID-039": "New: whether guests may own Microsoft 365 groups."
       }
     },
     {

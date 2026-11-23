@@ -48,6 +48,7 @@ function Initialize-CollectionFixture {
     )
     & $w '02-authentication-methods-policy' @{
         policyMigrationState = 'migrationInProgress'
+        reportSuspiciousActivitySettings = @{ state = 'enabled'; includeTarget = @{ targetType = 'group'; id = 'all_users' } }
         authenticationMethodConfigurations = @(
             @{ id = 'Sms'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }) }
             @{ id = 'Voice'; state = 'disabled'; includeTargets = @() }

@@ -302,3 +302,109 @@ Describe 'CA-017: registering a sign-in method is protected' {
         (& $script:Registration $managed).status | Should -Be 'pass'
     }
 }
+
+Describe 'Directory and sign-in settings (catalog 2026.11.3)' {
+    BeforeAll {
+        # The authorization policy as Graph sends it; a key set to 'absent' is left out.
+        $script:Authz = {
+            param([hashtable] $Set = @{}, [hashtable] $Role = @{})
+            $permissions = @{ permissionGrantPoliciesAssigned = @(); allowedToCreateApps = $false; allowedToCreateTenants = $false; allowedToCreateSecurityGroups = $false }
+            foreach ($k in $Role.Keys) { if ($Role[$k] -is [string] -and $Role[$k] -eq 'absent') { $permissions.Remove($k) } else { $permissions[$k] = $Role[$k] } }
+            $p = @{ allowInvitesFrom = 'adminsAndGuestInviters'; guestUserRoleId = '2af84b1e-32c8-42b7-82bc-daa82404023b'; allowedToSignUpEmailBasedSubscriptions = $false; allowEmailVerifiedUsersToJoinOrganization = $false; allowedToUseSSPR = $false; allowUserConsentForRiskyApps = $false; defaultUserRolePermissions = $permissions }
+            foreach ($k in $Set.Keys) { if ($Set[$k] -is [string] -and $Set[$k] -eq 'absent') { $p.Remove($k) } else { $p[$k] = $Set[$k] } }
+            $p
+        }
+        $script:Setting = { param([string] $Name, [string] $TemplateId, [hashtable] $Values) @{ DisplayName = $Name; TemplateId = $TemplateId; Values = $Values } }
+        $script:Lockout = { param([hashtable] $Values) & $script:Setting 'Password Rule Settings' '5cf42378-d67d-4f36-ba46-e8b86229381d' $Values }
+        $script:Unified = { param([hashtable] $Values) & $script:Setting 'Group.Unified' '62375ab9-6b52-47ed-826b-58e47e0e304b' $Values }
+        $script:Consent = { param([hashtable] $Values) & $script:Setting 'Consent Policy Settings' 'dffd5d46-495d-40a9-8e21-954ff55e198a' $Values }
+        $script:Identity = { param($Authz, $Settings = @()) @{ '02-authorization-policy' = $Authz; '02-directory-settings' = @($Settings) } }
+    }
+
+    It 'ID-030, ID-031 and ID-034 each read one switch of the authorization policy' {
+        $good = & $script:Judge 'identity' (& $script:Identity (& $script:Authz))
+        foreach ($id in 'ID-030', 'ID-031', 'ID-034') { $good[$id].status | Should -Be 'pass' -Because $id }
+        $bad = & $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowedToUseSSPR = $true } @{ allowedToCreateTenants = $true; allowedToCreateSecurityGroups = $true }))
+        foreach ($id in 'ID-030', 'ID-031', 'ID-034') { $bad[$id].status | Should -Be 'fail' -Because $id }
+        $silent = & $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowedToUseSSPR = 'absent' } @{ allowedToCreateTenants = 'absent'; allowedToCreateSecurityGroups = 'absent' }))
+        foreach ($id in 'ID-030', 'ID-031', 'ID-034') { $silent[$id].status | Should -Be 'notEvaluated' -Because "${id}: a switch the policy did not send is not a pass" }
+        $silent['ID-030'].reason | Should -Match 'did not say whether users may create tenants'
+    }
+
+    It 'ID-033 fails on either way to an account with an email address alone, and names it' {
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz)))['ID-033'].status | Should -Be 'pass'
+        $r = (& $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowEmailVerifiedUsersToJoinOrganization = $true })))['ID-033']
+        $r.status | Should -Be 'fail'
+        @($r.affected.name) | Should -Be @('Join by email validation')
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowedToSignUpEmailBasedSubscriptions = 'absent' })))['ID-033'].status | Should -Be 'notEvaluated'
+    }
+
+    It 'ID-035 fails when either place allows risky consent, and needs both files' {
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz)))['ID-035'].status | Should -Be 'pass'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowUserConsentForRiskyApps = 'absent' })))['ID-035'].status | Should -Be 'pass' -Because 'with neither place saying anything Microsoft''s default applies, which blocks'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ allowUserConsentForRiskyApps = $true })))['ID-035'].status | Should -Be 'fail'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz) @((& $script:Consent @{ BlockUserConsentForRiskyApps = 'false'; EnableGroupSpecificConsent = 'false' }))))['ID-035'].status | Should -Be 'fail' -Because 'the consent settings object says it is not blocked'
+        $half = (& $script:Judge 'identity' @{ '02-authorization-policy' = (& $script:Authz) })['ID-035']
+        $half.status | Should -Be 'notEvaluated'
+        $half.reason | Should -Match '02-directory-settings'
+    }
+
+    It 'ID-036 reads group owner consent, and has no answer for a tenant with no consent settings object' {
+        $with = { param([string] $Value) & $script:Identity (& $script:Authz) @((& $script:Consent @{ EnableGroupSpecificConsent = $Value })) }
+        (& $script:Judge 'identity' (& $with 'false'))['ID-036'].status | Should -Be 'pass'
+        (& $script:Judge 'identity' (& $with 'True'))['ID-036'].status | Should -Be 'fail'
+        $none = (& $script:Judge 'identity' (& $script:Identity (& $script:Authz)))['ID-036']
+        $none.status | Should -Be 'notEvaluated'
+        $none.reason | Should -Match 'no consent settings object'
+    }
+
+    It 'ID-032 and ID-039 read the Microsoft 365 group settings, with Microsoft''s defaults where there are none' {
+        $default = & $script:Judge 'identity' (& $script:Identity (& $script:Authz))
+        $default['ID-032'].status | Should -Be 'fail' -Because 'with no settings object everyone may create a group'
+        $default['ID-039'].status | Should -Be 'pass' -Because 'with no settings object no guest may own one'
+        $set = & $script:Judge 'identity' (& $script:Identity (& $script:Authz) @((& $script:Unified @{ EnableGroupCreation = 'false'; AllowGuestsToBeGroupOwner = 'true' })))
+        $set['ID-032'].status | Should -Be 'pass'
+        $set['ID-039'].status | Should -Be 'fail'
+    }
+
+    It 'ID-038 holds smart lockout to ten tries and a minute, and passes on Microsoft''s defaults' {
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz)))['ID-038'].status | Should -Be 'pass'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz) @((& $script:Lockout @{ LockoutThreshold = '5'; LockoutDurationInSeconds = '120' }))))['ID-038'].status | Should -Be 'pass'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz) @((& $script:Lockout @{ LockoutThreshold = '50'; LockoutDurationInSeconds = '60' }))))['ID-038'].status | Should -Be 'fail'
+        (& $script:Judge 'identity' (& $script:Identity (& $script:Authz) @((& $script:Lockout @{ LockoutThreshold = '10'; LockoutDurationInSeconds = '30' }))))['ID-038'].status | Should -Be 'fail'
+    }
+
+    It 'ID-037 wants reviewers told and requests to expire, where the workflow is on' {
+        $policy = { param([hashtable] $Set = @{}) $p = @{ isEnabled = $true; notifyReviewers = $true; remindersEnabled = $true; requestDurationInDays = 30; reviewers = @(@{ query = '/users/reviewer'; queryType = 'MicrosoftGraph' }) }; foreach ($k in $Set.Keys) { if ($Set[$k] -is [string] -and $Set[$k] -eq 'absent') { $p.Remove($k) } else { $p[$k] = $Set[$k] } }; @{ '02-admin-consent-request-policy' = $p } }
+        (& $script:Judge 'identity' (& $policy))['ID-037'].status | Should -Be 'pass'
+        $r = (& $script:Judge 'identity' (& $policy @{ notifyReviewers = $false; requestDurationInDays = 60 }))['ID-037']
+        $r.status | Should -Be 'fail'
+        @($r.affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('New requests: reviewers are not emailed when someone asks', 'Expiry: a request stays open 60 days (limit 30)')
+        (& $script:Judge 'identity' (& $policy @{ isEnabled = $false }))['ID-037'].reason | Should -Match 'ID-009 comes first'
+        (& $script:Judge 'identity' (& $policy @{ notifyReviewers = 'absent' }))['ID-037'].status | Should -Be 'notEvaluated'
+    }
+
+    It 'AU-010 wants Report suspicious activity on for everyone, from either copy of the policy' {
+        $beta = { param([string] $State, $Target = 'all_users') @{ '02-auth-system-preferred' = @{ State = 'enabled'; ReportSuspiciousActivityState = $State; ReportSuspiciousActivityTarget = $Target } } }
+        (& $script:Judge 'auth' (& $beta 'enabled'))['AU-010'].status | Should -Be 'pass'
+        (& $script:Judge 'auth' (& $beta 'default'))['AU-010'].status | Should -Be 'fail' -Because 'left to Microsoft it is off'
+        (& $script:Judge 'auth' (& $beta 'enabled' '6f1c3a52-0000-4000-8000-000000000001'))['AU-010'].status | Should -Be 'fail' -Because 'a pilot group is not everyone'
+        $v1 = @{ '02-authentication-methods-policy' = @{ policyMigrationState = 'migrationComplete'; authenticationMethodConfigurations = @(); reportSuspiciousActivitySettings = @{ state = 'enabled'; includeTarget = @{ id = 'all_users' } } } }
+        (& $script:Judge 'auth' $v1)['AU-010'].status | Should -Be 'pass'
+        $old = (& $script:Judge 'auth' @{ '02-auth-system-preferred' = @{ State = 'enabled' } })['AU-010']
+        $old.status | Should -Be 'notEvaluated'
+        $old.reason | Should -Match 'collected before TenantKeep read Report suspicious activity'
+    }
+
+    It 'AU-002 asks for the app name and the location, shown to everyone' {
+        $policy = {
+            param([string] $Location = 'enabled', [string] $Target = 'all_users')
+            $shown = @{ displayAppInformationRequiredState = @{ state = 'enabled'; includeTarget = @{ id = 'all_users' } }; displayLocationInformationRequiredState = @{ state = $Location; includeTarget = @{ id = $Target } } }
+            $authenticator = @{ id = 'MicrosoftAuthenticator'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }); featureSettings = $shown }
+            @{ '02-authentication-methods-policy' = @{ policyMigrationState = 'migrationComplete'; authenticationMethodConfigurations = @($authenticator) } }
+        }
+        (& $script:Judge 'auth' (& $policy))['AU-002'].status | Should -Be 'pass'
+        (& $script:Judge 'auth' (& $policy 'default'))['AU-002'].status | Should -Be 'fail' -Because 'the app name alone is half of what the title says'
+        (& $script:Judge 'auth' (& $policy 'enabled' '6f1c3a52-0000-4000-8000-000000000001'))['AU-002'].status | Should -Be 'fail' -Because 'the location is shown to a pilot group only'
+    }
+}

@@ -410,10 +410,6 @@
       "reason": "planned",
       "note": "A tenant identity setting not yet judged."
     },
-    "21787": {
-      "reason": "planned",
-      "note": "A privileged access setting or alert."
-    },
     "21789": {
       "reason": "planned",
       "note": "Triage of risk detections and of Entra recommendations."
@@ -478,10 +474,6 @@
       "reason": "planned",
       "note": "An authentication method or password setting."
     },
-    "21841": {
-      "reason": "planned",
-      "note": "An authentication method or password setting."
-    },
     "21842": {
       "reason": "planned",
       "note": "A tenant identity setting not yet judged."
@@ -493,14 +485,6 @@
     "21844": {
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."
-    },
-    "21849": {
-      "reason": "planned",
-      "note": "An authentication method or password setting."
-    },
-    "21850": {
-      "reason": "planned",
-      "note": "An authentication method or password setting."
     },
     "21854": {
       "reason": "planned",

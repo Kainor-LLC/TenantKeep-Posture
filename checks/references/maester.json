@@ -650,85 +650,21 @@
       "reason": "planned",
       "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
     },
-    "EIDSCA.AG02": {
-      "reason": "planned",
-      "note": "Report suspicious activity, in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AG03": {
-      "reason": "planned",
-      "note": "Report suspicious activity, in the authentication methods policy, which is already collected."
-    },
     "EIDSCA.AM02": {
       "reason": "planned",
       "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
     },
     "EIDSCA.AM03": {
-      "reason": "planned",
-      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
+      "reason": "outOfScope",
+      "note": "Microsoft has enforced number matching for every tenant since May 2023, whatever this setting says, so there is nothing left to judge."
     },
     "EIDSCA.AM04": {
-      "reason": "planned",
-      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AM09": {
-      "reason": "planned",
-      "note": "The location shown in Authenticator is already read; the check judges the app name only."
-    },
-    "EIDSCA.AM10": {
-      "reason": "planned",
-      "note": "The location shown in Authenticator is already read; the check judges the app name only."
-    },
-    "EIDSCA.AP01": {
-      "reason": "planned",
-      "note": "A setting in the authorization policy, which is already collected."
-    },
-    "EIDSCA.AP05": {
-      "reason": "planned",
-      "note": "A setting in the authorization policy, which is already collected."
-    },
-    "EIDSCA.AP06": {
-      "reason": "planned",
-      "note": "A setting in the authorization policy, which is already collected."
-    },
-    "EIDSCA.AP09": {
-      "reason": "planned",
-      "note": "A consent setting in the directory settings."
+      "reason": "outOfScope",
+      "note": "Microsoft has enforced number matching for every tenant since May 2023, whatever this setting says, so there is nothing left to judge."
     },
     "EIDSCA.AP14": {
-      "reason": "planned",
-      "note": "A setting in the authorization policy, which is already collected."
-    },
-    "EIDSCA.CP01": {
-      "reason": "planned",
-      "note": "A consent setting in the directory settings."
-    },
-    "EIDSCA.CP03": {
-      "reason": "planned",
-      "note": "A consent setting in the directory settings."
-    },
-    "EIDSCA.CR02": {
-      "reason": "planned",
-      "note": "A detail of the admin consent request policy."
-    },
-    "EIDSCA.CR03": {
-      "reason": "planned",
-      "note": "A detail of the admin consent request policy."
-    },
-    "EIDSCA.CR04": {
-      "reason": "planned",
-      "note": "A detail of the admin consent request policy."
-    },
-    "EIDSCA.PR05": {
-      "reason": "planned",
-      "note": "Smart lockout, in the same directory settings as the banned password list."
-    },
-    "EIDSCA.PR06": {
-      "reason": "planned",
-      "note": "Smart lockout, in the same directory settings as the banned password list."
-    },
-    "EIDSCA.ST08": {
-      "reason": "planned",
-      "note": "A Microsoft 365 groups setting for guests."
+      "reason": "outOfScope",
+      "note": "Checks that a default was left alone (users can read other users) because turning it off breaks Microsoft 365. A compatibility check, not a protection."
     },
     "EIDSCA.ST09": {
       "reason": "planned",
@@ -1118,10 +1054,6 @@
       "reason": "planned",
       "note": "A property of the Conditional Access policies, which are already collected."
     },
-    "MT.1055": {
-      "reason": "planned",
-      "note": "What an ordinary user may create, in the authorization policy and the group settings."
-    },
     "MT.1057": {
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
@@ -1145,14 +1077,6 @@
     "MT.1067": {
       "reason": "planned",
       "note": "Groups named in the authentication methods policy."
-    },
-    "MT.1068": {
-      "reason": "planned",
-      "note": "What an ordinary user may create, in the authorization policy and the group settings."
-    },
-    "MT.1069": {
-      "reason": "planned",
-      "note": "What an ordinary user may create, in the authorization policy and the group settings."
     },
     "MT.1070": {
       "reason": "planned",

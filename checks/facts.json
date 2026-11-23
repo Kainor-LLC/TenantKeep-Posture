@@ -421,7 +421,24 @@
     "appSecretAdditionAppliesFrom": "Only for applications created after",
     "appSecretMaxDays": "Client secret, maximum lifetime (days)",
     "appCertificateMaxDays": "Certificate, maximum lifetime (days)",
-    "appCredentialLifetimeGaps": "Credential kinds with no limit, or one too long"
+    "appCredentialLifetimeGaps": "Credential kinds with no limit, or one too long",
+    "usersCanCreateTenants": "Users can create tenants",
+    "usersCanCreateSecurityGroups": "Users can create security groups",
+    "groupCreationOpenToAll": "Everyone can create Microsoft 365 groups",
+    "emailSelfJoinWays": "Ways to get an account with an email address alone",
+    "adminsCanSelfServiceReset": "Administrators can reset their own password by self-service",
+    "riskyConsentAllowed": "Users can approve an app Microsoft judges risky",
+    "riskyConsentSetting": "Where that comes from",
+    "groupOwnersCanConsent": "Group owners can consent to apps for their groups",
+    "consentRequestGaps": "Gaps in how consent requests are handled",
+    "consentRequestDays": "Consent request, days before it expires",
+    "smartLockoutOk": "Smart lockout within the limits",
+    "lockoutThreshold": "Failed sign-ins before lockout",
+    "lockoutSeconds": "Lockout length (seconds)",
+    "guestsCanOwnGroups": "Guests can own Microsoft 365 groups",
+    "reportSuspiciousActivityOn": "Report suspicious activity is on for everyone",
+    "reportSuspiciousActivityState": "Report suspicious activity, setting",
+    "authenticatorLocationInformation": "Authenticator shows the sign-in location to everyone"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -493,6 +510,9 @@
     "registrationControl": "What a registration policy must ask for (any, or managedDevice)",
     "alertRecipients": "Who must get the alert (any, or named for a further address)",
     "maxAppSecretDays": "Client secret, longest lifetime allowed (days)",
-    "maxAppCertificateDays": "Certificate, longest lifetime allowed (days)"
+    "maxAppCertificateDays": "Certificate, longest lifetime allowed (days)",
+    "maxConsentRequestDays": "Consent request, longest it may stay open (days)",
+    "maxLockoutThreshold": "Failed sign-ins before lockout, at most",
+    "minLockoutSeconds": "Lockout length, at least (seconds)"
   }
 }

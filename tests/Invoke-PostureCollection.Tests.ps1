@@ -33,7 +33,7 @@ BeforeAll {
             '^domains\?' { & $u @(@{ id = 'contoso.example'; isDefault = $true; isInitial = $false; isVerified = $true; authenticationType = 'Managed' }); break }
             '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; servicePlanId = 'p-aad'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; servicePlanId = 'p-intune'; provisioningStatus = 'Success' }) }); break }
             '^directory/onPremisesSynchronization$' { & $u @(); break }
-            { $_ -eq 'policies/authenticationMethodsPolicy' -and $Uri -match '/beta/' } { @{ id = 'authenticationMethodsPolicy'; systemCredentialPreferences = @{ state = 'enabled' } }; break }
+            { $_ -eq 'policies/authenticationMethodsPolicy' -and $Uri -match '/beta/' } { @{ id = 'authenticationMethodsPolicy'; systemCredentialPreferences = @{ state = 'enabled' }; reportSuspiciousActivitySettings = @{ state = 'enabled'; includeTarget = @{ targetType = 'group'; id = 'all_users' } } }; break }
             '^policies/(authorizationPolicy|identitySecurityDefaultsEnforcementPolicy|authenticationMethodsPolicy|adminConsentRequestPolicy|defaultAppManagementPolicy|crossTenantAccessPolicy/default)$' { @{ id = ($path -split '/')[-1]; isEnabled = $false }; break }
             '^policies/authenticationStrengthPolicies$' { & $u @(@{ id = 's-phish'; displayName = 'Phishing-resistant MFA'; allowedCombinations = @('fido2') }); break }
             '^policies/crossTenantAccessPolicy/partners$' { & $u @(); break }
@@ -589,6 +589,8 @@ Describe 'Invoke-PostureCollection' {
             $ds = @(& $script:Read '02-directory-settings')[0]
             $ds.Values.BannedPasswordCount | Should -Be 3
             (& $script:Read '02-auth-system-preferred').State | Should -Be 'enabled' -Because 'the beta policy is read whole, without the $select Graph refused'
+            (& $script:Read '02-auth-system-preferred').ReportSuspiciousActivityState | Should -Be 'enabled' -Because 'AU-010 reads Report suspicious activity from the same answer'
+            (& $script:Read '02-auth-system-preferred').ReportSuspiciousActivityTarget | Should -Be 'all_users'
             ($ds | ConvertTo-Json -Depth 5) | Should -Not -Match 'seattle' -Because 'the banned words are the organisation''s own names; only the count is kept'
             $lp = & $script:Read '06-users-license-plans'
             $lp.LicensedEnabledUsers | Should -Be 1 -Because 'the disabled user does not count'
