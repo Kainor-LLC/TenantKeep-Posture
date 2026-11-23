@@ -1094,10 +1094,6 @@
       "reason": "planned",
       "note": "Blocking the legacy MSOnline PowerShell module."
     },
-    "MT.1188": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
     "MT.1189": {
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
@@ -1114,13 +1110,9 @@
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
     },
-    "MT.1194": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
     "MT.1195": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "outOfScope",
+      "note": "A sign-in frequency on Quick Access interrupts the tunnel and prompts people more often. It is a reliability choice; neither setting makes the tenant safer."
     },
     "MT.1196": {
       "reason": "planned",

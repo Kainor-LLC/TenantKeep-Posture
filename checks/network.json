@@ -545,7 +545,7 @@
     {
       "id": "NET-012",
       "domain": "network",
-      "title": "Threat intelligence filtering is on for internet traffic",
+      "title": "Threat intelligence filtering is on for all internet traffic",
       "severityDefault": "Medium",
       "license": [
         "InternetAccess",
@@ -559,7 +559,7 @@
       "evidence": [
         "gsa-04-security-profiles.json"
       ],
-      "pass": "facts.threatIntelligenceApplied",
+      "pass": "facts.threatIntelligenceOnBaseline",
       "remediation": [
         "In Secure, Threat intelligence policies, create a policy with the action Block for high severity destinations.",
         "Link it to the baseline profile so it covers everyone.",
@@ -573,7 +573,7 @@
       },
       "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-threat-intelligence",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/ThreatIntelligencePolicy.ReactView",
-      "narrative": "Threat intelligence filtering blocks destinations that Microsoft and its feeds know to be malicious right now: phishing pages, malware hosts, command and control servers. Category rules cannot keep up with sites that live for a day. This check looks for a threat intelligence policy linked, and on, on a security profile that applies.",
+      "narrative": "Threat intelligence filtering blocks destinations that Microsoft and its feeds know to be malicious right now: phishing pages, malware hosts, command and control servers. Category rules cannot keep up with sites that live for a day. This check looks for a threat intelligence policy linked, and on, on the baseline profile, which is the one that reaches all traffic. A policy on a profile that Conditional Access hands to some people leaves everyone else without it.",
       "frameworks": {
         "nist-csf-2": "DE.CM-01",
         "iso27001": "A.8.23",
@@ -583,6 +583,9 @@
       "references": {
         "zeroTrust": [
           "25412"
+        ],
+        "maester": [
+          "MT.1194"
         ]
       },
       "attack": [
@@ -1176,6 +1179,56 @@
         ]
       },
       "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "NET-025",
+      "domain": "network",
+      "title": "Private Access applications ask for a managed device",
+      "severityDefault": "Medium",
+      "license": [
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-07-private-apps.json",
+        "policies.json"
+      ],
+      "pass": "facts.privateAppsFromAnyDevice == 0",
+      "affected": "facts.privateAppsFromAnyDevice",
+      "remediation": [
+        "Create a Conditional Access policy whose target resources are your Private Access applications, Quick Access included.",
+        "Under Grant, require the device to be marked as compliant, or to be Microsoft Entra hybrid joined.",
+        "Run it report-only first: a contractor on their own laptop is who it will stop, and you should decide that on purpose."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Private applications open only from a device the organisation manages."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-device-compliance",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "The Global Secure Access client can be installed on any Windows device that is joined or registered, and a private application is your internal network by another name. Without a device requirement, a valid sign-in on a personal or infected machine reaches file shares and servers directly. The applications listed are covered by no enabled policy that asks for a compliant or hybrid joined device.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1188"
+        ]
+      },
+      "attack": [
+        "T1133",
         "T1078.004"
       ]
     }

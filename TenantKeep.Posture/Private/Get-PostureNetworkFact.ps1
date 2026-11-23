@@ -96,7 +96,9 @@ function Get-PostureNetworkFact {
         $facts.profilesByConditionalAccess = $byPolicy.Count
         $facts.baselineWebFiltering = @(& $links $baseline 'webFiltering').Count -gt 0
         $facts.tlsInspectionApplied = @(& $links $applied 'tlsInspection').Count -gt 0
-        $facts.threatIntelligenceApplied = @(& $links $applied 'threatIntelligence').Count -gt 0
+        # NET-012 asks for the floor: threat intelligence on the baseline profile, which reaches all traffic. A policy
+        # on a profile that Conditional Access hands to some people leaves the rest without it.
+        $facts.threatIntelligenceOnBaseline = @(& $links $baseline 'threatIntelligence').Count -gt 0
         $facts.filePolicyApplied = @(& $links $applied 'file').Count -gt 0
         $facts.promptPolicyApplied = @(& $links $applied 'prompt').Count -gt 0
         $facts.cloudFirewallOnBaseline = @(& $links $baseline 'cloudFirewall').Count -gt 0
@@ -159,7 +161,7 @@ function Get-PostureNetworkFact {
     $raw = & $load 'policies'
     $caPolicies = $(if ($null -eq $raw) { $null } else { @($(if ($raw -is [System.Collections.IDictionary] -and $raw.Contains('value')) { $raw['value'] } else { $raw }) | Where-Object { $_ -and [string](& $v $_ 'state') -eq 'enabled' }) })
     $list = { param($policy, [string] $path) @(& $v $policy $path | Where-Object { $_ } | ForEach-Object { [string]$_ }) }
-    if ($null -eq $caPolicies) { & $missing @('NET-018', 'NET-019', 'NET-021') 'policies' }
+    if ($null -eq $caPolicies) { & $missing @('NET-018', 'NET-019', 'NET-021', 'NET-025') 'policies' }
     else {
         # Read straight from the object: an empty list (the location does not exist) is an answer, and passing it
         # through a script block would turn it into nothing, which here means "not read".
@@ -182,11 +184,11 @@ function Get-PostureNetworkFact {
 
     # ---- Private Access applications: assigned to someone (NET-020), and under Conditional Access with strong authentication (NET-021) ----
     $apps = & $load 'gsa-07-private-apps'
-    if ($null -eq $apps) { & $missing @('NET-020', 'NET-021') 'gsa-07-private-apps' }
+    if ($null -eq $apps) { & $missing @('NET-020', 'NET-021', 'NET-025') 'gsa-07-private-apps' }
     else {
         $pa = @($apps | Where-Object { $_ -and (& $v $_ 'Enabled') -ne $false })
         $facts.privateApps = $pa.Count
-        if ($pa.Count -eq 0) { foreach ($id in 'NET-020', 'NET-021') { $notEvaluated[$id] = 'No Private Access application is published; NET-003 asks whether private apps are reached this way.' } }
+        if ($pa.Count -eq 0) { foreach ($id in 'NET-020', 'NET-021', 'NET-025') { $notEvaluated[$id] = 'No Private Access application is published; NET-003 asks whether private apps are reached this way.' } }
         else {
             $known = @($pa | Where-Object { $null -ne (& $v $_ 'Assigned') })
             $nobody = @($known | Where-Object { (& $v $_ 'Assigned') -ne $true })
@@ -198,6 +200,11 @@ function Get-PostureNetworkFact {
                 $strong = @($caPolicies | Where-Object { @(& $list $_ 'grantControls.builtInControls') -contains 'mfa' -or (& $v $_ 'grantControls.authenticationStrength.id') })
                 $bare = @($pa | Where-Object { $id = [string](& $v $_ 'AppId'); @($strong | Where-Object { $inc = @(& $list $_ 'conditions.applications.includeApplications'); ($inc -contains 'All' -or $inc -contains $id) -and @(& $list $_ 'conditions.applications.excludeApplications') -notcontains $id }).Count -eq 0 })
                 $facts.privateAppsWithoutStrongAuth = $bare.Count
+                # NET-025: the same question for the device: a policy that asks for a compliant or hybrid joined device.
+                $managed = @($caPolicies | Where-Object { $controls = @(& $list $_ 'grantControls.builtInControls'); $controls -contains 'compliantDevice' -or $controls -contains 'domainJoinedDevice' })
+                $anyDevice = @($pa | Where-Object { $id = [string](& $v $_ 'AppId'); @($managed | Where-Object { $inc = @(& $list $_ 'conditions.applications.includeApplications'); ($inc -contains 'All' -or $inc -contains $id) -and @(& $list $_ 'conditions.applications.excludeApplications') -notcontains $id }).Count -eq 0 })
+                $facts.privateAppsFromAnyDevice = $anyDevice.Count
+                $affected.privateAppsFromAnyDevice = @($anyDevice | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = 'no enabled Conditional Access policy asks for a managed device for it' } })
                 $affected.privateAppsWithoutStrongAuth = @($bare | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = 'no enabled Conditional Access policy asks for multifactor authentication for it' } })
             }
         }

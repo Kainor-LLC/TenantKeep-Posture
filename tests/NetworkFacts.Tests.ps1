@@ -168,6 +168,27 @@ Describe 'Global Secure Access configuration (catalog 2026.11.3)' {
         (& $script:Judge $files)['NET-021'].status | Should -Be 'fail' -Because 'a policy in report-only asks nobody for anything'
     }
 
+    It 'NET-012 wants threat intelligence on the baseline profile, which reaches everyone' {
+        $files = & $script:Good
+        # Moved off the baseline, onto the profile Conditional Access hands to developers.
+        $files['gsa-04-security-profiles'][0].Links = @($files['gsa-04-security-profiles'][0].Links | Where-Object { $_.Kind -ne 'threatIntelligence' })
+        $files['gsa-04-security-profiles'][1].Links += @{ Kind = 'threatIntelligence'; State = 'enabled'; PolicyId = 'ti-1' }
+        (& $script:Judge $files)['NET-012'].status | Should -Be 'fail' -Because 'everyone who is not a developer browses without it'
+    }
+
+    It 'NET-025 wants a managed device asked of each private application' {
+        $files = & $script:Good
+        $by = & $script:Judge $files
+        $by['NET-025'].status | Should -Be 'fail' -Because 'the policies ask for multifactor authentication and the network, not for the device'
+        @($by['NET-025'].affected).name | Should -Be @('Quick Access', 'Payroll')
+        $files['policies'] += @{ displayName = 'Managed devices for private apps'; state = 'enabled'; conditions = @{ applications = @{ includeApplications = @('app-qa', 'app-pay') } }; grantControls = @{ builtInControls = @('compliantDevice', 'domainJoinedDevice'); operator = 'OR' } }
+        (& $script:Judge $files)['NET-025'].status | Should -Be 'pass'
+        $files['policies'][2].conditions.applications.includeApplications = @('app-qa')
+        @((& $script:Judge $files)['NET-025'].affected).name | Should -Be @('Payroll')
+        $files['gsa-07-private-apps'] = @()
+        (& $script:Judge $files)['NET-025'].reason | Should -Match '^No Private Access application is published'
+    }
+
     It 'judges what Conditional Access is told about the network' {
         $files = & $script:Good
         $files['policies'][1].conditions.locations.excludeLocations = @('some-other-location')
