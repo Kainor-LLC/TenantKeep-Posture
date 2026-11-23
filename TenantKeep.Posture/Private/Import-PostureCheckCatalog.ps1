@@ -16,6 +16,9 @@ function Import-PostureCheckCatalog {
         sees an array. effort (S, M, L) is optional; category is fix or improve, fix when absent; userImpact is
         what users notice when the fix lands: a level (none, low, medium, high) and a sentence. attack is optional: the
         ATT&CK technique ids (T1078.004) the check helps stop or detect.
+        references is optional: other tools' ids for the same setting, by kind. secureScore lists the Microsoft Secure
+        Score control ids (BlockLegacyAuthentication) the check overlaps, so the report can say which of Microsoft's
+        open actions a check here also judges.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -63,6 +66,7 @@ function Import-PostureCheckCatalog {
     $efforts = 'S', 'M', 'L'
     $categories = 'fix', 'improve'
     $userImpacts = 'none', 'low', 'medium', 'high'
+    $referenceKinds = @('secureScore')
     $checks = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     $files = @()
@@ -103,6 +107,16 @@ function Import-PostureCheckCatalog {
                 if ($c.Contains('attack')) {
                     $bad = @(@($c['attack']) | Where-Object { -not ($_ -is [string]) -or $_ -notmatch '^T\d{4}(\.\d{3})?$' })
                     if (-not ($c['attack'] -is [array]) -or $bad.Count) { throw "$($file.Name): check '$($c['id'])' attack must be a list of ATT&CK technique ids like T1078.004" }
+                }
+                if ($c.Contains('references')) {
+                    # Other tools' ids for the same setting. secureScore: Microsoft Secure Score control ids.
+                    $refs = $c['references']
+                    if (-not ($refs -is [System.Collections.IDictionary])) { throw "$($file.Name): check '$($c['id'])' references must be an object, for example { `"secureScore`": [`"BlockLegacyAuthentication`"] }" }
+                    foreach ($kind in @($refs.get_Keys())) {
+                        if ([string]$kind -notin $referenceKinds) { throw "$($file.Name): check '$($c['id'])' references names '$kind'; expected $($referenceKinds -join ', ')" }
+                        $badRef = @(@($refs[$kind]) | Where-Object { -not ($_ -is [string]) -or $_ -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{1,79}$' })
+                        if (-not ($refs[$kind] -is [array]) -or @($refs[$kind]).Count -eq 0 -or $badRef.Count) { throw "$($file.Name): check '$($c['id'])' references.$kind must be a list of ids" }
+                    }
                 }
                 if (-not $c.Contains('category') -or -not $c['category']) { $c['category'] = 'fix' }
                 elseif ([string]$c['category'] -notin $categories) { throw "$($file.Name): check '$($c['id'])' has category '$($c['category'])'; expected $($categories -join ', ')" }

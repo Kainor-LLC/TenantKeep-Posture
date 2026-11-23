@@ -18,7 +18,10 @@ BeforeAll {
         & $script:Write $Dir 'az-02-assessments-summary' @(@{ SubscriptionId = $script:Sub; Status = 'Unhealthy'; Severity = 'High'; Count = 3 }, @{ SubscriptionId = $script:Sub; Status = 'Unhealthy'; Severity = 'Low'; Count = 5 }, @{ SubscriptionId = $script:Sub; Status = 'Healthy'; Severity = 'High'; Count = 9 })
         & $script:Write $Dir 'az-02-assessments-top' @(@{ Recommendation = 'Machines should have vulnerability findings resolved'; Severity = 'High'; Affected = 4 })
         & $script:Write $Dir 'def-06-secure-score-controls' @(
-            @{ Id = 'MFARegistrationV2'; Title = 'Ensure all users can complete MFA'; Category = 'Identity'; MaxScore = 9; Score = 3; State = 'Default'; ImplementationCost = 'Moderate'; UserImpact = 'Moderate'; ActionUrl = 'https://security.microsoft.com/securescore?actionId=MFARegistrationV2' }
+            @{ Id = 'MFARegistrationV2'; Title = 'Ensure all users can complete MFA'; Category = 'Identity'; Service = 'AzureAD'; MaxScore = 9; Score = 3; State = 'Default'; ImplementationCost = 'Moderate'; UserImpact = 'Moderate'; ActionUrl = 'https://security.microsoft.com/securescore?actionId=MFARegistrationV2' }
+            @{ Id = 'aad_admin_consent_workflow'; Title = 'Ensure the admin consent workflow is enabled'; Category = 'Identity'; Service = 'AzureAD'; MaxScore = 4; Score = 0; State = 'Default'; ImplementationCost = 'Low'; UserImpact = 'Low'; ActionUrl = '' }
+            @{ Id = 'mcas_made_up_action'; Title = 'Connect an app'; Category = 'Apps'; Service = 'MCAS'; MaxScore = 5; Score = 0; State = 'Default'; ImplementationCost = 'Low'; UserImpact = 'Low'; ActionUrl = '' }
+            @{ Id = 'older_evidence_action'; Title = 'An action saved before the product was'; Category = 'Device'; MaxScore = 2; Score = 1; State = 'Default'; ImplementationCost = 'Low'; UserImpact = 'Low'; ActionUrl = '' }
             @{ Id = 'BlockLegacyAuthentication'; Title = 'Block legacy authentication'; Category = 'Identity'; MaxScore = 8; Score = 8; State = 'Default'; ImplementationCost = 'Moderate'; UserImpact = 'Moderate'; ActionUrl = 'https://security.microsoft.com/securescore?actionId=BlockLegacyAuthentication' }
             @{ Id = 'mdo_safeattachments'; Title = 'Turn on Safe Attachments'; Category = 'Data'; MaxScore = 8; Score = 0; State = 'ThirdParty'; ImplementationCost = 'Low'; UserImpact = 'Low'; ActionUrl = '' }
         )
@@ -55,9 +58,11 @@ Describe 'Azure exposure, cost, backups, Sentinel and Entra Domain Services' {
     It 'charts the Secure Score actions with Microsoft''s links and the Defender for Cloud picture' {
         InModuleScope TenantKeep.Posture -Parameters @{ D = $script:Dir } {
             $c = Get-PostureChartData -Evidence $D -DomainFacts @{}
-            @($c.secureScoreActions.rows.title) | Should -Be @('Ensure all users can complete MFA') -Because 'a control already earned or covered by a third party is not an action'
+            @($c.secureScoreActions.rows.title) | Should -Be @('Ensure all users can complete MFA', 'Connect an app', 'Ensure the admin consent workflow is enabled', 'An action saved before the product was') -Because 'a control already earned or covered by a third party is not an action, and the most points come first'
+            @($c.secureScoreActions.all.id) | Should -Be @('MFARegistrationV2', 'mcas_made_up_action', 'aad_admin_consent_workflow', 'older_evidence_action') -Because 'the full list has every open action'
+            @($c.secureScoreActions.all.product) | Should -Be @('Microsoft Entra ID', 'Defender for Cloud Apps', 'Microsoft Entra ID', 'Device') -Because 'the product is Microsoft''s, by name, and the category stands in for evidence saved without it'
             $c.secureScoreActions.rows[0].points | Should -Be 6
-            ($c.secureScoreCategories.rows | Where-Object label -eq 'Identity').available | Should -Be 6
+            ($c.secureScoreCategories.rows | Where-Object label -eq 'Identity').available | Should -Be 10
             $c.azureSecureScore.item[0].value | Should -Be 50
             @($c.azureRecommendations.segment | ForEach-Object { $_.value }) | Should -Be @(3, 0, 5)
         }
@@ -65,6 +70,15 @@ Describe 'Azure exposure, cost, backups, Sentinel and Entra Domain Services' {
         $html = Get-Content -Raw ($rep.Files | Where-Object { $_ -like '*report.html' })
         foreach ($t in 'Top Secure Score Improvements', 'Secure Score by Category', 'Defender for Cloud Secure Score', 'Top Defender for Cloud Recommendations') { $html | Should -Match $t }
         $html | Should -Match 'href="https://security\.microsoft\.com/securescore\?actionId=MFARegistrationV2"'
+        # Every open action under its product, with the check here that judges the same setting.
+        $html | Should -Match 'All 4 open Secure Score actions, by product'
+        $html | Should -Match '2 of 4 are also judged by a check in this report'
+        $html | Should -Match '<tr class="group"><th colspan="4">Microsoft Entra ID <span class="tech">2 actions, 10 points</span>'
+        $html | Should -Match 'data-check="ID-009" title="[^"]+"><code>ID-009</code></a> <span class="status notEvaluated">Not evaluated</span>'
+        $html | Should -Match 'data-check="AU-006"'
+        $html | Should -Match 'Connect an app</td><td>5</td><td>Low</td><td><span class="tech">Microsoft''s only</span>'
+        [regex]::Matches($html, '<tr class="group">').Count | Should -Be 3 -Because 'three products have an open action'
+        $html.IndexOf('Microsoft Entra ID <span class="tech">2 actions') | Should -BeLessThan $html.IndexOf('Defender for Cloud Apps <span class="tech">1 action,') -Because 'the product with the most points to earn comes first'
     }
 
     It 'does not pass AZ-026, AZ-027 or AZ-028 on a tenant without backup vaults, Sentinel or Entra Domain Services' {

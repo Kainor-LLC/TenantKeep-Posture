@@ -192,6 +192,12 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": "MS.EXO.15.1v1"
       },
+      "references": {
+        "secureScore": [
+          "mdo_safeattachments",
+          "mdo_safelinksforemail"
+        ]
+      },
       "attack": [
         "T1566.001",
         "T1566.002"
@@ -229,6 +235,13 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mdo_zapspam",
+          "mdo_zapphish",
+          "mdo_zapmalware"
+        ]
       },
       "attack": [
         "T1566.001",
@@ -308,6 +321,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SC.L2-3.13.8",
         "cisa-scuba": "MS.EXO.1.1v1"
+      },
+      "references": {
+        "secureScore": [
+          "mdo_blockmailforward"
+        ]
       },
       "attack": [
         "T1114.003"
@@ -710,6 +728,11 @@
         "cmmc": "AU.L2-3.3.1",
         "cisa-scuba": "MS.EXO.13.1v1"
       },
+      "references": {
+        "secureScore": [
+          "exo_mailboxaudit"
+        ]
+      },
       "attack": [
         "T1114.002",
         "T1685.002"
@@ -861,6 +884,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L2-3.14.2",
         "cisa-scuba": "MS.EXO.9.1v2"
+      },
+      "references": {
+        "secureScore": [
+          "mdo_commonattachmentsfilter"
+        ]
       },
       "attack": [
         "T1566.001"
@@ -1038,6 +1066,13 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L2-3.14.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mdo_atpprotection",
+          "mdo_safelinksforOfficeApps",
+          "mdo_safedocuments"
+        ]
       },
       "attack": [
         "T1204.002",

@@ -200,9 +200,20 @@ function Get-PostureChartData {
             $cats = [ordered]@{}
             foreach ($c in $live) { $k = [string](& $v $c 'Category'); if (-not $cats.Contains($k)) { $cats[$k] = @{ earned = 0.0; max = 0.0 } }; $cats[$k].earned += [double](& $v $c 'Score'); $cats[$k].max += [double](& $v $c 'MaxScore') }
             $out.secureScoreCategories = [ordered]@{ rows = @($cats.Keys | ForEach-Object { [ordered]@{ label = $_; earned = [Math]::Round($cats[$_].earned, 1); available = [Math]::Round($cats[$_].max - $cats[$_].earned, 1) } }); takeaway = 'Points earned and still available, per Secure Score category.' }
-            $top = @($live | Sort-Object { - ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) }, { [string](& $v $_ 'Title') } | Where-Object { ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) -gt 0 } | Select-Object -First 10)
+            # Every action with points still to earn, the most points first. The card shows ten; the list under it has
+            # them all, under Microsoft's product (the Service a later collection saves; the category when it is not there).
+            $open = @($live | Sort-Object { - ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) }, { [string](& $v $_ 'Title') } | Where-Object { ([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score')) -gt 0 })
+            $all = @($open | ForEach-Object {
+                    [ordered]@{
+                        id = [string](& $v $_ 'Id'); title = [string](& $v $_ 'Title'); category = [string](& $v $_ 'Category')
+                        product = (Get-PostureSecureScoreProduct -Service ([string](& $v $_ 'Service')) -Category ([string](& $v $_ 'Category')))
+                        points = [Math]::Round([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score'), 1); cost = [string](& $v $_ 'ImplementationCost'); userImpact = [string](& $v $_ 'UserImpact'); url = [string](& $v $_ 'ActionUrl')
+                    }
+                })
+            $top = @($all | Select-Object -First 10)
             $out.secureScoreActions = [ordered]@{
-                rows = @($top | ForEach-Object { [ordered]@{ title = [string](& $v $_ 'Title'); category = [string](& $v $_ 'Category'); points = [Math]::Round([double](& $v $_ 'MaxScore') - [double](& $v $_ 'Score'), 1); cost = [string](& $v $_ 'ImplementationCost'); userImpact = [string](& $v $_ 'UserImpact'); url = [string](& $v $_ 'ActionUrl') } })
+                rows = $top
+                all = $all
                 takeaway = "The $(@($top).Count) improvement actions worth the most points, as Microsoft scores them."
             }
         }

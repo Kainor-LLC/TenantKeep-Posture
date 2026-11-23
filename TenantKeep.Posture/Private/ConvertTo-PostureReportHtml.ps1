@@ -275,8 +275,32 @@ function ConvertTo-PostureReportHtml {
         $areas.Operations += ConvertTo-PostureChartCard -Title 'Secure Score by Category' -Takeaway $ch.secureScoreCategories.takeaway -ViewAllDomain 'operations' -Body ('<div class="pillars">' + $rowsHtml + '</div>' + (ConvertTo-PostureChartLegend -Item @(@{ label = 'Earned'; tone = 'ok' }, @{ label = 'Available'; tone = 'na' })))
     }
     if ($ch.Contains('secureScoreActions')) {
-        $tbl = '<table><thead><tr><th>Action</th><th>Category</th><th>Points</th><th>Cost</th><th>User Impact</th></tr></thead><tbody>' + (@($ch.secureScoreActions.rows | ForEach-Object { '<tr><td>' + $(if ($_.url) { '<a href="' + (& $h $_.url) + '" target="_blank" rel="noopener">' + (& $h $_.title) + '</a>' } else { & $h $_.title }) + '</td><td>' + (& $h $_.category) + '</td><td>' + $_.points + '</td><td>' + (& $h $_.cost) + '</td><td>' + (& $h $_.userImpact) + '</td></tr>' }) -join '') + '</tbody></table>'
-        $areas.Operations += ConvertTo-PostureChartCard -Class 'wide' -Title 'Top Secure Score Improvements' -Takeaway $ch.secureScoreActions.takeaway -ViewAllDomain 'operations' -Body $tbl
+        $ss = $ch.secureScoreActions
+        $actionCell = { param($row) if ($row.url) { '<a href="' + (& $h $row.url) + '" target="_blank" rel="noopener">' + (& $h $row.title) + '</a>' } else { & $h $row.title } }
+        $tbl = '<table><thead><tr><th>Action</th><th>Category</th><th>Points</th><th>Cost</th><th>User Impact</th></tr></thead><tbody>' + (@($ss.rows | ForEach-Object { '<tr><td>' + (& $actionCell $_) + '</td><td>' + (& $h $_.category) + '</td><td>' + $_.points + '</td><td>' + (& $h $_.cost) + '</td><td>' + (& $h $_.userImpact) + '</td></tr>' }) -join '') + '</tbody></table>'
+        $allActions = @($(if ($ss.Contains('all')) { $ss.all }))
+        if ($allActions.Count -gt 0) {
+            # Every open action under its product, most points first, with the check here that judges the same setting.
+            $byProduct = [ordered]@{}
+            foreach ($row in $allActions) { $p = [string]$row.product; if (-not $byProduct.Contains($p)) { $byProduct[$p] = [System.Collections.Generic.List[object]]::new() }; $byProduct[$p].Add($row) }
+            $pointsOf = { param($list) [Math]::Round([double](@($list | ForEach-Object { [double]$_.points }) | Measure-Object -Sum).Sum, 1) }
+            $checkCell = {
+                param($row)
+                $mine = @($(if ($row.Contains('checks')) { $row.checks }))
+                if ($mine.Count -eq 0) { return '<span class="tech">Microsoft''s only</span>' }
+                (@($mine | ForEach-Object { '<a href="#checks" data-check="' + (& $h $_.id) + '" title="' + (& $h $_.title) + '"><code>' + (& $h $_.id) + '</code></a> <span class="status ' + (& $h $_.status) + '">' + (& $h $(if ($statusLabel.ContainsKey([string]$_.status)) { $statusLabel[[string]$_.status] } else { [string]$_.status })) + '</span>' }) -join ' ')
+            }
+            $groupRows = @($byProduct.get_Keys() | Sort-Object { - (& $pointsOf $byProduct[$_]) }, { $_ } | ForEach-Object {
+                    $list = $byProduct[$_]
+                    '<tr class="group"><th colspan="4">' + (& $h $_) + ' <span class="tech">' + $list.Count + ' action' + $(if ($list.Count -ne 1) { 's' }) + ', ' + (& $pointsOf $list) + ' points</span></th></tr>' +
+                    (@($list | ForEach-Object { '<tr><td>' + (& $actionCell $_) + '</td><td>' + $_.points + '</td><td>' + (& $h $_.userImpact) + '</td><td>' + (& $checkCell $_) + '</td></tr>' }) -join '')
+                }) -join ''
+            $covered = @($allActions | Where-Object { $_.Contains('checks') -and @($_.checks).Count -gt 0 }).Count
+            $intro = '<p class="tech">Every action Microsoft still scores as open in this tenant. ' + $covered + ' of ' + $allActions.Count + ' are also judged by a check in this report, which the last column opens. The rest are Microsoft''s only: follow the link to Microsoft''s own page for the action.</p>'
+            $heading = 'All ' + $allActions.Count + ' open Secure Score action' + $(if ($allActions.Count -ne 1) { 's' }) + ', by product'
+            $tbl += '<details class="more"><summary>' + $heading + '</summary>' + $intro + '<table><thead><tr><th>Action</th><th>Points</th><th>User Impact</th><th>Check Here</th></tr></thead><tbody>' + $groupRows + '</tbody></table></details>'
+        }
+        $areas.Operations += ConvertTo-PostureChartCard -Class 'wide' -Title 'Top Secure Score Improvements' -Takeaway $ss.takeaway -ViewAllDomain 'operations' -Body $tbl
     }
     # Journeys: each a strip of steps, a step on, off or not known with the check behind it.
     $dot = @{ on = @('ok', [string][char]0x2713); off = @('err', [string][char]0x2715); unknown = @('na', [string][char]0x2013) }

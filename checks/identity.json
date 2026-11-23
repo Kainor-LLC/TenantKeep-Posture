@@ -43,6 +43,12 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": "MS.AAD.7.1v1"
       },
+      "references": {
+        "secureScore": [
+          "OneAdmin",
+          "aad_limited_administrative_roles"
+        ]
+      },
       "attack": [
         "T1078.004",
         "T1098.003"
@@ -186,6 +192,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "aad_admin_accounts_separate_unassigned_cloud_only"
+        ]
       },
       "attack": [
         "T1078.004",
@@ -348,6 +359,11 @@
         "cmmc": "AC.L2-3.1.2",
         "cisa-scuba": "MS.AAD.5.2v1"
       },
+      "references": {
+        "secureScore": [
+          "IntegratedApps"
+        ]
+      },
       "attack": [
         "T1528",
         "T1671"
@@ -384,6 +400,11 @@
         "iso27001": "A.8.3",
         "cmmc": "",
         "cisa-scuba": "MS.AAD.5.4v1"
+      },
+      "references": {
+        "secureScore": [
+          "aad_admin_consent_workflow"
+        ]
       },
       "attack": [
         "T1528",
@@ -706,6 +727,11 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": "MS.AAD.6.1v1"
       },
+      "references": {
+        "secureScore": [
+          "PWAgePolicyNew"
+        ]
+      },
       "attack": [
         "T1110.001"
       ]
@@ -743,6 +769,11 @@
         "iso27001": "A.5.17",
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "aad_custom_banned_passwords"
+        ]
       },
       "attack": [
         "T1110.001",
@@ -788,6 +819,11 @@
         "iso27001": "A.5.17",
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "aad_password_protection"
+        ]
       },
       "attack": [
         "T1110.001",

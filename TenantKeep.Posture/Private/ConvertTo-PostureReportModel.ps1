@@ -519,6 +519,14 @@ function ConvertTo-PostureReportModel {
         }
     }
 
+    $charts = $(if (-not $fullTier) { [ordered]@{} } else { Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable) -DomainFacts $(if ($Run.Contains('domains')) { $f = [ordered]@{}; foreach ($k in $Run.domains.Keys) { $f[$k] = $Run.domains[$k].facts }; $f } else { @{} }) })
+    if ($charts.Contains('secureScoreActions') -and $charts['secureScoreActions'].Contains('all')) {
+        # Which of Microsoft's open actions a check here also judges, with this run's answer. The ten on the card are
+        # the same rows as the first ten of the full list, so both carry it.
+        $covering = Get-PostureSecureScoreCheck -Catalog $Catalog -Result @($results)
+        foreach ($action in @($charts['secureScoreActions']['all'])) { $action['checks'] = @($(if ($covering.ContainsKey([string]$action['id'])) { $covering[[string]$action['id']] })) }
+    }
+
     return [ordered]@{
         title        = "Microsoft Security Posture Report: $clientName"
         tenantLogo   = $tenantLogo
@@ -548,7 +556,7 @@ function ConvertTo-PostureReportModel {
         doToday         = $doToday
         story           = $story
         inventory       = @(Get-PostureInventory -Evidence $Evidence | Where-Object { $fullTier -or [string]$_.domain -in $allowedDomains })
-        charts          = $(if (-not $fullTier) { [ordered]@{} } else { Get-PostureChartData -Evidence $Evidence -Admin @($adminsTable) -DomainFacts $(if ($Run.Contains('domains')) { $f = [ordered]@{}; foreach ($k in $Run.domains.Keys) { $f[$k] = $Run.domains[$k].facts }; $f } else { @{} }) })
+        charts          = $charts
         admins       = @(if ($fullTier) { $adminsTable })
         ca           = $ca
         copilot      = $(if ($fullTier) { $copilot } else { $null })

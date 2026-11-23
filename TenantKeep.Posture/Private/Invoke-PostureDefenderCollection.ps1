@@ -197,10 +197,10 @@ function Invoke-PostureDefenderCollection {
             $scoreOf[[string](& $v $c 'controlName')] = [double](& $v $c 'score')
         }
         & $saveOne ([ordered]@{ Present = [bool]$s; CreatedDateTime = (& $v $s 'createdDateTime'); CurrentScore = (& $v $s 'currentScore'); MaxScore = (& $v $s 'maxScore'); LicensedUserCount = (& $v $s 'licensedUserCount'); ActiveUserCount = (& $v $s 'activeUserCount'); ByCategory = $byCategory; AverageComparativeScores = @(@(& $v $s 'averageComparativeScores') | ForEach-Object { [ordered]@{ Basis = (& $v $_ 'basis'); AverageScore = (& $v $_ 'averageScore') } }) }) 'def-06-secure-score'
-        $profiles = & $get 'security/secureScoreControlProfiles?$select=id,title,controlCategory,implementationCost,userImpact,maxScore,actionType,tier,deprecated,controlStateUpdates,rank,remediation,actionUrl'
+        $profiles = & $get 'security/secureScoreControlProfiles?$select=id,title,controlCategory,service,implementationCost,userImpact,maxScore,actionType,tier,deprecated,controlStateUpdates,rank,remediation,actionUrl'
         & $save @($profiles | Where-Object { (& $v $_ 'deprecated') -ne $true } | ForEach-Object {
                 $updates = @(& $v $_ 'controlStateUpdates'); $latest = $(if ($updates.Count -gt 0) { $updates[-1] } else { $null })
-                [ordered]@{ Id = $_.id; Title = (& $v $_ 'title'); Category = (& $v $_ 'controlCategory'); MaxScore = (& $v $_ 'maxScore'); ImplementationCost = (& $v $_ 'implementationCost'); UserImpact = (& $v $_ 'userImpact'); ActionType = (& $v $_ 'actionType'); Tier = (& $v $_ 'tier'); Rank = (& $v $_ 'rank'); State = (& $v $latest 'state'); Remediation = (& $v $_ 'remediation')
+                [ordered]@{ Id = $_.id; Title = (& $v $_ 'title'); Category = (& $v $_ 'controlCategory'); Service = (& $v $_ 'service'); MaxScore = (& $v $_ 'maxScore'); ImplementationCost = (& $v $_ 'implementationCost'); UserImpact = (& $v $_ 'userImpact'); ActionType = (& $v $_ 'actionType'); Tier = (& $v $_ 'tier'); Rank = (& $v $_ 'rank'); State = (& $v $latest 'state'); Remediation = (& $v $_ 'remediation')
                     # Points earned now, from the latest score, and Microsoft's own page for the action.
                     Score = $(if ($scoreOf.ContainsKey([string]$_.id)) { $scoreOf[[string]$_.id] } else { $null }); ActionUrl = (& $v $_ 'actionUrl')
                 }

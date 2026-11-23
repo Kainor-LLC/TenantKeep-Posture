@@ -508,6 +508,12 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.TEAMS.1.1v1"
       },
+      "references": {
+        "secureScore": [
+          "meeting_autoadmitusers_v1",
+          "meeting_restrictanonymousjoin_v1"
+        ]
+      },
       "attack": [
         "T1213.005"
       ]
@@ -773,6 +779,11 @@
         "iso27001": "A.8.5",
         "cmmc": "AC.L2-3.1.10",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "spo_idle_session_timeout"
+        ]
       }
     }
   ]

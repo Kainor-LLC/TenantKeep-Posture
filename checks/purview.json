@@ -34,6 +34,11 @@
         "cmmc": "AU.L2-3.3.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "mip_search_auditlog"
+        ]
+      },
       "attack": [
         "T1685.002"
       ]
@@ -76,6 +81,11 @@
         "cmmc": "MP.L2-3.8.4",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "mip_sensitivitylabelspolicies"
+        ]
+      },
       "attack": [
         "T1213.002",
         "T1567"
@@ -115,6 +125,11 @@
         "iso27001": "A.5.13",
         "cmmc": "MP.L2-3.8.4",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mip_autosensitivitylabelspolicies"
+        ]
       },
       "attack": [
         "T1213.002",
@@ -201,6 +216,11 @@
         "iso27001": "A.8.12",
         "cmmc": "SC.L2-3.13.16",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "DLPEnabled"
+        ]
       },
       "attack": [
         "T1537",

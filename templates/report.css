@@ -383,6 +383,8 @@ details.chart-table table { margin: 6px 0 0; font-size: 13px; }
 /* Support blocks in Run Health: plain text to copy, wrapped, never wider than the page. */
 pre.support-text { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--soft); padding: 8px 10px; border-radius: 6px; margin: 6px 0; }
 details.support { margin: 6px 0; } details.support summary { cursor: pointer; }
+details.more { margin-top: 10px; } details.more > summary { cursor: pointer; color: var(--info); font-size: 14px; }
+details.more table { margin-top: 8px; } tr.group th { text-align: left; background: var(--soft); font-weight: 600; }
 .attack-list li { margin: 3px 0; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .lane { background: var(--soft); border-radius: 8px; padding: 10px 12px; }

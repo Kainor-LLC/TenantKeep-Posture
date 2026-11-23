@@ -28,6 +28,7 @@ Every check carries, and the catalog test enforces:
 | `narrative` | Why it matters: two to four factual sentences |
 | `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
 | `attack` | Optional: the MITRE ATT&CK Enterprise technique ids the check helps stop or detect, for example `["T1078.004", "T1110.003"]`. Sub-techniques where one fits. Left off where no technique fits (the user experience domain, housekeeping checks) |
+| `references` | Optional: other tools' ids for the same setting, by kind. `secureScore` lists the Microsoft Secure Score control ids the check overlaps, for example `{ "secureScore": ["BlockLegacyAuthentication"] }`; the report then shows, beside each of Microsoft's open actions, the check here that also judges it. Ids are Microsoft's (the `id` of a control profile in Graph), matched ignoring case. An id Microsoft has renamed or retired simply stops matching, so the action shows as Microsoft's only; check the ids against a tenant's own list when adding one |
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
 (below). `facts.json` holds a plain label for every fact a pass expression reads and every threshold, shown on the

@@ -197,6 +197,12 @@ same list as a spreadsheet, most severe first, rebuilt on every run for whoever 
 Export-PostureFindings -Path $folder
 ```
 
+Microsoft's own list sits beside this one. Under Operations, Top Secure Score Improvements shows the ten actions worth
+the most points, and "All open Secure Score actions, by product" under it opens every action Microsoft still scores as
+open in the tenant, including products this report cannot read a setting from (Defender for Cloud Apps, for one). The
+last column opens the check here that judges the same setting, with its answer; an action with none is marked
+Microsoft's only, and its link goes to Microsoft's page for it.
+
 ## 8a. Accepting a risk
 
 When a failing check is a decision rather than a gap, accept it. In the report, select the check: Accept This Risk

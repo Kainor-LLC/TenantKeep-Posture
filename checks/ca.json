@@ -40,6 +40,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.1.1v1"
       },
+      "references": {
+        "secureScore": [
+          "BlockLegacyAuthentication"
+        ]
+      },
       "attack": [
         "T1110.003",
         "T1697"
@@ -85,6 +90,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.3.2v1"
       },
+      "references": {
+        "secureScore": [
+          "AdminMFAV2"
+        ]
+      },
       "attack": [
         "T1078.004",
         "T1110.003",
@@ -129,6 +139,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.3.1v1"
       },
+      "references": {
+        "secureScore": [
+          "aad_phishing_MFA_strength"
+        ]
+      },
       "attack": [
         "T1539",
         "T1566.002",
@@ -170,6 +185,12 @@
         "iso27001": "A.8.16",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": "MS.AAD.2.1v1"
+      },
+      "references": {
+        "secureScore": [
+          "SigninRiskPolicy",
+          "UserRiskPolicy"
+        ]
       },
       "attack": [
         "T1078.004",
@@ -375,6 +396,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.11",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "aad_sign_in_freq_session_timeout"
+        ]
       },
       "attack": [
         "T1539",
