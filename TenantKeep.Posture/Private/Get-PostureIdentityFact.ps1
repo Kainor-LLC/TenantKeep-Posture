@@ -161,6 +161,85 @@ function Get-PostureIdentityFact {
         $affected.pimPolicyProblems = @($problems)
         if ($checked.Count -eq 0) { $notEvaluated['ID-006'] = 'None of the four top roles has a PIM policy in the collection.' }
     }
+    # ID-026 and ID-027: who is told when a privileged role is handed out, and when one is activated. A role's
+    # settings carry three alerts: someone was made eligible, was made active, activated the role. Each goes to the
+    # administrators Microsoft sends it to by default, to further addresses, or to nobody. thresholds.alertRecipients
+    # 'named' (CISA's baseline) counts only a further address, a mailbox someone watches; 'any' counts either.
+    if ($null -eq $pim) { & $missing 'ID-026' '04-pim-role-policies'; & $missing 'ID-027' '04-pim-role-policies' }
+    elseif (@($pim).Count -eq 0) { foreach ($id in 'ID-026', 'ID-027') { $notEvaluated[$id] = 'No PIM role management policies were returned (Entra ID P2 and PIM needed).' } }
+    else {
+        $alertRoles = @($pim | Where-Object { $_ -and $_.Role -in $privilegedRoles })
+        $carries = { param($x, [string] $Name) if ($x -is [System.Collections.IDictionary]) { $x.Contains($Name) } else { $null -ne $x.PSObject.Properties[$Name] } }
+        if ($alertRoles.Count -eq 0) { foreach ($id in 'ID-026', 'ID-027') { $notEvaluated[$id] = 'None of the privileged roles has a PIM policy in the collection.' } }
+        elseif (@($alertRoles | Where-Object { & $carries $_ 'ActivationAlertToAdmins' }).Count -eq 0) {
+            foreach ($id in 'ID-026', 'ID-027') { $notEvaluated[$id] = '04-pim-role-policies was collected before TenantKeep read the alert rules. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+        }
+        else {
+            $named = [string]$t['alertRecipients'] -eq 'named'
+            # $true someone is told, $false nobody is (or nobody that counts), $null the rule did not come back.
+            $told = { param($Admins, $Others) if ($null -eq $Admins -and $null -eq $Others) { return $null }; if ($named) { [int]$Others -gt 0 } else { ($Admins -eq $true) -or ([int]$Others -gt 0) } }
+            $goesTo = { param($Admins) if ($named -and $Admins -eq $true) { 'goes only to the administrators Microsoft sends it to by default' } else { 'goes to nobody' } }
+            $assignGaps = [System.Collections.Generic.List[object]]::new(); $activateGaps = [System.Collections.Generic.List[object]]::new()
+            $assignKnown = 0; $activateKnown = 0
+            foreach ($pol in $alertRoles) {
+                $ea = Get-PostureValue $pol 'EligibleAlertToAdmins'; $aa = Get-PostureValue $pol 'ActiveAlertToAdmins'; $xa = Get-PostureValue $pol 'ActivationAlertToAdmins'
+                $e = & $told $ea (Get-PostureValue $pol 'EligibleAlertOtherRecipients')
+                $a = & $told $aa (Get-PostureValue $pol 'ActiveAlertOtherRecipients')
+                $x = & $told $xa (Get-PostureValue $pol 'ActivationAlertOtherRecipients')
+                if ($null -ne $e -and $null -ne $a) {
+                    $assignKnown++
+                    $gaps = @($(if (-not $e) { "the alert that someone was made eligible $(& $goesTo $ea)" }), $(if (-not $a) { "the alert that someone was made active $(& $goesTo $aa)" })) | Where-Object { $_ }
+                    if (@($gaps).Count -gt 0) { $assignGaps.Add([ordered]@{ name = [string]$pol.Role; detail = (@($gaps) -join '; ') }) }
+                }
+                if ($null -ne $x) {
+                    $activateKnown++
+                    if (-not $x) { $activateGaps.Add([ordered]@{ name = [string]$pol.Role; detail = "the alert that someone activated the role $(& $goesTo $xa)" }) }
+                }
+            }
+            if ($assignKnown -eq 0) { $notEvaluated['ID-026'] = 'The role settings came back without their assignment alert rules.' }
+            else { $facts.pimAssignmentAlertRolesChecked = $assignKnown; $facts.pimAssignmentAlertGaps = $assignGaps.Count; $affected.pimAssignmentAlertGaps = $assignGaps.ToArray() }
+            if ($activateKnown -eq 0) { $notEvaluated['ID-027'] = 'The role settings came back without their activation alert rule.' }
+            else { $facts.pimActivationAlertRolesChecked = $activateKnown; $facts.pimActivationAlertGaps = $activateGaps.Count; $affected.pimActivationAlertGaps = $activateGaps.ToArray() }
+        }
+    }
+    # ID-028 and ID-029: the tenant's app management policy, which can refuse a new client secret on any application
+    # and cap how long a secret or a certificate lives. A restriction counts when the policy is on and the restriction
+    # is. CISA's baseline says 180 and 365 days and its instructions say to enter 181 and 366; the default thresholds
+    # follow the instructions, so a tenant set up from them passes (verify what the portal stores).
+    $appPolicy = & $load '02-app-management-policy'
+    if ($null -eq $appPolicy) { & $missing 'ID-028' '02-app-management-policy'; & $missing 'ID-029' '02-app-management-policy' }
+    elseif ($null -eq (& $v $appPolicy 'isEnabled')) { foreach ($id in 'ID-028', 'ID-029') { $notEvaluated[$id] = 'The app management policy did not say whether it is on.' } }
+    else {
+        $policyOn = (& $v $appPolicy 'isEnabled') -eq $true
+        $restriction = {
+            param([string] $Kind, [string] $Type)
+            @(& $v $appPolicy "applicationRestrictions.$Kind" | Where-Object { $_ -and [string](& $v $_ 'restrictionType') -eq $Type -and [string](& $v $_ 'state') -eq 'enabled' }) | Select-Object -First 1
+        }
+        $days = { param($r) $d = [string](& $v $r 'maxLifetime'); if (-not $d) { return $null }; try { [math]::Round([System.Xml.XmlConvert]::ToTimeSpan($d).TotalDays) } catch { $null } }
+        $noNewSecrets = $(if ($policyOn) { & $restriction 'passwordCredentials' 'passwordAddition' })
+        $facts.appManagementPolicyOn = [bool]$policyOn
+        $facts.appSecretAdditionBlocked = [bool]($null -ne $noNewSecrets)
+        # A restriction dated in the future, or dated at all, leaves the applications created before that day free of it.
+        # The evidence reader hands a date back as a date; year 1 is how Graph writes "no date".
+        $from = & $v $noNewSecrets 'restrictForAppsCreatedAfterDateTime'
+        if ($from -is [datetime]) { if ($from.Year -gt 1) { $facts.appSecretAdditionAppliesFrom = $from.ToUniversalTime().ToString('yyyy-MM-dd') } }
+        elseif ([string]$from -and [string]$from -notmatch '^0001-') { $facts.appSecretAdditionAppliesFrom = [string]$from }
+        $maxSecret = [double]$(if ($t.ContainsKey('maxAppSecretDays')) { $t.maxAppSecretDays } else { 181 })
+        $maxCertificate = [double]$(if ($t.ContainsKey('maxAppCertificateDays')) { $t.maxAppCertificateDays } else { 366 })
+        $secretLife = $(if ($policyOn) { & $restriction 'passwordCredentials' 'passwordLifetime' }); $certificateLife = $(if ($policyOn) { & $restriction 'keyCredentials' 'asymmetricKeyLifetime' })
+        $secretDays = $(if ($secretLife) { & $days $secretLife }); $certificateDays = $(if ($certificateLife) { & $days $certificateLife })
+        $facts.appSecretMaxDays = $secretDays; $facts.appCertificateMaxDays = $certificateDays
+        $lifetimeGaps = [System.Collections.Generic.List[object]]::new()
+        # A tenant that refuses new secrets has nothing left to cap on that side.
+        if (-not $facts.appSecretAdditionBlocked) {
+            if ($null -eq $secretDays) { $lifetimeGaps.Add([ordered]@{ name = 'Client secrets'; detail = 'no maximum lifetime' }) }
+            elseif ($secretDays -gt $maxSecret) { $lifetimeGaps.Add([ordered]@{ name = 'Client secrets'; detail = "may live $secretDays days (limit $maxSecret)" }) }
+        }
+        if ($null -eq $certificateDays) { $lifetimeGaps.Add([ordered]@{ name = 'Certificates'; detail = 'no maximum lifetime' }) }
+        elseif ($certificateDays -gt $maxCertificate) { $lifetimeGaps.Add([ordered]@{ name = 'Certificates'; detail = "may live $certificateDays days (limit $maxCertificate)" }) }
+        $facts.appCredentialLifetimeGaps = $lifetimeGaps.Count
+        $affected.appCredentialLifetimeGaps = $lifetimeGaps.ToArray()
+    }
     # ID-014: the Entra diagnostic settings (microsoft.aadiam) from the Azure collector; sign-in and audit logs to a workspace or event hub.
     $diag = & $load 'az-09-entra-diagnostic-settings'
     if ($null -eq $diag) { $notEvaluated['ID-014'] = 'az-09-entra-diagnostic-settings.json was not collected (Invoke-PostureCollection -Collector Azure; needs a Connect-AzAccount session).' }

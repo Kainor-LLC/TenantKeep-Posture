@@ -30,7 +30,7 @@ function Get-PostureCaFact {
         return @{ available = $false; reason = "The Conditional Access snapshot is incomplete: $(@($absent | ForEach-Object { "$_.json" }) -join ', ') missing. Take it again (Resume-PostureRun -Collector Entra, or Export-PostureCaSnapshot)." }
     }
     $snap = Import-PostureCaSnapshot -Path $Evidence
-    $t = @{ maxExclusionGroupMembers = 25; reportOnlyMaxDays = 90; disabledMaxDays = 90; namePattern = $null }
+    $t = @{ maxExclusionGroupMembers = 25; reportOnlyMaxDays = 90; disabledMaxDays = 90; namePattern = $null; registrationControl = 'any' }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     $namePattern = $t.namePattern
     if (-not $namePattern -and $OrgProfile.Contains('thresholds') -and $OrgProfile.thresholds -and $OrgProfile.thresholds.Contains('namePattern')) { $namePattern = $OrgProfile.thresholds.namePattern }
@@ -179,6 +179,17 @@ function Get-PostureCaFact {
 
     $facts.policyCount = $policies.Count
     $facts.enabledPolicyCount = $enabled.Count
+
+    # CA-017: registering a sign-in method is itself behind Conditional Access, so a stolen password alone cannot add
+    # the attacker's own authenticator. An enabled policy for all users on the user action Register security
+    # information that blocks, or asks for a managed device, or for MFA (a Temporary Access Pass answers that for a
+    # newcomer). thresholds.registrationControl 'managedDevice' (CISA's baseline) counts only the managed device.
+    $registration = @($enabled | Where-Object { (& $has $_.targets.userActions 'urn:user:registersecurityinfo') -and (& $allUsers $_) })
+    $registrationManaged = @($registration | Where-Object { @($_.grant.builtInControls | Where-Object { $_ -in @('compliantDevice', 'domainJoinedDevice') }).Count -gt 0 })
+    $registrationAny = @($registration | Where-Object { $_ -in $registrationManaged -or (& $blocks $_) -or (& $mfaLevel $_) -ge 1 })
+    $facts.registrationPolicies = $registrationAny.Count
+    $facts.registrationPoliciesManagedDevice = $registrationManaged.Count
+    $facts.registrationProtected = $(if ([string]$t.registrationControl -eq 'managedDevice') { $registrationManaged.Count -gt 0 } else { $registrationAny.Count -gt 0 })
 
     # CA-016: device code sign-in blocked for everyone. Read from the snapshot as Graph sent it: the policy model leaves
     # authentication flows out. A snapshot whose API version does not return them at all cannot say (verify v1.0).

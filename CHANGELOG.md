@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 296 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 308 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,22 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Twelve more checks (2026-11-23, catalog 2026.11.3), from the SCuBA policies that were still open and the Maester
+  and Zero Trust Assessment tests beside them. Purview: at least one DLP policy blocks, not only reports (PV-010); a
+  DLP policy that blocks tells the person why (PV-011); the six built-in alert policies for a hijacked mailbox or
+  connector are on (PV-012) and are emailed to someone (PV-013). Teams: meeting recording is off unless a policy
+  grants it (CL-027); live events are not always recorded (CL-028); custom apps are off unless approved one by one
+  (CL-029). Conditional Access: registering a sign-in method is protected (CA-017). Entra: handing out a
+  privileged role alerts someone (ID-026), and so does activating one (ID-027); new client secrets are refused on
+  applications (ID-028); application secrets and certificates have a maximum lifetime (ID-029). Two reads are new,
+  both on permissions the app already holds: the tenant's app management policy
+  (`policies/defaultAppManagementPolicy`) and the Teams global live events policy. The role settings were already
+  read; the saved row now says, for each of the three alerts, whether the default recipients get it and how many
+  further addresses do, as counts and never the addresses. PV-013, CL-028 and ID-026 to ID-029 need a collection
+  made with this version. Under the CISA SCuBA baseline three of the checks are held to CISA's stricter reading
+  through thresholds: a managed device to register a sign-in method, and an address beyond the default recipients
+  for the role alerts. Two SCuBA policies are marked out of scope with the reason (MS.TEAMS.1.4, a convenience, and
+  5.1, whose instruction is to leave Microsoft apps on). SCuBA coverage goes from 68 to 82 of 109 policies.
 - Thirteen more checks from settings the run already collects (2026-11-23, catalog 2026.11.3), each one a policy of
   CISA's SCuBA baselines, a Maester test or a Secure Score action that had no check. Identity: only administrators
   can register applications (ID-025). Email: no sender domains on the anti-spam allowed list (EM-029); Safe Links

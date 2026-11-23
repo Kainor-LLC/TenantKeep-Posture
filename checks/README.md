@@ -63,9 +63,10 @@ as ready either; it says which to check first.
 statements, public domain). An item is covered when a check names it, in `frameworks.cisa-scuba` or
 `references.scuba`. Every other item sits under `notCovered` with a reason and a note: `planned` (a check is still to
 be written), `noReadApi` (Microsoft offers no read-only way to see the setting) or `outOfScope` (not something this
-report judges: it applies to other tenants or to a product the report does not cover, or it is a figure to look at
-with no pass or fail). The catalog test fails on an item with neither a check nor a reason, on one with
-both, and on a check that names an id the reference no longer has, which is how a renumbered policy shows up.
+report judges: it applies to other tenants or to a product the report does not cover, it is a figure to look at
+with no pass or fail, or it asks for a convenience or a choice of the organisation's own and no setting makes the
+tenant safer). The catalog test fails on an item with neither a check nor a reason, on one with both, and on a check
+that names an id the reference no longer has, which is how a renumbered policy shows up.
 
 `build.ps1 -Task ScubaData -ScubaBaselines <folder>` rewrites the items from the `PowerShell/ScubaGear/baselines`
 folder of a ScubaGear release (github.com/cisagov/ScubaGear). To move releases, change `version` and `source` in the

@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Fourteen new checks from settings the run already collects, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Twenty-six new checks, most from settings the run already collects and two from new reads on permissions already held, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -24,7 +24,19 @@
         "CL-023": "New: whether outside participants may take control in a Teams meeting.",
         "CL-024": "New: whether people who dial in skip the lobby.",
         "CL-025": "New: whether SharePoint accepts legacy authentication.",
-        "CL-026": "New: whether guests may share items they do not own."
+        "CL-026": "New: whether guests may share items they do not own.",
+        "PV-010": "New: whether any enforced DLP policy has a rule that blocks.",
+        "PV-011": "New: whether a DLP policy that blocks tells the person why.",
+        "PV-012": "New: whether the six built-in alert policies for a hijacked mailbox or connector are on.",
+        "PV-013": "New: whether those alerts are emailed to anyone. Needs a Purview collection made with this version or later.",
+        "CL-027": "New: whether everyone may record Teams meetings.",
+        "CL-028": "New: whether live events are always recorded. Needs a Teams collection made with this version or later.",
+        "CL-029": "New: whether custom Teams apps are available to everyone by default.",
+        "CA-017": "New: whether a Conditional Access policy protects the registration of sign-in methods. The CISA SCuBA baseline counts only a policy that asks for a managed device.",
+        "ID-026": "New: whether anyone is alerted when a privileged role is assigned. Needs an Entra collection made with this version or later. The CISA SCuBA baseline counts only an address beyond the default recipients.",
+        "ID-027": "New: whether anyone is alerted when a privileged role is activated. Needs an Entra collection made with this version or later. The CISA SCuBA baseline counts only an address beyond the default recipients.",
+        "ID-028": "New: whether the tenant refuses new client secrets on applications. Needs an Entra collection made with this version or later.",
+        "ID-029": "New: whether application secrets and certificates have a maximum lifetime. Needs an Entra collection made with this version or later."
       }
     },
     {

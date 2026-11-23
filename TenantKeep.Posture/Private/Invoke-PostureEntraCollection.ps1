@@ -162,6 +162,7 @@ function Invoke-PostureEntraCollection {
         ('Authentication methods policy', 'policies/authenticationMethodsPolicy', '02-authentication-methods-policy', $true),
         ('Authentication strengths', 'policies/authenticationStrengthPolicies', '02-authentication-strengths', $false),
         ('Admin consent request policy', 'policies/adminConsentRequestPolicy', '02-admin-consent-request-policy', $true),
+        ('App management policy', 'policies/defaultAppManagementPolicy', '02-app-management-policy', $true),
         ('Cross-tenant access defaults', 'policies/crossTenantAccessPolicy/default', '02-cross-tenant-access-defaults', $true),
         ('Cross-tenant access partners', 'policies/crossTenantAccessPolicy/partners', '02-cross-tenant-access-partners', $false)
     )
@@ -337,11 +338,24 @@ function Invoke-PostureEntraCollection {
                 $hours = $null
                 if ($duration) { try { $hours = [System.Xml.XmlConvert]::ToTimeSpan($duration).TotalHours } catch { $hours = $null } }
                 $enabled = @(& $v $en 'enabledRules')
+                # Who is emailed when someone is made eligible, is made active, or activates the role (ID-026, ID-027):
+                # whether the administrators who get it by default do, and how many further addresses. The addresses
+                # are counted, not saved. A rule Graph did not return leaves both values empty.
+                $notice = {
+                    param([string] $Id)
+                    $r = & $rule $Id
+                    if ($null -eq $r) { return @{ admins = $null; others = $null } }
+                    @{ admins = [bool]((& $v $r 'isDefaultRecipientsEnabled') -eq $true); others = @(& $v $r 'notificationRecipients' | Where-Object { $_ }).Count }
+                }
+                $nEligible = & $notice 'Notification_Admin_Admin_Eligibility'; $nActive = & $notice 'Notification_Admin_Admin_Assignment'; $nActivation = & $notice 'Notification_Admin_EndUser_Assignment'
                 [ordered]@{
                     RoleDefinitionId = (& $v $_ 'roleDefinitionId'); Role = $roleName[[string](& $v $_ 'roleDefinitionId')]; PolicyId = (& $v $_ 'policyId')
                     MaxActivationHours = $hours; ActivationExpirationRequired = [bool](& $v $exp 'isExpirationRequired')
                     ActivationMfaRequired = ($enabled -contains 'MultiFactorAuthentication'); ActivationJustificationRequired = ($enabled -contains 'Justification'); ActivationTicketRequired = ($enabled -contains 'Ticketing')
                     ApprovalRequired = [bool](& $v $ap 'setting.isApprovalRequired')
+                    EligibleAlertToAdmins = $nEligible.admins; EligibleAlertOtherRecipients = $nEligible.others
+                    ActiveAlertToAdmins = $nActive.admins; ActiveAlertOtherRecipients = $nActive.others
+                    ActivationAlertToAdmins = $nActivation.admins; ActivationAlertOtherRecipients = $nActivation.others
                 }
             })
         & $save $flat '04-pim-role-policies' $true

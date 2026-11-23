@@ -35,7 +35,7 @@ function Invoke-PosturePurviewCollection {
         ('Information barriers', 'Get-InformationBarrierPolicy', @{}, 'pv-04-information-barriers', $false, @('Name', 'State', 'AssignedSegment', 'SegmentsBlocked', 'SegmentsAllowed')),
         ('Audit retention policies', 'Get-UnifiedAuditLogRetentionPolicy', @{}, 'pv-05-audit-retention-policies', $false, @('Name', 'Priority', 'RetentionDuration', 'RecordTypes', 'UserIds')),
         ('eDiscovery cases', 'Get-ComplianceCase', @{}, 'pv-06-ediscovery-cases', $true, @('Name', 'Status', 'CaseType', 'CreatedDateTime')),
-        ('Alert policies', 'Get-ProtectionAlert', @{}, 'pv-07-alert-policies', $true, @('Name', 'Disabled', 'Severity', 'Category', 'ThreatType', 'IsSystemRule')),
+        ('Alert policies', 'Get-ProtectionAlert', @{}, 'pv-07-alert-policies', $true, @('Name', 'Disabled', 'Severity', 'Category', 'ThreatType', 'IsSystemRule', 'NotifyUser', 'NotificationEnabled')),
         ('Purview role groups', 'Get-RoleGroup', @{}, 'pv-08-role-groups', $false, @('Name', 'Members', 'Roles'))
     )
     foreach ($step in $steps) {

@@ -8,9 +8,9 @@ function Get-PostureReferenceCoverage {
         A reference file (checks/references/<name>.json) lists every item of one public reference, such as each
         policy of CISA's SCuBA baselines, and under notCovered the items no check covers, each with a reason:
         planned (a check is still to be written), noReadApi (Microsoft offers no read-only way to see the setting)
-        or outOfScope (not something this report judges: another kind of tenant, a product it does not cover, or a
-        figure with no pass or fail). A check names an item in the
-        frameworks key or the references key the file's checkKeys give.
+        or outOfScope (not something this report judges: another kind of tenant, a product it does not cover, a
+        figure with no pass or fail, or a convenience or a choice of the organisation's own that makes no tenant
+        safer). A check names an item in the frameworks key or the references key the file's checkKeys give.
 
         A reference marked passThrough is one whose every item reaches the report whether a check names it or not:
         Microsoft Secure Score, whose open actions the report lists from Microsoft's own evaluation. There an item

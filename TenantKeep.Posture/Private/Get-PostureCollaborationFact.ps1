@@ -195,7 +195,7 @@ function Get-PostureCollaborationFact {
         $facts.teamsGuestAccessGoverned = $(if (-not $facts.teamsGuestAccess) { $true } elseif ($facts.Contains('guestExpirationOk')) { [bool]$facts.guestExpirationOk } else { $null })
     }
     $meeting = & $load 'teams-meeting-policy-global'
-    if ($null -eq $meeting) { & $missing @('CL-013', 'CL-023', 'CL-024') 'teams-meeting-policy-global' 'Teams' }
+    if ($null -eq $meeting) { & $missing @('CL-013', 'CL-023', 'CL-024', 'CL-027') 'teams-meeting-policy-global' 'Teams' }
     else {
         $facts.anonymousMeetingJoin = (& $v $meeting 'AllowAnonymousUsersToJoinMeeting') -eq $true
         $facts.anonymousCanStartMeeting = (& $v $meeting 'AllowAnonymousUsersToStartMeeting') -eq $true
@@ -209,6 +209,20 @@ function Get-PostureCollaborationFact {
         $dialIn = & $v $meeting 'AllowPSTNUsersToBypassLobby'
         if ($null -eq $dialIn) { $notEvaluated['CL-024'] = 'The global meeting policy did not say whether callers by phone skip the lobby.' }
         else { $facts.teamsDialInBypassLobby = [bool]($dialIn -eq $true) }
+        # CL-027: whether anyone may record a meeting under the policy everybody gets. A recording holds all that was
+        # said and shown, and lands in the recorder's OneDrive or the channel's site.
+        $recording = & $v $meeting 'AllowCloudRecording'
+        if ($null -eq $recording) { $notEvaluated['CL-027'] = 'The global meeting policy did not say whether meetings may be recorded.' }
+        else { $facts.teamsRecordingByDefault = [bool]($recording -eq $true) }
+    }
+    # CL-028: a live event recorded always, whatever its organiser wants. One setting of the global live events policy,
+    # which a collection saves from version 0.4.0.
+    $liveEvents = & $load 'teams-live-event-policy-global'
+    if ($null -eq $liveEvents) { & $missing @('CL-028') 'teams-live-event-policy-global' 'Teams' }
+    else {
+        $recordingMode = [string](& $v $liveEvents 'BroadcastRecordingMode')
+        if (-not $recordingMode) { $notEvaluated['CL-028'] = 'The global live events policy did not say when an event is recorded.' }
+        else { $facts.teamsLiveEventRecordingMode = $recordingMode; $facts.teamsLiveEventsAlwaysRecorded = [bool]($recordingMode -eq 'AlwaysEnabled') }
     }
     # CL-014. Under app centric management the org-wide setting for third-party apps decides whether every third-party
     # app is available by default; GlobalApp is that setting, as GlobalCatalogApps named third-party apps in the old
@@ -244,6 +258,26 @@ function Get-PostureCollaborationFact {
         $affected.thirdPartyAppsRestricted = @($(if (-not $facts.thirdPartyAppsRestricted) { [ordered]@{ name = 'Global app permission policy'; detail = "third-party apps: $(if ($global.Count) { [string](& $v $global[0] 'GlobalCatalogAppsType') } else { 'no global policy' })" } }))
     }
     else { & $missing @('CL-014') 'teams-app-settings' 'Teams' }
+    # CL-029: custom apps, the ones somebody in the organisation uploads. The same two sources as CL-014: the org-wide
+    # setting PrivateApp under app centric management (verify: Microsoft's cmdlet page does not say which of DefaultApp,
+    # GlobalApp and PrivateApp is which; PrivateCatalogApps named custom apps in the old permission policies), else the
+    # global permission policy.
+    $customApps = @($(if ($null -ne $appSettings) { & $rows $appSettings | Where-Object { [string](& $v $_ 'SettingName') -eq 'PrivateApp' } }) | Select-Object -First 1)
+    if ($customApps.Count -and [string](& $v $customApps[0] 'SettingValue')) {
+        $facts.customAppsRestricted = [string](& $v $customApps[0] 'SettingValue') -ne 'All'
+        $affected.customAppsRestricted = @($(if (-not $facts.customAppsRestricted) { [ordered]@{ name = 'Org-wide app settings'; detail = 'every custom app is available to everyone unless it is limited one by one' } }))
+    }
+    elseif ($appSettingsFailed) { $notEvaluated['CL-029'] = 'The org-wide app settings could not be read in this run (Run Health says why), and the older app permission policy is not what a tenant on app centric management goes by.' }
+    elseif ($null -ne $apps) {
+        $globalApps = @(& $rows $apps | Where-Object { [string]$_.Identity -match 'Global$' } | Select-Object -First 1)
+        $customType = $(if ($globalApps.Count) { [string](& $v $globalApps[0] 'PrivateCatalogAppsType') } else { '' })
+        if (-not $customType) { $notEvaluated['CL-029'] = 'The global app permission policy did not say how custom apps are treated.' }
+        else {
+            $facts.customAppsRestricted = [bool]($customType -eq 'AllowedAppList')
+            $affected.customAppsRestricted = @($(if (-not $facts.customAppsRestricted) { [ordered]@{ name = 'Global app permission policy'; detail = "custom apps: $customType" } }))
+        }
+    }
+    else { & $missing @('CL-029') 'teams-app-settings' 'Teams' }
 
     return @{ available = $true; facts = $facts; affected = $affected; notEvaluated = $notEvaluated; evidence = @('spo-tenant-settings.json', 'teams-federation.json', 'spo-dag-site-permissions.json') }
 }

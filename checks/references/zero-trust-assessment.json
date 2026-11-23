@@ -390,10 +390,6 @@
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
     },
-    "21775": {
-      "reason": "planned",
-      "note": "A property of the app registrations and enterprise applications, which are already collected."
-    },
     "21777": {
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."
@@ -434,27 +430,11 @@
       "reason": "planned",
       "note": "Triage of risk detections and of Entra recommendations."
     },
-    "21806": {
-      "reason": "planned",
-      "note": "A Conditional Access or tenant access setting."
-    },
     "21810": {
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."
     },
     "21813": {
-      "reason": "planned",
-      "note": "A privileged access setting or alert."
-    },
-    "21818": {
-      "reason": "planned",
-      "note": "Triage of risk detections and of Entra recommendations."
-    },
-    "21819": {
-      "reason": "planned",
-      "note": "A privileged access setting or alert."
-    },
-    "21820": {
       "reason": "planned",
       "note": "A privileged access setting or alert."
     },

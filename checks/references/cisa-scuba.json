@@ -124,22 +124,6 @@
       "reason": "planned",
       "note": "Whether the recipients of the users-at-risk alert can be read is not yet known (verify)."
     },
-    "MS.AAD.3.8v1": {
-      "reason": "planned",
-      "note": "A Conditional Access policy on the register-security-information action; the policies are already collected."
-    },
-    "MS.AAD.5.5v1": {
-      "reason": "planned",
-      "note": "The tenant app management policy."
-    },
-    "MS.AAD.5.6v1": {
-      "reason": "planned",
-      "note": "The tenant app management policy."
-    },
-    "MS.AAD.5.7v1": {
-      "reason": "planned",
-      "note": "The tenant app management policy."
-    },
     "MS.AAD.7.2v1": {
       "reason": "planned",
       "note": "A comparison of Global Administrators with the holders of narrower roles."
@@ -147,18 +131,6 @@
     "MS.AAD.7.5v1": {
       "reason": "planned",
       "note": "Role assignments made outside Privileged Identity Management."
-    },
-    "MS.AAD.7.7v1": {
-      "reason": "planned",
-      "note": "The notification rules in the role settings."
-    },
-    "MS.AAD.7.8v1": {
-      "reason": "planned",
-      "note": "The notification rules in the role settings."
-    },
-    "MS.AAD.7.9v1": {
-      "reason": "planned",
-      "note": "The notification rules in the role settings."
     },
     "MS.AAD.8.3v1": {
       "reason": "planned",
@@ -244,45 +216,17 @@
       "reason": "planned",
       "note": "Impersonation protection for partner domains, which needs the organisation to name them."
     },
-    "MS.SECURITYSUITE.3.3v1": {
-      "reason": "planned",
-      "note": "The actions in the DLP rules."
-    },
-    "MS.SECURITYSUITE.3.4v1": {
-      "reason": "planned",
-      "note": "User notifications in the DLP rules."
-    },
     "MS.SECURITYSUITE.3.5v1": {
       "reason": "planned",
       "note": "Restricted apps in endpoint DLP."
     },
-    "MS.SECURITYSUITE.4.1v1": {
-      "reason": "planned",
-      "note": "Alert policies."
-    },
-    "MS.SECURITYSUITE.4.2v1": {
-      "reason": "planned",
-      "note": "Alert policies."
-    },
     "MS.TEAMS.1.4v1": {
-      "reason": "planned",
-      "note": "One meeting policy setting."
-    },
-    "MS.TEAMS.1.6v1": {
-      "reason": "planned",
-      "note": "One meeting policy setting."
-    },
-    "MS.TEAMS.1.7v2": {
-      "reason": "planned",
-      "note": "One live event policy setting."
+      "reason": "outOfScope",
+      "note": "Asks for a convenience: people in the organisation skip the lobby. A tenant that makes them wait is stricter, not weaker. CL-013 judges who may skip it."
     },
     "MS.TEAMS.5.1v2": {
-      "reason": "planned",
-      "note": "Microsoft apps in the app permission policies."
-    },
-    "MS.TEAMS.5.3v2": {
-      "reason": "planned",
-      "note": "Custom apps in the app permission policies."
+      "reason": "outOfScope",
+      "note": "Which Microsoft apps an organisation has approved is its own decision, and the baseline's instruction is to leave Microsoft apps on, so there is no setting to pass or fail."
     }
   }
 }

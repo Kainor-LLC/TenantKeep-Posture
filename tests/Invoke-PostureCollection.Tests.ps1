@@ -34,7 +34,7 @@ BeforeAll {
             '^subscribedSkus$' { & $u @(@{ skuPartNumber = 'SPB'; skuId = 's1'; consumedUnits = 10; prepaidUnits = @{ enabled = 12; suspended = 0; warning = 0 }; servicePlans = @(@{ servicePlanName = 'AAD_PREMIUM'; servicePlanId = 'p-aad'; provisioningStatus = 'Success' }, @{ servicePlanName = 'INTUNE_A'; servicePlanId = 'p-intune'; provisioningStatus = 'Success' }) }); break }
             '^directory/onPremisesSynchronization$' { & $u @(); break }
             { $_ -eq 'policies/authenticationMethodsPolicy' -and $Uri -match '/beta/' } { @{ id = 'authenticationMethodsPolicy'; systemCredentialPreferences = @{ state = 'enabled' } }; break }
-            '^policies/(authorizationPolicy|identitySecurityDefaultsEnforcementPolicy|authenticationMethodsPolicy|adminConsentRequestPolicy|crossTenantAccessPolicy/default)$' { @{ id = ($path -split '/')[-1]; isEnabled = $false }; break }
+            '^policies/(authorizationPolicy|identitySecurityDefaultsEnforcementPolicy|authenticationMethodsPolicy|adminConsentRequestPolicy|defaultAppManagementPolicy|crossTenantAccessPolicy/default)$' { @{ id = ($path -split '/')[-1]; isEnabled = $false }; break }
             '^policies/authenticationStrengthPolicies$' { & $u @(@{ id = 's-phish'; displayName = 'Phishing-resistant MFA'; allowedCombinations = @('fido2') }); break }
             '^policies/crossTenantAccessPolicy/partners$' { & $u @(); break }
             '^roleManagement/directory/roleDefinitions' { & $u @(@{ id = 'r-ga'; displayName = 'Global Administrator'; isBuiltIn = $true; isPrivileged = $true; templateId = 'r-ga' }, @{ id = 'r-sec'; displayName = 'Security Administrator'; isBuiltIn = $true; isPrivileged = $true; templateId = 'r-sec' }); break }
@@ -56,7 +56,10 @@ BeforeAll {
                 $gaRules = @(
                     @{ id = 'Expiration_EndUser_Assignment'; isExpirationRequired = $true; maximumDuration = 'PT8H' },
                     @{ id = 'Enablement_EndUser_Assignment'; enabledRules = @('MultiFactorAuthentication', 'Justification') },
-                    @{ id = 'Approval_EndUser_Assignment'; setting = @{ isApprovalRequired = $false } }
+                    @{ id = 'Approval_EndUser_Assignment'; setting = @{ isApprovalRequired = $false } },
+                    @{ id = 'Notification_Admin_Admin_Eligibility'; isDefaultRecipientsEnabled = $true; notificationRecipients = @() },
+                    @{ id = 'Notification_Admin_Admin_Assignment'; isDefaultRecipientsEnabled = $false; notificationRecipients = @('soc@contoso.example') },
+                    @{ id = 'Notification_Admin_EndUser_Assignment'; isDefaultRecipientsEnabled = $false; notificationRecipients = @() }
                 )
                 $secRules = @(
                     @{ id = 'Expiration_EndUser_Assignment'; isExpirationRequired = $true; maximumDuration = 'P1D' },
@@ -526,6 +529,24 @@ Describe 'Invoke-PostureCollection' {
             $sec.ActivationMfaRequired | Should -BeFalse
         }
 
+        It 'saves who each role alert goes to as a flag and a count, never an address' {
+            $pim = & $script:Read '04-pim-role-policies'
+            $ga = $pim | Where-Object Role -eq 'Global Administrator'
+            $ga.EligibleAlertToAdmins | Should -BeTrue
+            $ga.EligibleAlertOtherRecipients | Should -Be 0
+            $ga.ActiveAlertToAdmins | Should -BeFalse
+            $ga.ActiveAlertOtherRecipients | Should -Be 1
+            $ga.ActivationAlertToAdmins | Should -BeFalse
+            $ga.ActivationAlertOtherRecipients | Should -Be 0
+            $sec = $pim | Where-Object Role -eq 'Security Administrator'
+            $sec.ActivationAlertToAdmins | Should -BeNullOrEmpty -Because 'a rule Graph did not return is unknown, not off'
+            Get-Content -Raw -LiteralPath (Join-Path $script:R.Folder '04-pim-role-policies.json') | Should -Not -Match 'soc@'
+        }
+
+        It 'reads the tenant app management policy' {
+            (& $script:Read '02-app-management-policy').id | Should -Be 'defaultAppManagementPolicy'
+        }
+
         It 'reads per-user MFA state through batched requests and summarises it' {
             $s = & $script:Read '05-per-user-mfa-summary'
             $s.Users | Should -Be 3
@@ -621,7 +642,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 42
+            $r.results.Count | Should -Be 43
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'

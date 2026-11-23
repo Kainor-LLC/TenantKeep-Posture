@@ -28,7 +28,7 @@ function Get-PurviewFixtureObject {
         'Get-InformationBarrierPolicy' { @() }
         'Get-UnifiedAuditLogRetentionPolicy' { & $o @{ Name = 'One year'; Priority = 1; RetentionDuration = 'TwelveMonths'; RecordTypes = @('ExchangeItem'); UserIds = @() } }
         'Get-ComplianceCase' { & $o @{ Name = 'HR-2026-01'; Status = 'Active'; CaseType = 'eDiscovery'; CreatedDateTime = [datetime]'2026-02-01' } }
-        'Get-ProtectionAlert' { & $o @{ Name = 'Elevation of Exchange admin privilege'; Disabled = $false; Severity = 'Medium'; Category = 'AccessGovernance'; ThreatType = 'Activity'; IsSystemRule = $true } }
+        'Get-ProtectionAlert' { & $o @{ Name = 'Elevation of Exchange admin privilege'; Disabled = $false; Severity = 'Medium'; Category = 'AccessGovernance'; ThreatType = 'Activity'; IsSystemRule = $true; NotifyUser = @('TenantAdmins'); NotificationEnabled = $true } }
         'Get-RoleGroup' {
             & $o @{ Name = 'Compliance Administrator'; Members = @('admin1@contoso.example', 'admin2@contoso.example', 'admin3@contoso.example'); Roles = @('Compliance Administrator') }
             & $o @{ Name = 'Organization Management'; Members = @('admin1@contoso.example', 'admin4@contoso.example', 'admin5@contoso.example', 'admin6@contoso.example'); Roles = @('Organization Configuration') }

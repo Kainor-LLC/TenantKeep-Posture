@@ -1125,6 +1125,124 @@
         "T1213.002",
         "T1530"
       ]
+    },
+    {
+      "id": "CL-027",
+      "domain": "collaboration",
+      "title": "Meeting recording is off unless a policy grants it",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-meeting-policy-global.json"
+      ],
+      "pass": "!facts.teamsRecordingByDefault",
+      "remediation": [
+        "In the Teams admin center, open Meetings, Meeting policies, and edit the Global policy.",
+        "Under Recording & transcription, turn Meeting recording off.",
+        "Create a policy with recording on and assign it to the groups that need it, with an expiry for recordings."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "People on the default policy can no longer record a meeting. Those who need to are given a policy that allows it."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/meeting-recording",
+      "deepLink": "https://admin.teams.microsoft.com/policies/meetings",
+      "narrative": "A recording keeps everything that was said and shown, and it is saved to the OneDrive of whoever pressed record, under that person's sharing habits. When everyone can record, nobody decides which meetings are kept. Turning it off in the default policy makes recording a choice somebody made.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": "MS.TEAMS.1.6v1"
+      },
+      "attack": [
+        "T1530"
+      ]
+    },
+    {
+      "id": "CL-028",
+      "domain": "collaboration",
+      "title": "Live events are not always recorded",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-live-event-policy-global.json"
+      ],
+      "pass": "!facts.teamsLiveEventsAlwaysRecorded",
+      "remediation": [
+        "In the Teams admin center, open Meetings, Live events policies, and edit the Global policy.",
+        "Set Record an event to Organizer can record, or to Never record."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The organiser of a live event decides whether it is recorded."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/teams-live-events/set-up-for-teams-live-events",
+      "deepLink": "https://admin.teams.microsoft.com/policies/broadcast",
+      "narrative": "With Always record, every live event is kept whether or not anyone wanted a copy, including the ones where something was said that should not have been. Leaving the choice to the organiser keeps the recordings that are wanted and no others.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": "MS.TEAMS.1.7v2"
+      },
+      "attack": [
+        "T1530"
+      ]
+    },
+    {
+      "id": "CL-029",
+      "domain": "collaboration",
+      "title": "Custom Teams apps are off unless approved one by one",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-app-settings.json",
+        "teams-app-permission-policies.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "teams-app-settings.json",
+          "teams-app-permission-policies.json"
+        ]
+      ],
+      "pass": "facts.customAppsRestricted",
+      "affected": "facts.customAppsRestricted",
+      "remediation": [
+        "In the Teams admin center, open Teams apps, Manage apps, then Actions, Org-wide app settings.",
+        "Under Custom apps, turn off the setting that makes new custom apps available to everyone.",
+        "Make each custom app you do use available to the people who need it, from its own page in Manage apps."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "A custom app shows up in Teams only after an administrator has made it available."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/teams-custom-app-policies-and-settings",
+      "deepLink": "https://admin.teams.microsoft.com/policies/manage-apps",
+      "narrative": "A custom app is one somebody in the organisation uploaded: it has not been through the store's checks, and it runs with whatever its author asked for. When every custom app is available to everyone by default, uploading one is all it takes to put it in front of the whole company.",
+      "frameworks": {
+        "nist-csf-2": "GV.SC-04",
+        "iso27001": "A.5.19",
+        "cmmc": "CM.L2-3.4.8",
+        "cisa-scuba": "MS.TEAMS.5.3v2"
+      },
+      "attack": [
+        "T1671"
+      ]
     }
   ]
 }

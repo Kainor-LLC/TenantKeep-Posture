@@ -109,6 +109,71 @@ function Get-PosturePurviewFact {
         $affected.dlpWorkloadsMissing = @($gaps | ForEach-Object { [ordered]@{ name = $_; detail = 'no enforced DLP policy covers this workload' } })
     }
 
+    # What an enforced DLP policy does when it matches (PV-010), and whether the person is told (PV-011). A policy
+    # whose rules only report lets the message or the share through; a block with no policy tip leaves the person
+    # guessing and calling the help desk. A rule belongs to its policy by ParentPolicyName.
+    $saved = { param($x, [string] $Name) if ($x -is [System.Collections.IDictionary]) { $x.Contains($Name) } else { $null -ne $x.PSObject.Properties[$Name] } }
+    $dlpRules = & $load 'pv-02-dlp-rules'
+    if ($null -eq $dlp) { & $missing @('PV-010', 'PV-011') 'pv-02-dlp-policies' }
+    elseif ($null -eq $dlpRules) { & $missing @('PV-010', 'PV-011') 'pv-02-dlp-rules' }
+    else {
+        $enforcedPolicies = @(& $rows $dlp | Where-Object { $_.Enabled -ne $false -and [string]$_.Mode -match '(?i)^Enable' })
+        $liveRules = @(& $rows $dlpRules | Where-Object { $_.Disabled -ne $true })
+        $rulesOf = { param([string] $Policy) @($liveRules | Where-Object { [string]$_.ParentPolicyName -eq $Policy }) }
+        $before = 'pv-02-dlp-rules.json was collected before TenantKeep read what a rule does. Collect Purview again (Resume-PostureRun -Collector Purview).'
+        $blocking = @()
+        if ($liveRules.Count -gt 0 -and @($liveRules | Where-Object { & $saved $_ 'BlockAccess' }).Count -eq 0) { $notEvaluated['PV-010'] = $before; $notEvaluated['PV-011'] = $before }
+        else {
+            $blocking = @($enforcedPolicies | Where-Object { @(& $rulesOf ([string]$_.Name) | Where-Object { $_.BlockAccess -eq $true }).Count -gt 0 })
+            $facts.dlpPoliciesBlocking = $blocking.Count
+            $reportOnly = @($enforcedPolicies | Where-Object { $_ -notin $blocking })
+            $facts.dlpPoliciesReportOnly = $reportOnly.Count
+            $affected.dlpPoliciesReportOnly = @($reportOnly | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'no rule in this policy blocks: a match is reported and let through' } })
+            # PV-011 judges the policies that block. With none, there is no block to explain, and that is PV-010's finding.
+            if ($blocking.Count -eq 0) { $notEvaluated['PV-011'] = 'No enforced DLP policy blocks anything yet, so there is no block to explain. PV-010 comes first.' }
+            elseif (@($liveRules | Where-Object { & $saved $_ 'NotifyUser' }).Count -eq 0) { $notEvaluated['PV-011'] = $before }
+            else {
+                $silent = @($blocking | Where-Object { @(& $rulesOf ([string]$_.Name) | Where-Object { $_.BlockAccess -eq $true -and @(& $list $_.NotifyUser).Count -eq 0 }).Count -gt 0 })
+                $facts.dlpPoliciesBlockingSilently = $silent.Count
+                $affected.dlpPoliciesBlockingSilently = @($silent | ForEach-Object { $name = [string]$_.Name; [ordered]@{ name = $name; detail = "blocks without telling the person: $(@(& $rulesOf $name | Where-Object { $_.BlockAccess -eq $true -and @(& $list $_.NotifyUser).Count -eq 0 } | ForEach-Object { [string]$_.Name }) -join ', ')" } })
+            }
+        }
+    }
+
+    # Alert policies (PV-012, PV-013): the six built-in policies CISA's baseline names, which tell an administrator
+    # that the tenant is sending spam, that a connector or a forwarding rule looks hijacked, or that mail is held up.
+    # A policy counts when it is in the list and not turned off. A tenant always has built-in policies, so an empty
+    # list is a list that could not be read, not a tenant with none.
+    $alerts = & $load 'pv-07-alert-policies'
+    if ($null -eq $alerts) { & $missing @('PV-012', 'PV-013') 'pv-07-alert-policies' }
+    elseif (@(& $rows $alerts).Count -eq 0) {
+        foreach ($id in 'PV-012', 'PV-013') { $notEvaluated[$id] = 'The alert policy list came back empty. A tenant always has built-in alert policies, so the account that collected could not read them (Purview collector; check errors.txt).' }
+    }
+    else {
+        $wanted = @('Suspicious email sending patterns detected', 'Suspicious connector activity', 'Suspicious email forwarding activity', 'Messages have been delayed', 'Tenant restricted from sending unprovisioned email', 'Tenant restricted from sending email')
+        $byName = @{}
+        foreach ($a in @(& $rows $alerts)) { $n = ([string]$a.Name).Trim(); if ($n) { $byName[$n.ToLowerInvariant()] = $a } }
+        $off = [System.Collections.Generic.List[object]]::new(); $on = [System.Collections.Generic.List[object]]::new()
+        foreach ($w in $wanted) {
+            $a = $byName[$w.ToLowerInvariant()]
+            if ($null -eq $a) { $off.Add([ordered]@{ name = $w; detail = 'not found among the alert policies' }) }
+            elseif ($a.Disabled -eq $true) { $off.Add([ordered]@{ name = $w; detail = 'turned off' }) }
+            else { $on.Add($a) }
+        }
+        $facts.alertPoliciesExpected = $wanted.Count
+        $facts.alertPoliciesOff = $off.Count
+        $affected.alertPoliciesOff = $off.ToArray()
+        # PV-013: an alert that emails nobody is seen only by someone who opens the portal. The report can see that
+        # an alert has a recipient, not that anybody reads the mailbox.
+        if ($on.Count -eq 0) { $notEvaluated['PV-013'] = 'None of the six alert policies is on, so there is no recipient to judge. PV-012 comes first.' }
+        elseif (@($on | Where-Object { & $saved $_ 'NotifyUser' }).Count -eq 0) { $notEvaluated['PV-013'] = 'pv-07-alert-policies.json was collected before TenantKeep read who an alert is sent to. Collect Purview again (Resume-PostureRun -Collector Purview).' }
+        else {
+            $quiet = @($on | Where-Object { @(& $list $_.NotifyUser).Count -eq 0 -or (Get-PostureValue $_ 'NotificationEnabled') -eq $false })
+            $facts.alertPoliciesWithoutRecipient = $quiet.Count
+            $affected.alertPoliciesWithoutRecipient = @($quiet | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = $(if ((Get-PostureValue $_ 'NotificationEnabled') -eq $false) { 'email notification is off' } else { 'no recipient' }) } })
+        }
+    }
+
     # Retention (PV-006)
     $rp = & $load 'pv-03-retention-policies'
     if ($null -eq $rp) { & $missing @('PV-006') 'pv-03-retention-policies' }

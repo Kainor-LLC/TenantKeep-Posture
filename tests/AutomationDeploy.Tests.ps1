@@ -125,7 +125,7 @@ Describe 'deploy scripts' {
         try {
             & pwsh -NoProfile -File (Join-Path $PSScriptRoot '..' 'build.ps1') -Task Catalog -CatalogPath $out 2>&1 | Out-Null
             $md = Get-Content -Raw (Join-Path $out 'catalog.md')
-            $md | Should -Match '## Conditional Access \(16\)'
+            $md | Should -Match '## Conditional Access \(17\)'
             $md | Should -Match '\| CA-001 \|'
             $md | Should -Not -Match 'facts\.[a-zA-Z]' -Because 'no pass logic on the public page'
             $md | Should -Not -Match 'nist-csf-2'

@@ -47,12 +47,13 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
         }
 
         It 'writes the A.3 files with the audit plan names' {
-            foreach ($n in 'spo-tenant-settings', 'spo-sites', 'spo-sites-summary', 'teams-federation', 'teams-client-config', 'teams-meeting-policy-global', 'teams-external-access', 'teams-app-permission-policies', 'teams-guest-messaging', 'teams-app-settings', 'teams-app-availability') {
+            foreach ($n in 'spo-tenant-settings', 'spo-sites', 'spo-sites-summary', 'teams-federation', 'teams-client-config', 'teams-meeting-policy-global', 'teams-live-event-policy-global', 'teams-external-access', 'teams-app-permission-policies', 'teams-guest-messaging', 'teams-app-settings', 'teams-app-availability') {
                 Join-Path $script:Folder "$n.json" | Should -Exist
             }
             Join-Path $script:Folder 'spo-sites.csv' | Should -Exist
             $script:Result.Collectors | Should -Be @('SharePoint', 'Teams')
             $script:Result.Errors.Count | Should -Be 0
+            (& $script:Read 'teams-live-event-policy-global').BroadcastRecordingMode | Should -Be 'AlwaysEnabled' -Because 'CL-028 reads the live events policy'
         }
 
         It 'keeps the tenant settings as one object with the audit plan properties only' {

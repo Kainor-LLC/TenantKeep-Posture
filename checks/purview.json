@@ -430,6 +430,166 @@
           "35014"
         ]
       }
+    },
+    {
+      "id": "PV-010",
+      "domain": "purview",
+      "title": "At least one DLP policy blocks, not only reports",
+      "severityDefault": "Medium",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-02-dlp-policies.json",
+        "pv-02-dlp-rules.json"
+      ],
+      "pass": "facts.dlpPoliciesBlocking >= 1",
+      "affected": "facts.dlpPoliciesReportOnly",
+      "remediation": [
+        "In the Purview portal, open Data loss prevention, Policies, and pick the policy whose matches you trust most (payment card and national identity numbers are the usual first).",
+        "Edit its rules: under Actions, restrict access or encrypt the content, and choose who is blocked (everyone, or only people outside the organisation).",
+        "Keep the policy in simulation mode with policy tips for two weeks first, read the matches, then turn it on."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "A send or a share that matches a blocking rule is stopped. The person sees why and can ask for an override if the rule allows one."
+      },
+      "learn": "https://learn.microsoft.com/purview/dlp-policy-reference",
+      "deepLink": "https://purview.microsoft.com/dlp/policies",
+      "narrative": "A DLP policy with no blocking rule is a report: the card numbers still leave, and someone reads about it afterwards. Most tenants start that way and never take the second step. One policy that blocks the clearest cases stops the losses that are easiest to prove and hardest to explain.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": "MS.SECURITYSUITE.3.3v1"
+      },
+      "attack": [
+        "T1537",
+        "T1567"
+      ]
+    },
+    {
+      "id": "PV-011",
+      "domain": "purview",
+      "title": "A DLP policy that blocks tells the person why",
+      "severityDefault": "Low",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-02-dlp-policies.json",
+        "pv-02-dlp-rules.json"
+      ],
+      "pass": "facts.dlpPoliciesBlockingSilently == 0",
+      "affected": "facts.dlpPoliciesBlockingSilently",
+      "remediation": [
+        "In the Purview portal, open Data loss prevention, Policies, and edit each listed policy.",
+        "In every rule that blocks, turn on User notifications: a policy tip, and an email to the person who sent or shared.",
+        "Write the tip in your own words: what was found, why it is stopped, and who to ask."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People see a tip or get an email naming the rule when something of theirs is blocked."
+      },
+      "learn": "https://learn.microsoft.com/purview/dlp-policy-tips-reference",
+      "deepLink": "https://purview.microsoft.com/dlp/policies",
+      "narrative": "A block with no explanation looks like a fault. The person tries again another way, often a worse one, or calls the help desk, which cannot see why either. A policy tip turns the same block into a lesson at the moment it matters.",
+      "frameworks": {
+        "nist-csf-2": "PR.AT-01",
+        "iso27001": "A.6.3",
+        "cmmc": "AT.L2-3.2.1",
+        "cisa-scuba": "MS.SECURITYSUITE.3.4v1"
+      }
+    },
+    {
+      "id": "PV-012",
+      "domain": "purview",
+      "title": "The alert policies for a hijacked mailbox or connector are on",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-07-alert-policies.json"
+      ],
+      "pass": "facts.alertPoliciesOff == 0",
+      "affected": "facts.alertPoliciesOff",
+      "remediation": [
+        "In the Defender portal, open Email & collaboration, Policies & rules, Alert policy.",
+        "Find each listed policy and turn it on. They are built in, so there is nothing to design.",
+        "A policy that is not in the list at all comes with a plan the tenant may not hold; check the plan before treating it as a gap."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users."
+      },
+      "learn": "https://learn.microsoft.com/defender-xdr/alert-policies",
+      "deepLink": "https://security.microsoft.com/alertpoliciesv2",
+      "narrative": "Six built-in alerts tell an administrator that an account is sending spam, that Microsoft has stopped the tenant from sending, that a connector or a forwarding rule looks hijacked, or that mail is queueing. Each is the first sign of a compromised mailbox most tenants ever get. They are on by default, and one that has been turned off is usually off because it was noisy during an incident.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": "MS.SECURITYSUITE.4.1v1"
+      },
+      "attack": [
+        "T1114.003",
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "PV-013",
+      "domain": "purview",
+      "title": "Those alerts are emailed to someone",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-07-alert-policies.json"
+      ],
+      "pass": "facts.alertPoliciesWithoutRecipient == 0",
+      "affected": "facts.alertPoliciesWithoutRecipient",
+      "remediation": [
+        "In the Defender portal, open Email & collaboration, Policies & rules, Alert policy, and edit each listed policy.",
+        "Turn on email notifications and add a mailbox that people read every working day, or the address your SIEM or ticketing takes mail on.",
+        "Send a test and see that it arrives where you expect."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users."
+      },
+      "learn": "https://learn.microsoft.com/defender-xdr/alert-policies",
+      "deepLink": "https://security.microsoft.com/alertpoliciesv2",
+      "narrative": "An alert with no recipient is seen only by someone who happens to open the portal. This check can see that each alert has an address; it cannot see whether anyone reads that mailbox, so check that part yourself.",
+      "frameworks": {
+        "nist-csf-2": "DE.AE-06",
+        "iso27001": "A.8.16",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": "MS.SECURITYSUITE.4.2v1"
+      }
     }
   ]
 }

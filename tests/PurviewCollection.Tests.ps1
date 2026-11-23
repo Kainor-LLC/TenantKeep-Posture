@@ -40,6 +40,7 @@ Describe 'Invoke-PostureCollection -Collector Purview' {
             $script:Result.Errors.Count | Should -Be 0
             @(& $script:Read 'pv-01-label-policies')[0].ExchangeLocation | Should -Be @('All')
             @(& $script:Read 'pv-01-label-policies')[0].Settings | Should -Contain '[attachmentaction, Automatic]' -Because 'a label policy''s settings are where PV-009 finds its answer'
+            @(& $script:Read 'pv-07-alert-policies')[0].NotifyUser | Should -Be @('TenantAdmins') -Because 'PV-013 reads who an alert is sent to'
         }
 
         It 'feeds the purview checks' {

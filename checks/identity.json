@@ -1226,6 +1226,197 @@
         "T1528",
         "T1671"
       ]
+    },
+    {
+      "id": "ID-026",
+      "domain": "identity",
+      "title": "Handing out a privileged role alerts someone",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "alertRecipients": "any"
+      },
+      "evidence": [
+        "04-pim-role-policies.json"
+      ],
+      "pass": "facts.pimAssignmentAlertGaps == 0",
+      "affected": "facts.pimAssignmentAlertGaps",
+      "remediation": [
+        "In the Entra admin center, open Identity Governance, Privileged Identity Management, Microsoft Entra roles, Roles.",
+        "For each listed role open Role settings, Edit, Notifications.",
+        "Under the two role assignment alerts (members assigned as eligible, members assigned as active), keep the default recipients on or add the mailbox your security team reads."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users. Administrators get an email when a privileged role is given to someone."
+      },
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/quickStart",
+      "narrative": "An attacker who reaches one administrator account gives a second account a role so the access survives a password reset. The alert on a new assignment is how that is noticed the same day. Role by role, the alert can be switched off, and then a new Global Administrator appears without a word.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-03",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.7",
+        "cisa-scuba": "MS.AAD.7.7v1"
+      },
+      "references": {
+        "zeroTrust": [
+          "21818"
+        ]
+      },
+      "attack": [
+        "T1098.003",
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-027",
+      "domain": "identity",
+      "title": "Activating a privileged role alerts someone",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "alertRecipients": "any"
+      },
+      "evidence": [
+        "04-pim-role-policies.json"
+      ],
+      "pass": "facts.pimActivationAlertGaps == 0",
+      "affected": "facts.pimActivationAlertGaps",
+      "remediation": [
+        "In the Entra admin center, open Identity Governance, Privileged Identity Management, Microsoft Entra roles, Roles.",
+        "For each listed role open Role settings, Edit, Notifications.",
+        "Under the role activation alert (eligible members activate this role), keep the default recipients on or add the mailbox your security team reads."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users. Administrators get an email when someone activates a privileged role."
+      },
+      "learn": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/CommonMenuBlade/~/quickStart",
+      "narrative": "Just-in-time roles only help if somebody sees the activations. An activation of Global Administrator at three in the morning from an account that never does that is the clearest signal PIM gives, and it is an email nobody receives when the alert has no recipient.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-03",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.7",
+        "cisa-scuba": "MS.AAD.7.8v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.AAD.7.9v1"
+        ],
+        "zeroTrust": [
+          "21819",
+          "21820"
+        ]
+      },
+      "attack": [
+        "T1098.003",
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-028",
+      "domain": "identity",
+      "title": "New client secrets are refused on applications",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-app-management-policy.json"
+      ],
+      "pass": "facts.appSecretAdditionBlocked",
+      "remediation": [
+        "In the Entra admin center, open Enterprise apps, Security, Application policies.",
+        "Open Block password addition, set it to On for all applications, and leave the date empty so older applications are covered too.",
+        "Move the applications that still use a secret to a certificate or a federated credential first, or give the few that cannot move an exception policy of their own."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Nothing changes for users. A developer who tries to add a client secret is refused and uses a certificate or a federated credential."
+      },
+      "learn": "https://learn.microsoft.com/graph/api/resources/applicationauthenticationmethodpolicy",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "A client secret is a password for an application: it sits in a configuration file, a pipeline variable or a script, and it works from anywhere with no MFA. An attacker with rights over an application adds a secret of their own and keeps the access after the person they phished changes a password. Refusing new secrets closes both.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": "MS.AAD.5.5v1"
+      },
+      "attack": [
+        "T1098.001",
+        "T1528"
+      ]
+    },
+    {
+      "id": "ID-029",
+      "domain": "identity",
+      "title": "Application secrets and certificates have a maximum lifetime",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxAppSecretDays": 181,
+        "maxAppCertificateDays": 366
+      },
+      "evidence": [
+        "02-app-management-policy.json"
+      ],
+      "pass": "facts.appCredentialLifetimeGaps == 0",
+      "affected": "facts.appCredentialLifetimeGaps",
+      "remediation": [
+        "In the Entra admin center, open Enterprise apps, Security, Application policies.",
+        "Open Restrict max password lifetime and Restrict max certificate lifetime, set each to On for all applications, with about half a year for secrets and a year for certificates.",
+        "Leave the date empty so the limit covers older applications when their credentials are next renewed."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Nothing changes for users. Whoever looks after an application renews its secret or certificate on a schedule."
+      },
+      "learn": "https://learn.microsoft.com/graph/api/resources/applicationauthenticationmethodpolicy",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "The portal offers two years for a secret and lets a script ask for a hundred. A credential nobody has to renew is one nobody remembers, and it keeps working long after the person who made it has left. A maximum lifetime turns every credential into something that is looked at again.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": "MS.AAD.5.6v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.AAD.5.7v1"
+        ],
+        "maester": [
+          "MT.1002"
+        ],
+        "zeroTrust": [
+          "21775"
+        ]
+      },
+      "attack": [
+        "T1098.001",
+        "T1528"
+      ]
     }
   ]
 }

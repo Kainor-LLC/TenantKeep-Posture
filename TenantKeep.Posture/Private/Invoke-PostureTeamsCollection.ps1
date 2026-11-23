@@ -3,8 +3,8 @@ function Invoke-PostureTeamsCollection {
     <#
     .SYNOPSIS
         The A.3 Teams collector through the MicrosoftTeams module: federation, client configuration, the global
-        meeting policy, external access policies, app permission policies, guest messaging, and under app centric
-        management the org-wide app settings and every app's availability.
+        meeting policy and live events policy, external access policies, app permission policies, guest messaging,
+        and under app centric management the org-wide app settings and every app's availability.
     .DESCRIPTION
         Needs a Connect-MicrosoftTeams session (Teams Administrator or Global Reader). Never connects. Rich policy
         objects are projected to scalars and string lists before they are written.
@@ -23,6 +23,7 @@ function Invoke-PostureTeamsCollection {
         ('Teams federation', 'Get-CsTenantFederationConfiguration', @{}, 'teams-federation', $true),
         ('Teams client configuration', 'Get-CsTeamsClientConfiguration', @{}, 'teams-client-config', $true),
         ('Teams global meeting policy', 'Get-CsTeamsMeetingPolicy', @{ Identity = 'Global' }, 'teams-meeting-policy-global', $true),
+        ('Teams global live events policy', 'Get-CsTeamsMeetingBroadcastPolicy', @{ Identity = 'Global' }, 'teams-live-event-policy-global', $true),
         ('Teams external access policies', 'Get-CsExternalAccessPolicy', @{}, 'teams-external-access', $false),
         ('Teams app permission policies', 'Get-CsTeamsAppPermissionPolicy', @{}, 'teams-app-permission-policies', $false),
         ('Teams guest messaging', 'Get-CsTeamsGuestMessagingConfiguration', @{}, 'teams-guest-messaging', $true),

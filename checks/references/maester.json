@@ -1054,14 +1054,6 @@
       "reason": "outOfScope",
       "note": "Azure DevOps is not a product this report covers."
     },
-    "MT.1002": {
-      "reason": "planned",
-      "note": "The tenant app management policy."
-    },
-    "MT.1011": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
     "MT.1015": {
       "reason": "planned",
       "note": "A property of the Conditional Access policies, which are already collected."

@@ -100,8 +100,8 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates all 16 CA checks against the shipped catalog version' {
-        $script:Run.results.Count | Should -Be 16
+    It 'evaluates all 17 CA checks against the shipped catalog version' {
+        $script:Run.results.Count | Should -Be 17
         $script:Run.catalogVersion | Should -Match '^\d{4}\.'
         Join-Path $script:Root 'checks.json' | Should -Exist
     }
@@ -122,6 +122,7 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         @{ Id = 'CA-013'; Status = 'fail' }
         @{ Id = 'CA-014'; Status = 'fail' }
         @{ Id = 'CA-015'; Status = 'fail' }
+        @{ Id = 'CA-017'; Status = 'pass' }   # p-007 blocks registration away from trusted locations
     ) {
         $script:By[$Id].status | Should -Be $Status
     }

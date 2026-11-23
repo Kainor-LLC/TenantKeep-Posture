@@ -398,7 +398,30 @@
     "teamsDialInBypassLobby": "People dialing in skip the lobby",
     "guestsCanReshare": "Guests can share items they do not own",
     "anyoneLinksAllowed": "Anyone links are allowed",
-    "legacyAuthProtocolsEnabled": "Legacy authentication to SharePoint is allowed"
+    "legacyAuthProtocolsEnabled": "Legacy authentication to SharePoint is allowed",
+    "dlpPoliciesBlocking": "Enforced DLP policies with a rule that blocks",
+    "dlpPoliciesReportOnly": "Enforced DLP policies that only report",
+    "dlpPoliciesBlockingSilently": "DLP policies that block without telling the person",
+    "alertPoliciesExpected": "Alert policies looked for",
+    "alertPoliciesOff": "Of those, turned off or not found",
+    "alertPoliciesWithoutRecipient": "Alert policies that email nobody",
+    "teamsRecordingByDefault": "Everyone may record meetings",
+    "teamsLiveEventRecordingMode": "Live events, when they are recorded",
+    "teamsLiveEventsAlwaysRecorded": "Live events are always recorded",
+    "customAppsRestricted": "Custom Teams apps restricted",
+    "registrationProtected": "Registering a sign-in method is behind Conditional Access",
+    "registrationPolicies": "Policies on registering a sign-in method",
+    "registrationPoliciesManagedDevice": "Of those, asking for a managed device",
+    "pimAssignmentAlertRolesChecked": "Privileged roles checked for assignment alerts",
+    "pimAssignmentAlertGaps": "Roles where a new assignment alerts nobody",
+    "pimActivationAlertRolesChecked": "Privileged roles checked for activation alerts",
+    "pimActivationAlertGaps": "Roles where an activation alerts nobody",
+    "appManagementPolicyOn": "App management policy is on",
+    "appSecretAdditionBlocked": "New client secrets are refused",
+    "appSecretAdditionAppliesFrom": "Only for applications created after",
+    "appSecretMaxDays": "Client secret, maximum lifetime (days)",
+    "appCertificateMaxDays": "Certificate, maximum lifetime (days)",
+    "appCredentialLifetimeGaps": "Credential kinds with no limit, or one too long"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -466,6 +489,10 @@
     "minOneDriveRetentionDays": "Deleted user's OneDrive kept at least (days)",
     "maxIdleSignOutMinutes": "Idle session sign-out, at most (minutes)",
     "messageCenterWarningDays": "Message Center act-by warning window (days)",
-    "maxVerificationCodeReauthDays": "One-time code sign-in, maximum days before it is repeated"
+    "maxVerificationCodeReauthDays": "One-time code sign-in, maximum days before it is repeated",
+    "registrationControl": "What a registration policy must ask for (any, or managedDevice)",
+    "alertRecipients": "Who must get the alert (any, or named for a further address)",
+    "maxAppSecretDays": "Client secret, longest lifetime allowed (days)",
+    "maxAppCertificateDays": "Certificate, longest lifetime allowed (days)"
   }
 }

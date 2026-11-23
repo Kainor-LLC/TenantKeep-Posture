@@ -758,6 +758,57 @@
         "T1528",
         "T1566.002"
       ]
+    },
+    {
+      "id": "CA-017",
+      "domain": "ca",
+      "title": "Registering a sign-in method is protected by Conditional Access",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "registrationControl": "any"
+      },
+      "evidence": [
+        "policies.json",
+        "auth-strengths.json"
+      ],
+      "pass": "facts.registrationProtected",
+      "remediation": [
+        "Create a Conditional Access policy for all users with the target User actions, Register security information.",
+        "Grant access only from a compliant or hybrid joined device, or require multifactor authentication and give newcomers a Temporary Access Pass for their first registration.",
+        "Exclude the break-glass accounts, start in report-only mode, and read the sign-in log for registrations the policy would have stopped."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People add or change a sign-in method from a work device, or after proving who they are. A newcomer uses the Temporary Access Pass they are given."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-security-info-registration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "The page where a person adds an authenticator is the page an attacker wants most. With a stolen password and no rule on registration, the attacker registers their own phone on an account that has not set up MFA yet, and from then on passes every MFA prompt. A policy on that one action closes it.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.AAD.3.8v1"
+      },
+      "references": {
+        "maester": [
+          "MT.1011"
+        ],
+        "zeroTrust": [
+          "21806"
+        ]
+      },
+      "attack": [
+        "T1098.005",
+        "T1078.004"
+      ]
     }
   ]
 }

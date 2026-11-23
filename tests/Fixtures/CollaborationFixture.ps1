@@ -30,6 +30,7 @@ function Get-CollaborationFixtureObject {
         'Get-CsTenantFederationConfiguration' { & $o @{ Identity = 'Global'; AllowFederatedUsers = $true; AllowedDomains = 'AllowAllKnownDomains'; BlockedDomains = @(); AllowTeamsConsumer = $true; AllowPublicUsers = $false; AllowTeamsConsumerInbound = $true } }
         'Get-CsTeamsClientConfiguration' { & $o @{ Identity = 'Global'; AllowGuestUser = $true; AllowDropBox = $false; AllowBox = $false; AllowGoogleDrive = $false; AllowEmailIntoChannel = $true } }
         'Get-CsTeamsMeetingPolicy' { & $o @{ Identity = 'Global'; AllowAnonymousUsersToJoinMeeting = $true; AllowAnonymousUsersToStartMeeting = $false; AutoAdmittedUsers = 'EveryoneInCompanyExcludingGuests'; AllowExternalParticipantGiveRequestControl = $false } }
+        'Get-CsTeamsMeetingBroadcastPolicy' { & $o @{ Identity = 'Global'; AllowBroadcastScheduling = $true; BroadcastRecordingMode = 'AlwaysEnabled' } }
         'Get-CsExternalAccessPolicy' { & $o @{ Identity = 'Global'; EnableFederationAccess = $true; EnablePublicCloudAccess = $false; EnableTeamsConsumerAccess = $true } }
         'Get-CsTeamsAppPermissionPolicy' { & $o @{ Identity = 'Global'; DefaultCatalogAppsType = 'BlockedAppList'; GlobalCatalogAppsType = 'BlockedAppList'; PrivateCatalogAppsType = 'BlockedAppList'; GlobalCatalogApps = @() } }
         'Get-CsTeamsGuestMessagingConfiguration' { & $o @{ Identity = 'Global'; AllowUserEditMessage = $true; AllowUserDeleteMessage = $true; AllowGiphy = $true } }
