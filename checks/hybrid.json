@@ -350,6 +350,10 @@
       "references": {
         "secureScore": [
           "AATP_PrivilegedAccountsWithDelegationAllowed"
+        ],
+        "maester": [
+          "AD-SPN-12",
+          "AD-SPN-13"
         ]
       },
       "attack": [
@@ -401,6 +405,9 @@
       "references": {
         "secureScore": [
           "AATP_BuiltinKrbtgtAccountWithOldPassword"
+        ],
+        "maester": [
+          "AD-KRBTGT-01"
         ]
       },
       "attack": [
@@ -529,6 +536,10 @@
       "references": {
         "secureScore": [
           "AATP_KerberosDelegations"
+        ],
+        "maester": [
+          "AD-DCOMP-02",
+          "AD-USER-29"
         ]
       },
       "attack": [
@@ -656,6 +667,9 @@
       "references": {
         "secureScore": [
           "AATP_PwdLAPS"
+        ],
+        "maester": [
+          "AD-SCH-05"
         ]
       },
       "attack": [
@@ -956,6 +970,11 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "AD-TRUST-04"
+        ]
+      },
       "attack": [
         "T1134.005"
       ]
@@ -1093,6 +1112,12 @@
       "references": {
         "secureScore": [
           "AATP_GroupPolicyPasswordInPreferences"
+        ],
+        "maester": [
+          "AD-GPOREP-17",
+          "AD-GPOREP-18",
+          "AD-GPOREP-19",
+          "AD-GPOREP-20"
         ]
       },
       "attack": [

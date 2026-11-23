@@ -33,10 +33,12 @@ Describe 'Public references the catalog is measured against' {
             $catalog = Import-PostureCheckCatalog
             $maester = @(Get-PostureReferenceCoverage -Catalog $catalog | Where-Object { $_.name -eq 'maester' })[0]
             $maester.version | Should -Be '2.3.0'
-            foreach ($family in 'eidsca', 'orca', 'maester', 'xspm') { @($catalog.references['maester']['families']) | Should -Contain $family }
-            $maester.counts.total | Should -BeGreaterOrEqual 343 -Because 'a family is added once its tests have been compared with the catalog'
-            $maester.counts.covered | Should -BeGreaterOrEqual 105
-            $maester.counts.outOfScope | Should -Be 47 -Because 'Azure DevOps is the one product in Maester this report does not cover'
+            foreach ($family in 'eidsca', 'orca', 'maester', 'xspm', 'ad') { @($catalog.references['maester']['families']) | Should -Contain $family }
+            $maester.counts.total | Should -Be 613 -Because 'every family of Maester 2.3.0 except its CIS and CISA tests'
+            $maester.counts.covered | Should -BeGreaterOrEqual 116
+            @($maester.items | Where-Object { $_.reason -eq 'outOfScope' -and $_.id -like 'AZDO.*' }).Count | Should -Be 46 -Because 'Azure DevOps is the one product in Maester this report does not cover'
+            @($maester.items | Where-Object { $_.id -eq 'AD-KRBTGT-01' })[0].checks | Should -Be @('HY-014')
+            @($maester.items | Where-Object { $_.id -like 'AD-*' -and $_.reason -eq 'outOfScope' }).Count | Should -BeGreaterThan 200 -Because 'most of the Active Directory tests read a figure for a person to look at and judge nothing'
             @($maester.items | Where-Object { $_.id -eq 'MT.1005' })[0].checks | Should -Be @('CA-012')
             @($maester.items | Where-Object { $_.id -eq 'EIDSCA.AT01' })[0].checks | Should -Be @('AU-005')
             @($maester.items | Where-Object { $_.id -eq 'ORCA.120.1' })[0].checks | Should -Be @('EM-006')

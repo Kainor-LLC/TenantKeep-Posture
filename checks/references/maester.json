@@ -8,7 +8,8 @@
     "eidsca",
     "orca",
     "maester",
-    "xspm"
+    "xspm",
+    "ad"
   ],
   "checkKeys": {
     "reference": "maester"
@@ -356,7 +357,277 @@
     "MT.1088": "Devices with critical credentials should be protected by TPM",
     "MT.1089": "Devices with critical credentials should be protected by Credential Guard",
     "MT.1111": "High privileged user should be linked to an identity",
-    "MT.1112": "Privileged user accounts should not remain enabled when the linked primary account is disabled"
+    "MT.1112": "Privileged user accounts should not remain enabled when the linked primary account is disabled",
+    "AD-CFG-01": "Tombstone lifetime configuration should be retrievable",
+    "AD-CFG-02": "dSHeuristics count should be retrievable",
+    "AD-CFG-03": "SPN mappings should be retrievable",
+    "AD-CFG-04": "Optional features count should be retrievable",
+    "AD-CFG-05": "Recycle bin enabled paths should be retrievable",
+    "AD-CFG-06": "LDAP query policy count should be retrievable",
+    "AD-CFG-07": "Default query policy should be retrievable",
+    "AD-CFG-08": "AuthN policy container count should be retrievable",
+    "AD-CFG-09": "AD activation objects count should be retrievable",
+    "AD-CFG-10": "Well-known security principals count should be retrievable",
+    "AD-CFG-11": "Registered DHCP servers count should be retrievable",
+    "AD-CFG-12": "Enterprise CA count should be retrievable",
+    "AD-CFG-13": "Certificate templates count should be retrievable",
+    "AD-CFG-14": "Enrollment templates count should be retrievable",
+    "AD-CFG-15": "Enrollment CA certificate details should be retrievable",
+    "AD-CFG-16": "Trusted root CA count should be retrievable",
+    "AD-CFG-17": "Trusted root CA details should be retrievable",
+    "AD-CFG-18": "Intermediate CA count should be retrievable",
+    "AD-CFG-19": "Intermediate CA details should be retrievable",
+    "AD-CFG-20": "CRL distribution points count should be retrievable",
+    "AD-CFG-21": "NTAuth certificates count should be retrievable",
+    "AD-CFG-22": "KDS root keys count should be retrievable",
+    "AD-CFG-23": "SMTP site links count should be retrievable",
+    "AD-CFG-24": "IP site links count should be retrievable",
+    "AD-COMP-01": "Computer disabled count should be retrievable",
+    "AD-COMP-02": "Computer dormant count should be retrievable",
+    "AD-COMP-03": "Computer CreatorSid count should be retrievable",
+    "AD-COMP-04": "Computer non-standard primary group count should be retrievable",
+    "AD-COMP-05": "Computer SID History count should be retrievable",
+    "AD-COMP-06": "Computer default container count should be retrievable",
+    "AD-COMP-07": "Computer OU count should be retrievable",
+    "AD-COMP-08": "Computer per OU average should be retrievable",
+    "AD-COMP-09": "Computer delegation count should be retrievable",
+    "AD-COMP-10": "Computer delegation details should be retrievable",
+    "AD-DACL-01": "Distinct DACL object count should be investigated",
+    "AD-DACL-02": "OU DACL entry count should be investigated",
+    "AD-DACL-03": "Conflict object count should be investigated",
+    "AD-DACL-04": "Conflict object details should be investigated",
+    "AD-DACL-05": "Deny ACE count should be investigated",
+    "AD-DACL-06": "Deny ACE details should be investigated",
+    "AD-DACL-07": "Distinct DACL identity count should be investigated",
+    "AD-DACL-08": "DACL ACE distribution per identity should be investigated",
+    "AD-DACL-09": "Privileged allow ACE count should be investigated",
+    "AD-DACL-10": "Privileged allow ACE details should be investigated",
+    "AD-DACL-11": "Privileged extended right count should be investigated",
+    "AD-DACL-12": "Privileged extended right details should be investigated",
+    "AD-DACL-13": "Privileged extended right identities should be investigated",
+    "AD-DACL-14": "Non-inherited ACE count should be investigated",
+    "AD-DACL-15": "Unresolved SID count should be investigated",
+    "AD-DACL-16": "Unresolved SID details should be investigated",
+    "AD-DACL-17": "Inherited object type count should be investigated",
+    "AD-DACL-18": "Inherited object type details should be investigated",
+    "AD-DC-01": "DC site coverage count should be retrievable",
+    "AD-DC-02": "SMBv1 should be disabled on all domain controllers",
+    "AD-DC-03": "SMBv3.1.1 enabled count should be retrievable",
+    "AD-DC-04": "SMB signing should be enabled on all domain controllers",
+    "AD-DC-05": "DCs with all FSMO roles count should be retrievable",
+    "AD-DC-06": "FSMO role holder details should be retrievable",
+    "AD-DC-07": "DC operating system count should be retrievable",
+    "AD-DC-08": "DC operating system details should be retrievable",
+    "AD-DCD-01": "DC non-standard LDAP port count should be retrievable",
+    "AD-DCD-02": "DC non-standard LDAPS port count should be retrievable",
+    "AD-DCD-03": "Read-only domain controller count should be retrievable",
+    "AD-DCD-04": "Non-Global Catalog DC count should be retrievable",
+    "AD-DCOMP-01": "Computers with unconstrained delegation count should be investigated",
+    "AD-DCOMP-02": "Non-DC computers should not have unconstrained delegation",
+    "AD-DCOMP-03": "Non-DC computers with constrained delegation count should be investigated",
+    "AD-DCOMP-04": "Computer operating system count should be investigated",
+    "AD-DCOMP-05": "Computer operating system details should be investigated",
+    "AD-DCOMP-06": "No enabled computers should be stale for 180 days or more",
+    "AD-DCOMP-07": "Computer DNS host name count should be investigated",
+    "AD-DCOMP-08": "Computer DNS zone count should be investigated",
+    "AD-DCOMP-09": "Computer DNS zone details should be investigated",
+    "AD-DFSR-01": "All domain controllers should have DFS-R subscriptions",
+    "AD-DNS-01": "DNS zone count should be retrievable",
+    "AD-DNS-02": "Zones with only SOA/NS records should be retrievable",
+    "AD-DNS-03": "Root servers with incorrect IPs should be retrievable",
+    "AD-DNS-04": "Root server incorrect IP details should be retrievable",
+    "AD-DNS-05": "Dynamic DNS record count should be retrievable",
+    "AD-DNS-06": "Zones with non-default records should be retrievable",
+    "AD-DNS-07": "Zone record count details should be retrievable",
+    "AD-DNS-08": "Zone delegation count should be retrievable",
+    "AD-DNS-09": "Zone delegation details should be retrievable",
+    "AD-DNS-10": "SOA record details should be retrievable",
+    "AD-DNS-11": "AD DS SRV record count should be retrievable",
+    "AD-DNS-12": "AD DS SRV record details should be retrievable",
+    "AD-DNS-13": "DNSSEC record count should be retrievable",
+    "AD-DNS-14": "Empty zone count should be retrievable",
+    "AD-DNS-15": "Duplicate zone count should be retrievable",
+    "AD-DNS-16": "Reverse lookup zone count should be retrievable",
+    "AD-DNS-17": "Non-standard zone count should be retrievable",
+    "AD-DNS-18": "Reverse zone network count should be retrievable",
+    "AD-DNS-19": "Reverse zone network details should be retrievable",
+    "AD-DOM-01": "Domain functional level should be retrievable",
+    "AD-DOM-02": "Machine account quota should be retrievable",
+    "AD-DOM-03": "Domain controller count should be retrievable",
+    "AD-DOM-04": "RIDs remaining should be retrievable",
+    "AD-DOM-05": "Domain name standard compliance should be retrievable",
+    "AD-DOM-06": "Domain name non-standard details should be retrievable",
+    "AD-DOM-07": "NetBIOS name standard compliance should be retrievable",
+    "AD-DOM-08": "NetBIOS name non-standard details should be retrievable",
+    "AD-DOMS-01": "Allowed DNS suffixes count should be retrievable",
+    "AD-FEAT-01": "Optional feature count should be investigated",
+    "AD-FEAT-02": "Optional feature enabled details should be investigated",
+    "AD-FGPP-01": "Fine-grained password policy count should be retrievable",
+    "AD-FGPP-02": "Fine-grained password policy value count should be retrievable",
+    "AD-FGPP-03": "Fine-grained password policy setting counts should be retrievable",
+    "AD-FGPP-04": "Fine-grained password policy application targets should be retrievable",
+    "AD-FOR-01": "Forest functional level should be retrievable",
+    "AD-FOR-02": "Forest domain count should be retrievable",
+    "AD-FOR-03": "Tombstone lifetime should be retrievable",
+    "AD-FOR-04": "Recycle Bin status should be retrievable",
+    "AD-FORS-01": "UPN suffixes count should be retrievable",
+    "AD-FORS-02": "UPN suffixes details should be retrievable",
+    "AD-FORS-03": "SPN suffixes count should be retrievable",
+    "AD-FORS-04": "Cross-forest references count should be retrievable",
+    "AD-GCHG-01": "Average group membership changes per year should be investigated",
+    "AD-GMC-01": "Distinct groups with members count should be retrievable",
+    "AD-GMC-02": "Distinct account types of members count should be retrievable",
+    "AD-GMC-03": "Member account types breakdown should be retrievable",
+    "AD-GMC-04": "Trust members count should be investigated",
+    "AD-GMC-05": "Trust members details by group should be investigated",
+    "AD-GMC-06": "Foreign SID principals count should be investigated",
+    "AD-GMC-07": "Foreign SID details by domain should be investigated",
+    "AD-GMC-08": "Empty non-privileged group count should be investigated",
+    "AD-GMC-09": "Empty non-privileged group details should be investigated",
+    "AD-GMC-10": "Privileged groups with members count should be investigated",
+    "AD-GMC-11": "Privileged groups with members details should be investigated",
+    "AD-GPO-01": "GPO total count should be retrievable",
+    "AD-GPO-02": "GPO created before 2020 count should be retrievable",
+    "AD-GPO-03": "GPO stale-before-2020 count should be investigated",
+    "AD-GPO-04": "Unlinked GPO count should be compliant",
+    "AD-GPO-05": "GPO unlinked details should be compliant",
+    "AD-GPOL-01": "GPO linked count should be investigated",
+    "AD-GPOL-02": "Disabled GPO link count should be retrievable",
+    "AD-GPOL-03": "GPO unlinked target count should be compliant",
+    "AD-GPOL-04": "Enforced GPO link count should be retrievable",
+    "AD-GPOL-05": "GPO blocked inheritance count should be compliant",
+    "AD-GPOL-06": "GPO linked OU count should be retrievable",
+    "AD-GPOREP-01": "No GPOs should be missing permissions",
+    "AD-GPOREP-02": "No GPOs should be missing permissions",
+    "AD-GPOREP-03": "GPOs without authenticated users count should be retrievable",
+    "AD-GPOREP-04": "GPOs without authenticated users details should be retrievable",
+    "AD-GPOREP-05": "GPOs without enterprise domain controllers count should be retrievable",
+    "AD-GPOREP-06": "GPOs without domain computers count should be retrievable",
+    "AD-GPOREP-07": "GPOs with deny ACE count should be retrievable",
+    "AD-GPOREP-08": "GPOs with deny ACE details should be retrievable",
+    "AD-GPOREP-09": "GPO inherited permissions count should be retrievable",
+    "AD-GPOREP-10": "GPO no-apply Group Policy ACE count should be investigated",
+    "AD-GPOREP-11": "GPO no-apply Group Policy ACE details should be investigated",
+    "AD-GPOREP-12": "GPO disabled link count should be retrievable",
+    "AD-GPOREP-13": "GPO disabled link details should be investigated",
+    "AD-GPOREP-14": "GPO enforcement count should be investigated",
+    "AD-GPOREP-15": "No GPOs should have version mismatches",
+    "AD-GPOREP-16": "No GPOs should have version mismatches",
+    "AD-GPOREP-17": "No GPOs should contain a cpassword",
+    "AD-GPOREP-18": "No GPOs should contain a cpassword",
+    "AD-GPOREP-19": "No GPOs should contain a default password",
+    "AD-GPOREP-20": "No GPOs should contain a default password",
+    "AD-GPOS-01": "GPO state total count should be investigated",
+    "AD-GPOS-02": "WMI filter count should be investigated",
+    "AD-GPOS-03": "WMI filter details should be investigated",
+    "AD-GPOS-04": "Disabled GPO settings count should be investigated",
+    "AD-GPOS-05": "Computer disabled GPO settings details should be investigated",
+    "AD-GPOS-06": "User disabled GPO settings details should be investigated",
+    "AD-GPOS-07": "All disabled GPO settings details should be investigated",
+    "AD-GPOS-08": "GPO owner distinct count should be investigated",
+    "AD-GPOS-09": "GPO owner details should be investigated",
+    "AD-GRP-01": "Group AdminCount should be retrievable",
+    "AD-GRP-02": "Groups in container objects count should be retrievable",
+    "AD-GRP-03": "Stale groups count should be retrievable",
+    "AD-GRP-04": "Groups with manager count should be retrievable",
+    "AD-GRP-05": "Group SID History count should be retrievable",
+    "AD-GRP-06": "Distribution group count should be retrievable",
+    "AD-GRP-07": "Security group count should be retrievable",
+    "AD-GRP-08": "Domain local group count should be retrievable",
+    "AD-GRP-09": "Global group count should be retrievable",
+    "AD-GRP-10": "Universal group count should be retrievable",
+    "AD-KRBTGT-01": "KRBTGT password age should not exceed 180 days",
+    "AD-KRBTGT-02": "KRBTGT last logon should be investigated",
+    "AD-KRBTGT-03": "KRBTGT should have standard UAC settings (disabled account)",
+    "AD-MSA-01": "Managed service account count should be investigated",
+    "AD-OU-01": "OU overlapping name count should be retrievable",
+    "AD-OU-02": "OU at domain root count should be retrievable",
+    "AD-OU-03": "OU stale count should be retrievable",
+    "AD-OU-04": "OU empty count should be retrievable",
+    "AD-OU-05": "OU empty details should be retrievable",
+    "AD-PRINT-01": "Printer total count should be retrievable",
+    "AD-PWDPOL-01": "Password history count should be retrievable",
+    "AD-PWDPOL-02": "Password maximum age should be retrievable",
+    "AD-PWDPOL-03": "Password minimum length should be retrievable",
+    "AD-PWDPOL-04": "Password complexity requirement should be retrievable",
+    "AD-PWDPOL-05": "Password reversible encryption status should be retrievable",
+    "AD-PWDPOL-06": "Account lockout duration should be retrievable",
+    "AD-PWDPOL-07": "Account lockout threshold should be retrievable",
+    "AD-REPL-01": "No replication connections should be disabled",
+    "AD-REPL-02": "Non-auto replication connection count should be investigated",
+    "AD-ROOTDSE-01": "Supported SASL mechanism count should be investigated",
+    "AD-ROOTDSE-02": "Supported SASL mechanism details should be investigated",
+    "AD-ROOTDSE-03": "Root DSE should be synchronized",
+    "AD-SCH-01": "Schema modification year count should be retrievable",
+    "AD-SCH-02": "Schema modification year details should be retrievable",
+    "AD-SCH-03": "Schema version entry count should be retrievable",
+    "AD-SCH-04": "Schema version details should be retrievable",
+    "AD-SCH-05": "LAPS should be installed in Active Directory",
+    "AD-SITE-01": "Site total count should be retrievable",
+    "AD-SITE-02": "Sites without domain controllers count should be retrievable",
+    "AD-SITE-03": "Sites without domain controllers details should be retrievable",
+    "AD-SITE-04": "Sites without subnet associations count should be retrievable",
+    "AD-SITE-05": "Sites without subnet associations details should be retrievable",
+    "AD-SPN-01": "Computer SPN service class count should be retrievable",
+    "AD-SPN-02": "Computer SPN service class usage should be retrievable",
+    "AD-SPN-03": "Computer SPN unknown service class count should be retrievable",
+    "AD-SPN-04": "Computer SPN unknown service class details should be investigated",
+    "AD-SPN-05": "Computer SPN non-FQDN hosts should be investigated",
+    "AD-SPN-06": "User SPN total count should be investigated",
+    "AD-SPN-07": "User SPN service class count should be investigated",
+    "AD-SPN-08": "User SPN service class usage should be investigated",
+    "AD-SPN-09": "User SPN unknown service class count should be investigated",
+    "AD-SPN-10": "User SPN unknown service class details should be investigated",
+    "AD-SPN-11": "User SPN non-FQDN hosts should be investigated",
+    "AD-SPN-12": "No domain admin accounts should have SPNs configured",
+    "AD-SPN-13": "No domain admin accounts should have SPNs configured",
+    "AD-SUB-01": "Subnet total count should be retrievable",
+    "AD-SUB-02": "Sites with subnet associations count should be retrievable",
+    "AD-SUB-03": "Catch-all subnets count should be retrievable",
+    "AD-SUB-04": "IPv6 subnets count should be retrievable",
+    "AD-SUB-05": "IPv6 catch-all subnets count should be retrievable",
+    "AD-SUB-06": "Non-RFC1918 (public IP) subnets count should be retrievable",
+    "AD-SUB-07": "Non-RFC1918 (public IP) subnets details should be retrievable",
+    "AD-SUB-08": "Distinct first octets count should be retrievable",
+    "AD-SUB-09": "Distinct first two octets (/16 networks) count should be retrievable",
+    "AD-SUB-10": "Distinct first three octets (/24 networks) count should be retrievable",
+    "AD-SUB-11": "Subnets without site associations count should be retrievable",
+    "AD-TRUST-01": "Trust total count should be investigated",
+    "AD-TRUST-02": "Trust inter-forest count should be investigated",
+    "AD-TRUST-03": "Trust quarantined count should be investigated",
+    "AD-TRUST-04": "No trusts should lack SID filtering (quarantine)",
+    "AD-TRUST-05": "Trust configuration details should be investigated",
+    "AD-TRUST-06": "Trust stale count should be investigated",
+    "AD-TRUST-07": "Trust stale details should be investigated",
+    "AD-USER-01": "Disabled user count should be retrievable",
+    "AD-USER-02": "Dormant enabled user count should be retrievable",
+    "AD-USER-03": "Non-expiring password user count should be retrievable",
+    "AD-USER-04": "Reversible encryption user count should be retrievable",
+    "AD-USER-05": "Delegation-enabled user count should be retrievable",
+    "AD-USER-06": "DES-only Kerberos user count should be retrievable",
+    "AD-USER-07": "No pre-authentication user count should be retrievable",
+    "AD-USER-08": "Never-logged-in enabled user count should be retrievable",
+    "AD-USER-09": "Password-not-required user count should be retrievable",
+    "AD-USER-10": "Workstation-restricted user count should be retrievable",
+    "AD-USER-11": "User AdminCount count should be retrievable",
+    "AD-USER-12": "User non-standard primary group count should be retrievable",
+    "AD-USER-13": "User SID History count should be retrievable",
+    "AD-USER-14": "User SPN count should be retrievable",
+    "AD-USER-15": "User manager count should be retrievable",
+    "AD-USER-16": "User home directory count should be retrievable",
+    "AD-USER-17": "User profile path count should be retrievable",
+    "AD-USER-18": "User script path count should be retrievable",
+    "AD-USER-19": "User in container count should be retrievable",
+    "AD-USER-20": "Known service account count should be retrievable",
+    "AD-USER-21": "Known service account details should be investigated",
+    "AD-USER-22": "Built-in administrator account count should be investigated",
+    "AD-USER-23": "Enabled built-in administrator details should be investigated",
+    "AD-USER-24": "Built-in administrator last logon details should be investigated",
+    "AD-USER-25": "Built-in administrator password age details should be investigated",
+    "AD-USER-26": "Honey pot user count should be investigated",
+    "AD-USER-27": "Honey pot user details should be investigated",
+    "AD-USER-28": "User delegation configured count should be investigated",
+    "AD-USER-29": "No users should be configured for unconstrained delegation"
   },
   "notCovered": {
     "EIDSCA.AF02": {
@@ -1310,6 +1581,1042 @@
     "MT.1112": {
       "reason": "planned",
       "note": "Ownership and linked identities of privileged apps and accounts."
+    },
+    "AD-CFG-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-12": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-13": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-14": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-15": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-16": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-17": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-18": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-19": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-20": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-21": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-22": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-23": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-CFG-24": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-COMP-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-12": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-13": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-14": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-15": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-16": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-17": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DACL-18": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-02": {
+      "reason": "planned",
+      "note": "SMB version 1 on domain controllers, which the Windows collector would have to read."
+    },
+    "AD-DC-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-04": {
+      "reason": "planned",
+      "note": "SMB signing on domain controllers, which the Windows collector would have to read."
+    },
+    "AD-DC-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DC-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCD-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCD-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCD-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCD-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-06": {
+      "reason": "planned",
+      "note": "Stale computer accounts; the collector already lists computers."
+    },
+    "AD-DCOMP-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DCOMP-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DFSR-01": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-DNS-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-12": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-13": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-14": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-15": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-16": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-17": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-18": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DNS-19": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOM-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-DOMS-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FEAT-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FEAT-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FGPP-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FGPP-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FGPP-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FGPP-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FOR-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FOR-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FOR-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FOR-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FORS-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FORS-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FORS-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-FORS-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GCHG-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GMC-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPO-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPO-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPO-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPO-04": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPO-05": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPOL-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOL-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOL-03": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPOL-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOL-05": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPOL-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-01": {
+      "reason": "planned",
+      "note": "Permissions on Group Policy objects."
+    },
+    "AD-GPOREP-02": {
+      "reason": "planned",
+      "note": "Permissions on Group Policy objects."
+    },
+    "AD-GPOREP-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-12": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-13": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-14": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOREP-15": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPOREP-16": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-GPOS-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GPOS-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-GRP-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-KRBTGT-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-KRBTGT-03": {
+      "reason": "planned",
+      "note": "The krbtgt account's flags; its password age is already judged."
+    },
+    "AD-MSA-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-OU-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-OU-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-OU-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-OU-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-OU-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PRINT-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-PWDPOL-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-REPL-01": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-REPL-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-ROOTDSE-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-ROOTDSE-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-ROOTDSE-03": {
+      "reason": "outOfScope",
+      "note": "Directory health and tidiness (replication, unlinked or mismatched Group Policy objects), which is operations and not a security setting."
+    },
+    "AD-SCH-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SCH-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SCH-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SCH-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SITE-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SITE-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SITE-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SITE-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SITE-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SPN-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-SUB-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-TRUST-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-01": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-02": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-03": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-04": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-05": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-06": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-07": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-08": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-09": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-10": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-11": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-12": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-13": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-14": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-15": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-16": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-17": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-18": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-19": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-20": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-21": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-22": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-23": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-24": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-25": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-26": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-27": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
+    },
+    "AD-USER-28": {
+      "reason": "outOfScope",
+      "note": "A figure Maester reads for a person to look at. It has no pass or fail, so there is nothing for a check to judge."
     }
   }
 }

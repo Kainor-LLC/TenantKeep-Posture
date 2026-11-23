@@ -62,8 +62,9 @@ as ready either; it says which to check first.
 `references/cisa-scuba.json` has each policy of CISA's SCuBA baselines for the ScubaGear release in `version` (ids and
 statements, public domain). An item is covered when a check names it, in `frameworks.cisa-scuba` or
 `references.scuba`. Every other item sits under `notCovered` with a reason and a note: `planned` (a check is still to
-be written), `noReadApi` (Microsoft offers no read-only way to see the setting) or `outOfScope` (it does not apply to
-the tenants this report is for). The catalog test fails on an item with neither a check nor a reason, on one with
+be written), `noReadApi` (Microsoft offers no read-only way to see the setting) or `outOfScope` (not something this
+report judges: it applies to other tenants or to a product the report does not cover, or it is a figure to look at
+with no pass or fail). The catalog test fails on an item with neither a check nor a reason, on one with
 both, and on a check that names an id the reference no longer has, which is how a renumbered policy shows up.
 
 `build.ps1 -Task ScubaData -ScubaBaselines <folder>` rewrites the items from the `PowerShell/ScubaGear/baselines`
@@ -72,8 +73,9 @@ file, run the task, then run the tests and work through what they name. A mail a
 as words, because the commit guard lets no real mail domain into the repository.
 
 `references/maester.json` has the id and title of each Maester test (MIT licence) for the release in `version`, in the
-families listed under `families`: a family is a folder of Maester's tests (`eidsca`, `orca`, ...), and one is added
-once its tests have been compared with the catalog. A check names the tests it covers in `references.maester`.
+families listed under `families`: a family is a folder of Maester's tests (`eidsca`, `orca`, `maester`, `xspm`, `ad`),
+and one is added once its tests have been compared with the catalog. Most of its Active Directory tests read a count
+or a list for a person to look at and judge nothing; those are out of scope. A check names the tests it covers in `references.maester`.
 `build.ps1 -Task MaesterData -MaesterTests <tests folder of a Maester release>` rewrites the items. Maester's CISA
 tests are the SCuBA policies, which have their own file, and its CIS tests are left out because CIS benchmark content
 is licensed.
