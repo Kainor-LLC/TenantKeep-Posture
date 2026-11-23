@@ -36,9 +36,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   reads, a LAPS password and a BitLocker key among them). And the browser step asks only to sign the admin in; what
   the organisation approved is fetched with the refresh token, which can show no prompt. In a tenant that uses both
   products a token for either carries what was approved for both; Microsoft issues one set of permissions per app.
-  `New-PostureClientApp.ps1` finds the registration by its client id, so the new name renames it. Not yet run live
-  (verify): the new sign-in, and whether one link may name the permissions of three APIs. If not,
-  `Get-PostureConsentLink -Resource` gives a link per API.
+  `New-PostureClientApp.ps1` finds the registration by its client id, so the new name renames it. Run live on
+  2026-11-22: the registration was updated, and Microsoft showed the approval screen for the one link that names the
+  permissions of all three APIs.
 - A remediation plan (2026-11-22). Recommendations gains a flow chart under the Roadmap lanes. The lanes still sort
   findings by risk; the plan says what has to happen first. The checks are grouped into 42 projects, every check in
   exactly one (`checks/projects.json`), each naming what it needs first and what it is better after, with the

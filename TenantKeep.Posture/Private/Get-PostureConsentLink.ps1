@@ -9,9 +9,9 @@ function Get-PostureConsentLink {
         asked for everything registered (.default, or the older adminconsent address) would have an administrator
         approve On-Call's reads, a LAPS password among them, for a customer who wanted a report.
 
-        (verify) Microsoft's page does not say whether one link may name permissions of more than one API. Posture's
-        are on three (Microsoft Graph, the Teams admin API and Azure Service Management). -Resource gives the link
-        for one API alone, in case the combined one is refused.
+        One link names the permissions of all three APIs Posture reads through (Microsoft Graph, the Teams admin API
+        and Azure Service Management). Microsoft's page does not say that is allowed; it showed the approval screen
+        for such a link on 2026-11-22. -Resource gives the link for one API alone.
     .PARAMETER TenantId
         The tenant's id or a domain of it. Anything else gives the address for any organisation.
     #>
