@@ -189,7 +189,990 @@
       },
       "references": {
         "zeroTrust": [
-          "25370"
+          "25370",
+          "25380"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "NET-005",
+      "domain": "network",
+      "title": "Web filtering is linked to a security profile that applies",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.webFilteringApplied",
+      "affected": "facts.webFilteringApplied",
+      "remediation": [
+        "In Global Secure Access, Secure, Security profiles, open the baseline profile and link your web content filtering policy to it. The baseline profile covers all internet traffic.",
+        "For rules that differ by group, link the policy to a security profile of its own and hand that profile out with a Conditional Access policy (Session, Use Global Secure Access security profile).",
+        "Check that the link and the profile are both on."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Sites the policy blocks show a block page for the people the profile reaches."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-web-content-filtering",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/SecurityProfiles.ReactView",
+      "narrative": "A web filtering policy does nothing until it is linked to a security profile, and a security profile does nothing until it is the baseline profile or a Conditional Access policy hands it out. This check looks for a filtering link that is on, on a profile that is on and reaches someone. The profiles listed are on, hold policies, and reach nobody.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25410"
+        ]
+      },
+      "attack": [
+        "T1189",
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-006",
+      "domain": "network",
+      "title": "A Conditional Access policy hands out a security profile",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.profilesByConditionalAccess >= 1",
+      "remediation": [
+        "Create a security profile for the group whose rules differ from everyone's: administrators, developers, a regulated team.",
+        "In a Conditional Access policy for that group, under Session, choose Use Global Secure Access security profile and pick the profile.",
+        "Keep what applies to everyone on the baseline profile."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "People in the group get the web rules meant for them; nobody else sees a change."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-web-content-filtering",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "The baseline profile gives everyone the same rules. A security profile tied to a Conditional Access policy is how filtering follows who the person is, what device they are on and how risky the sign-in looks. With none, an administrator and a contractor browse under identical rules.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25407"
+        ]
+      },
+      "attack": [
+        "T1189"
+      ]
+    },
+    {
+      "id": "NET-007",
+      "domain": "network",
+      "title": "The baseline profile filters web traffic, which is what covers Copilot Studio agents",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.baselineWebFiltering",
+      "remediation": [
+        "In Secure, Security profiles, open the baseline profile.",
+        "Link a web content filtering policy to it and check that the link and the profile are on.",
+        "Agents built in Copilot Studio are forwarded through the baseline profile only, so a policy linked anywhere else does not reach them."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Agents can no longer reach web destinations the baseline policy blocks."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-secure-web-ai-gateway-agents",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/SecurityProfiles.ReactView",
+      "narrative": "An agent built in Copilot Studio can call out to the web through its actions and connectors. Global Secure Access can filter that traffic, and only the baseline profile applies to it. With no filtering policy on the baseline profile, an agent reaches whatever a person could be blocked from.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "27028"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-008",
+      "domain": "network",
+      "title": "Web filtering blocks the high-risk categories",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json",
+        "gsa-05-filtering-policies.json"
+      ],
+      "pass": "facts.webCategoriesBlocked >= 1 && facts.highRiskCategoriesOpen == 0",
+      "affected": "facts.highRiskCategoriesOpen",
+      "remediation": [
+        "Open your web content filtering policy, or create one with the action Block.",
+        "Add a web category rule that names Criminal activity, Hacking and Illegal software, with whatever else your acceptable use policy rules out.",
+        "Link the policy to a security profile that applies (NET-005)."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Sites in the blocked categories show a block page."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/reference-web-content-filtering-categories",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/WebFilteringPolicy.ReactView",
+      "narrative": "Category rules block whole classes of site without anyone keeping a list. Criminal activity, Hacking and Illegal software are the three Microsoft's own assessment expects every organisation to block: they are where malware kits, cracked software and stolen credentials are traded. The check counts a category as blocked when a policy that applies blocks it, and does not work out which rule wins where another policy allows the same category.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25409",
+          "27000"
+        ]
+      },
+      "attack": [
+        "T1189",
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-009",
+      "domain": "network",
+      "title": "TLS inspection is on for internet traffic",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.tlsInspectionApplied",
+      "remediation": [
+        "In Secure, TLS inspection policies, create a policy and upload the signing certificate from your own certificate authority.",
+        "Deploy that authority's root certificate to your devices, through Intune, before turning inspection on.",
+        "Link the TLS inspection policy to a security profile that applies, and add bypass rules only for destinations that break under inspection."
+      ],
+      "effort": "L",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Browsing works as before on devices that trust the certificate; an app that pins its own certificate needs a bypass rule."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-transport-layer-security",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/TLSInspectionPolicy.ReactView",
+      "narrative": "Nearly all web traffic is encrypted. Without TLS inspection Global Secure Access sees the name of the site and nothing of what is sent or fetched, so file policies, prompt policies and full web address filtering have nothing to read. This check looks for a TLS inspection policy linked, and on, on a security profile that applies.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25411"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-010",
+      "domain": "network",
+      "title": "TLS inspection certificates are not about to expire",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {
+        "tlsCertificateWarningDays": 90
+      },
+      "evidence": [
+        "gsa-06-tls-inspection.json",
+        "gsa-04-security-profiles.json"
+      ],
+      "evidenceOptional": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.tlsCertificatesExpiring == 0",
+      "affected": "facts.tlsCertificatesExpiring",
+      "remediation": [
+        "Create a new certificate signing request in Secure, TLS inspection policies, Certificates, and have your certificate authority sign it.",
+        "Upload the new certificate and switch inspection to it before the old one expires.",
+        "Put the expiry date in the team's calendar; nothing reminds you otherwise."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people when the certificate is replaced in time. One that expires breaks inspected browsing for everyone."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-transport-layer-security-settings",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/TLSInspectionPolicy.ReactView",
+      "narrative": "TLS inspection signs every inspected connection with a certificate from your own authority. When that certificate expires, browsers refuse every inspected site at once. This check lists certificates in use that expire within the warning period, 90 days unless the baseline says otherwise.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "27002"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-011",
+      "domain": "network",
+      "title": "TLS inspection bypass rules have been looked at lately",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {
+        "tlsBypassReviewDays": 90
+      },
+      "evidence": [
+        "gsa-06-tls-inspection.json"
+      ],
+      "pass": "facts.tlsBypassPoliciesStale == 0",
+      "affected": "facts.tlsBypassPoliciesStale",
+      "remediation": [
+        "Open each TLS inspection policy listed and go through its bypass rules.",
+        "Remove a rule whose reason has gone: the app was retired, the vendor fixed the pinning, the test ended.",
+        "Save the policy when you have reviewed it, so its date shows the review."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people unless a bypass that is still needed is removed."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-transport-layer-security",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/TLSInspectionPolicy.ReactView",
+      "narrative": "Every bypass rule is traffic nobody inspects. Rules are added in a hurry when something breaks and rarely taken away. This check lists policies with bypass rules of their own that nobody has changed within the review period, 90 days unless the baseline says otherwise. It goes by the date the policy was last changed, which is the only record of a review there is.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.23",
+        "cmmc": "CM.L2-3.4.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "27001"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-012",
+      "domain": "network",
+      "title": "Threat intelligence filtering is on for internet traffic",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.threatIntelligenceApplied",
+      "remediation": [
+        "In Secure, Threat intelligence policies, create a policy with the action Block for high severity destinations.",
+        "Link it to the baseline profile so it covers everyone.",
+        "Check that the link and the profile are both on."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A destination Microsoft's threat intelligence marks as malicious shows a block page."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-threat-intelligence",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/ThreatIntelligencePolicy.ReactView",
+      "narrative": "Threat intelligence filtering blocks destinations that Microsoft and its feeds know to be malicious right now: phishing pages, malware hosts, command and control servers. Category rules cannot keep up with sites that live for a day. This check looks for a threat intelligence policy linked, and on, on a security profile that applies.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.23",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25412"
+        ]
+      },
+      "attack": [
+        "T1189",
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-013",
+      "domain": "network",
+      "title": "A file policy governs what is sent to the internet",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.filePolicyApplied",
+      "remediation": [
+        "Turn on TLS inspection first (NET-009); a file policy can only read inspected traffic.",
+        "In Secure, File policies, create a policy that blocks or scans uploads to destinations outside the organisation, starting with the file types that hold your sensitive data.",
+        "Link it to a security profile that applies."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "An upload the policy blocks fails with a message; ordinary browsing is unchanged."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/concept-internet-access",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/SecurityProfiles.ReactView",
+      "narrative": "A person, or malware acting as them, can send a file to any site a browser reaches. A file policy is where Global Secure Access looks at files in transit and stops the ones that should not leave. This check looks for a file policy linked, and on, on a security profile that applies.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25413"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-014",
+      "domain": "network",
+      "title": "A prompt policy guards generative AI apps",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json"
+      ],
+      "pass": "facts.promptPolicyApplied",
+      "remediation": [
+        "Turn on TLS inspection first (NET-009); a prompt policy can only read inspected traffic.",
+        "In Secure, Prompt policies, create a policy that blocks prompt injection for the generative AI apps your people use.",
+        "Link it to a security profile that applies."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "A prompt the policy judges to be an injection attempt is blocked; ordinary use of the AI app is unchanged."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-ai-prompt-shield",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/PromptPolicy.ReactView",
+      "narrative": "Generative AI apps take instructions from whatever text they are given, including text an attacker planted in a document or a web page. The prompt policy in Global Secure Access inspects prompts on their way to those apps and blocks the injection patterns it recognises. This check looks for a prompt policy linked, and on, on a security profile that applies.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.23",
+        "cmmc": "SC.L2-3.13.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25415"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-015",
+      "domain": "network",
+      "title": "A cloud firewall policy covers the branch offices",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-04-security-profiles.json",
+        "gsa-03-settings.json"
+      ],
+      "pass": "facts.cloudFirewallOnBaseline",
+      "remediation": [
+        "In Secure, Cloud firewall policies, create a policy with rules for what a branch office may reach on the internet.",
+        "Link it to the baseline profile, which is the profile remote network traffic uses.",
+        "Check that the rules and the link are on."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Traffic from the branch that the rules do not allow is dropped."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-cloud-firewall",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/SecurityProfiles.ReactView",
+      "narrative": "A remote network sends a whole office's internet traffic through Global Secure Access: printers, servers and devices with no client and no user signed in. Web filtering reads web traffic only. The cloud firewall is what decides which addresses and ports that office may reach at all. This check applies where a remote network is connected.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25416"
+        ]
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-016",
+      "domain": "network",
+      "title": "Traffic forwarding profiles that are on reach someone",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-01-forwarding-profiles.json"
+      ],
+      "pass": "facts.forwardingProfilesUnassigned == 0",
+      "affected": "facts.forwardingProfilesUnassigned",
+      "remediation": [
+        "In Connect, Traffic forwarding, open each profile listed and choose User and group assignments.",
+        "Assign the groups whose traffic should be forwarded, or assign all users.",
+        "Roll out by group: a pilot group first, then the rest."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "The people assigned start sending that traffic through Global Secure Access."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-manage-users-groups-assignment",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/ForwardingProfile.ReactView",
+      "narrative": "A forwarding profile can be on and forward nothing: when it asks for an assignment and nobody is assigned, no client picks it up. Everything else in this domain depends on traffic arriving. The profiles listed are on and reach nobody.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25382"
+        ]
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "NET-017",
+      "domain": "network",
+      "title": "Universal tenant restrictions stop sign-ins to other organisations",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-03-settings.json",
+        "02-cross-tenant-access-defaults.json"
+      ],
+      "pass": "facts.tenantRestrictionsTagging && facts.tenantRestrictionsBlockByDefault",
+      "remediation": [
+        "In External Identities, Cross-tenant access settings, Default settings, edit Tenant restrictions defaults and block all users and all external applications.",
+        "Add the organisations people may sign in to as partner settings with their own tenant restrictions.",
+        "In Global Secure Access, Settings, Session management, turn on tagging to enforce tenant restrictions on your network."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "On managed devices, signing in to another organisation's Microsoft 365 with an account from there is blocked unless that organisation is allowed."
+      },
+      "learn": "https://learn.microsoft.com/entra/external-id/tenant-restrictions-v2",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/Settings.ReactView",
+      "narrative": "Without tenant restrictions, anyone on your network can sign in to a Microsoft 365 tenant of their own and move files into it; your controls end at your tenant's edge. Universal tenant restrictions tag the traffic that passes through Global Secure Access so Microsoft enforces your policy on every device and network. Both halves have to be there: the tagging, and a default that blocks.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25377"
+        ]
+      },
+      "attack": [
+        "T1537",
+        "T1567"
+      ]
+    },
+    {
+      "id": "NET-018",
+      "domain": "network",
+      "title": "Conditional Access requires the compliant network",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-03-settings.json",
+        "policies.json"
+      ],
+      "pass": "facts.signalingEnabled && facts.compliantNetworkLocation && facts.compliantNetworkPolicies >= 1",
+      "remediation": [
+        "Turn on Conditional Access signaling in Global Secure Access, Settings, Session management, Adaptive access (NET-004). It creates the location All Compliant Network locations.",
+        "Create a Conditional Access policy that blocks access from any location except All Compliant Network locations, for the apps that matter most first.",
+        "Run it report-only, exclude your break-glass accounts, and widen it as the client reaches more devices."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "high",
+        "text": "The apps in the policy work only from a device that is connected through Global Secure Access."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-compliant-network",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A stolen token works from the attacker's machine as well as it worked from yours. A policy that requires the compliant network ties access to traffic that came through your Global Secure Access tenant, which a token replayed from elsewhere cannot do. This check looks for the signaling, the location it creates, and an enabled policy that names that location.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.12",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25379"
+        ]
+      },
+      "attack": [
+        "T1550.004"
+      ]
+    },
+    {
+      "id": "NET-019",
+      "domain": "network",
+      "title": "No Conditional Access policy turns continuous access evaluation off",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-03-settings.json",
+        "policies.json"
+      ],
+      "pass": "facts.signalingEnabled && facts.policiesDisablingCae == 0",
+      "affected": "facts.policiesDisablingCae",
+      "remediation": [
+        "Open each Conditional Access policy listed, Session, Customize continuous access evaluation.",
+        "Remove the Disable setting unless a named application breaks without it, and then scope the policy to that application alone.",
+        "Turn on Conditional Access signaling in Global Secure Access (NET-004), which is what brings continuous evaluation to network access."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A session ends within minutes of an account being disabled, a password reset or a move off the network, instead of when its token runs out."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/concept-universal-continuous-access-evaluation",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "With signaling on, Global Secure Access checks a person's access again each time they connect to a new resource, so a disabled account or a revoked session loses network access in minutes. That is Universal Continuous Access Evaluation. A Conditional Access policy that turns continuous evaluation off hands those users tokens that stay good for an hour or more whatever happens to the account.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.11",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25371"
+        ]
+      },
+      "attack": [
+        "T1550.004"
+      ]
+    },
+    {
+      "id": "NET-020",
+      "domain": "network",
+      "title": "Private Access applications have someone assigned",
+      "severityDefault": "Low",
+      "license": [
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-07-private-apps.json"
+      ],
+      "pass": "facts.privateAppsUnassigned == 0",
+      "affected": "facts.privateAppsUnassigned",
+      "remediation": [
+        "In Global Secure Access, Applications, Enterprise applications, open each application listed, Users and groups.",
+        "Assign the groups that need it. Quick Access is assigned the same way.",
+        "Delete an application nobody needs any more; it still publishes its addresses."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "The people assigned can reach the application through the client."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-configure-per-app-access",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/EnterpriseApplicationListBladeV3/fromNav/globalSecureAccess/applicationType/GlobalSecureAccessApplication",
+      "narrative": "A Private Access application with nobody assigned reaches no one: either the rollout stopped half way and people still use the VPN it was meant to replace, or the application is left over. Both are worth knowing. The applications listed are on and have no user or group assigned.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25480",
+          "25481"
+        ]
+      },
+      "attack": [
+        "T1133"
+      ]
+    },
+    {
+      "id": "NET-021",
+      "domain": "network",
+      "title": "Private Access applications ask for strong authentication",
+      "severityDefault": "High",
+      "license": [
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-07-private-apps.json",
+        "policies.json"
+      ],
+      "pass": "facts.privateAppsWithoutStrongAuth == 0",
+      "affected": "facts.privateAppsWithoutStrongAuth",
+      "remediation": [
+        "Create a Conditional Access policy whose target resources are your Private Access applications, Quick Access included.",
+        "Under Grant, require multifactor authentication, or an authentication strength that is phishing-resistant for the applications that reach servers and domain controllers.",
+        "A policy for All resources that requires multifactor authentication covers them too, as long as it does not exclude them."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "People are asked for multifactor authentication when they first reach a private application in a session."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-mfa-strength",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Private Access replaces the VPN, and what made the VPN dangerous comes with it unless you decide otherwise: one password, and the internal network is open. Each Private Access application is an enterprise application that Conditional Access can protect. The applications listed are covered by no enabled policy that asks for multifactor authentication or an authentication strength.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25394",
+          "25396"
+        ]
+      },
+      "attack": [
+        "T1133",
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "NET-022",
+      "domain": "network",
+      "title": "A private network is defined for Intelligent Local Access",
+      "severityDefault": "Low",
+      "license": [
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-03-settings.json"
+      ],
+      "pass": "facts.privateNetworks >= 1",
+      "remediation": [
+        "In Connect, Private networks, add each office network with the DNS server and the name that identifies it.",
+        "Add the Private Access applications that people in that office should reach directly.",
+        "Conditional Access still applies to those applications; only the path changes."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "In the office, private applications answer faster because the traffic stays on the local network."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/enable-intelligent-local-access",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/PrivateNetworks.ReactView",
+      "narrative": "Without a private network defined, a person sitting in the office reaches the server down the corridor by way of Microsoft's edge and back. Intelligent Local Access lets the client see that it is on a known network and go direct, with the same sign-in and policy checks. It is a performance setting, and the reason people stop turning the client off.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.22",
+        "cmmc": "AC.L2-3.1.12",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25405"
+        ]
+      },
+      "attack": [
+        "T1133"
+      ]
+    },
+    {
+      "id": "NET-023",
+      "domain": "network",
+      "title": "Changes to Global Secure Access are deploying",
+      "severityDefault": "Low",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "gsa-03-settings.json"
+      ],
+      "pass": "facts.deploymentsFailed == 0",
+      "remediation": [
+        "In Global Secure Access, Monitor, Deployment logs, open each failed deployment and read its error.",
+        "Make the change again once the cause is fixed: a conflicting rule, a limit reached, a profile that was deleted.",
+        "Look at the log after any change to a forwarding profile, a remote network or a filtering policy."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; a change you thought was live becomes live."
+      },
+      "learn": "https://learn.microsoft.com/entra/global-secure-access/how-to-view-deployment-logs",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_Azure_Network_Access/DeploymentLogs.ReactView",
+      "narrative": "A change to a profile or a policy is pushed out to Microsoft's edge after you save it, and that push can fail. The portal then shows the setting you chose while the edge still enforces the old one. This check reads the deployment log for the last 30 days.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.9",
+        "cmmc": "CM.L2-3.4.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25422"
+        ]
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "NET-024",
+      "domain": "network",
+      "title": "Network access logs go where the security team can read them",
+      "severityDefault": "Medium",
+      "license": [
+        "InternetAccess",
+        "PrivateAccess",
+        "EntraSuite"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "swg:*",
+        "ztna:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "az-09-entra-diagnostic-settings.json"
+      ],
+      "pass": "facts.networkLogCategoriesMissing == 0",
+      "affected": "facts.networkLogCategoriesMissing",
+      "remediation": [
+        "In Entra, Monitoring and health, Diagnostic settings, add or edit the setting that sends logs to your Log Analytics workspace.",
+        "Tick NetworkAccessTrafficLogs, NetworkAccessAlerts, RemoteNetworkHealthLogs and EnrichedOffice365AuditLogs.",
+        "Set the workspace's retention to what your investigations need (AZ-045 asks the same of a Sentinel workspace)."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/monitoring-health/concept-diagnostic-settings-logs-options",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/DiagnosticSettings",
+      "narrative": "Global Secure Access keeps its traffic logs for a short time in the portal and nowhere else. Sent to a workspace, they are where an investigation finds which device spoke to a malicious address and what an account reached after it was taken over. The categories listed are not sent to a workspace or an event hub.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25419",
+          "25420"
         ]
       },
       "attack": [

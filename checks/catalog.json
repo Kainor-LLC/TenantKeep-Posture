@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Eighty-eight new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "A hundred and eight new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -99,7 +99,27 @@
         "AZ-047": "New: whether a Sentinel workspace has saved hunting queries or bookmarks.",
         "AZ-048": "New: whether every Sentinel workspace has a workbook.",
         "AZ-049": "New: whether a data collection rule sends to every Sentinel workspace.",
-        "AZ-050": "New: whether the tables detection reads are on the Analytics plan in every Sentinel workspace."
+        "AZ-050": "New: whether the tables detection reads are on the Analytics plan in every Sentinel workspace.",
+        "NET-005": "New: whether a web filtering policy is linked, and on, on a security profile that is on and reaches someone. Needs an Entra collection from this version in a tenant with Internet Access or Private Access, like the nineteen checks that follow.",
+        "NET-006": "New: whether a Conditional Access policy hands out a security profile.",
+        "NET-007": "New: whether the baseline profile filters web traffic, which is what covers Copilot Studio agents.",
+        "NET-008": "New: whether a web filtering policy that applies blocks Criminal activity, Hacking and Illegal software.",
+        "NET-009": "New: whether TLS inspection is linked to a security profile that applies.",
+        "NET-010": "New: whether a TLS inspection certificate in use is expired or close to it.",
+        "NET-011": "New: whether a TLS inspection policy with bypass rules of its own has gone unchanged past the review period.",
+        "NET-012": "New: whether threat intelligence filtering is linked to a security profile that applies.",
+        "NET-013": "New: whether a file policy is linked to a security profile that applies.",
+        "NET-014": "New: whether a prompt policy is linked to a security profile that applies.",
+        "NET-015": "New: whether the baseline profile has a cloud firewall policy, where a remote network is connected.",
+        "NET-016": "New: whether a traffic forwarding profile that is on asks for an assignment and has nobody assigned.",
+        "NET-017": "New: whether traffic is tagged for universal tenant restrictions and the default blocks other organisations.",
+        "NET-018": "New: whether an enabled Conditional Access policy names the compliant network location.",
+        "NET-019": "New: whether an enabled Conditional Access policy turns continuous access evaluation off.",
+        "NET-020": "New: whether each Private Access application has someone assigned.",
+        "NET-021": "New: whether an enabled Conditional Access policy asks for multifactor authentication for each Private Access application.",
+        "NET-022": "New: whether a private network is defined for Intelligent Local Access.",
+        "NET-023": "New: whether a change to Global Secure Access failed to deploy in the last 30 days.",
+        "NET-024": "New: whether the network access log categories are sent to a workspace or an event hub. Needs the Azure collector's read of the Entra diagnostic settings."
       }
     },
     {

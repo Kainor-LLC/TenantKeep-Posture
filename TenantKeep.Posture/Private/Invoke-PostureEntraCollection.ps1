@@ -201,19 +201,9 @@ function Invoke-PostureEntraCollection {
     # on every run, so they are read only when the subscriptions carry one of them.
     $gsaOwned = @(Get-PostureOwnedFeature -Sku @(& $load '01-subscribed-skus' | Where-Object { $_ }) | Where-Object { $_ -in 'internetAccess', 'privateAccess' })
     if ($gsaOwned.Count) {
-        Invoke-PostureStep -Label 'Global Secure Access forwarding profiles' -Folder $Folder -Script {
-            $fp = & $get 'networkAccess/forwardingProfiles' 'beta'
-            & $save @($fp | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); TrafficForwardingType = (& $v $_ 'trafficForwardingType'); State = (& $v $_ 'state') } }) 'gsa-01-forwarding-profiles'
-        } | Out-Null
-        Invoke-PostureStep -Label 'Global Secure Access filtering' -Folder $Folder -Script {
-            $prof = & $get 'networkAccess/filteringProfiles?$expand=policies' 'beta'
-            & $save @($prof | ForEach-Object { [ordered]@{ Name = (& $v $_ 'name'); State = (& $v $_ 'state'); Priority = (& $v $_ 'priority'); Policies = @(& $v $_ 'policies').Count } }) 'gsa-02-filtering-profiles'
-        } | Out-Null
-        Invoke-PostureStep -Label 'Global Secure Access remote networks and signaling' -Folder $Folder -Script {
-            $rn = @(& $get 'networkAccess/connectivity/remoteNetworks' 'beta')
-            $sig = $(try { & $one 'networkAccess/settings/conditionalAccess' 'beta' } catch { $null })
-            & $saveOne ([ordered]@{ RemoteNetworks = $rn.Count; SignalingStatus = (& $v $sig 'signalingStatus'); Licensed = $gsaOwned }) 'gsa-03-settings'
-        } | Out-Null
+        # In a file of its own (Invoke-PostureNetworkAccessCollection.ps1): the profiles, what is linked to them, the
+        # filtering and TLS inspection policies, the Private Access applications and the tenant settings.
+        foreach ($written in @((Invoke-PostureNetworkAccessCollection -Folder $Folder -Licensed $gsaOwned -AsOf $AsOf)['files'])) { $files.Add([string]$written) }
     }
 
     # ---------- 4. Privileged roles ----------

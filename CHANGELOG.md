@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 370 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 390 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,40 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Twenty checks on Global Secure Access (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment. The
+  network domain had four: which traffic profiles are on, whether a filtering policy exists, and signaling. These ask
+  whether what was set up reaches anyone and what it does.
+  - A policy counts only when it applies. A security profile applies when it is on and is either the baseline
+    profile or handed out by a Conditional Access policy; a link counts when it is on. Web filtering (NET-005),
+    threat intelligence (NET-012), TLS inspection (NET-009), file and prompt policies (NET-013, NET-014) and the
+    cloud firewall for branch offices (NET-015) are each judged that way, and NET-005 lists profiles that hold
+    policies and reach nobody.
+  - What filtering blocks: Criminal activity, Hacking and Illegal software, by a policy that applies (NET-008). The
+    baseline profile, which is the only one Copilot Studio agents use (NET-007). A profile handed out by Conditional
+    Access (NET-006).
+  - TLS inspection upkeep: a certificate that is expired or within 90 days of it (NET-010), and bypass rules of
+    your own that nobody has changed for 90 days (NET-011). Both periods are thresholds.
+  - Who it reaches: forwarding profiles that are on with nobody assigned (NET-016), Private Access applications
+    with nobody assigned (NET-020), and Private Access applications no Conditional Access policy asks multifactor
+    authentication for (NET-021).
+  - What Conditional Access is told: universal tenant restrictions, tagging and a default that blocks (NET-017), a
+    policy that names the compliant network (NET-018), and no policy that turns continuous access evaluation off
+    (NET-019).
+  - Running it: a private network for Intelligent Local Access (NET-022), deployments that did not fail (NET-023),
+    and the network access logs sent to a workspace (NET-024, from the Azure collector's read of the Entra
+    diagnostic settings).
+  - Four new evidence files, `gsa-04` to `gsa-07`, and more in `gsa-01` and `gsa-03`, all with the permission
+    already held (NetworkAccess.Read.All). Saved: names, states, kinds, counts. Not saved: host names in a rule, who
+    is assigned to anything, a certificate. The collection moved into a file of its own with a test against a
+    stand-in Graph.
+  - Not read, and said so in the reference map: private network connectors and connector groups (four tests).
+    Microsoft Graph lists them only with Directory.ReadWrite.All, a write permission, and the app this report signs
+    in to holds read-only permissions only. The TLS inspection failure rate needs a query of the traffic logs, which
+    the report never reads.
+  - Zero Trust Assessment coverage goes from 161 to 186 of 364 tests. Not yet seen live: every one of these reads.
+    They are Graph beta, written from Microsoft's documentation and its own assessment tool, and have not been run
+    against a tenant that holds Internet Access or Private Access. A read that fails leaves its setting empty and
+    the check without an answer.
 - Twelve checks on how Microsoft Sentinel is set up (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust
   Assessment. Until now the catalog asked one thing of Sentinel: whether it receives Entra, Microsoft 365 and Defender
   XDR (AZ-027). These ask what a workspace does with what arrives.

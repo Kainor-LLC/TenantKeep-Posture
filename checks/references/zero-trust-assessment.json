@@ -730,10 +730,6 @@
       "reason": "planned",
       "note": "An Intune policy or tenant setting."
     },
-    "25371": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
     "25372": {
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
@@ -741,22 +737,6 @@
     "25375": {
       "reason": "outOfScope",
       "note": "Whether a licence is held is shown in the Licensing view and is not judged as a check."
-    },
-    "25377": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25379": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25380": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25382": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
     },
     "25383": {
       "reason": "planned",
@@ -767,24 +747,16 @@
       "note": "A network access setting."
     },
     "25391": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "noReadApi",
+      "note": "Microsoft Graph lists private network connectors and connector groups only with Directory.ReadWrite.All, a write permission. The app this report signs in to holds read-only permissions only."
     },
     "25392": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "noReadApi",
+      "note": "Microsoft Graph lists private network connectors and connector groups only with Directory.ReadWrite.All, a write permission. The app this report signs in to holds read-only permissions only."
     },
     "25393": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25394": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25396": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "noReadApi",
+      "note": "Microsoft Graph lists private network connectors and connector groups only with Directory.ReadWrite.All, a write permission. The app this report signs in to holds read-only permissions only."
     },
     "25398": {
       "reason": "planned",
@@ -806,65 +778,9 @@
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
     },
-    "25405": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25407": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25409": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25410": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25411": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25412": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25413": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25415": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25416": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25419": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25420": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25422": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
     "25466": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25480": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "25481": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "noReadApi",
+      "note": "Microsoft Graph lists private network connectors and connector groups only with Directory.ReadWrite.All, a write permission. The app this report signs in to holds read-only permissions only."
     },
     "25535": {
       "reason": "noReadApi",
@@ -874,29 +790,13 @@
       "reason": "planned",
       "note": "Metrics on DDoS-protected public IPs: the diagnostic settings are read for AZ-037, which judges the log categories; the metrics half is still to be judged."
     },
-    "27000": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "27001": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
-    "27002": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
-    },
     "27003": {
-      "reason": "planned",
-      "note": "A detail of the Global Secure Access configuration."
+      "reason": "outOfScope",
+      "note": "Answered by a query of the traffic logs in a Log Analytics workspace. The report reads how logging is set up (NET-024), never the logs themselves."
     },
     "27004": {
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
-    },
-    "27028": {
-      "reason": "planned",
-      "note": "A network access setting."
     },
     "35001": {
       "reason": "planned",

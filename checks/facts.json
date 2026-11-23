@@ -508,7 +508,36 @@
     "sentinelHunting": "A workspace has saved hunting queries or bookmarks",
     "sentinelWithoutWorkbook": "Workspaces without a workbook",
     "sentinelWithoutCollectionRule": "Workspaces no data collection rule sends to",
-    "sentinelOffPlanTables": "Workspaces with a detection table off the Analytics plan"
+    "sentinelOffPlanTables": "Workspaces with a detection table off the Analytics plan",
+    "forwardingProfilesUnassigned": "Forwarding profiles that are on and reach nobody",
+    "tenantRestrictionsTagging": "Traffic is tagged for tenant restrictions",
+    "tenantRestrictionsBlockByDefault": "Tenant restrictions block other organisations by default",
+    "privateNetworks": "Private networks defined",
+    "deploymentsRecent": "Deployments in the last 30 days",
+    "deploymentsFailed": "Of those, failed",
+    "securityProfiles": "Security profiles",
+    "webFilteringApplied": "A web filtering policy is linked to a profile that applies",
+    "profilesByConditionalAccess": "Security profiles a Conditional Access policy hands out",
+    "baselineWebFiltering": "The baseline profile has a web filtering policy",
+    "tlsInspectionApplied": "TLS inspection is linked to a profile that applies",
+    "threatIntelligenceApplied": "Threat intelligence filtering is linked to a profile that applies",
+    "filePolicyApplied": "A file policy is linked to a profile that applies",
+    "promptPolicyApplied": "A prompt policy is linked to a profile that applies",
+    "cloudFirewallOnBaseline": "The baseline profile has a cloud firewall policy",
+    "remoteNetworks": "Remote networks connected",
+    "webCategoriesBlocked": "Web categories blocked by a policy that applies",
+    "highRiskCategoriesOpen": "High-risk categories not blocked",
+    "tlsCertificates": "TLS inspection certificates in use",
+    "tlsCertificatesExpiring": "Of those, expired or expiring soon",
+    "tlsBypassRules": "TLS inspection bypass rules of your own",
+    "tlsBypassPoliciesStale": "TLS inspection policies with bypass rules not changed lately",
+    "compliantNetworkLocation": "The compliant network location exists",
+    "compliantNetworkPolicies": "Conditional Access policies that name the compliant network",
+    "policiesDisablingCae": "Conditional Access policies that turn continuous access evaluation off",
+    "privateApps": "Private Access applications",
+    "privateAppsUnassigned": "Private Access applications with nobody assigned",
+    "privateAppsWithoutStrongAuth": "Private Access applications no policy asks multifactor authentication for",
+    "networkLogCategoriesMissing": "Network access log categories not sent anywhere"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -587,6 +616,8 @@
     "maxBulkThreshold": "Bulk complaint level, highest allowed",
     "minPhishThresholdLevel": "Phishing threshold, lowest allowed",
     "sentinelInteractiveDays": "Days a Sentinel workspace keeps logs to hand, at least",
-    "sentinelTotalDays": "Days a security table is kept in total, at least"
+    "sentinelTotalDays": "Days a security table is kept in total, at least",
+    "tlsCertificateWarningDays": "Days before a TLS inspection certificate expires to warn",
+    "tlsBypassReviewDays": "Days a TLS inspection policy with bypass rules may go unchanged"
   }
 }
