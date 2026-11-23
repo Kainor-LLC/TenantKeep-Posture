@@ -7,7 +7,8 @@
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
   (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), ScubaData
-  (checks/references/cisa-scuba.json, every policy of CISA's SCuBA baselines from a ScubaGear release), Upkeep (a
+  (checks/references/cisa-scuba.json, every policy of CISA's SCuBA baselines from a ScubaGear release), SecureScoreData
+  (checks/references/secure-score.json, Microsoft's Secure Score actions by id from a run's control list), Upkeep (a
   report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Graph APIs a check waits on, Learn links; run weekly on
   GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
   Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
@@ -39,7 +40,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'Upkeep', 'Demo')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'Upkeep', 'Demo')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -59,6 +60,9 @@ param(
 
     # ScubaData task: the folder PowerShell/ScubaGear/baselines from a ScubaGear release, downloaded by hand.
     [string] $ScubaBaselines,
+
+    # SecureScoreData task: a run's def-06-secure-score-controls.json. Only each action's id and title are read.
+    [string] $SecureScoreControls,
 
     # Upkeep task: where the report goes (default out/upkeep.md), and -Offline to skip every check that needs the network.
     [string] $UpkeepReport,
@@ -254,6 +258,36 @@ function Invoke-ScubaData {
     $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
     [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "  $($items.Count) policies of $($doc['title']) $($doc['version']) written to checks/references/cisa-scuba.json"
+}
+
+function Invoke-SecureScoreData {
+    # checks/references/secure-score.json: Microsoft's Secure Score actions by id, with Microsoft's title, so a check
+    # can only name an action that exists. Microsoft publishes no list; a tenant's own control profiles are the list,
+    # and each tenant has the actions for its products. So this adds what the given run has and removes nothing, and
+    # reads the id and the title only, never a score or a state.
+    Write-Task 'SecureScoreData'
+    if (-not $SecureScoreControls -or -not (Test-Path -LiteralPath $SecureScoreControls -PathType Leaf)) { throw '-SecureScoreControls: def-06-secure-score-controls.json from a run''s evidence folder' }
+    $file = Join-Path $Root 'checks' 'references' 'secure-score.json'
+    $doc = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+    $all = @{}
+    if ($doc['items'] -is [System.Collections.IDictionary]) { foreach ($k in @($doc['items'].get_Keys())) { $all[[string]$k] = [string]$doc['items'][$k] } }
+    $before = $all.Count
+    foreach ($control in @(Get-Content -Raw -LiteralPath $SecureScoreControls | ConvertFrom-Json)) {
+        $id = [string]$control.Id
+        if ($id -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{1,79}$') { continue }
+        $all[$id] = (([string]$control.Title) -replace '\s+', ' ').Trim()
+    }
+    if ($all.Count -lt 50) { throw "Only $($all.Count) actions in $SecureScoreControls; that is not a Secure Score control list." }
+    $items = [ordered]@{}
+    foreach ($id in ($all.get_Keys() | Sort-Object { $_.ToLowerInvariant() }, { $_ })) { $items[$id] = $all[$id] }
+    $out = [ordered]@{}
+    foreach ($k in 'name', 'title', 'source') { $out[$k] = $doc[$k] }
+    $out['version'] = [datetime]::UtcNow.ToString('yyyy-MM-dd')
+    foreach ($k in 'notice', 'passThrough', 'checkKeys') { $out[$k] = $doc[$k] }
+    $out['items'] = $items
+    $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
+    [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "  $($items.Count) Secure Score actions in checks/references/secure-score.json ($($items.Count - $before) new)"
 }
 
 function Invoke-AttackData {
@@ -719,7 +753,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -734,6 +768,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'Upkeep', 'Demo', '
         'LicensingData' { Invoke-LicensingData }
         'AttackData' { Invoke-AttackData }
         'ScubaData' { Invoke-ScubaData }
+        'SecureScoreData' { Invoke-SecureScoreData }
         'Upkeep' { Invoke-Upkeep }
         'Demo' { Invoke-Demo }
         'Publish' { Invoke-Publish -Stage $stage }

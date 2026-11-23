@@ -170,6 +170,11 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.SHAREPOINT.1.3v1"
       },
+      "references": {
+        "secureScore": [
+          "spo_external_sharing_managed"
+        ]
+      },
       "attack": [
         "T1537"
       ]
@@ -524,7 +529,8 @@
         ],
         "secureScore": [
           "meeting_autoadmitusers_v1",
-          "meeting_restrictanonymousjoin_v1"
+          "meeting_restrictanonymousjoin_v1",
+          "meeting_anonymousstartmeeting_v1"
         ]
       },
       "attack": [
@@ -753,6 +759,11 @@
         "iso27001": "A.8.1",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "spo_block_onedrive_sync_unmanaged_devices"
+        ]
       },
       "attack": [
         "T1530"

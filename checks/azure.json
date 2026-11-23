@@ -868,6 +868,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "aad_limited_administrative_roles"
+        ]
+      },
       "attack": [
         "T1078.004"
       ]

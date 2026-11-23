@@ -36,6 +36,11 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "PasswordHashSync"
+        ]
+      },
       "attack": [
         "T1110.004"
       ]
@@ -284,6 +289,11 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "AATP_AccountsInOperatorGroups"
+        ]
+      },
       "attack": [
         "T1003.003",
         "T1078.002"
@@ -332,6 +342,11 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "AATP_PrivilegedAccountsWithDelegationAllowed"
+        ]
+      },
       "attack": [
         "T1550.002",
         "T1558.003"
@@ -378,6 +393,11 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "AATP_BuiltinKrbtgtAccountWithOldPassword"
+        ]
+      },
       "attack": [
         "T1558.001"
       ]
@@ -416,6 +436,11 @@
         "iso27001": "A.5.16",
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_BuiltinGuestAccountIsEnabled"
+        ]
       },
       "attack": [
         "T1078.001"
@@ -495,6 +520,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_KerberosDelegations"
+        ]
       },
       "attack": [
         "T1187",
@@ -617,6 +647,11 @@
         "iso27001": "A.5.17",
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_PwdLAPS"
+        ]
       },
       "attack": [
         "T1078.003",
@@ -776,6 +811,11 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_StaleAccounts"
+        ]
       },
       "affected": "facts.staleEnabledUsers",
       "attack": [
@@ -952,6 +992,11 @@
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "AATP_AzureSsoAccountOldPasswords"
+        ]
+      },
       "attack": [
         "T1558.002"
       ]
@@ -991,6 +1036,11 @@
         "iso27001": "A.8.24",
         "cmmc": "SC.L2-3.13.10",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_ADCSCertificateTemplateEnrolementSuppliesSubject"
+        ]
       },
       "attack": [
         "T1649"
@@ -1034,6 +1084,11 @@
         "iso27001": "A.5.17",
         "cmmc": "IA.L2-3.5.7",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "AATP_GroupPolicyPasswordInPreferences"
+        ]
       },
       "attack": [
         "T1552.006"

@@ -45,8 +45,7 @@
       },
       "references": {
         "secureScore": [
-          "OneAdmin",
-          "aad_limited_administrative_roles"
+          "OneAdmin"
         ]
       },
       "attack": [
@@ -140,6 +139,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": "MS.AAD.7.3v1"
+      },
+      "references": {
+        "secureScore": [
+          "aad_admin_accounts_separate_unassigned_cloud_only"
+        ]
       },
       "attack": [
         "T1021.007",

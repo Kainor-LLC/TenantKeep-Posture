@@ -225,7 +225,8 @@
           "MS.SECURITYSUITE.3.1v1"
         ],
         "secureScore": [
-          "DLPEnabled"
+          "dlp_datalossprevention",
+          "mip_DLP_policies_Teams"
         ]
       },
       "attack": [

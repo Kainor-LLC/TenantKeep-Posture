@@ -276,7 +276,12 @@
       "learn": "https://learn.microsoft.com/entra/identity/authentication/tutorial-enable-sspr",
       "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/PasswordResetMenuBlade/~/Properties",
       "narrative": "A forgotten password without self-service reset is a help desk call and an idle person. With it, the reset takes a minute, uses the MFA methods people already have, and the help desk stops verifying callers by voice, which is itself a social engineering risk.",
-      "frameworks": {}
+      "frameworks": {},
+      "references": {
+        "secureScore": [
+          "SelfServicePasswordReset"
+        ]
+      }
     },
     {
       "id": "UX-009",
@@ -727,7 +732,12 @@
       "learn": "https://learn.microsoft.com/exchange/clients-and-mobile-in-exchange-online/mailtips/mailtips",
       "deepLink": "https://admin.exchange.microsoft.com/#/",
       "narrative": "Most data leaks by email are a wrong recipient, not an attack. A MailTip that says an external person is on the thread, or that a list goes to thousands of people, catches the mistake while it can still be fixed.",
-      "frameworks": {}
+      "frameworks": {},
+      "references": {
+        "secureScore": [
+          "exo_mailtipsenabled"
+        ]
+      }
     },
     {
       "id": "UX-023",

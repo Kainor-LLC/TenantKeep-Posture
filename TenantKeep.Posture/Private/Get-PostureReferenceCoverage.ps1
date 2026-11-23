@@ -11,8 +11,12 @@ function Get-PostureReferenceCoverage {
         or outOfScope (it does not apply to the tenants this report is for). A check names an item in the
         frameworks key or the references key the file's checkKeys give.
 
+        A reference marked passThrough is one whose every item reaches the report whether a check names it or not:
+        Microsoft Secure Score, whose open actions the report lists from Microsoft's own evaluation. There an item
+        with no check needs no reason and is counted as passThrough.
+
         Returns one entry per reference: name, title, version, counts (total, covered, planned, noReadApi,
-        outOfScope), items (id, text, checks, reason, note) and problems. A problem is an item with neither a check
+        outOfScope, passThrough), items (id, text, checks, reason, note) and problems. A problem is an item with neither a check
         nor a reason, an item with both, a reason outside the three, a note left empty, a notCovered id the
         reference does not have, or a check naming an id the reference does not have (a policy renumbered or
         retired since). The catalog test fails on any problem, so the count of what is covered cannot drift.
@@ -48,7 +52,8 @@ function Get-PostureReferenceCoverage {
         }
         foreach ($id in @($notCovered.get_Keys())) { if (-not $items.Contains($id)) { $problems.Add("notCovered lists $id, which $name $($doc['version']) does not have") } }
 
-        $counts = [ordered]@{ total = 0; covered = 0; planned = 0; noReadApi = 0; outOfScope = 0 }
+        $passThrough = [bool]($doc.Contains('passThrough') -and $doc['passThrough'])
+        $counts = [ordered]@{ total = 0; covered = 0; planned = 0; noReadApi = 0; outOfScope = 0; passThrough = 0 }
         $rows = foreach ($id in @($items.get_Keys())) {
             $counts.total++
             $checks = @($(if ($namedBy.ContainsKey($id)) { $namedBy[$id] }))
@@ -57,6 +62,7 @@ function Get-PostureReferenceCoverage {
             $note = $(if ($entry) { [string]$entry['note'] } else { '' })
             if ($checks.Count -gt 0 -and $entry) { $problems.Add("$id is named by $($checks -join ', ') and also listed as not covered") }
             elseif ($checks.Count -gt 0) { $counts.covered++ }
+            elseif (-not $entry -and $passThrough) { $counts.passThrough++ }
             elseif (-not $entry) { $problems.Add("$id has no check and no reason") }
             elseif ($reason -notin $reasons) { $problems.Add("$id has the reason '$reason'; expected $($reasons -join ', ')") }
             elseif ([string]::IsNullOrWhiteSpace($note)) { $problems.Add("$id is not covered and its note is empty") }

@@ -41,8 +41,10 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   setting, with its answer; the rest are marked Microsoft's only. It reads what a run already collects. A new
   collection also saves each action's product (`Service` in `def-06-secure-score-controls`); older evidence falls
   back to the category. Checks name the actions they overlap in a new optional catalog field,
-  `references.secureScore`: 33 control ids on 25 checks to begin with (verify: not yet checked against a tenant's own
-  list; an id that does not match leaves the action marked Microsoft's only).
+  `references.secureScore`: 62 checks name 103 of Microsoft's actions. Microsoft publishes no list of the ids, so
+  `checks/references/secure-score.json` keeps the 461 a tenant's own control list showed, and a test fails when a
+  check names one that is not there. `build.ps1 -Task SecureScoreData` adds the actions of another run's list (ids
+  and titles only). An action no check names still reaches the report from Microsoft's own evaluation.
 - The licensing advisor recommends one combination (2026-11-22), in place of a list of options to compare: licences
   to add, or a suite to move to with the add-ons it still needs. Each licence comes with the goals it covers, what it
   brings and what needs it first; a move says what it takes the place of and what stays. The search no longer stops

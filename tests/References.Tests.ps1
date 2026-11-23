@@ -12,7 +12,7 @@ Describe 'Public references the catalog is measured against' {
             @($coverage).Count | Should -BeGreaterThan 0
             foreach ($reference in $coverage) {
                 $reference.problems | Should -BeNullOrEmpty -Because "$($reference.name) $($reference.version): an item needs a check or a reason, and a check may only name an id the reference has"
-                $reference.counts.covered + $reference.counts.planned + $reference.counts.noReadApi + $reference.counts.outOfScope | Should -Be $reference.counts.total
+                $reference.counts.covered + $reference.counts.planned + $reference.counts.noReadApi + $reference.counts.outOfScope + $reference.counts.passThrough | Should -Be $reference.counts.total
             }
         }
     }
@@ -25,6 +25,24 @@ Describe 'Public references the catalog is measured against' {
             $scuba.counts.covered | Should -BeGreaterOrEqual 55 -Because 'coverage only goes up; lower this number and the changelog says why'
             @($scuba.items | Where-Object { $_.id -eq 'MS.AAD.1.1v1' })[0].checks | Should -Be @('CA-001', 'ID-016')
             @($scuba.items | Where-Object { $_.id -eq 'MS.EXO.4.3v1' })[0].reason | Should -Be 'outOfScope'
+        }
+    }
+
+    It 'knows every Secure Score action a check names, and counts the rest as shown from Microsoft''s own evaluation' {
+        InModuleScope TenantKeep.Posture {
+            $score = @(Get-PostureReferenceCoverage -Catalog (Import-PostureCheckCatalog) | Where-Object { $_.name -eq 'secure-score' })[0]
+            $score.counts.total | Should -BeGreaterOrEqual 461 -Because 'the list only grows: a tenant adds the actions for its products'
+            $score.counts.covered | Should -BeGreaterOrEqual 103
+            $score.counts.covered + $score.counts.passThrough | Should -Be $score.counts.total -Because 'an action with no check still reaches the report, so it needs no reason'
+            @($score.items | Where-Object { $_.id -eq 'BlockLegacyAuthentication' })[0].checks | Should -Be @('CA-001')
+            $catalog = @{
+                checks     = @([ordered]@{ id = 'AA-001'; frameworks = @{}; references = @{ secureScore = @('RealAction', 'DLPEnabled') } })
+                references = [ordered]@{ 'secure-score' = @{ name = 'secure-score'; title = 't'; version = '1'; source = ''; passThrough = $true; checkKeys = @{ reference = 'secureScore' }; items = [ordered]@{ RealAction = 'one'; OtherAction = 'two' }; notCovered = @{} } }
+            }
+            $r = @(Get-PostureReferenceCoverage -Catalog $catalog)[0]
+            $r.counts.covered | Should -Be 1
+            $r.counts.passThrough | Should -Be 1
+            @($r.problems) | Should -Be @('AA-001 names DLPEnabled, which secure-score 1 does not have') -Because 'an id written from memory that Microsoft does not have is the mistake this catches'
         }
     }
 

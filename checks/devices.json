@@ -252,6 +252,11 @@
         "iso27001": "A.8.24",
         "cmmc": "SC.L2-3.13.16",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "scid_5011"
+        ]
       }
     },
     {

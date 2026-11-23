@@ -113,6 +113,11 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "mdo_antiphishingpolicies"
+        ]
+      },
       "attack": [
         "T1684.002"
       ]
@@ -155,6 +160,12 @@
       "references": {
         "scuba": [
           "MS.SECURITYSUITE.2.2v1"
+        ],
+        "secureScore": [
+          "mdo_enabledomainstoprotect",
+          "mdo_targeteddomainprotectionaction",
+          "mdo_targetedusersprotection",
+          "mdo_targeteduserprotectionaction"
         ]
       },
       "attack": [
@@ -205,6 +216,7 @@
       "references": {
         "secureScore": [
           "mdo_safeattachments",
+          "mdo_safeattachmentpolicy",
           "mdo_safelinksforemail"
         ]
       },
@@ -294,6 +306,11 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
       },
+      "references": {
+        "secureScore": [
+          "mdo_highconfidencephishaction"
+        ]
+      },
       "attack": [
         "T1566.001",
         "T1566.002"
@@ -334,7 +351,8 @@
       },
       "references": {
         "secureScore": [
-          "mdo_blockmailforward"
+          "mdo_blockmailforward",
+          "mdo_autoforwardingmode"
         ]
       },
       "attack": [
@@ -371,6 +389,11 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": "MS.SECURITYSUITE.8.1v1"
       },
+      "references": {
+        "secureScore": [
+          "mdo_connectionfilter"
+        ]
+      },
       "attack": [
         "T1566.001",
         "T1566.002"
@@ -405,6 +428,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "exo_transportrulesallowlistdomains"
+        ]
       },
       "attack": [
         "T1566.001",
@@ -561,6 +589,11 @@
         "iso27001": "A.8.7",
         "cmmc": "SC.L2-3.13.8",
         "cisa-scuba": "MS.EXO.2.2v3"
+      },
+      "references": {
+        "secureScore": [
+          "exo_SPF_records_for_all_domains"
+        ]
       },
       "attack": [
         "T1684.002"
@@ -865,6 +898,11 @@
         "iso27001": "A.8.23",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mdo_thresholdreachedaction"
+        ]
       },
       "attack": [
         "T1534"

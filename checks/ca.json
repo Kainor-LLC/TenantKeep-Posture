@@ -92,7 +92,8 @@
       },
       "references": {
         "secureScore": [
-          "AdminMFAV2"
+          "AdminMFAV2",
+          "MFARegistrationV2"
         ]
       },
       "attack": [
