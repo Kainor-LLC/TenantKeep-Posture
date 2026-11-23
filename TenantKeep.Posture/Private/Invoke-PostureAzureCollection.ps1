@@ -398,7 +398,19 @@ function Invoke-PostureAzureCollection {
         # with a web application firewall, each Front Door profile and each public IP with DDoS protection, and whether
         # one of its diagnostic settings sends a log category to a workspace, a storage account or an event hub. One
         # request per resource, so the first 200 are read and the rest are counted.
-        $targets = @(& $q "resources | where type in~ ('microsoft.network/azurefirewalls', 'microsoft.network/applicationgateways', 'microsoft.cdn/profiles') | extend kind = case(type =~ 'microsoft.network/azurefirewalls', 'Azure Firewall', type =~ 'microsoft.network/applicationgateways', 'Application Gateway', 'Front Door') | where kind != 'Application Gateway' or tostring(properties.sku.tier) startswith 'WAF' | where kind != 'Front Door' or tostring(sku.name) in~ ('Standard_AzureFrontDoor', 'Premium_AzureFrontDoor') | project id, name, subscriptionId, resourceGroup, kind")
+        # The query only lists; which of them count is decided here. Asked of Resource Graph in one query (a computed
+        # column named kind, filtered on), it answered BadRequest on a live tenant, 2026-11-23.
+        $targets = @(& $q "resources | where type in~ ('microsoft.network/azurefirewalls', 'microsoft.network/applicationgateways', 'microsoft.cdn/profiles') | project id, name, type, subscriptionId, resourceGroup, tier = tostring(properties.sku.tier), skuName = tostring(sku.name)" | ForEach-Object {
+                # Every Azure Firewall; an Application Gateway only when its tier has a web application firewall; a
+                # CDN profile only when it is Front Door Standard or Premium.
+                $found = $_
+                $what = switch ((& $str $found.type).ToLowerInvariant()) {
+                    'microsoft.network/azurefirewalls' { 'Azure Firewall' }
+                    'microsoft.network/applicationgateways' { if ((& $str $found.tier) -like 'WAF*') { 'Application Gateway' } }
+                    'microsoft.cdn/profiles' { if ((& $str $found.skuName) -in 'Standard_AzureFrontDoor', 'Premium_AzureFrontDoor') { 'Front Door' } }
+                }
+                if ($what) { [pscustomobject]@{ id = (& $str $found.id); name = (& $str $found.name); subscriptionId = (& $str $found.subscriptionId); resourceGroup = (& $str $found.resourceGroup); kind = $what } }
+            })
         $targets += @($protectedIps.ToArray())
         $limit = 200
         $rows = @($targets | Select-Object -First $limit | ForEach-Object {

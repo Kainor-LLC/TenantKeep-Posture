@@ -65,11 +65,12 @@ function Connect-PostureService {
             Connect-PnPOnline -Url "https://$($session['tenantName'])-admin.sharepoint.com" -AccessToken $token
         }
         'teams' {
-            # The Teams module takes a Graph token and a Teams token. The Teams one comes from the second app, which
-            # holds the Teams permission; the Graph one stays the main sign-in's, the token the Teams reads ran with
-            # before the two apps were split. Both are delegated tokens of the same admin in the same tenant
-            # (verify on a live run that the module takes the pair from two apps).
-            $tokens = @((Get-PostureToken -Resource graph), (Get-PostureToken -Resource teams))
+            # The Teams module takes a Graph token and a Teams token, and refuses a pair from two apps ("ApplicationIds
+            # must match in the provided token", seen live 2026-11-23). So both come from the second app, which holds
+            # the Teams permission. Its Graph token carries what signing in needs (User.Read) and nothing else: the
+            # module learns from it who signed in, and no Graph read of this run goes through it. (verify) on a live
+            # run that the Get-Cs commands the collector uses need no more of it.
+            $tokens = @((Get-PostureToken -Resource graph -App services), (Get-PostureToken -Resource teams))
             Connect-MicrosoftTeams -AccessTokens $tokens | Out-Null
         }
         'azure' {
@@ -179,12 +180,13 @@ function Update-PostureServiceSession {
     # A Teams session the module opened by itself renews by itself; connecting again with tokens would replace it.
     if ($Name -eq 'teams' -and $script:PostureTeamsOwnSession) { return }
     if (-not ($session['refreshToken'] -or ($session.ContainsKey('tokenPipe') -and $session['tokenPipe']))) { return }
-    $resources = $(if ($Name -eq 'teams') { @('graph', 'teams') } else { @($Name) })
+    # Teams was handed two tokens of the second app: its Teams token and that app's Graph token (kept as graph@services).
+    $resources = $(if ($Name -eq 'teams') { @('graph@services', 'teams') } else { @($Name) })
     $soon = [datetime]::UtcNow.AddMinutes(10)
     $stale = @($resources | Where-Object { -not $session['tokens'].ContainsKey($_) -or $session['tokens'][$_]['expiresUtc'] -le $soon })
     if ($stale.Count -eq 0) { return }
     if (-not $PSCmdlet.ShouldProcess($Name, 'Renew the token and connect again')) { return }
-    foreach ($r in $stale) { $null = Get-PostureToken -Resource $r -Force }
+    foreach ($r in $stale) { if ($r -eq 'graph@services') { $null = Get-PostureToken -Resource graph -App services -Force } else { $null = Get-PostureToken -Resource $r -Force } }
     Write-Verbose "$Name token near expiry; connecting again with a fresh one."
     Connect-PostureService -Name $Name
 }

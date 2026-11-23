@@ -125,7 +125,7 @@ Describe 'deploy scripts' {
         try {
             & pwsh -NoProfile -File (Join-Path $PSScriptRoot '..' 'build.ps1') -Task Catalog -CatalogPath $out 2>&1 | Out-Null
             $md = Get-Content -Raw (Join-Path $out 'catalog.md')
-            $md | Should -Match '## Conditional Access \(29\)'
+            $md | Should -Match '## Conditional Access \(31\)'
             $md | Should -Match '\| CA-001 \|'
             $md | Should -Not -Match 'facts\.[a-zA-Z]' -Because 'no pass logic on the public page'
             $md | Should -Not -Match 'nist-csf-2'
@@ -290,7 +290,7 @@ Describe 'SharePoint in the scheduled run' {
                 if ($Uri -match "servicePrincipals\?\`$filter=appId eq '([^']+)'") {
                     $app = $Matches[1]
                     # Every resource exposes every role asked of it, named by the role, so a grant can be read back.
-                    $names = 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Mail.Send', 'User.Read.All', 'OnPremDirectorySynchronization.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskyUser.Read.All', 'IdentityRiskEvent.Read.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementServiceConfig.Read.All', 'DeviceManagementApps.Read.All', 'BitLockerKey.ReadBasic.All', 'AttackSimulation.Read.All', 'AccessReview.Read.All', 'EntitlementManagement.Read.All', 'LifecycleWorkflows.Read.All', 'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All', 'Organization.Read.All', 'Application.Read.All', 'SharePointTenantSettings.Read.All', 'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All', 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access'
+                    $names = 'Policy.Read.All', 'Directory.Read.All', 'Group.Read.All', 'Mail.Send', 'User.Read.All', 'OnPremDirectorySynchronization.Read.All', 'AuditLog.Read.All', 'UserAuthenticationMethod.Read.All', 'RoleManagement.Read.Directory', 'IdentityRiskyUser.Read.All', 'IdentityRiskEvent.Read.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementConfiguration.Read.All', 'DeviceManagementServiceConfig.Read.All', 'DeviceManagementApps.Read.All', 'BitLockerKey.ReadBasic.All', 'AttackSimulation.Read.All', 'AccessReview.Read.All', 'EntitlementManagement.Read.All', 'LifecycleWorkflows.Read.All', 'PrivilegedEligibilitySchedule.Read.AzureADGroup', 'AdministrativeUnit.Read.All', 'NetworkAccess.Read.All', 'BackupRestore-Configuration.Read.All', 'ThreatHunting.Read.All', 'SecurityIncident.Read.All', 'SecurityEvents.Read.All', 'Organization.Read.All', 'Application.Read.All', 'SharePointTenantSettings.Read.All', 'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All', 'AgentIdentity.Read.All', 'AgentIdentityBlueprint.Read.All', 'AgentIdentityBlueprintPrincipal.Read.All', 'Exchange.ManageAsApp', 'Sites.FullControl.All', 'application_access'
                     return @{ value = @(@{ id = "sp-$app"; appRoles = @($names | ForEach-Object { @{ id = "role:$_"; value = $_; allowedMemberTypes = @('Application') } }) }) }
                 }
                 if ($Uri -match 'roleDefinitions') { return @{ value = @(@{ id = 'def-global-reader'; displayName = 'Global Reader' }) } }
@@ -311,7 +311,7 @@ Describe 'SharePoint in the scheduled run' {
         $granted | Should -Contain 'sp-00000002-0000-0ff1-ce00-000000000000 Exchange.ManageAsApp'
         $granted | Should -Contain 'sp-48ac35b8-9aa8-4d74-927d-1f4a14a0b239 application_access'
         @($script:GrantWarnings | Where-Object { [string]$_ -match 'FullControl' }) | Should -BeNullOrEmpty
-        foreach ($role in 'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All') { $granted | Should -Contain "sp-00000003-0000-0000-c000-000000000000 $role" }
+        foreach ($role in 'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All', 'AgentIdentity.Read.All', 'AgentIdentityBlueprint.Read.All', 'AgentIdentityBlueprintPrincipal.Read.All') { $granted | Should -Contain "sp-00000003-0000-0000-c000-000000000000 $role" }
         @($granted | Where-Object { $_ -match '^sp-00000003-0000-0000-c000-000000000000 ' -and ($_ -notmatch '\.Read' -or $_ -match 'ReadWrite') }) | Should -BeNullOrEmpty -Because 'every role the scheduled run holds on Graph is a read'
     }
 

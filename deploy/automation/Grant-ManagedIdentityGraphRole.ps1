@@ -72,7 +72,10 @@ $postureGraphRoles = @(
     'SharePointTenantSettings.Read.All',
     # Intune roles and multi-admin approval, Defender for Identity health, service health and Message Center,
     # and the signing certificates of federated domains.
-    'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All'
+    'DeviceManagementRBAC.Read.All', 'SecurityIdentitiesHealth.Read.All', 'ServiceHealth.Read.All', 'ServiceMessage.Read.All', 'Domain-InternalFederation.Read.All',
+    # Agent identities, the blueprints they are made from and the blueprints' service principals: Microsoft lists
+    # each only with a permission of its own.
+    'AgentIdentity.Read.All', 'AgentIdentityBlueprint.Read.All', 'AgentIdentityBlueprintPrincipal.Read.All'
 )
 if ($IncludePosture) { $roles += $postureGraphRoles }
 

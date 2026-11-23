@@ -62,6 +62,46 @@ Describe 'The second sign-in, for Azure, Teams and Power Platform' {
         }
     }
 
+    It 'hands the Teams module two tokens of the second app, and keeps that app''s Graph token apart from the run''s' {
+        # Seen live 2026-11-23: handed a Graph token of the main app and a Teams token of the second, the Teams
+        # module answered "ApplicationIds must match in the provided token" and nothing in Teams was read.
+        InModuleScope TenantKeep.Posture {
+            & $script:NewSession
+            . $script:UseTestManifests
+            $script:PostureSession['services'] = @{ clientId = $script:TestApp; refreshToken = 'svc-refresh-1'; account = 'admin@contoso.example' }
+            Mock Invoke-PostureTokenRequest { @{ access_token = "token-for-$($Form['scope'])-as-$($Form['client_id'])"; expires_in = 3600 } }
+            $script:TeamsGot = $null
+            Set-Item -Path Function:\Connect-MicrosoftTeams -Value { param($AccessTokens) $script:TeamsGot = @($AccessTokens) }
+            try {
+                Connect-PostureService -Name teams
+                $script:TeamsGot | Should -Be @(
+                    'token-for-https://graph.microsoft.com/.default-as-cccccccc-0000-0000-0000-000000000003'
+                    'token-for-48ac35b8-9aa8-4d74-927d-1f4a14a0b239/.default-as-cccccccc-0000-0000-0000-000000000003'
+                ) -Because 'the Teams module refuses a pair of tokens from two apps'
+                $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be 'main-graph' -Because 'the run''s own Graph token is the main sign-in''s, and the second app''s never replaces it'
+                $script:PostureSession['tokens']['graph@services']['accessToken'] | Should -Match 'as-cccccccc-0000-0000-0000-000000000003$'
+                Get-PostureToken -Resource graph | Should -Be 'main-graph' -Because 'no Graph read of the run goes through the second app'
+                Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -ParameterFilter { $Form['client_id'] -eq 'cccccccc-0000-0000-0000-000000000003' -and $Form['scope'] -eq 'https://graph.microsoft.com/.default' -and $Form['refresh_token'] -eq 'svc-refresh-1' }
+                Should -Invoke Invoke-PostureTokenRequest -Times 0 -Exactly -ParameterFilter { $Form['client_id'] -eq 'main-app' }
+
+                # Near expiry, both of Teams's tokens are renewed from the second app and the module is connected again.
+                foreach ($key in 'graph@services', 'teams') { $script:PostureSession['tokens'][$key]['expiresUtc'] = [datetime]::UtcNow.AddMinutes(2) }
+                $script:TeamsGot = $null
+                Update-PostureServiceSession -Name teams -Confirm:$false
+                $script:TeamsGot.Count | Should -Be 2
+                $script:PostureSession['tokens']['graph@services']['expiresUtc'] | Should -BeGreaterThan ([datetime]::UtcNow.AddMinutes(30))
+                $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be 'main-graph'
+
+                # A new sign-in to the second app drops that app's Graph token with the others.
+                Mock Invoke-PostureSignIn { @{ access_token = (& $script:SvcJwt 'admin@contoso.example'); refresh_token = 'svc-refresh-2'; expires_in = 3600 } }
+                $null = Connect-PostureSession -Services -ClientId $script:TestApp
+                $script:PostureSession['tokens'].ContainsKey('graph@services') | Should -BeFalse
+                $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be 'main-graph'
+            }
+            finally { Remove-Item Function:\Connect-MicrosoftTeams -ErrorAction SilentlyContinue; $script:PostureConnected.Remove('teams') }
+        }
+    }
+
     It 'refuses another account or tenant, and words the sign-in service''s refusals as what to do' {
         InModuleScope TenantKeep.Posture {
             & $script:NewSession

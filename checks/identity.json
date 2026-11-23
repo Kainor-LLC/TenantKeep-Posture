@@ -2166,6 +2166,458 @@
       "attack": [
         "T1098.001"
       ]
+    },
+    {
+      "id": "ID-047",
+      "domain": "identity",
+      "title": "Every AI agent and agent blueprint has an owner",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-identities.json",
+        "10-agent-blueprints.json",
+        "10-agent-blueprint-principals.json"
+      ],
+      "pass": "facts.agentObjectsWithoutOwner == 0",
+      "affected": "facts.agentObjectsWithoutOwner",
+      "remediation": [
+        "In Entra, Agent ID, open each agent or blueprint listed and add an owner: the person or team that builds it and runs it.",
+        "Give each one two owners where you can, so that one person leaving does not leave it with none.",
+        "An agent nobody will own is a candidate for removal: disable it, wait for someone to miss it, then delete it."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-owners-sponsors-managers",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentIds",
+      "narrative": "An owner is the technical contact for an agent: the one who can change its credentials, see what it is doing and switch it off. An agent with no owner keeps its access, and nobody is placed to notice when it is misused or no longer needed. This check counts the owners on agent identities, on agent blueprints and on the blueprints' service principals. It does not tell an owner whose account is disabled from one who is still here.",
+      "frameworks": {
+        "nist-csf-2": "GV.RR-02",
+        "iso27001": "A.5.2",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1204"
+        ],
+        "zeroTrust": [
+          "61014"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-048",
+      "domain": "identity",
+      "title": "Every AI agent and agent blueprint has a sponsor",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-identities.json",
+        "10-agent-blueprints.json",
+        "10-agent-blueprint-principals.json"
+      ],
+      "pass": "facts.agentObjectsWithoutSponsor == 0",
+      "affected": "facts.agentObjectsWithoutSponsor",
+      "remediation": [
+        "Open each agent or blueprint listed and add a sponsor: the person in the business who answers for why the agent exists and what it may reach.",
+        "A sponsor can be a group, which keeps the role filled when one person moves on.",
+        "With Entra ID Governance, a lifecycle workflow can hand an agent's sponsorship to the sponsor's manager when the sponsor leaves."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-owners-sponsors-managers",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentIds",
+      "narrative": "An owner keeps an agent running; a sponsor answers for it. The sponsor is who is asked whether the agent is still needed, whether its access is still right, and what to do when it misbehaves. Without one, an access review of the agent has nobody to go to and the agent outlives the project it was made for. This check counts sponsors on agent identities, agent blueprints and the blueprints' service principals.",
+      "frameworks": {
+        "nist-csf-2": "GV.RR-02",
+        "iso27001": "A.5.2",
+        "cmmc": "CM.L2-3.4.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1205"
+        ]
+      }
+    },
+    {
+      "id": "ID-049",
+      "domain": "identity",
+      "title": "No disabled agent is left in the directory",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-identities.json",
+        "10-agent-blueprint-principals.json"
+      ],
+      "pass": "facts.disabledAgentObjects == 0",
+      "affected": "facts.disabledAgentObjects",
+      "remediation": [
+        "For each one listed, find out why it was disabled: an incident, a test, or an agent that was retired.",
+        "If it is finished with, delete it. Its role assignments, permissions and group memberships go with it.",
+        "If it is coming back, leave it with an owner and a date to look again."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/manage-agent-identities-admin",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentIds",
+      "narrative": "A disabled agent cannot sign in, but it still holds its permissions, its roles and its place in groups, and turning it back on restores all of them at once. Left for months, nobody remembers what it was for or whether the reason it was stopped still stands. This check lists agent identities and blueprints' service principals that are disabled.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-08",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "61014"
+        ]
+      }
+    },
+    {
+      "id": "ID-050",
+      "domain": "identity",
+      "title": "No agent has lost the blueprint or the agent it belongs to",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-identities.json",
+        "10-agent-blueprints.json",
+        "10-agent-blueprint-principals.json",
+        "10-agent-users.json"
+      ],
+      "pass": "facts.orphanedAgentObjects == 0",
+      "affected": "facts.orphanedAgentObjects",
+      "remediation": [
+        "An agent identity whose blueprint is not in the tenant has nothing governing how it signs in: delete it, or make it again from a current blueprint.",
+        "An agent user whose agent identity is gone is a user account with nothing behind it: remove the account and its licences.",
+        "A blueprint's service principal whose blueprint was deleted can be removed once no agent is made from it."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-blueprint",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentIds",
+      "narrative": "An agent identity is made from a blueprint, and an agent's user account is paired with an agent identity. When the parent is deleted and the child stays, what is left is an identity with access and nothing managing it: no blueprint holding its credentials and settings, or a user account with a mailbox and licences that no agent is behind. A service principal for a blueprint that another organisation publishes is not counted, since its blueprint was never in this tenant.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-08",
+        "iso27001": "A.5.18",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1200",
+          "MT.1201",
+          "MT.1203"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-051",
+      "domain": "identity",
+      "title": "No AI agent holds a privileged directory role",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "04-role-assignments-active.json",
+        "10-agent-identities.json",
+        "10-agent-blueprint-principals.json",
+        "10-agent-users.json",
+        "04-role-assignments-pim-eligible.json",
+        "04-role-holders.json"
+      ],
+      "evidenceOptional": [
+        "04-role-assignments-pim-eligible.json",
+        "04-role-holders.json"
+      ],
+      "pass": "facts.agentsWithPrivilegedRoles == 0",
+      "affected": "facts.agentsWithPrivilegedRoles",
+      "remediation": [
+        "Remove the role from each agent listed (Entra, Roles and administrators).",
+        "Give the agent the narrow permission its task needs instead: one Microsoft Graph permission, or a role scoped to an administrative unit.",
+        "Where a privileged change is part of the task, keep that step with a person: the agent prepares it and an administrator carries it out."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-identities",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles",
+      "narrative": "An agent acts on what it reads, and what it reads can be written by an attacker: a document, an email, a web page. An agent that holds Global Administrator or another privileged role turns one planted instruction into a change to the tenant. This check looks for a privileged role held by an agent identity, by a blueprint's service principal or by an agent's user account: assigned, eligible, or through a group. A blueprint published by another organisation is named as such.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1207",
+          "MT.1209",
+          "MT.1210"
+        ]
+      },
+      "attack": [
+        "T1078.004",
+        "T1098.003"
+      ]
+    },
+    {
+      "id": "ID-052",
+      "domain": "identity",
+      "title": "No AI agent holds a high-privilege Microsoft Graph permission",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-graph-app-permissions.json",
+        "10-agent-identities.json",
+        "10-agent-blueprint-principals.json"
+      ],
+      "pass": "facts.agentsWithHighPrivilegeGraphPermissions == 0",
+      "affected": "facts.agentsWithHighPrivilegeGraphPermissions",
+      "remediation": [
+        "For each permission listed, ask the agent's owner what it is used for.",
+        "Replace it with the narrowest permission that does the job, or with a delegated permission, so the agent can do only what the person using it can.",
+        "Remove the grant from the agent or the blueprint. On a blueprint, also take it out of what the blueprint passes on to its agents."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-identities",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentIds",
+      "narrative": "An application permission on Microsoft Graph works with no person signed in. The ones counted here can change the directory, its policies or who holds a role, or read every mailbox and file. Held by an agent, they are within reach of whatever the agent can be talked into doing. The check reads application permissions granted to agent identities and to blueprints' service principals, whose agents can be given what the blueprint holds. Delegated permissions are not counted.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1223"
+        ]
+      },
+      "attack": [
+        "T1098.003"
+      ]
+    },
+    {
+      "id": "ID-053",
+      "domain": "identity",
+      "title": "Agent blueprints pass on only the permissions they name",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-blueprints.json"
+      ],
+      "pass": "facts.agentBlueprintsPassingOnEverything == 0",
+      "affected": "facts.agentBlueprintsPassingOnEverything",
+      "remediation": [
+        "Open each blueprint listed and look at its inheritable permissions.",
+        "Change All allowed to a list of the scopes and roles every agent made from the blueprint needs.",
+        "Give a single agent that needs more a grant of its own."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-blueprint",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentBlueprints",
+      "narrative": "A blueprint can hand its permissions on an API to every agent made from it. Set to all allowed, each agent gets whatever the blueprint holds on that API, and anything granted to the blueprint later as well. A permission added to the blueprint for one purpose then reaches every agent without anyone deciding that it should.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1211"
+        ]
+      },
+      "attack": [
+        "T1098.003"
+      ]
+    },
+    {
+      "id": "ID-054",
+      "domain": "identity",
+      "title": "Agent blueprints that expose roles require assignment",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-blueprint-principals.json"
+      ],
+      "pass": "facts.agentBlueprintsOpenToAnyCaller == 0",
+      "affected": "facts.agentBlueprintsOpenToAnyCaller",
+      "remediation": [
+        "Open each one listed under Enterprise applications, Properties, and set Assignment required to Yes.",
+        "Before you do, assign the users, groups and applications that call it, or they lose access."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A person or application that is not assigned can no longer get a token for the agent and needs to be added."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-blueprint",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentBlueprints",
+      "narrative": "A blueprint can define application roles that say what a caller may ask its agents to do. When its service principal does not require assignment, Entra issues a token for it to any user or application in the tenant, and what happens next depends on the agent checking the roles itself. With assignment required, only the callers you chose get a token at all.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1212"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-055",
+      "domain": "identity",
+      "title": "Agent blueprints have no wildcard or plain-http redirect address",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-blueprints.json"
+      ],
+      "pass": "facts.agentBlueprintsWithUnsafeRedirects == 0",
+      "affected": "facts.agentBlueprintsWithUnsafeRedirects",
+      "remediation": [
+        "Open each blueprint listed, Authentication, and replace an address with a wildcard by the exact addresses the agent uses.",
+        "Replace http with https. Plain http is fine only for localhost on a developer's machine."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-blueprint",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentBlueprints",
+      "narrative": "After a sign-in, Entra sends the result to a redirect address registered on the blueprint. An address with a wildcard matches hosts nobody meant it to, and one over plain http can be read on the way. Either lets someone else receive what was meant for the agent.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1213"
+        ]
+      },
+      "attack": [
+        "T1528"
+      ]
+    },
+    {
+      "id": "ID-056",
+      "domain": "identity",
+      "title": "Agent blueprint credentials are current, few and short-lived",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxAgentCredentialDays": 730,
+        "maxAgentActiveSecrets": 2
+      },
+      "evidence": [
+        "10-agent-blueprints.json"
+      ],
+      "pass": "facts.agentBlueprintsWithCredentialProblems == 0",
+      "affected": "facts.agentBlueprintsWithCredentialProblems",
+      "remediation": [
+        "Remove expired secrets and certificates from each blueprint listed.",
+        "Where the agent runs in Azure, or on a platform that can vouch for it, use a managed identity or a federated credential, and delete the secret once that works.",
+        "Otherwise keep at most two working secrets, one in use and one for the changeover, each valid for two years or less."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/agent-id/agent-blueprint",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/AllAgents.MenuView/~/allAgentBlueprints",
+      "narrative": "A blueprint's credential is what lets its agents get tokens. An expired one is clutter that hides the one in use. A long-lived one works for years after it leaks. Several working at once means nobody knows which is in use. A secret kept beside a federated credential is the weaker way in, left open. This check fails a blueprint on any of the four.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1208"
+        ]
+      },
+      "attack": [
+        "T1098.001"
+      ]
     }
   ]
 }

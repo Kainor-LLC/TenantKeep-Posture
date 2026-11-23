@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 412 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 424 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -18,7 +18,7 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   three-hour limit.
 - Evidence collected elsewhere has one way in. The two Windows collectors ship with the module, and "To complete
   this assessment" in the report says who has to run what and where to bring it.
-- The consent changed. Two permissions are gone, five read-only ones are new, and the scheduled run no longer holds
+- The consent changed. Two permissions are gone, eight read-only ones are new, and the scheduled run no longer holds
   full control of SharePoint unless asked. An admin consents again once; until then each new read says which
   permission it lacks.
 - Azure, Teams and Power Platform are read through a second app with an approval of its own, because Microsoft
@@ -29,6 +29,42 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   which permission it lacks), the reads that need Microsoft 365 E5, the two that need a tenant that syncs from
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
+
+- Twelve checks on AI agents (2026-11-23, catalog 2026.11.3), read with three new permissions, all read-only by
+  name: AgentIdentity.Read.All, AgentIdentityBlueprint.Read.All and AgentIdentityBlueprintPrincipal.Read.All.
+  Microsoft lists agent identities, their blueprints and the blueprints' service principals only with these. An
+  admin approves the TenantKeep app again once; until then the three lists are named in Run Health with the
+  permission each lacks, and the checks have no answer.
+  - Collected (`10-agent-*`): for each agent identity, blueprint and blueprint service principal, whether it is
+    enabled and how many owners and sponsors it has, never who they are; for each blueprint, what its credentials
+    and redirect addresses look like and whether it passes on everything it holds; the agents' user accounts; and
+    the Conditional Access policies that name agents, read from the beta form of a policy because the v1.0
+    snapshot does not carry those conditions. No secret, certificate, address or filter rule is saved.
+  - Every agent and blueprint has an owner (ID-047) and a sponsor (ID-048). No disabled agent is left behind
+    (ID-049) and none has lost its blueprint or its agent (ID-050). No agent holds a privileged directory role,
+    assigned, eligible or through a group (ID-051), or a high-privilege Microsoft Graph application permission
+    (ID-052). Blueprints pass on only the permissions they name (ID-053), require assignment where they expose
+    roles (ID-054), have no wildcard or plain-http redirect address (ID-055), and keep credentials current, few
+    and short-lived (ID-056). Conditional Access blocks agents that are not approved (CA-030) and agents at high
+    risk (CA-031); both pass in a tenant with no agents.
+  - A part Graph refuses is left empty and named, and its check has no answer: the owners, the sponsors, or what a
+    blueprint passes on. A tenant where the agent list itself was refused is not failed for lacking a policy.
+  - From Maester's agent tests and Microsoft's Zero Trust Assessment. Left for later, with the reason in the
+    reference map: unused agents (how an agent appears in the sign-in report is not yet seen live), custom
+    security attributes on agents (a further permission), and the agent registry.
+  - Not yet seen live: every one of these reads. (verify) that Graph answers `$expand=sponsors` on the three
+    lists, and whether Global Reader may list agents or the role Microsoft names, Agent ID Administrator, is
+    needed. The scheduled run reads with the permissions alone.
+- Three things a live run showed (2026-11-23).
+  - The Azure step "Network diagnostic settings" was answered BadRequest: Resource Graph refused its query, which
+    computed a column named kind and filtered on it. The query now only lists firewalls, gateways and CDN profiles,
+    and the collector decides which count.
+  - A person who signed in through the TenantKeep app and lacked a permission was told to grant it to "the
+    identity" with the scheduled run's script. The Graph SDK reports that sign-in as a token it was handed, and
+    everything but its own delegated sign-in was read as an application. The advice now says to approve the app
+    again, and names the identity only for a scheduled run.
+  - A tenant that approved the app before a permission was added had no way to get the link again. The collection
+    now prints it once, after the permissions it found missing.
 
 - Two checks on devices that reach your data (2026-11-23, catalog 2026.11.3), from evidence already collected.
   - Every platform with managed devices has a compliance policy that is assigned (DEV-027). A policy assigned to
@@ -163,8 +199,11 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   - The note on the shared registration was 1,090 characters and Entra accepts 1,024, so the first live update
     was refused whole and changed nothing (2026-11-23). The note is shorter, `New-PostureClientApp.ps1` now says so
     before it asks Graph for anything, and a test holds all three manifests to the limit.
-  - Not yet seen live: the second sign-in itself, and the Teams module taking its Graph token from one app and its
-    Teams token from the other (both are the same administrator's delegated tokens).
+  - Seen live 2026-11-23: the second sign-in works, and Azure and Power Platform read through it. The Teams module
+    refused a Graph token of one app beside a Teams token of the other ("ApplicationIds must match in the provided
+    token"), so it is now handed two tokens of the second app. That app's Graph token carries the sign-in and
+    nothing else, is kept apart from the run's own, and no Graph read goes through it. Not yet seen live: Teams
+    read with that pair.
 - Six checks on Azure network security (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment,
   read through Resource Graph with the Azure permission already held. Azure Firewall denies what threat
   intelligence and intrusion detection flag (AZ-031) and, on Premium, inspects encrypted traffic (AZ-032).

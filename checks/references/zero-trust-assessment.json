@@ -984,35 +984,23 @@
     },
     "61005": {
       "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+      "note": "The Microsoft 365 agent registry (Copilot admin catalog), which needs a permission the app does not hold."
     },
     "61006": {
       "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+      "note": "Whether the roles that administer AI and agents have anyone in them; the role assignments are already collected."
     },
     "61008": {
       "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
-    },
-    "61009": {
-      "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+      "note": "Custom security attributes on agents take a further permission (CustomSecAttributeAssignment.Read.All) that the app does not hold."
     },
     "61011": {
-      "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
-    },
-    "61012": {
-      "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+      "reason": "outOfScope",
+      "note": "Judged from the sign-in log of the last 30 days, agent by agent, which is a log query and not a setting."
     },
     "61013": {
       "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
-    },
-    "61014": {
-      "reason": "planned",
-      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+      "note": "Sponsors are judged by ID-048. The other two parts of this test, an access package that agents can be assigned and a lifecycle workflow with agent sponsor tasks, are not read yet."
     },
     "61016": {
       "reason": "planned",

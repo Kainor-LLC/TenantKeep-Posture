@@ -116,7 +116,7 @@ function Connect-PostureServicesSession {
     $null = $script:PostureSessionEnded.Remove('services')
     # The browser's token is a Graph token of this app, which nothing reads with. A token cached for one of the three
     # APIs belongs to an earlier sign-in and is asked for again.
-    foreach ($resource in @($manifest['byName'].get_Keys())) { if ($resource -ne 'graph') { $null = $session['tokens'].Remove($resource) } }
+    foreach ($resource in @($manifest['byName'].get_Keys())) { $null = $session['tokens'].Remove($(if ($resource -eq 'graph') { 'graph@services' } else { $resource })) }
     Write-Host "Azure, Teams and Power Platform: signed in as $account through $name." -ForegroundColor Green
     return @{ account = $account; clientId = $clientId }
 }

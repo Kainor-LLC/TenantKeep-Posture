@@ -191,11 +191,11 @@ Describe 'A step whose sign-in has ended' {
     AfterEach { InModuleScope TenantKeep.Posture { $script:PostureSessionEnded.Clear(); $script:PostureJournalFolder = $null; $script:PostureCurrentCollector = $null } }
 
     It 'is not attempted for <Collector>: <Runs>' -ForEach @(
-        # Teams is connected with a Graph token of the main sign-in beside its own, so it waits on both.
-        @{ Collector = 'Entra'; Runs = $false }, @{ Collector = 'PowerBI'; Runs = $false }, @{ Collector = 'Teams'; Runs = $false }
-        # Azure and Power Platform read through the second app's sign-in, SharePoint through its own, and Exchange
-        # and Purview sign in through the Exchange module.
-        @{ Collector = 'Azure'; Runs = $true }, @{ Collector = 'PowerPlatform'; Runs = $true }
+        @{ Collector = 'Entra'; Runs = $false }, @{ Collector = 'PowerBI'; Runs = $false }
+        # Azure, Teams and Power Platform read through the second app's sign-in (Teams with two tokens of that app,
+        # since the Teams module refuses a pair from two apps), SharePoint through its own, and Exchange and Purview
+        # sign in through the Exchange module.
+        @{ Collector = 'Azure'; Runs = $true }, @{ Collector = 'Teams'; Runs = $true }, @{ Collector = 'PowerPlatform'; Runs = $true }
         @{ Collector = 'SharePoint'; Runs = $true }, @{ Collector = 'Exchange'; Runs = $true }, @{ Collector = 'Purview'; Runs = $true }
     ) {
         InModuleScope TenantKeep.Posture -Parameters @{ F = $script:Run; Collector = $Collector; Runs = $Runs } {

@@ -89,7 +89,7 @@ function Get-PostureCompletion {
     if ($failed.Count -gt 0) {
         $granted = @($(if ($Collection -and $Collection.Contains('scopes')) { $Collection['scopes'] }) | ForEach-Object { [string]$_ })
         $missing = @($failed | Where-Object { [string]$_['cause'] -eq 'permission' } | ForEach-Object { @($_['scopes']) } | Where-Object { $_ -and [string]$_ -notin $granted } | ForEach-Object { [string]$_ } | Sort-Object -Unique)
-        $appOnly = $Collection -and $Collection.Contains('authType') -and [string]$Collection['authType'] -and [string]$Collection['authType'] -ne 'Delegated'
+        $appOnly = $Collection -and $Collection.Contains('authType') -and (Test-PostureAppOnlySignIn -AuthType ([string]$Collection['authType']))
         $resume = "Resume-PostureRun -Path $(& $quote ([string]$layout.root))"
         $rows.Add([ordered]@{
                 id = 'failed-steps'; title = "$($failed.Count) step$(if ($failed.Count -ne 1) { 's' }) that could not be read"; checks = $null

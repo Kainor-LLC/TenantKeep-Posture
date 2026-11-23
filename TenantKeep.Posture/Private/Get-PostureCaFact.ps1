@@ -291,11 +291,27 @@ function Get-PostureCaFact {
     $facts.appProtectionForIos = & $covers 'iOS'
     $facts.appProtectionForAndroid = & $covers 'android'
 
+    # CA-030 and CA-031: agents under Conditional Access. The conditions that name agents are in the beta form of a
+    # policy, which the snapshot above does not carry, so the Entra collector saves the policies that name agents
+    # as a few fields each (10-agent-ca-policies), and how many agents there are (10-agent-summary). A count that
+    # was not read stays empty: a tenant is failed for having no policy only when it is known to have agents.
+    $agentSummary = Read-PostureEvidenceFile -Folder $Evidence -Name '10-agent-summary'
+    $facts.agentIdentities = $(if ($agentSummary) { Get-PostureValue $agentSummary 'AgentIdentities' })
+    $facts.agentUsers = $(if ($agentSummary) { Get-PostureValue $agentSummary 'AgentUsers' })
+    # Without the file the engine names it as what the two checks wait for (a snapshot taken by itself has none).
+    $agentPolicies = Read-PostureEvidenceFile -Folder $Evidence -Name '10-agent-ca-policies'
+    if ($null -ne $agentPolicies) {
+        $blocking = @(@($agentPolicies) | Where-Object { $_ -and [string](Get-PostureValue $_ 'State') -eq 'enabled' -and (Get-PostureValue $_ 'Blocks') -eq $true })
+        $facts.agentIdentityBlockPolicies = @($blocking | Where-Object { (Get-PostureValue $_ 'AgentIdentities') -eq $true }).Count
+        $facts.agentUserBlockPolicies = @($blocking | Where-Object { (Get-PostureValue $_ 'AgentUsers') -eq $true }).Count
+        $facts.agentRiskPolicies = @($blocking | Where-Object { (Get-PostureValue $_ 'AgentIdentities') -eq $true -and (([string](Get-PostureValue $_ 'RiskLevels')) -split ',') -contains 'high' }).Count
+    }
+
     return @{
         available    = $true
         facts        = $facts
         affected     = $affected
         notEvaluated = $notEvaluated
-        evidence     = @('policies.json', 'named-locations.json', 'auth-strengths.json', 'resolved-names.json', 'group-scope.json')
+        evidence     = @('policies.json', 'named-locations.json', 'auth-strengths.json', 'resolved-names.json', 'group-scope.json', '10-agent-ca-policies.json', '10-agent-summary.json')
     }
 }

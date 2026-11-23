@@ -600,7 +600,7 @@ function Invoke-PostureEntraCollection {
     Invoke-PostureStep -Label 'SharePoint tenant settings (Graph)' -Folder $Folder -Script {
         $context = Get-MgContext
         if ($context -and 'SharePointTenantSettings.Read.All' -notin @($context.Scopes)) {
-            if ([string]$context.AuthType -eq 'Delegated') { throw 'missing scope SharePointTenantSettings.Read.All: the tenant consented to the TenantKeep app before this permission was added; an admin consents again to add it.' }
+            if (-not (Test-PostureAppOnlySignIn -AuthType ([string]$context.AuthType))) { throw 'missing scope SharePointTenantSettings.Read.All: the tenant consented to the TenantKeep app before this permission was added; an admin consents again to add it.' }
             throw 'missing scope SharePointTenantSettings.Read.All: the identity that runs this was granted its roles before this one was added. Run deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -IncludePosture again; a role reaches a running identity within a day.'
         }
         & $saveOne (Invoke-PostureGraphRequest -Uri 'admin/sharepoint/settings' -ApiVersion 'v1.0' -Single) 'spo-tenant-settings-graph'
@@ -738,6 +738,11 @@ function Invoke-PostureEntraCollection {
         # Every delegated grant, hundreds of thousands where user consent was ever open: written as the pages arrive.
         $null = & $streamed 'oauth2PermissionGrants?$top=999' '10-oauth2-delegated-grants' { [ordered]@{ ClientId = (& $v $_ 'clientId'); ConsentType = (& $v $_ 'consentType'); PrincipalId = (& $v $_ 'principalId'); ResourceId = (& $v $_ 'resourceId'); Scope = (& $v $_ 'scope') } }
     } | Out-Null
+
+    # ---------- 10a. Agent identities ----------
+    # In a file of its own (Invoke-PostureAgentIdentityCollection.ps1): agent identities, their blueprints, the
+    # blueprints' service principals, agent users, and the Conditional Access policies that name agents.
+    foreach ($written in @((Invoke-PostureAgentIdentityCollection -Folder $Folder -AsOf $AsOf)['files'])) { $files.Add([string]$written) }
 
     # ---------- 11. Identity Protection (P2; fails gracefully) ----------
     Invoke-PostureStep -Label 'Risky users' -Folder $Folder -Script {

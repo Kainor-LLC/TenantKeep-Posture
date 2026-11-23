@@ -164,6 +164,9 @@ function Invoke-PostureCollection {
         'ServiceMessage.Read.All'                 = 'Message Center'
         'Domain-InternalFederation.Read.All'      = 'Federation settings (tenants with a federated domain)'
         'NetworkAccess.Read.All'                  = 'Global Secure Access (only where licensed)'
+        'AgentIdentity.Read.All'                  = 'Agent identities'
+        'AgentIdentityBlueprint.Read.All'         = 'Agent identity blueprints'
+        'AgentIdentityBlueprintPrincipal.Read.All' = 'Agent identity blueprint principals'
         'BackupRestore-Configuration.Read.All'    = 'Microsoft 365 Backup (with the Azure collector)'
         'ThreatHunting.Read.All'                  = 'Defender devices, antivirus state, secure configuration, vulnerabilities (advanced hunting)'
         'SecurityIncident.Read.All'               = 'Defender incidents'
@@ -183,10 +186,18 @@ function Invoke-PostureCollection {
     }
     $inThisCall = @($Collector | ForEach-Object { if ($_ -eq 'SignIns') { 'Entra' } else { $_ } })
     $granted = @($context.Scopes)
+    $notGranted = [System.Collections.Generic.List[string]]::new()
     foreach ($scope in $optional.Keys) {
         if ($scope -in $granted) { continue }
         if ($readBy.ContainsKey($scope) -and @($inThisCall | Where-Object { $readBy[$scope].Contains($_) }).Count -eq 0) { continue }
         Write-Warning "Scope $scope not granted; expect '$($optional[$scope])' to land in errors.txt."
+        $notGranted.Add($scope)
+    }
+    # A person signed in through the TenantKeep app, in a tenant that approved an earlier list of permissions: the
+    # fix is to approve the app again, and this is the one place the run can hand over the link for it.
+    if ($notGranted.Count -gt 0 -and $script:PostureSession -and -not (Test-PostureAppOnlySignIn -AuthType ([string]$context.AuthType))) {
+        $again = $(try { Get-PostureConsentLink -TenantId ([string]$context.TenantId) } catch { '' })
+        if ($again) { Write-Warning "This tenant approved the TenantKeep app before $(if ($notGranted.Count -eq 1) { 'that permission was' } else { "those $($notGranted.Count) permissions were" }) added. A Global Administrator approves the app again here, and the next run reads the rest: $again" }
     }
     # Session-bound collectors: skipped with a warning by default, refused when named. The module never connects. Exchange,
     # Purview and Azure must be in the Graph session's tenant: a session left open for another tenant is not used.

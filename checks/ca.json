@@ -1345,6 +1345,105 @@
       "attack": [
         "T1078.004"
       ]
+    },
+    {
+      "id": "CA-030",
+      "domain": "ca",
+      "title": "Conditional Access covers AI agents",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-ca-policies.json",
+        "10-agent-summary.json"
+      ],
+      "evidenceOptional": [
+        "10-agent-summary.json"
+      ],
+      "pass": "(facts.agentIdentities == 0 || facts.agentIdentityBlockPolicies >= 1) && (facts.agentUsers == 0 || facts.agentUserBlockPolicies >= 1)",
+      "remediation": [
+        "Create a Conditional Access policy assigned to agents, all agent identities, with Grant set to Block access, and exclude the agents you have approved by a custom security attribute or by name.",
+        "Create a second policy for agents' user accounts (Users, All agent users) in the same way. They are a kind of their own and the first policy does not reach them.",
+        "Run both report-only first and read the sign-in log for the agents they would have stopped."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Nothing changes for people. An agent nobody approved stops getting tokens."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/agent-id",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "An agent gets tokens with no person, device or second factor involved, so the policies written for people do not apply to it. Conditional Access treats agent identities and agents' user accounts as kinds of their own, and until a policy names them every token request from an agent is allowed. Microsoft's pattern is to block all agents except the ones you have approved. This check looks for an enabled policy that blocks, for each of the two kinds the tenant has.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "61009"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "CA-031",
+      "domain": "ca",
+      "title": "Risky AI agents are blocked",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-agent-ca-policies.json",
+        "10-agent-summary.json"
+      ],
+      "evidenceOptional": [
+        "10-agent-summary.json"
+      ],
+      "pass": "facts.agentIdentities == 0 || facts.agentRiskPolicies >= 1",
+      "remediation": [
+        "Create a Conditional Access policy assigned to agents, all agent identities.",
+        "Under Conditions, Agent risk, choose High.",
+        "Grant: Block access. Start report-only and look at which agents it would have stopped."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people. An agent Microsoft believes is compromised stops getting tokens until someone looks."
+      },
+      "learn": "https://learn.microsoft.com/entra/id-protection/concept-risky-agents",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "ID Protection rates agents for risk as it does people: an agent reaching resources it never used before, a burst of sign-ins, failed attempts across many resources, or an administrator confirming a compromise. Without a policy that acts on the rating, Entra records that an agent is at high risk and keeps issuing it tokens.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "61012"
+        ],
+        "maester": [
+          "MT.1181"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

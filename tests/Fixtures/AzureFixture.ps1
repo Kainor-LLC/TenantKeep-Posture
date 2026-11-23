@@ -38,9 +38,13 @@ function Get-AzureFixtureQuery {
         }
         # What the diagnostic settings are read for: a firewall, a gateway with a WAF and a Front Door profile.
         "microsoft\.cdn/profiles'" {
-            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-net/providers/Microsoft.Network/azureFirewalls/fw1'; name = 'fw1'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; kind = 'Azure Firewall' }
-            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw1'; name = 'agw1'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; kind = 'Application Gateway' }
-            & $o @{ id = '/subscriptions/sub-2/resourceGroups/rg-edge/providers/Microsoft.Cdn/profiles/fd1'; name = 'fd1'; subscriptionId = 'sub-2'; resourceGroup = 'rg-edge'; kind = 'Front Door' }
+            # As Resource Graph lists them: the type in whatever case it keeps, the gateway's tier, the profile's SKU.
+            # A gateway without a web application firewall and a classic CDN profile are listed too and left out.
+            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-net/providers/Microsoft.Network/azureFirewalls/fw1'; name = 'fw1'; type = 'microsoft.network/azurefirewalls'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; tier = 'Standard'; skuName = '' }
+            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw1'; name = 'agw1'; type = 'Microsoft.Network/applicationGateways'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; tier = 'WAF_v2'; skuName = '' }
+            & $o @{ id = '/subscriptions/sub-1/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw-plain'; name = 'agw-plain'; type = 'microsoft.network/applicationgateways'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; tier = 'Standard_v2'; skuName = '' }
+            & $o @{ id = '/subscriptions/sub-2/resourceGroups/rg-edge/providers/Microsoft.Cdn/profiles/fd1'; name = 'fd1'; type = 'microsoft.cdn/profiles'; subscriptionId = 'sub-2'; resourceGroup = 'rg-edge'; tier = ''; skuName = 'Premium_AzureFrontDoor' }
+            & $o @{ id = '/subscriptions/sub-2/resourceGroups/rg-edge/providers/Microsoft.Cdn/profiles/cdn-old'; name = 'cdn-old'; type = 'microsoft.cdn/profiles'; subscriptionId = 'sub-2'; resourceGroup = 'rg-edge'; tier = ''; skuName = 'Standard_Microsoft' }
             break
         }
         "microsoft\.network/firewallpolicies'" {

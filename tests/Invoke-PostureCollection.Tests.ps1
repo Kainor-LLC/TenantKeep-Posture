@@ -244,6 +244,16 @@ BeforeAll {
             '^identity/conditionalAccess/policies$' { & $u @(); break }
             '^identity/conditionalAccess/namedLocations$' { & $u @(); break }
             '^identity/conditionalAccess/authenticationContextClassReferences$' { & $u @(); break }
+            # Agent identities, the blueprint they are made from and its service principal: owners come with each list,
+            # sponsors in a second pass. tests/AgentIdentities.Tests.ps1 has the cases; this is one of each.
+            '^servicePrincipals/microsoft\.graph\.agentIdentity\?\$select=id&\$expand=sponsors' { & $u @(@{ id = 'ag1'; sponsors = @(@{ id = 'u1' }) }); break }
+            '^servicePrincipals/microsoft\.graph\.agentIdentity\?' { & $u @(@{ id = 'ag1'; appId = 'ag-app-1'; displayName = 'Invoice agent'; accountEnabled = $true; createdDateTime = '2026-06-01T00:00:00Z'; agentIdentityBlueprintId = 'bp-app-1'; owners = @(@{ id = 'u1' }) }); break }
+            '^servicePrincipals/microsoft\.graph\.agentIdentityBlueprintPrincipal\?\$select=id&\$expand=sponsors' { & $u @(@{ id = 'bpp1'; sponsors = @() }); break }
+            '^servicePrincipals/microsoft\.graph\.agentIdentityBlueprintPrincipal\?' { & $u @(@{ id = 'bpp1'; appId = 'bp-app-1'; displayName = 'Invoice blueprint'; accountEnabled = $true; appOwnerOrganizationId = 'tenant-guid'; appRoleAssignmentRequired = $false; appRoles = @(); owners = @(@{ id = 'u1' }) }); break }
+            '^applications/microsoft\.graph\.agentIdentityBlueprint\?\$select=id&\$expand=sponsors' { & $u @(@{ id = 'bp1'; sponsors = @(@{ id = 'u1' }) }); break }
+            '^applications/microsoft\.graph\.agentIdentityBlueprint\?' { & $u @(@{ id = 'bp1'; appId = 'bp-app-1'; displayName = 'Invoice blueprint'; createdDateTime = '2026-05-01T00:00:00Z'; signInAudience = 'AzureADMyOrg'; passwordCredentials = @(); keyCredentials = @(); web = @{ redirectUris = @() }; owners = @(@{ id = 'u1' }) }); break }
+            '^applications/bp1/microsoft\.graph\.agentIdentityBlueprint/inheritablePermissions' { & $u @(); break }
+            '^users/microsoft\.graph\.agentUser\?' { & $u @(); break }
             default { throw "Unexpected Graph call in test: $path" }
         }
     }
@@ -644,7 +654,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 56
+            $r.results.Count | Should -Be 58
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'
@@ -988,6 +998,21 @@ Describe 'Invoke-PostureCollection' {
             $text | Should -Match 'Scope ServiceHealth\.Read\.All not granted'
             $text | Should -Match 'Scope IdentityRiskyUser\.Read\.All not granted'
             $text | Should -Not -Match 'Scope DeviceManagement' -Because 'this call does not run the Intune collector'
+        }
+
+        It 'hands a person who signed in through the TenantKeep app the link to approve it again, once' {
+            # A tenant that approved an earlier list of permissions: each missing one is named, and the link that
+            # adds them is given once. A session opened with Connect-MgGraph, or a scheduled run, gets no link.
+            $null = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'scopes-nolink') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -WarningVariable plain -WarningAction SilentlyContinue 6>$null
+            @($plain | Where-Object { [string]$_ -match 'adminconsent' }).Count | Should -Be 0 -Because 'this session is not the module''s own sign-in'
+            InModuleScope TenantKeep.Posture { $script:PostureSession = @{ tenantId = 'tenant-guid'; account = 'admin@contoso.example'; tokens = @{} } }
+            try {
+                $null = Invoke-PostureCollection -OutputFolder (Join-Path $script:Root 'scopes-link') -Collector Entra -SkipCaSnapshot -SkipPerUserMfa -WarningVariable own -WarningAction SilentlyContinue 6>$null
+                $links = @($own | Where-Object { [string]$_ -match 'adminconsent' })
+                $links.Count | Should -Be 1
+                [string]$links[0] | Should -Match '^This tenant approved the TenantKeep app before those \d+ permissions were added\. A Global Administrator approves the app again here, and the next run reads the rest: https://login\.microsoftonline\.com/[^/]+/v2\.0/adminconsent\?client_id=e5b148e7-9689-40b2-9b09-9d0bef133049&scope='
+            }
+            finally { InModuleScope TenantKeep.Posture { $script:PostureSession = $null } }
         }
 
         It 'counts the steps that failed since this collection began, and says nothing when none did' {

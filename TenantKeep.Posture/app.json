@@ -49,7 +49,10 @@
         "SecurityIdentitiesHealth.Read.All",
         "ServiceHealth.Read.All",
         "ServiceMessage.Read.All",
-        "Domain-InternalFederation.Read.All"
+        "Domain-InternalFederation.Read.All",
+        "AgentIdentity.Read.All",
+        "AgentIdentityBlueprint.Read.All",
+        "AgentIdentityBlueprintPrincipal.Read.All"
       ]
     },
     {

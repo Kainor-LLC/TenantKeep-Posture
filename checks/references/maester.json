@@ -1078,10 +1078,6 @@
       "reason": "planned",
       "note": "An Intune tenant or policy setting."
     },
-    "MT.1181": {
-      "reason": "planned",
-      "note": "A Conditional Access policy for agent risk."
-    },
     "MT.1183": {
       "reason": "planned",
       "note": "A hybrid identity setting."
@@ -1118,65 +1114,13 @@
       "reason": "planned",
       "note": "Dynamic group rules."
     },
-    "MT.1200": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1201": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1203": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1204": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1205": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
     "MT.1206": {
       "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1207": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1208": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1209": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1210": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1211": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1212": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
-    },
-    "MT.1213": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
+      "note": "How an agent identity appears in the application sign-in report is not yet seen on a live tenant, and a wrong match would list every agent as unused."
     },
     "MT.1217": {
       "reason": "planned",
       "note": "An Intune tenant or policy setting."
-    },
-    "MT.1223": {
-      "reason": "planned",
-      "note": "Agent identities, which Microsoft still has in preview."
     },
     "MT.1077": {
       "reason": "planned",

@@ -788,6 +788,42 @@
       ]
     },
     {
+      "collector": "Entra",
+      "match": "^Agent identities$",
+      "roles": [
+        "Agent ID Administrator",
+        "Global Administrator"
+      ],
+      "scopes": [
+        "AgentIdentity.Read.All"
+      ],
+      "note": "Microsoft names Agent ID Administrator as the least privileged role for an account that does not own the agents. Whether Global Reader may list them is not yet seen on a live tenant (verify). The scheduled run reads with the permission alone."
+    },
+    {
+      "collector": "Entra",
+      "match": "^Agent identity blueprints$",
+      "roles": [
+        "Agent ID Administrator",
+        "Global Administrator"
+      ],
+      "scopes": [
+        "AgentIdentityBlueprint.Read.All"
+      ],
+      "note": "Microsoft names Agent ID Administrator as the least privileged role for an account that does not own the blueprints. Whether Global Reader may list them is not yet seen on a live tenant (verify)."
+    },
+    {
+      "collector": "Entra",
+      "match": "^Agent identity blueprint principals$",
+      "roles": [
+        "Agent ID Administrator",
+        "Global Administrator"
+      ],
+      "scopes": [
+        "AgentIdentityBlueprintPrincipal.Read.All"
+      ],
+      "note": "Microsoft names Agent ID Administrator as the least privileged role for an account that does not own them. Whether Global Reader may list them is not yet seen on a live tenant (verify)."
+    },
+    {
       "collector": "PowerBI",
       "match": "^Power BI tenant settings$",
       "roles": [

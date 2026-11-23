@@ -139,6 +139,28 @@ Describe 'What a run still lacks' {
         $row[0].where | Should -Match 'Run Health'
     }
 
+    It 'tells a person who signed in through the TenantKeep app to approve it again, and only a scheduled run to grant the identity' {
+        # Seen live 2026-11-23: the Graph SDK reports the module's own sign-in as UserProvidedAccessToken, and the
+        # advice for a local run named the managed identity script.
+        foreach ($case in @(@{ AuthType = 'UserProvidedAccessToken'; Expect = '^Consent again so the sign-in carries .*IdentityRiskyUser\.Read\.All' }, @{ AuthType = 'ManagedIdentity'; Expect = '^Grant the identity .*IdentityRiskyUser\.Read\.All.* \(deploy/automation/Grant-ManagedIdentityGraphRole\.ps1 -IncludePosture\)' })) {
+            $run = & $script:NewRun "failed-step-$($case.AuthType)"
+            @{ tenantId = '33333333-3333-3333-3333-333333333333'; collectors = @('ConditionalAccess', 'Entra'); authType = $case.AuthType; scopes = @('Policy.Read.All', 'Directory.Read.All'); timestampUtc = '2026-11-21T10:00:00Z' } | ConvertTo-Json | Set-Content (Join-Path $run 'evidence' 'collection.json')
+            InModuleScope TenantKeep.Posture -Parameters @{ Ev = (Join-Path $run 'evidence') } {
+                param($Ev)
+                Clear-PostureEvidenceCache -Confirm:$false
+                $script:PostureCurrentCollector = 'Entra'
+                try { $null = Invoke-PostureStep -Label 'Risky users' -Folder $Ev -Script { throw 'Response status code does not indicate success: Forbidden (Forbidden).' } -WarningAction SilentlyContinue }
+                finally { $script:PostureCurrentCollector = $null }
+            }
+            $r = New-PostureReport -Evidence (Join-Path $run 'evidence') -PassThru 6>$null
+            @($r.Report.completion | Where-Object { $_.id -eq 'failed-steps' })[0].get | Should -Match $case.Expect -Because $case.AuthType
+        }
+        InModuleScope TenantKeep.Posture {
+            foreach ($person in 'Delegated', 'UserProvidedAccessToken', '', $null) { Test-PostureAppOnlySignIn -AuthType $person | Should -BeFalse -Because "'$person' is a person, or unknown" }
+            foreach ($app in 'AppOnly', 'ManagedIdentity') { Test-PostureAppOnlySignIn -AuthType $app | Should -BeTrue -Because $app }
+        }
+    }
+
     It 'does not count a check that waits for a licence, and lists nothing when nothing can be added' {
         InModuleScope TenantKeep.Posture -Parameters @{ Root = $script:Root; Catalog = $script:Catalog } {
             param($Root, $Catalog)

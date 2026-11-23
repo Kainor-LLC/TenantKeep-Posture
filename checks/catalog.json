@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "A hundred and thirty new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "A hundred and forty-two new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access, twelve on AI agents (agent identities, their blueprints and the Conditional Access policies that name them, read with three new read-only permissions) and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -141,7 +141,19 @@
         "GV-012": "New: whether an enterprise application published by another organisation lets every account sign in without an assignment.",
         "CA-028": "New: whether a named location is marked as trusted.",
         "DEV-027": "New: whether each platform that has managed devices has a compliance policy that is assigned.",
-        "CA-029": "New: whether an enabled policy requires an app protection policy on iOS and on Android."
+        "CA-029": "New: whether an enabled policy requires an app protection policy on iOS and on Android.",
+        "ID-047": "New: whether every agent identity, agent blueprint and blueprint service principal has an owner.",
+        "ID-048": "New: whether each of them has a sponsor.",
+        "ID-049": "New: whether a disabled agent or blueprint service principal is left in the directory.",
+        "ID-050": "New: whether an agent identity, a blueprint's service principal or an agent user has lost what it belongs to.",
+        "ID-051": "New: whether an agent, a blueprint's service principal or an agent user holds a privileged directory role.",
+        "ID-052": "New: whether an agent or a blueprint's service principal holds a high-privilege Microsoft Graph application permission.",
+        "ID-053": "New: whether an agent blueprint passes on everything it holds on an API.",
+        "ID-054": "New: whether a blueprint's service principal that exposes application roles requires assignment.",
+        "ID-055": "New: whether an agent blueprint has a wildcard or plain-http redirect address.",
+        "ID-056": "New: whether an agent blueprint's credentials are expired, long-lived, too many, or a secret beside a federated credential.",
+        "CA-030": "New: whether an enabled policy blocks agent identities, and one agents' user accounts, where the tenant has them.",
+        "CA-031": "New: whether an enabled policy blocks agent identities at high risk."
       }
     },
     {

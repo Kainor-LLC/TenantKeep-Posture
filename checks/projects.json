@@ -940,6 +940,32 @@
         }
       ],
       "after": []
+    },
+    {
+      "id": "PJ-045",
+      "name": "AI agents with an owner and a limit",
+      "what": "Every agent has someone who answers for it, holds no more than its task needs, and gets tokens only under a Conditional Access policy that names it.",
+      "checks": [
+        "ID-047",
+        "ID-048",
+        "ID-049",
+        "ID-050",
+        "ID-051",
+        "ID-052",
+        "ID-053",
+        "ID-054",
+        "ID-055",
+        "ID-056",
+        "CA-030",
+        "CA-031"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-008",
+          "why": "An agent is an application with an identity of its own, so the habits for application owners and credentials come first."
+        }
+      ]
     }
   ]
 }

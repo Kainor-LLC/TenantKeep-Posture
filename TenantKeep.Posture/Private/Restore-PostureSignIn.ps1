@@ -61,12 +61,13 @@ function Get-PostureEndedSignIn {
     param([string] $Collector = $script:PostureCurrentCollector)
 
     if ($script:PostureSessionEnded.get_Count() -eq 0 -or -not $Collector -or $Collector -in 'Exchange', 'Purview') { return $null }
-    # Teams is connected with a token of each: its own from the second app, and a Graph token from the main one.
+    # Teams is connected with two tokens of the second app (the Teams module refuses a pair from two apps), so it
+    # waits on that sign-in alone.
     $holders = switch ($Collector) {
         'SharePoint' { @('sharepoint') }
         'Azure' { @('services') }
         'PowerPlatform' { @('services') }
-        'Teams' { @('services', 'main') }
+        'Teams' { @('services') }
         default { @('main') }
     }
     foreach ($holder in $holders) {
@@ -152,7 +153,7 @@ function Restore-PostureSignIn {
     if ($Holder -eq 'services') {
         # The browser's token is a Graph token of the second app, which nothing reads with: the cached Graph token
         # stays the main sign-in's, and the three APIs get new tokens from the new refresh token when next asked.
-        foreach ($resource in @((Get-PostureAppManifest -Name services)['byName'].get_Keys())) { if ($resource -ne 'graph') { $null = $Session['tokens'].Remove($resource) } }
+        foreach ($resource in @((Get-PostureAppManifest -Name services)['byName'].get_Keys())) { $null = $Session['tokens'].Remove($(if ($resource -eq 'graph') { 'graph@services' } else { $resource })) }
     }
     else { $Session['tokens'][$(if ($Holder -eq 'sharepoint') { 'sharepoint' } else { 'graph' })] = @{ accessToken = [string]$tokens['access_token']; expiresUtc = $now.AddSeconds([int]$tokens['expires_in']); scope = [string]$(if ($tokens.ContainsKey('scope')) { $tokens['scope'] }) } }
     # The second process renews through the token service, which holds its own copy of the session.

@@ -571,7 +571,22 @@
     "platformsWithoutCompliancePolicy": "Platforms with no assigned compliance policy",
     "appProtectionPolicies": "Policies that require an app protection policy",
     "appProtectionForIos": "A policy requires protected apps on iOS",
-    "appProtectionForAndroid": "A policy requires protected apps on Android"
+    "appProtectionForAndroid": "A policy requires protected apps on Android",
+    "agentObjectsWithoutOwner": "Agents and agent blueprints with no owner",
+    "agentObjectsWithoutSponsor": "Agents and agent blueprints with no sponsor",
+    "disabledAgentObjects": "Disabled agents left in the directory",
+    "orphanedAgentObjects": "Agents whose blueprint or agent identity is gone",
+    "agentsWithPrivilegedRoles": "Privileged roles held by agents",
+    "agentsWithHighPrivilegeGraphPermissions": "High-privilege Microsoft Graph permissions held by agents",
+    "agentBlueprintsPassingOnEverything": "Agent blueprints that pass on everything they hold",
+    "agentBlueprintsOpenToAnyCaller": "Agent blueprints that expose roles to any caller",
+    "agentBlueprintsWithUnsafeRedirects": "Agent blueprints with an unsafe redirect address",
+    "agentBlueprintsWithCredentialProblems": "Agent blueprints with a credential problem",
+    "agentIdentities": "Agent identities in the tenant",
+    "agentUsers": "Agents' user accounts in the tenant",
+    "agentIdentityBlockPolicies": "Policies that block agent identities",
+    "agentUserBlockPolicies": "Policies that block agents' user accounts",
+    "agentRiskPolicies": "Policies that block agents at high risk"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -657,6 +672,8 @@
     "minCloudTimeoutSeconds": "Cloud extended timeout, at least (seconds)",
     "maxSignatureIntervalHours": "Signature update interval, at most (hours)",
     "minQuarantineDays": "Days to keep quarantined malware, at least",
-    "maxCertificateLifetimeDays": "Days an application certificate may be valid, at most"
+    "maxCertificateLifetimeDays": "Days an application certificate may be valid, at most",
+    "maxAgentCredentialDays": "Days an agent blueprint's credential may be valid, at most",
+    "maxAgentActiveSecrets": "Working secrets an agent blueprint may hold, at most"
   }
 }

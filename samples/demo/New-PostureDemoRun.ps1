@@ -385,6 +385,31 @@ Write-Demo '10-service-principals' @(
 )
 Write-Demo '10-oauth2-delegated-grants' @(@{ ClientId = 'd4000000-0000-4000-8000-000000000020'; ConsentType = 'AllPrincipals'; PrincipalId = $null; ResourceId = 'd4000000-0000-4000-8000-000000000030'; Scope = 'User.Read offline_access openid profile' })
 
+# --- AI agents ------------------------------------------------------------------------------------------------------------------
+# Three agents made from two blueprints. Site Diary Assistant is looked after: an owner, a sponsor, a user account of
+# its own. RFI Triage Agent has neither, and its blueprint holds a secret valid for three years and passes on every
+# permission it has. Tender Research Pilot was switched off after a trial and left where it was. No Conditional
+# Access policy names agents (ID-047 to ID-056, CA-030, CA-031).
+$agentId = { param([int] $N) Get-DemoId 'a9000000' $N }
+Write-Demo '10-agent-identities' @(
+    [ordered]@{ Id = (& $agentId 1); AppId = (& $agentId 11); DisplayName = 'Site Diary Assistant'; AccountEnabled = $true; CreatedDateTime = (Get-DemoDate 140); BlueprintAppId = (& $agentId 21); CreatedByAppId = (& $agentId 21); DisabledByMicrosoft = $null; Owners = 1; Sponsors = 1 }
+    [ordered]@{ Id = (& $agentId 2); AppId = (& $agentId 12); DisplayName = 'RFI Triage Agent'; AccountEnabled = $true; CreatedDateTime = (Get-DemoDate 95); BlueprintAppId = (& $agentId 22); CreatedByAppId = (& $agentId 22); DisabledByMicrosoft = $null; Owners = 0; Sponsors = 0 }
+    [ordered]@{ Id = (& $agentId 3); AppId = (& $agentId 13); DisplayName = 'Tender Research Pilot'; AccountEnabled = $false; CreatedDateTime = (Get-DemoDate 260); BlueprintAppId = (& $agentId 22); CreatedByAppId = (& $agentId 22); DisabledByMicrosoft = $null; Owners = 1; Sponsors = 0 }
+)
+Write-Demo '10-agent-blueprint-principals' @(
+    [ordered]@{ Id = (& $agentId 31); AppId = (& $agentId 21); DisplayName = 'Site Diary Assistant'; AccountEnabled = $true; AppOwnerOrganizationId = $tenantId; HomeTenant = $true; AppRoleAssignmentRequired = $true; EnabledAppRoles = 1; Owners = 1; Sponsors = 1 }
+    [ordered]@{ Id = (& $agentId 32); AppId = (& $agentId 22); DisplayName = 'RFI Triage'; AccountEnabled = $true; AppOwnerOrganizationId = $tenantId; HomeTenant = $true; AppRoleAssignmentRequired = $false; EnabledAppRoles = 0; Owners = 1; Sponsors = 1 }
+)
+Write-Demo '10-agent-blueprints' @(
+    [ordered]@{ Id = (& $agentId 41); AppId = (& $agentId 21); DisplayName = 'Site Diary Assistant'; CreatedDateTime = (Get-DemoDate 150); SignInAudience = 'AzureADMyOrg'; ActiveSecrets = 0; Certs = 0; ExpiredCredentials = 0; LongestCredentialDays = 0; FederatedCredentials = $null; WildcardRedirects = 0; HttpRedirects = 0; InheritAllScopes = 0; InheritAllRoles = 0; Owners = 1; Sponsors = 1 }
+    [ordered]@{ Id = (& $agentId 42); AppId = (& $agentId 22); DisplayName = 'RFI Triage'; CreatedDateTime = (Get-DemoDate 270); SignInAudience = 'AzureADMyOrg'; ActiveSecrets = 1; Certs = 0; ExpiredCredentials = 0; LongestCredentialDays = 1095; FederatedCredentials = 0; WildcardRedirects = 0; HttpRedirects = 0; InheritAllScopes = 1; InheritAllRoles = 0; Owners = 1; Sponsors = 1 }
+)
+Write-Demo '10-agent-users' @(
+    [ordered]@{ Id = (& $agentId 51); DisplayName = 'Site Diary Assistant'; UserPrincipalName = "site.diary.assistant@$domain"; AccountEnabled = $true; ParentId = (& $agentId 1) }
+)
+Write-Demo '10-agent-ca-policies' @()
+Write-Demo '10-agent-summary' ([ordered]@{ AgentIdentities = 3; Blueprints = 2; BlueprintPrincipals = 2; AgentUsers = 1; PoliciesForAgents = 0; NotRead = @() })
+
 # --- Conditional Access: the anonymized sample, renamed to this tenant ------------------------------------------------------
 $ca = Join-Path $PSScriptRoot '..' 'ca-snapshot'
 foreach ($f in 'policies', 'named-locations', 'auth-strengths', 'auth-context', 'group-scope', 'resolved-names') {

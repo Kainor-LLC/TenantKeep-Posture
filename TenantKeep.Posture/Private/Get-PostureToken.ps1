@@ -13,11 +13,13 @@ function Get-PostureResourceScope {
     [OutputType([string])]
     param(
         [Parameter(Mandatory)] [string] $Resource,
-        [string] $TenantName
+        [string] $TenantName,
+        # The app to read the audience from, when it is not the one the resource belongs to (Get-PostureToken -App).
+        [ValidateSet('main', 'services', 'sharepoint')] [string] $App
     )
 
     $ErrorActionPreference = 'Stop'
-    $manifest = Get-PostureAppManifest -Name (Get-PostureResourceApp -Resource $Resource)
+    $manifest = Get-PostureAppManifest -Name $(if ($App) { $App } else { Get-PostureResourceApp -Resource $Resource })
     if (-not $manifest['byName'].ContainsKey($Resource)) { throw "$($manifest['file']) names no resource '$Resource'. Known: $($manifest['byName'].Keys -join ', ')." }
     $audience = [string]$manifest['byName'][$Resource]['audience']
     if ($audience -like '*{tenant}*') {
@@ -37,12 +39,18 @@ function Get-PostureToken {
         Platform come from the second sign-in (Connect-PostureSession -Services) and its refresh token, SharePoint
         from its own (Connect-PostureSession -SharePoint). Returns the token as a string by default;
         -AsSecureString for the modules that insist on one. Nothing is written to disk.
+    .PARAMETER App
+        The sign-in to take the token from, when it is not the one the resource belongs to. Used in one place: the
+        Teams module wants its Graph token and its Teams token from the same app, so the Graph token it is handed
+        comes from the second app, which holds on Graph only what signing in needs. That token is kept apart from
+        the run's own Graph token (under "graph@services") and no Graph read goes through it.
     #>
     [CmdletBinding()]
     [OutputType([string], [securestring])]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'The token is already in memory as a string; the Graph SDK insists on a SecureString.')]
     param(
         [Parameter(Mandatory)] [string] $Resource,
+        [ValidateSet('main', 'services', 'sharepoint')] [string] $App,
         [switch] $AsSecureString,
         [switch] $Force
     )
@@ -52,11 +60,17 @@ function Get-PostureToken {
     if (-not $session) { throw 'No session. Run Connect-PostureSession (or Start-PostureRun) first.' }
     $tokens = $session['tokens']
     $now = [datetime]::UtcNow
-    if (-not $Force -and $tokens.ContainsKey($Resource) -and $tokens[$Resource]['expiresUtc'] -gt $now.AddMinutes(5)) {
-        $token = [string]$tokens[$Resource]['accessToken']
+    # Which sign-in the token comes from, and the name it is kept under: the resource's own, unless -App names
+    # another sign-in, whose token is kept apart so it never stands in for the resource's own.
+    $ownApp = Get-PostureResourceApp -Resource $Resource
+    $holderName = $(if ($App) { $App } else { $ownApp })
+    $key = $(if ($holderName -ne $ownApp) { "$Resource@$holderName" } else { $Resource })
+    if (-not $Force -and $tokens.ContainsKey($key) -and $tokens[$key]['expiresUtc'] -gt $now.AddMinutes(5)) {
+        $token = [string]$tokens[$key]['accessToken']
     }
     elseif (-not $session['refreshToken'] -and $session.ContainsKey('tokenPipe') -and $session['tokenPipe']) {
         # The second collection process holds no refresh token; the main process renews for it (Start-PostureTokenServer).
+        if ($key -ne $Resource) { throw "A token for $Resource from the $holderName sign-in is not available in the second collection process." }
         $tokens[$Resource] = Request-PostureParentToken -Resource $Resource
         $token = [string]$tokens[$Resource]['accessToken']
         Write-Verbose "Token for $Resource renewed by the main process, expires $($tokens[$Resource]['expiresUtc'].ToString('u'))."
@@ -65,7 +79,6 @@ function Get-PostureToken {
         # Three sign-ins, each with its own app and refresh token: the main one (Graph, Power BI), the second app
         # (Azure, Teams, Power Platform: the APIs with no read-only permission, kept off the shared app) and
         # SharePoint's.
-        $holderName = Get-PostureResourceApp -Resource $Resource
         $holder = $session
         if ($holderName -ne 'main') {
             if (-not $session.ContainsKey($holderName) -or -not $session[$holderName]) {
@@ -74,7 +87,7 @@ function Get-PostureToken {
             }
             $holder = $session[$holderName]
         }
-        $scope = Get-PostureResourceScope -Resource $Resource -TenantName $session['tenantName']
+        $scope = Get-PostureResourceScope -Resource $Resource -TenantName $session['tenantName'] -App $holderName
         # A sign-in already known to have ended is not asked about again: this throws what was recorded.
         if ($script:PostureSessionEnded.ContainsKey($holderName)) { Restore-PostureSignIn -Session $session -Holder $holderName -Reason '' }
         $grant = { Invoke-PostureTokenRequest -Endpoint token -TenantId $session['tenantId'] -Form @{ grant_type = 'refresh_token'; client_id = $holder['clientId']; refresh_token = $holder['refreshToken']; scope = $scope } }
@@ -90,8 +103,8 @@ function Get-PostureToken {
         }
         if ($response.ContainsKey('refresh_token') -and $response['refresh_token']) { $holder['refreshToken'] = [string]$response['refresh_token'] }
         $token = [string]$response['access_token']
-        $tokens[$Resource] = @{ accessToken = $token; expiresUtc = $now.AddSeconds([int]$response['expires_in']); scope = [string]$(if ($response.ContainsKey('scope')) { $response['scope'] }) }
-        Write-Verbose "Token for $Resource acquired, expires $($tokens[$Resource]['expiresUtc'].ToString('u'))."
+        $tokens[$key] = @{ accessToken = $token; expiresUtc = $now.AddSeconds([int]$response['expires_in']); scope = [string]$(if ($response.ContainsKey('scope')) { $response['scope'] }) }
+        Write-Verbose "Token for $key acquired, expires $($tokens[$key]['expiresUtc'].ToString('u'))."
     }
     if ($AsSecureString) { return (ConvertTo-SecureString -String $token -AsPlainText -Force) }
     return $token

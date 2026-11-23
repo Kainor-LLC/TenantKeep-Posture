@@ -408,12 +408,12 @@ function Get-PostureIdentityFact {
     }
 
     $perms = & $load '10-graph-app-permissions'
+    $high = @('Directory.ReadWrite.All', 'RoleManagement.ReadWrite.Directory', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All', 'Directory.AccessAsUser.All',
+        'Mail.ReadWrite', 'Mail.Send', 'Mail.Read', 'MailboxSettings.ReadWrite', 'Files.ReadWrite.All', 'Files.Read.All', 'Sites.FullControl.All', 'Sites.ReadWrite.All', 'Sites.Read.All',
+        'User.ReadWrite.All', 'Group.ReadWrite.All', 'GroupMember.ReadWrite.All', 'Policy.ReadWrite.ConditionalAccess', 'Policy.ReadWrite.AuthenticationMethod',
+        'UserAuthenticationMethod.ReadWrite.All', 'Exchange.ManageAsApp', 'full_access_as_app', 'DeviceManagementConfiguration.ReadWrite.All', 'PrivilegedAccess.ReadWrite.AzureAD')
     if ($null -eq $perms) { & $missing 'ID-011' '10-graph-app-permissions' }
     else {
-        $high = @('Directory.ReadWrite.All', 'RoleManagement.ReadWrite.Directory', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All', 'Directory.AccessAsUser.All',
-            'Mail.ReadWrite', 'Mail.Send', 'Mail.Read', 'MailboxSettings.ReadWrite', 'Files.ReadWrite.All', 'Files.Read.All', 'Sites.FullControl.All', 'Sites.ReadWrite.All', 'Sites.Read.All',
-            'User.ReadWrite.All', 'Group.ReadWrite.All', 'GroupMember.ReadWrite.All', 'Policy.ReadWrite.ConditionalAccess', 'Policy.ReadWrite.AuthenticationMethod',
-            'UserAuthenticationMethod.ReadWrite.All', 'Exchange.ManageAsApp', 'full_access_as_app', 'DeviceManagementConfiguration.ReadWrite.All', 'PrivilegedAccess.ReadWrite.AzureAD')
         $hits = @($perms | Where-Object { $_.Permission -in $high })
         $facts.highPrivilegeAppPermissions = $hits.Count
         $affected.highPrivilegeAppPermissions = @($hits | ForEach-Object { [ordered]@{ name = "$($_.PrincipalDisplayName): $($_.Permission)"; detail = "application permission granted $((& $v $_ 'CreatedDateTime'))" } })
@@ -569,5 +569,18 @@ function Get-PostureIdentityFact {
         }
     }
 
-    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json') }
+    # ID-047 to ID-056: AI agents, in a file of their own (Get-PostureAgentFinding). For an agent the list of
+    # permissions that matter is longer: the ones that lead to a role, directly or by a step, count too.
+    $agentPermissions = @($high) + @('AdministrativeUnit.ReadWrite.All', 'DeviceManagementRBAC.ReadWrite.All', 'PrivilegedAccess.ReadWrite.AzureADGroup', 'PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup',
+        'PrivilegedEligibilitySchedule.ReadWrite.AzureADGroup', 'RoleAssignmentSchedule.ReadWrite.Directory', 'RoleEligibilitySchedule.ReadWrite.Directory', 'RoleManagementPolicy.ReadWrite.AzureADGroup', 'RoleManagementPolicy.ReadWrite.Directory')
+    $agentFinding = Get-PostureAgentFinding -Evidence $Evidence -Thresholds $t -PrivilegedRole $privilegedRoles -HighPrivilegePermission $agentPermissions
+    foreach ($k in @($agentFinding.facts.Keys)) { $facts[$k] = $agentFinding.facts[$k] }
+    foreach ($k in @($agentFinding.notEvaluated.Keys)) { $notEvaluated[$k] = $agentFinding.notEvaluated[$k] }
+    foreach ($k in @($agentFinding.affected.Keys)) {
+        $list = @($agentFinding.affected[$k])
+        if ($list.Count -gt 500) { $affectedCounts[$k] = $list.Count; $list = @($list | Select-Object -First 500) }
+        $affected[$k] = $list
+    }
+
+    return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('04-role-assignments-active.json', '06-users.json', '06-signins-summary.json', '02-authorization-policy.json', '10-app-registrations.json', '10-graph-app-permissions.json', '10-agent-identities.json', '10-agent-blueprints.json', '10-agent-blueprint-principals.json', '10-agent-users.json') }
 }
