@@ -1252,6 +1252,50 @@
       "attack": [
         "T1078.004"
       ]
+    },
+    {
+      "id": "CA-028",
+      "domain": "ca",
+      "title": "A trusted named location is defined",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "named-locations.json"
+      ],
+      "pass": "facts.trustedNamedLocations >= 1",
+      "remediation": [
+        "In Entra, Protection, Conditional Access, Named locations, add an IP ranges location for each office and data centre egress address you control.",
+        "Tick Mark as trusted location for those.",
+        "Use it to judge risk and to restrict the riskiest actions, not to skip multifactor authentication (CA-008)."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-assignment-network",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/NamedLocations",
+      "narrative": "ID Protection rates a sign-in partly by where it comes from, and it knows your offices only if you tell it. With a trusted location defined, a sign-in from the office is not flagged as unfamiliar and one from elsewhere stands out more. The same location lets a policy ask more of an administrator who is not on a network you know.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "AC.L2-3.1.12",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21865"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

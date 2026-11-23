@@ -101,7 +101,7 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
     }
 
     It 'evaluates all 24 CA checks against the shipped catalog version' {
-        $script:Run.results.Count | Should -Be 27
+        $script:Run.results.Count | Should -Be 28
         $script:Run.catalogVersion | Should -Match '^\d{4}\.'
         Join-Path $script:Root 'checks.json' | Should -Exist
     }

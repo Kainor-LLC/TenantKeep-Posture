@@ -383,8 +383,21 @@ function Get-PostureIdentityFact {
     }
 
     $apps = & $load '10-app-registrations'
-    if ($null -eq $apps) { & $missing 'ID-010' '10-app-registrations' }
+    if ($null -eq $apps) { foreach ($id in 'ID-010', 'ID-043', 'ID-044') { & $missing $id '10-app-registrations' } }
     else {
+        # ID-043: app registrations that sign in with a client secret. ID-044: a certificate valid for longer than the
+        # threshold, start to end; evidence from before the lifetime was saved cannot say.
+        $rowsOfApps = @($apps | Where-Object { $_ })
+        $withSecrets = @($rowsOfApps | Where-Object { [int]$_.Secrets -gt 0 })
+        $facts.appsWithSecrets = $withSecrets.Count
+        $affected.appsWithSecrets = @($withSecrets | ForEach-Object { [ordered]@{ name = [string]$_.DisplayName; detail = "$([int]$_.Secrets) client secret(s)" } })
+        if ($rowsOfApps.Count -gt 0 -and @($rowsOfApps | Where-Object { $_.Contains('LongestCertDays') }).Count -eq 0) { $notEvaluated['ID-044'] = '10-app-registrations.json was collected before certificate lifetimes were saved. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+        else {
+            $maxDays = [int]$(if ($t.ContainsKey('maxCertificateLifetimeDays')) { $t.maxCertificateLifetimeDays } else { 180 })
+            $longLived = @($rowsOfApps | Where-Object { [int]$_.LongestCertDays -gt $maxDays })
+            $facts.appsWithLongCertificates = $longLived.Count
+            $affected.appsWithLongCertificates = @($longLived | ForEach-Object { [ordered]@{ name = [string]$_.DisplayName; detail = "a certificate valid for $([int]$_.LongestCertDays) days (limit $maxDays)" } })
+        }
         $warn = $AsOf.AddDays([int]$t.credentialExpiryWarningDays)
         $expired = @($apps | Where-Object { [int]$_.ExpiredCredentials -gt 0 })
         $soon = @($apps | Where-Object { $_.EarliestExpiry -and [int]$_.ExpiredCredentials -eq 0 -and (ConvertTo-PostureUtcDateTime $_.EarliestExpiry) -lt $warn })
@@ -466,9 +479,39 @@ function Get-PostureIdentityFact {
         $affected.inactiveGuests = @($inactiveGuests); $affectedCounts.inactiveGuests = $guestState.inactive
     }
 
-    $xtap = & $load '02-cross-tenant-access-defaults'
-    if ($null -eq $xtap) { & $missing 'ID-013' '02-cross-tenant-access-defaults' }
+    # ID-045 and ID-046: credentials on a service principal itself. Any application's secret or certificate belongs
+    # on its registration, where owners and expiry are looked after; one added to the service principal lets its
+    # holder sign in as the application from outside it. On a Microsoft application it is a known way to keep access.
+    $spRows = & $load '10-service-principals'
+    if ($null -eq $spRows) { foreach ($id in 'ID-045', 'ID-046') { & $missing $id '10-service-principals' } }
     else {
+        $allSps = @($spRows | Where-Object { $_ })
+        if ($allSps.Count -gt 0 -and @($allSps | Where-Object { $_.Contains('Secrets') }).Count -eq 0) { foreach ($id in 'ID-045', 'ID-046') { $notEvaluated[$id] = '10-service-principals.json was collected before the credentials of a service principal were counted. Collect Entra again (Resume-PostureRun -Collector Entra).' } }
+        else {
+            $microsoftTenant = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+            $holding = @($allSps | Where-Object { [int]$_.Secrets + [int]$_.Certs -gt 0 })
+            $describe = { param($row) [ordered]@{ name = [string]$row.DisplayName; detail = "$([int]$row.Secrets) secret(s), $([int]$row.Certs) certificate(s) on the service principal" } }
+            $own = @($holding | Where-Object { [string]$_.AppOwnerOrganizationId -ne $microsoftTenant })
+            $microsoft = @($holding | Where-Object { [string]$_.AppOwnerOrganizationId -eq $microsoftTenant })
+            $facts.servicePrincipalsWithCredentials = $own.Count
+            $affected.servicePrincipalsWithCredentials = @($own | ForEach-Object { & $describe $_ })
+            $facts.microsoftAppsWithCredentials = $microsoft.Count
+            $affected.microsoftAppsWithCredentials = @($microsoft | ForEach-Object { & $describe $_ })
+        }
+    }
+
+    $xtap = & $load '02-cross-tenant-access-defaults'
+    if ($null -eq $xtap) { & $missing 'ID-013' '02-cross-tenant-access-defaults'; & $missing 'ID-042' '02-cross-tenant-access-defaults' }
+    else {
+        # ID-042: the tenant restrictions policy blocks other organisations by default, for all users and all
+        # applications. The policy says what is allowed; something has to enforce it on the device or the network
+        # (NET-017 asks about Global Secure Access doing so).
+        $restrictions = & $v $xtap 'tenantRestrictions'
+        if ($null -eq $restrictions) { $notEvaluated['ID-042'] = 'The cross-tenant access defaults did not carry the tenant restrictions policy.' }
+        else {
+            $blocksAll = { param($part, [string] $target) ((& $v $part 'accessType') -eq 'blocked') -and [bool](@(& $v $part 'targets') | Where-Object { (& $v $_ 'target') -eq $target }) }
+            $facts.tenantRestrictionsDefaultBlocks = (& $blocksAll (& $v $restrictions 'usersAndGroups') 'AllUsers') -and (& $blocksAll (& $v $restrictions 'applications') 'AllApplications')
+        }
         $usersIn = & $v $xtap 'b2bCollaborationInbound.usersAndGroups'
         $appsIn = & $v $xtap 'b2bCollaborationInbound.applications'
         $allUsersAllowed = ((& $v $usersIn 'accessType') -eq 'allowed') -and [bool](@(& $v $usersIn 'targets') | Where-Object { (& $v $_ 'target') -eq 'AllUsers' })

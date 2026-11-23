@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 402 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 409 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,21 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Seven checks on application credentials and access (2026-11-23, catalog 2026.11.3), with no new permission.
+  - App registrations: any that still sign in with a client secret (ID-043), and any with a certificate valid for
+    longer than 180 days from start to end (ID-044, the limit is a threshold).
+  - Service principals: a secret or certificate added to the service principal itself, where nobody looks (ID-045,
+    a SAML signing certificate is not counted), and a credential added to a Microsoft application, which has no
+    routine reason and is a known way of keeping access (ID-046).
+  - Enterprise applications published by another organisation that every account can sign in to because they ask
+    for no assignment (GV-012).
+  - Tenant restrictions block other organisations by default (ID-042), and a named location is marked trusted
+    (CA-028).
+  - The Entra collection saves three more fields for these: the longest validity of an app registration's
+    certificates, and how many secrets and non-signing certificates sit on each service principal. ID-044, ID-045
+    and ID-046 say "collect again" for evidence from before.
+  - Six Zero Trust Assessment tests and three Maester tests are covered by these: Zero Trust Assessment 195 of 364,
+    Maester 204 of 613.
 - Six checks on the rest of the Defender Antivirus policy (2026-11-23, catalog 2026.11.3), from Maester's tests of
   it and from the Intune policy settings the run already collects. EP-005 asked for real-time, cloud, PUA, sample
   submission and a schedule. These ask for the remainder, each as "an assigned policy sets this", because a setting

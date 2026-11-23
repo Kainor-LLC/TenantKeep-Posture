@@ -906,10 +906,6 @@
       "reason": "planned",
       "note": "An Exchange Online organisation setting or mail flow report."
     },
-    "MT.1057": {
-      "reason": "planned",
-      "note": "A property of the app registrations and enterprise applications, which are already collected."
-    },
     "MT.1058": {
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
@@ -941,10 +937,6 @@
     "MT.1074": {
       "reason": "planned",
       "note": "An Exchange Online organisation setting or mail flow report."
-    },
-    "MT.1075": {
-      "reason": "planned",
-      "note": "A property of the app registrations and enterprise applications, which are already collected."
     },
     "MT.1076": {
       "reason": "planned",
@@ -1137,10 +1129,6 @@
     "MT.1197": {
       "reason": "planned",
       "note": "Dynamic group rules."
-    },
-    "MT.1198": {
-      "reason": "planned",
-      "note": "A property of the app registrations and enterprise applications, which are already collected."
     },
     "MT.1200": {
       "reason": "planned",

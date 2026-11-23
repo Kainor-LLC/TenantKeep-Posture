@@ -50,7 +50,7 @@
             Tags         = @('Microsoft365', 'EntraID', 'ConditionalAccess', 'Security', 'Posture', 'Audit', 'PSEdition_Core', 'MacOS', 'Linux', 'Windows')
             LicenseUri   = 'https://github.com/Kainor-LLC/TenantKeep-Posture/blob/main/LICENSE.md'
             ProjectUri   = 'https://github.com/Kainor-LLC/TenantKeep-Posture'
-            ReleaseNotes = 'Pre-release, Authenticode-signed by Kainor LLC. 402 checks in 16 domains (catalog 2026.11.3), a report that draws what it used to list, runs that carry on where they stopped, and collection that holds no long list in memory. The consent changed: two permissions are gone and five read-only ones are new, so an admin consents again once. See CHANGELOG.md.'
+            ReleaseNotes = 'Pre-release, Authenticode-signed by Kainor LLC. 409 checks in 16 domains (catalog 2026.11.3), a report that draws what it used to list, runs that carry on where they stopped, and collection that holds no long list in memory. The consent changed: two permissions are gone and five read-only ones are new, so an admin consents again once. See CHANGELOG.md.'
             Prerelease   = 'alpha'
         }
     }

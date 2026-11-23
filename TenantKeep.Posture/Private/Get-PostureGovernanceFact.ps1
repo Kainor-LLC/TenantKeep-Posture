@@ -91,10 +91,15 @@ function Get-PostureGovernanceFact {
 
     # Service principals: SSO mix (GV-007), SAML certificates (GV-008), owners (GV-010), HR connector (GV-011)
     $sps = & $load '10-service-principals'
-    if ($null -eq $sps) { & $missing @('GV-007', 'GV-008', 'GV-010', 'GV-011') '10-service-principals' 'Directory.Read.All' }
+    if ($null -eq $sps) { & $missing @('GV-007', 'GV-008', 'GV-010', 'GV-011', 'GV-012') '10-service-principals' 'Directory.Read.All' }
     else {
         $apps = @(& $rows $sps | Where-Object { $_.IsEnterpriseAppListed -eq $true -and $_.AccountEnabled -ne $false })
         $facts.enterpriseApps = $apps.Count
+        # GV-012: applications from other organisations (not your own, not Microsoft's) that any account in the tenant
+        # can sign in to, because they do not ask for an assignment.
+        $openToAll = @($apps | Where-Object { $_.HomeTenantApp -ne $true -and [string]$_.AppOwnerOrganizationId -ne 'f8cdef31-a31e-4b4a-93e4-5f571e91255a' -and $_.AppRoleAssignmentRequired -ne $true })
+        $facts.thirdPartyAppsOpenToAll = $openToAll.Count
+        $affected.thirdPartyAppsOpenToAll = @($openToAll | ForEach-Object { [ordered]@{ name = [string]$_.DisplayName; detail = 'any account in the tenant can sign in to it' } })
         $byMode = @{}
         foreach ($a in $apps) { $m = [string]$a.PreferredSingleSignOnMode; if (-not $m) { $m = 'none' }; $byMode[$m] = 1 + $(if ($byMode.ContainsKey($m)) { $byMode[$m] } else { 0 }) }
         $facts.ssoByMode = [ordered]@{}; foreach ($k in ($byMode.Keys | Sort-Object)) { $facts.ssoByMode[$k] = $byMode[$k] }

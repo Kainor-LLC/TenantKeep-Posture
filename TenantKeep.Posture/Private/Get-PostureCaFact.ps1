@@ -129,6 +129,8 @@ function Get-PostureCaFact {
 
     # CA-008 trusted-location bypass on MFA policies
     $trustedIds = @($snap.NamedLocations | Where-Object { Get-PostureValue $_ 'isTrusted' } | ForEach-Object { [string]$_.id })
+    # CA-028: a named location marked as trusted, which ID Protection also uses to judge sign-in risk.
+    $facts.trustedNamedLocations = $trustedIds.Count
     $bypass = @($enabled | Where-Object { (& $mfaLevel $_) -ge 1 -and @(@($_.conditions.excludeLocations) | Where-Object { $_.id -eq 'AllTrusted' -or $_.id -in $trustedIds }).Count -gt 0 })
     $affected.trustedLocationMfaBypass = @($bypass | ForEach-Object { & $label $_ "skips MFA from: $(@($_.conditions.excludeLocations | ForEach-Object { $_.name }) -join ', ')" })
     $facts.trustedLocationMfaBypass = $affected.trustedLocationMfaBypass.Count

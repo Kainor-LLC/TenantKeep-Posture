@@ -690,6 +690,8 @@ function Invoke-PostureEntraCollection {
                 Secrets = @(& $v $_ 'passwordCredentials').Count; Certs = @(& $v $_ 'keyCredentials').Count
                 EarliestExpiry = $(if ($ends.Count -gt 0) { ($ends | Sort-Object | Select-Object -First 1).ToString('o') } else { $null })
                 ExpiredCredentials = @($ends | Where-Object { $_ -lt $AsOf }).Count
+                # The longest any of its certificates is valid for, start to end, in days; 0 with none.
+                LongestCertDays = [int](@(@(& $v $_ 'keyCredentials') | Where-Object { $_ } | ForEach-Object { $from = & $date (& $v $_ 'startDateTime'); $to = & $date (& $v $_ 'endDateTime'); if ($from -and $to) { [Math]::Ceiling(($to - $from).TotalDays) } }) + 0 | Measure-Object -Maximum).Maximum
             }
         }
     } | Out-Null
@@ -704,6 +706,9 @@ function Invoke-PostureEntraCollection {
                 AppRoleAssignmentRequired = (& $v $_ 'appRoleAssignmentRequired'); CreatedDateTime = (& $v $_ 'createdDateTime')
                 HomeTenantApp = ([string](& $v $_ 'appOwnerOrganizationId') -eq $tenantId); IsEnterpriseAppListed = (@(& $v $_ 'tags') -contains 'WindowsAzureActiveDirectoryIntegratedApp')
                 SamlCertExpiry = $(if ($saml.Count -gt 0) { $saml[0].ToString('o') } else { $null }); HasExpiredCreds = (@($ends | Where-Object { $_ -lt $AsOf }).Count -gt 0)
+                # Credentials added to the service principal itself: secrets, and certificates other than the ones a SAML
+                # application signs its tokens with (usage Verify), which belong there.
+                Secrets = @(@(& $v $_ 'passwordCredentials') | Where-Object { $_ }).Count; Certs = @(@(& $v $_ 'keyCredentials') | Where-Object { $_ -and (& $v $_ 'usage') -ne 'Verify' }).Count
                 OwnerCount = @(@(& $v $_ 'owners') | Where-Object { $_ }).Count   # owners expanded with ids only (Graph caps it at 20); an absent property is zero, not a one-element array of null
             }
         }

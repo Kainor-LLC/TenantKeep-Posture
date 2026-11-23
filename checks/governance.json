@@ -416,6 +416,49 @@
       "attack": [
         "T1078.004"
       ]
+    },
+    {
+      "id": "GV-012",
+      "domain": "governance",
+      "title": "Applications from other organisations ask for an assignment",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.thirdPartyAppsOpenToAll == 0",
+      "affected": "facts.thirdPartyAppsOpenToAll",
+      "remediation": [
+        "For each application listed, open it under Enterprise applications, Properties, and set Assignment required to Yes.",
+        "Before you do, assign the groups that use it under Users and groups, or they lose access.",
+        "An access package is the tidy way to let people ask for the application."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "People who are not assigned can no longer sign in to the application and need to ask for it."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "An enterprise application that does not ask for an assignment can be signed in to by every account in the tenant, a guest and a compromised account among them. With assignment required, access to each application is a decision someone made, shows in access reviews, and ends when the person leaves the group. The applications listed are published by another organisation and open to everyone.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1075"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

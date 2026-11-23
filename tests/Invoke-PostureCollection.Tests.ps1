@@ -644,7 +644,7 @@ Describe 'Invoke-PostureCollection' {
 
         It 'feeds the CA and devices checks from the same folder' {
             $r = Invoke-PostureChecks -Evidence $script:R.Folder -Domain ca, devices -PassThru
-            $r.results.Count | Should -Be 53
+            $r.results.Count | Should -Be 54
             $d = @{}; foreach ($x in $r.results) { $d[$x.id] = $x }
             $d['DEV-005'].status | Should -Be 'fail' -Because 'OLD-PC has no BitLocker key'
             $d['DEV-007'].status | Should -Be 'fail' -Because 'OLD-PC is Windows 10'

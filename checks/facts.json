@@ -558,7 +558,14 @@
     "avSignatureIntervalHours": "Signature update interval, hours",
     "avLocalAdminMergeOff": "A policy turns local admin merge off",
     "avQuarantineKeptForever": "A policy keeps quarantined malware until removed",
-    "avQuarantineDays": "Days quarantined malware is kept"
+    "avQuarantineDays": "Days quarantined malware is kept",
+    "tenantRestrictionsDefaultBlocks": "Tenant restrictions block other organisations by default",
+    "appsWithSecrets": "App registrations with a client secret",
+    "appsWithLongCertificates": "App registrations with a certificate valid past the limit",
+    "servicePrincipalsWithCredentials": "Service principals with a credential of their own",
+    "microsoftAppsWithCredentials": "Microsoft applications with a credential added",
+    "thirdPartyAppsOpenToAll": "Applications from other organisations open to every account",
+    "trustedNamedLocations": "Named locations marked as trusted"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -643,6 +650,7 @@
     "maxGuestSessionHours": "Hours a guest may stay signed in, at most",
     "minCloudTimeoutSeconds": "Cloud extended timeout, at least (seconds)",
     "maxSignatureIntervalHours": "Signature update interval, at most (hours)",
-    "minQuarantineDays": "Days to keep quarantined malware, at least"
+    "minQuarantineDays": "Days to keep quarantined malware, at least",
+    "maxCertificateLifetimeDays": "Days an application certificate may be valid, at most"
   }
 }

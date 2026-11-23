@@ -908,3 +908,82 @@ Describe 'The rest of the Defender Antivirus policy (catalog 2026.11.3)' {
         foreach ($r in @($run.results | Where-Object { $_.id -in $script:AvIds })) { $r.status | Should -Be 'notEvaluated'; $r.reason | Should -Match '09-intune-policy-settings\.json' }
     }
 }
+
+Describe 'Application credentials, tenant restrictions and trusted locations (catalog 2026.11.3)' {
+    BeforeAll {
+        $script:App = { param([string] $Name, [int] $Secrets = 0, [int] $Certs = 0, [int] $LongestCertDays = 0) @{ Id = "id-$Name"; AppId = "app-$Name"; DisplayName = $Name; SignInAudience = 'AzureADMyOrg'; Secrets = $Secrets; Certs = $Certs; EarliestExpiry = '2029-01-01T00:00:00Z'; ExpiredCredentials = 0; LongestCertDays = $LongestCertDays } }
+        $script:Sp = {
+            param([string] $Name, [string] $Owner = 'own', [int] $Secrets = 0, [int] $Certs = 0, [bool] $AssignmentRequired = $false)
+            $tenant = @{ own = '33333333-3333-3333-3333-333333333333'; microsoft = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'; vendor = '44444444-4444-4444-4444-444444444444' }[$Owner]
+            $row = @{ Id = "sp-$Name"; AppId = "app-$Name"; DisplayName = $Name; AccountEnabled = $true; ServicePrincipalType = 'Application'; AppOwnerOrganizationId = $tenant; PreferredSingleSignOnMode = $null; SignInAudience = 'AzureADMultipleOrgs' }
+            $row += @{ AppRoleAssignmentRequired = $AssignmentRequired; HomeTenantApp = ($Owner -eq 'own'); IsEnterpriseAppListed = $true; SamlCertExpiry = $null; HasExpiredCreds = $false; Secrets = $Secrets; Certs = $Certs; OwnerCount = 1 }
+            $row
+        }
+    }
+
+    It 'ID-043 and ID-044 list app registrations with a secret, and with a certificate valid too long' {
+        $by = & $script:Judge 'identity' @{ '10-app-registrations' = @((& $script:App 'Clean' 0 1 180), (& $script:App 'Old sync' 2 0 0), (& $script:App 'Portal' 0 1 730)) }
+        $by['ID-043'].status | Should -Be 'fail'
+        @($by['ID-043'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('Old sync: 2 client secret(s)')
+        $by['ID-044'].status | Should -Be 'fail'
+        @($by['ID-044'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('Portal: a certificate valid for 730 days (limit 180)')
+        $good = & $script:Judge 'identity' @{ '10-app-registrations' = @((& $script:App 'Clean' 0 1 180)) }
+        $good['ID-043'].status | Should -Be 'pass'
+        $good['ID-044'].status | Should -Be 'pass' -Because '180 days is the limit, not past it'
+        # Evidence from before the lifetime was saved has an answer for secrets and none for certificates.
+        $old = & $script:Judge 'identity' @{ '10-app-registrations' = @(@{ DisplayName = 'Old sync'; AppId = 'a1'; Secrets = 1; Certs = 1; EarliestExpiry = '2029-01-01T00:00:00Z'; ExpiredCredentials = 0 }) }
+        $old['ID-043'].status | Should -Be 'fail'
+        $old['ID-044'].status | Should -Be 'notEvaluated'
+        $old['ID-044'].reason | Should -Match 'before certificate lifetimes were saved'
+    }
+
+    It 'ID-045 and ID-046 tell a credential on your own or a vendor''s service principal from one on a Microsoft application' {
+        $by = & $script:Judge 'identity' @{ '10-service-principals' = @((& $script:Sp 'Intranet' 'own'), (& $script:Sp 'Vendor CRM' 'vendor' 1 0), (& $script:Sp 'Office 365 Exchange Online' 'microsoft' 0 1)) }
+        $by['ID-045'].status | Should -Be 'fail'
+        @($by['ID-045'].affected).name | Should -Be @('Vendor CRM')
+        $by['ID-046'].status | Should -Be 'fail'
+        @($by['ID-046'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('Office 365 Exchange Online: 0 secret(s), 1 certificate(s) on the service principal')
+        $good = & $script:Judge 'identity' @{ '10-service-principals' = @((& $script:Sp 'Intranet' 'own'), (& $script:Sp 'Office 365 Exchange Online' 'microsoft')) }
+        foreach ($id in 'ID-045', 'ID-046') { $good[$id].status | Should -Be 'pass' -Because $id }
+        $row = & $script:Sp 'Intranet' 'own'; $row.Remove('Secrets'); $row.Remove('Certs')
+        $old = & $script:Judge 'identity' @{ '10-service-principals' = @($row) }
+        foreach ($id in 'ID-045', 'ID-046') { $old[$id].status | Should -Be 'notEvaluated'; $old[$id].reason | Should -Match 'Collect Entra again' -Because $id }
+    }
+
+    It 'GV-012 lists applications from other organisations that ask for no assignment, and leaves your own and Microsoft''s alone' {
+        # The governance provider answers nothing without the users summary, so the folder carries one.
+        $users = @{ Total = 7; Members = 4; Guests = 3; EnabledInactiveMembers = 0; SignInActivityAvailable = $true; StaleDays = 90 }
+        $by = & $script:Judge 'governance' @{ '06-users-summary' = $users; '10-service-principals' = @((& $script:Sp 'Intranet' 'own'), (& $script:Sp 'Vendor CRM' 'vendor'), (& $script:Sp 'Vendor HR' 'vendor' 0 0 $true), (& $script:Sp 'Microsoft Teams' 'microsoft')) }
+        $by['GV-012'].status | Should -Be 'fail'
+        @($by['GV-012'].affected).name | Should -Be @('Vendor CRM')
+        (& $script:Judge 'governance' @{ '06-users-summary' = $users; '10-service-principals' = @((& $script:Sp 'Vendor HR' 'vendor' 0 0 $true)) })['GV-012'].status | Should -Be 'pass'
+    }
+
+    It 'ID-042 wants the tenant restrictions default to block all users and all applications' {
+        $inbound = @{ usersAndGroups = @{ accessType = 'allowed'; targets = @(@{ target = 'AllUsers' }) }; applications = @{ accessType = 'allowed'; targets = @(@{ target = 'AllApplications' }) } }
+        $policy = {
+            param([string] $Users, [string] $Apps)
+            $restrictions = @{ usersAndGroups = @{ accessType = $Users; targets = @(@{ target = 'AllUsers'; targetType = 'user' }) }; applications = @{ accessType = $Apps; targets = @(@{ target = 'AllApplications'; targetType = 'application' }) } }
+            @{ '02-cross-tenant-access-defaults' = @{ b2bCollaborationInbound = $inbound; tenantRestrictions = $restrictions } }
+        }
+        (& $script:Judge 'identity' (& $policy 'blocked' 'blocked'))['ID-042'].status | Should -Be 'pass'
+        (& $script:Judge 'identity' (& $policy 'allowed' 'allowed'))['ID-042'].status | Should -Be 'fail' -Because 'the default that ships allows everything'
+        (& $script:Judge 'identity' (& $policy 'blocked' 'allowed'))['ID-042'].status | Should -Be 'fail'
+        $bare = @{ '02-cross-tenant-access-defaults' = @{ b2bCollaborationInbound = $inbound } }
+        (& $script:Judge 'identity' $bare)['ID-042'].status | Should -Be 'notEvaluated' -Because 'a policy the evidence does not carry is not an answer'
+    }
+
+    It 'CA-028 wants a named location marked as trusted' {
+        (& $script:Policies $null)['CA-028'].status | Should -Be 'pass' -Because 'the sample snapshot marks its office egress as trusted'
+        $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot') -Destination $dir -Recurse
+        $path = Join-Path $dir 'named-locations.json'
+        $locations = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 20
+        foreach ($location in @($(if ($locations -is [System.Collections.IDictionary] -and $locations.Contains('value')) { $locations['value'] } else { $locations }))) { if ($location.Contains('isTrusted')) { $location['isTrusted'] = $false } }
+        ConvertTo-Json -InputObject $locations -Depth 20 | Set-Content -LiteralPath $path
+        '{ "version": 1, "licenses": ["E5", "P1", "P2"] }' | Set-Content (Join-Path $dir 'profile.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+        $run = Invoke-PostureChecks -Evidence $dir -Domain ca -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+        @($run.results | Where-Object { $_.id -eq 'CA-028' })[0].status | Should -Be 'fail'
+    }
+}

@@ -1943,6 +1943,229 @@
       "attack": [
         "T1078.004"
       ]
+    },
+    {
+      "id": "ID-042",
+      "domain": "identity",
+      "title": "Tenant restrictions block other organisations by default",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-cross-tenant-access-defaults.json"
+      ],
+      "pass": "facts.tenantRestrictionsDefaultBlocks",
+      "remediation": [
+        "In Entra, External Identities, Cross-tenant access settings, Default settings, edit Tenant restrictions defaults.",
+        "Under External users and groups choose Block access for all users, and under External applications Block access for all.",
+        "Add the organisations your people may sign in to as partner settings, then enforce the policy: through Global Secure Access (NET-017), a Windows policy, or your proxy's header."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Once enforced, signing in to another organisation's Microsoft 365 from your devices is blocked unless that organisation is allowed."
+      },
+      "learn": "https://learn.microsoft.com/entra/external-id/tenant-restrictions-v2",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/CompanyRelationshipsMenuBlade/~/CrossTenantAccessSettings",
+      "narrative": "Your controls end at the edge of your tenant: a person can sign in to a tenant of their own from a managed laptop and move files into it. Tenant restrictions are how you say which other organisations may be signed in to from your devices. The default that ships allows everything. This check reads the default; the policy still has to be enforced on the device or the network to do anything.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.12",
+        "cmmc": "AC.L2-3.1.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21793"
+        ]
+      },
+      "attack": [
+        "T1537",
+        "T1567"
+      ]
+    },
+    {
+      "id": "ID-043",
+      "domain": "identity",
+      "title": "App registrations sign in with certificates, not client secrets",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-app-registrations.json"
+      ],
+      "pass": "facts.appsWithSecrets == 0",
+      "affected": "facts.appsWithSecrets",
+      "remediation": [
+        "For each application listed, ask its owner how it signs in. A workload in Azure should use a managed identity and needs no credential at all.",
+        "Elsewhere, add a certificate to the registration or a federated credential for the platform it runs on, switch the application to it, then delete the secret.",
+        "Stop new ones: the tenant app management policy can block new secrets (ID-028)."
+      ],
+      "effort": "L",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people. Each application's owner has a change to make."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity-platform/security-best-practices-for-app-registration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+      "narrative": "A client secret is a password for an application: a string that works from anywhere, gets pasted into configuration files and pipelines, and is as good as the application's permissions to whoever finds it. A certificate's private key can stay in a vault or on the machine, and a managed identity has no credential to leak. The applications listed still hold a secret.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21772"
+        ],
+        "maester": [
+          "MT.1057"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-044",
+      "domain": "identity",
+      "title": "Application certificates are valid for no longer than 180 days",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxCertificateLifetimeDays": 180
+      },
+      "evidence": [
+        "10-app-registrations.json"
+      ],
+      "pass": "facts.appsWithLongCertificates == 0",
+      "affected": "facts.appsWithLongCertificates",
+      "remediation": [
+        "For each application listed, issue a new certificate valid for 180 days or less and add it to the registration.",
+        "Move the application to the new certificate, then remove the old one.",
+        "Set the limit in the tenant app management policy so new certificates cannot be longer (ID-029)."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people. Applications need their certificate replaced more often, which is worth automating."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity-platform/security-best-practices-for-app-registration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+      "narrative": "A certificate that is valid for years is a credential nobody has to think about for years, including after its private key was copied. A short life forces rotation into a routine and bounds how long a stolen key works. The applications listed hold a certificate valid for longer than the limit from start to end.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21773"
+        ],
+        "maester": [
+          "MT.1198"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "ID-045",
+      "domain": "identity",
+      "title": "Service principals hold no credentials of their own",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.servicePrincipalsWithCredentials == 0",
+      "affected": "facts.servicePrincipalsWithCredentials",
+      "remediation": [
+        "For each application listed, find out who added the credential and why: Entra audit log, activity Add service principal credentials.",
+        "If it is in use, put a credential on the app registration instead, switch over, and remove the one on the service principal.",
+        "If nobody knows it, remove it and treat it as an incident until explained."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity-platform/security-best-practices-for-app-registration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "An application's secrets and certificates belong on its registration, where the portal shows them and owners look after them. A credential added to the service principal in your tenant is easy to miss, works just as well, and for an application published by someone else it lets its holder act as that application in your tenant. The signing certificate of a SAML application is not counted.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21896"
+        ]
+      },
+      "attack": [
+        "T1098.001"
+      ]
+    },
+    {
+      "id": "ID-046",
+      "domain": "identity",
+      "title": "No credential has been added to a Microsoft application",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "10-service-principals.json"
+      ],
+      "pass": "facts.microsoftAppsWithCredentials == 0",
+      "affected": "facts.microsoftAppsWithCredentials",
+      "remediation": [
+        "Treat each application listed as a possible intrusion until explained. Look in the Entra audit log for Add service principal credentials on it: who, when, from where.",
+        "Remove the credential, and review what the application's permissions would have let its holder do since it was added.",
+        "Limit who can do this: Application Administrator and Cloud Application Administrator can add credentials to service principals."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity-platform/security-best-practices-for-app-registration",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview",
+      "narrative": "Microsoft's own applications, such as Exchange Online or Microsoft Graph tools, carry broad permissions in every tenant and are never meant to hold a credential of yours. Adding a secret to one of their service principals lets an attacker sign in as that application with those permissions, and it survives a password reset of every account. It is a known way of keeping access after a compromise. There is no routine reason for it.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.10",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21774"
+        ]
+      },
+      "attack": [
+        "T1098.001"
+      ]
     }
   ]
 }

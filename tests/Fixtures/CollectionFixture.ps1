@@ -33,9 +33,9 @@ function Initialize-CollectionFixture {
     & $w '02-admin-consent-request-policy' @{ isEnabled = $false; reviewers = @() }
     & $w '02-cross-tenant-access-defaults' @{ b2bCollaborationInbound = @{ usersAndGroups = @{ accessType = 'allowed'; targets = @(@{ target = 'AllUsers'; targetType = 'user' }) }; applications = @{ accessType = 'allowed'; targets = @(@{ target = 'AllApplications'; targetType = 'application' }) } }; inboundTrust = @{ isMfaAccepted = $false } }
     & $w '10-app-registrations' @(
-        @{ DisplayName = 'Old App'; AppId = 'a1'; Secrets = 2; Certs = 0; EarliestExpiry = '2024-01-01T00:00:00Z'; ExpiredCredentials = 1 }
-        @{ DisplayName = 'Soon App'; AppId = 'a2'; Secrets = 1; Certs = 0; EarliestExpiry = '2026-10-25T00:00:00Z'; ExpiredCredentials = 0 }
-        @{ DisplayName = 'Fine App'; AppId = 'a3'; Secrets = 0; Certs = 1; EarliestExpiry = '2028-01-01T00:00:00Z'; ExpiredCredentials = 0 }
+        @{ DisplayName = 'Old App'; AppId = 'a1'; Secrets = 2; Certs = 0; EarliestExpiry = '2024-01-01T00:00:00Z'; ExpiredCredentials = 1; LongestCertDays = 0 }
+        @{ DisplayName = 'Soon App'; AppId = 'a2'; Secrets = 1; Certs = 0; EarliestExpiry = '2026-10-25T00:00:00Z'; ExpiredCredentials = 0; LongestCertDays = 0 }
+        @{ DisplayName = 'Fine App'; AppId = 'a3'; Secrets = 0; Certs = 1; EarliestExpiry = '2028-01-01T00:00:00Z'; ExpiredCredentials = 0; LongestCertDays = 730 }
     )
     & $w '10-graph-app-permissions' @(
         @{ PrincipalDisplayName = 'Backup Tool'; PrincipalId = 'sp1'; PrincipalType = 'ServicePrincipal'; Permission = 'Mail.ReadWrite'; CreatedDateTime = '2025-01-01T00:00:00Z' }
