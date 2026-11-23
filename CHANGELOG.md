@@ -4,28 +4,13 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
-## Unreleased
-
-- The licensing advisor recommends one combination (2026-11-22), in place of a list of options to compare: licences
-  to add, or a suite to move to with the add-ons it still needs. Each licence comes with the goals it covers, what it
-  brings and what needs it first; a move says what it takes the place of and what stays. The search no longer stops
-  at three add-ons, brings what an add-on needs first (ID Governance needs Entra ID P1), and never takes away a goal
-  the tenant meets today. Licences held today where one includes all of another are listed. `findings.json` carries
-  `licensing.advice.recommended` in place of `options`.
-- `New-PostureReport -PriceFile`, or `TENANTKEEP_PRICE_FILE` (2026-11-22): a licence price file of your own lets the
-  advisor choose between combinations that all work by the lowest total for a user. The module ships and fetches no
-  prices, and nothing of the file reaches a report: no amount, total or comparison, in the page's data either. The
-  console and `logs/licensing-basis.json` say which file was used, what it assumes and whether it is more than 35
-  days old. Without a file, or when one licence in the comparison has no figure, the choice is on function alone.
-  Guide, section 8e.
-
 ## 0.4.0-alpha (2026-11-21)
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
 - The catalog went from 204 checks in 13 domains to 282 in 15 (catalog 2026.11.2). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
-- The report draws what it used to list: outcomes, charts, sign-in flows, licensing options, an inventory, and a
+- The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
 - A check is judged only on evidence it has. What could not be read has no answer; it never passes and never fails.
 - Collection and the report hold no long list in memory. Measured on a made-up tenant of 300,000 users.
@@ -42,6 +27,18 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- The licensing advisor recommends one combination (2026-11-22), in place of a list of options to compare: licences
+  to add, or a suite to move to with the add-ons it still needs. Each licence comes with the goals it covers, what it
+  brings and what needs it first; a move says what it takes the place of and what stays. The search no longer stops
+  at three add-ons, brings what an add-on needs first (ID Governance needs Entra ID P1), and never takes away a goal
+  the tenant meets today. Licences held today where one includes all of another are listed. `findings.json` carries
+  `licensing.advice.recommended` in place of `options`.
+- `New-PostureReport -PriceFile`, or `TENANTKEEP_PRICE_FILE` (2026-11-22): a licence price file of your own lets the
+  advisor choose between combinations that all work by the lowest total for a user. The module ships and fetches no
+  prices, and nothing of the file reaches a report: no amount, total or comparison, in the page's data either. The
+  console and `logs/licensing-basis.json` say which file was used, what it assumes and whether it is more than 35
+  days old. Without a file, or when one licence in the comparison has no figure, the choice is on function alone.
+  Guide, section 8e.
 - Executive Mode is a short view (2026-11-22): the Overview, Recommendations and the domain scorecards, without the
   technical detail. It used to hide two tabs and some columns, and read like the full report. A link to a view it
   does not have lands on the Overview. `-Template Executive` opens the page that way; the button switches.
