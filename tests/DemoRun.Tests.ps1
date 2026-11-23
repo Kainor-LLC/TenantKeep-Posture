@@ -83,6 +83,16 @@ Describe 'The page a reader opens' {
         $script:Css | Should -Match '(?m)^td\.nw \{ white-space: nowrap; \}'
     }
 
+    It 'counts the seats someone paid for, names each licence, and keeps the pill beside a wrapped title its own height' {
+        $seats = [regex]::Match($script:Page, '<h4>Seats Assigned</h4>.{0,9000}?</figure>', 'Singleline').Value
+        $seats | Should -Match '<p class="takeaway">25 paid seats are not assigned to anyone\. One licence Microsoft gives away is left out of the count\.</p>' -Because 'the demo tenant, like most real ones, holds a million free Fabric seats, and they used to be counted as paid'
+        $seats | Should -Match '<span class="seat-name">Microsoft 365 E5 <code>SPE_E5</code></span>'
+        $seats | Should -Not -Match '<span class="seat-frac">22 of 1000000</span>' -Because 'a licence nobody paid for has no bar'
+        $seats | Should -Match '<td>Microsoft Fabric \(Free\) \(POWER_BI_STANDARD\)</td><td>1000000</td><td>22</td><td>999978</td><td>given away</td>' -Because 'it is still in the table'
+        $script:Css | Should -Match '(?m)^\.do-today li \.sev \{ align-self: start; \}'
+        $script:Css | Should -Match '(?m)^@media screen and \(max-width: 760px\) \{ th, td \{ min-width: 8\.5em; \} td:has\(\.cmd\) \{ min-width: 20em; \} \}'
+    }
+
     It 'opens a view at the top of the page at once' {
         $script:Page | Should -Match "window\.scrollTo\(\{ top: 0, left: 0, behavior: 'instant' \}\)" -Because 'a report opened at a view link started at that section and slid up, and a screenshot taken then cut the header off'
     }

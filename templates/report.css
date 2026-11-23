@@ -103,6 +103,9 @@ td.nw { white-space: nowrap; }
    table was 1,033 wide. Screen only: print is as it was. The report is made for a desktop or laptop screen, and
    this is the one rule for anything narrower. */
 @media screen and (max-width: 760px) { table { display: block; overflow-x: auto; } }
+/* Inside that box a column keeps a width its words can be read at, and a cell holding a command to copy keeps more:
+   without this every column was squeezed to one word a line before the table began to scroll. */
+@media screen and (max-width: 760px) { th, td { min-width: 8.5em; } td:has(.cmd) { min-width: 20em; } }
 table.matrix td.on { background: var(--info-bg); font-weight: 600; }
 .muted, .tech { color: var(--muted); }
 .tech { font-size: 13px; }
@@ -158,6 +161,8 @@ tr.st-acceptedRisk td:first-child { border-left: 3px solid var(--info); }
 .do-today li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .do-today li:first-child { border-top: none; }
 .do-today li .muted { grid-column: 2; font-size: 13px; }
+/* The severity pill keeps its own height when the title beside it wraps; stretched, it became a tall oval. */
+.do-today li .sev { align-self: start; }
 .do-today li a { color: var(--fg); text-decoration: none; font-weight: 600; }
 .chip.improve { background: var(--info-bg); color: var(--info); }
 .chip.effort-S { background: var(--ok-bg); color: var(--ok); }

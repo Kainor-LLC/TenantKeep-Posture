@@ -350,6 +350,26 @@ Describe 'The licensing section of a report' {
         Get-ChildItem $script:LicRoot -Recurse -Filter 'licensing-basis.json' | Should -BeNullOrEmpty -Because 'no price file was named'
     }
 
+    It 'leaves a licence Microsoft gives away out of the paid seats nobody uses: one it knows by name, and any with a million seats' {
+        $skuFile = Join-Path $script:LicEvidence '01-subscribed-skus.json'
+        $before = Get-Content -Raw -LiteralPath $skuFile
+        try {
+            $skus = @($before | ConvertFrom-Json -AsHashtable)
+            $skus += @{ skuPartNumber = 'FLOW_FREE'; skuId = 's2'; capabilityStatus = 'Enabled'; consumedUnits = 3; prepaidUnits = @{ enabled = 10000 }; servicePlans = @() }
+            $skus += @{ skuPartNumber = 'SOMETHING_NEW_VIRAL'; skuId = 's3'; capabilityStatus = 'Enabled'; consumedUnits = 0; prepaidUnits = @{ enabled = 1000000 }; servicePlans = @() }
+            ConvertTo-Json -InputObject $skus -Depth 6 | Set-Content -LiteralPath $skuFile
+            $out = Join-Path $script:LicRoot 'given-away'
+            $null = New-PostureReport -Evidence $script:LicEvidence -OutputPath $out -Format Html 6>$null 3>$null
+            $html = Get-Content -Raw (Get-ChildItem $out -Recurse -Filter 'report.html' | Select-Object -First 1).FullName
+            $html | Should -Match '<p class="takeaway">2 paid seats are not assigned to anyone\. 2 licences Microsoft gives away are left out of the count\.</p>' -Because 'ten thousand free Power Automate seats and a million of anything are not seats someone bought'
+            $html | Should -Match '<span class="seat-name">Microsoft 365 Business Premium <code>SPB</code></span>'
+            $html | Should -Match '<td>Microsoft Power Automate Free \(FLOW_FREE\)</td><td>10000</td><td>3</td><td>9997</td><td>given away</td>'
+            $html | Should -Match '<td>SOMETHING_NEW_VIRAL</td><td>1000000</td><td>0</td><td>1000000</td><td>given away</td>' -Because 'a licence the list has never heard of is recognised by its million seats'
+            $html | Should -Not -Match '<span class="seat-frac">\d+ of 10000</span>|<span class="seat-frac">\d+ of 1000000</span>'
+        }
+        finally { Set-Content -LiteralPath $skuFile -Value $before -NoNewline }
+    }
+
     It 'chooses with a price file and lets no price, total or cost word into anything it writes for the customer' {
         $said = New-PostureReport -Evidence $script:LicEvidence -PriceFile $script:LicPrices -Redact 6>&1 3>&1 | ForEach-Object { [string]$_ }
         $files = @(Get-ChildItem $script:LicRoot -Recurse -File | Where-Object { $_.FullName -notlike (Join-Path $script:LicRoot 'prices' '*') })

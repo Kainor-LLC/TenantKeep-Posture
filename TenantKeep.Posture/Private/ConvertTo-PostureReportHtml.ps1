@@ -672,12 +672,20 @@ function ConvertTo-PostureReportHtml {
             }
             & $w ('<p class="hint">' + (& $h $ad.note) + '</p></div>')
         }
-        # Seats per SKU.
+        # Seats per licence. The bars and the count are the licences someone paid for; the ones Microsoft gives away
+        # (model: free) are named in the sentence and kept in the table, where a million free seats mislead nobody.
         $seatRows = @($r.licensing | Where-Object { $_.purchased -gt 0 })
         if ($seatRows.Count) {
-            $bars = @($seatRows | Select-Object -First 12 | ForEach-Object { '<div class="seat-row"><span class="seat-name"><code>' + (& $h $_.sku) + '</code></span><span class="seat-frac">' + $_.assigned + ' of ' + $_.purchased + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $_.sku -Segment @(@{ label = 'Assigned'; value = $_.assigned; tone = 'c1' }, @{ label = 'Free'; value = $_.available; tone = 'na' })) + '</div>' }) -join ''
-            $free = [int](@($seatRows | ForEach-Object { $_.available }) | Measure-Object -Sum).Sum
-            & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Seats Assigned' -Takeaway "$free paid seats are not assigned to anyone." -Body ('<div class="seats">' + $bars + '</div>' + (ConvertTo-PostureChartTable -Header @('Licence', 'Purchased', 'Assigned', 'Free', 'Status') -Row @($r.licensing | ForEach-Object { , @($_.sku, $_.purchased, $_.assigned, $_.available, $_.status) })))) + '</div>')
+            $paidRows = @($seatRows | Where-Object { -not $_.free })
+            $givenRows = @($seatRows | Where-Object { $_.free })
+            $seatLabel = { param($row) if ($row.name) { (& $h $row.name) + ' <code>' + (& $h $row.sku) + '</code>' } else { '<code>' + (& $h $row.sku) + '</code>' } }
+            $bars = @($paidRows | Select-Object -First 12 | ForEach-Object { '<div class="seat-row"><span class="seat-name">' + (& $seatLabel $_) + '</span><span class="seat-frac">' + $_.assigned + ' of ' + $_.purchased + '</span>' + (ConvertTo-PostureBarChart -Thin -Name $(if ($_.name) { $_.name } else { $_.sku }) -Segment @(@{ label = 'Assigned'; value = $_.assigned; tone = 'c1' }, @{ label = 'Free'; value = $_.available; tone = 'na' })) + '</div>' }) -join ''
+            $free = [int](@($paidRows | ForEach-Object { $_.available }) | Measure-Object -Sum).Sum
+            $takeaway = "$free paid seats are not assigned to anyone."
+            if ($givenRows.Count -eq 1) { $takeaway += ' One licence Microsoft gives away is left out of the count.' }
+            elseif ($givenRows.Count -gt 1) { $takeaway += " $($givenRows.Count) licences Microsoft gives away are left out of the count." }
+            $seatTable = @($seatRows | ForEach-Object { , @($(if ($_.name) { "$($_.name) ($($_.sku))" } else { $_.sku }), $_.purchased, $_.assigned, $_.available, $(if ($_.free) { 'given away' } else { 'paid' }), $_.status) })
+            & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Seats Assigned' -Takeaway $takeaway -Body ('<div class="seats">' + $bars + '</div>' + (ConvertTo-PostureChartTable -Header @('Licence', 'Purchased', 'Assigned', 'Free', 'Kind', 'Status') -Row $seatTable))) + '</div>')
         }
         if ($la) {
             $stLabel = @{ owned = 'Owned'; partial = 'Partly assigned'; missing = 'Not owned'; covered = 'Covered by' }

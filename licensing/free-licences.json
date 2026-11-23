@@ -1,0 +1,20 @@
+{
+  "description": "Licences Microsoft gives a tenant without a purchase: free, self-service and trial allotments, usually ten thousand or a million seats. The report leaves them out of its count of paid seats nobody is using. A licence holding a million seats or more is treated the same whether or not it is listed here.",
+  "reviewed": "2026-11-23",
+  "source": "Microsoft's product names and service plan identifiers for licensing (learn.microsoft.com/entra/identity/users/licensing-service-plan-reference). The part numbers were written from that list and are to be confirmed against a tenant that holds each (verify).",
+  "licences": [
+    { "sku": "POWER_BI_STANDARD", "name": "Microsoft Fabric (Free)" },
+    { "sku": "FLOW_FREE", "name": "Microsoft Power Automate Free" },
+    { "sku": "POWERAPPS_VIRAL", "name": "Microsoft Power Apps Plan 2 Trial" },
+    { "sku": "POWERAPPS_DEV", "name": "Microsoft Power Apps for Developer" },
+    { "sku": "CCIBOTS_PRIVPREV_VIRAL", "name": "Power Virtual Agents Viral Trial" },
+    { "sku": "Power_Pages_vTrial_for_Makers", "name": "Power Pages vTrial for Makers" },
+    { "sku": "TEAMS_EXPLORATORY", "name": "Microsoft Teams Exploratory" },
+    { "sku": "STREAM", "name": "Microsoft Stream Trial" },
+    { "sku": "WINDOWS_STORE", "name": "Windows Store for Business" },
+    { "sku": "RIGHTSMANAGEMENT_ADHOC", "name": "Rights Management Adhoc" },
+    { "sku": "MICROSOFT_BUSINESS_CENTER", "name": "Microsoft Business Center" },
+    { "sku": "PHONESYSTEM_VIRTUALUSER", "name": "Microsoft Teams Phone Resource Account" },
+    { "sku": "MCOPSTNC", "name": "Communications Credits" }
+  ]
+}

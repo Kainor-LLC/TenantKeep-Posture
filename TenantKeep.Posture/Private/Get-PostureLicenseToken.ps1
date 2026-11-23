@@ -5,8 +5,8 @@ $script:PostureLicensingData = $null
 function Get-PostureLicensingData {
     <#
     .SYNOPSIS
-        licensing/features.json, bundles.json and goals.json, read once per session: the one place plan names, SKUs
-        and goals live.
+        licensing/features.json, bundles.json, goals.json and free-licences.json, read once per session: the one place
+        plan names, SKUs, goals and the licences Microsoft gives away live.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -17,9 +17,11 @@ function Get-PostureLicensingData {
     if ($script:PostureLicensingData -and $script:PostureLicensingData.path -eq $Path) { return $script:PostureLicensingData }
     $read = { param([string] $Name) Get-Content -Raw -LiteralPath (Join-Path $Path $Name) | ConvertFrom-Json -AsHashtable -Depth 10 }
     $features = & $read 'features.json'; $bundles = & $read 'bundles.json'; $goals = & $read 'goals.json'
+    # Licences Microsoft gives away (free-licences.json). A licensing folder without the file has none listed.
+    $free = $(if (Test-Path -LiteralPath (Join-Path $Path 'free-licences.json')) { & $read 'free-licences.json' } else { @{ licences = @() } })
     $byId = [ordered]@{}; foreach ($f in $features.features) { $byId[[string]$f.id] = $f }
     $script:PostureLicensingData = @{
-        path = $Path; features = $byId; bundles = @($bundles.bundles); goals = @($goals.goals)
+        path = $Path; features = $byId; bundles = @($bundles.bundles); goals = @($goals.goals); free = @($free.licences | Where-Object { $_ })
         reviewed = @{ features = [string]$features.reviewed; bundles = [string]$bundles.reviewed; goals = [string]$goals.reviewed }
     }
     return $script:PostureLicensingData

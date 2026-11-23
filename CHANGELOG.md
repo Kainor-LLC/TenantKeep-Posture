@@ -81,6 +81,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   wider windows and print are unchanged.
 - A report opened at a view's link, `report.html#ca`, starts at the top of that view (2026-11-23). It used to start
   at the section and slide up. The demo build now takes a picture of eleven views, not six.
+- The licensing view counts the seats someone paid for (2026-11-23). Licences Microsoft gives away, such as the
+  million free Fabric seats most tenants hold, were counted among the paid seats nobody uses, which made that number
+  a million. They are now left out of the count and its bars, and kept in the table, marked. A licence is shown by
+  its name with its part number beside it. The list is `licensing/free-licences.json`, and a licence holding a
+  million seats or more is treated the same whether or not it is listed.
+- In a narrow window a table's columns keep a width their words can be read at (2026-11-23), and the severity pill
+  in Do Today keeps its own height beside a title that wraps.
 - Your Administrators (2026-11-23): a group or an application that holds a role no longer has an empty grey chip
   under its name where a person has a sign-in name, and a last sign-in date stays on one line.
 

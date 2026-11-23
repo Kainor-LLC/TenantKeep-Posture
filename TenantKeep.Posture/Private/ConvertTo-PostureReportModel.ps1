@@ -390,10 +390,19 @@ function ConvertTo-PostureReportModel {
     $skus = & $load '01-subscribed-skus'
     $licensing = $null
     if ($null -ne $skus) {
+        # A licence Microsoft gives away is not a seat anyone paid for: most tenants hold a million free Fabric seats,
+        # and counted with the rest they made "paid seats not assigned" a million. Such a licence is one named in
+        # licensing/free-licences.json, or any holding a million seats or more. Names come from the licensing data.
+        $licenceName = @{}; $givenAway = @{}
+        $licenceData = $(try { Get-PostureLicensingData } catch { $null })
+        if ($licenceData) {
+            foreach ($b in @($licenceData.bundles)) { $licenceName[[string]$b.sku] = [string]$b.name }
+            foreach ($f in @($licenceData.free)) { $givenAway[[string]$f.sku] = $true; $licenceName[[string]$f.sku] = [string]$f.name }
+        }
         $licensing = @(@($skus) | Where-Object { $_ } | ForEach-Object {
-                $bought = [int](Get-PostureValue $_ 'prepaidUnits.enabled'); $used = [int](Get-PostureValue $_ 'consumedUnits')
-                [ordered]@{ sku = [string]$_['skuPartNumber']; purchased = $bought; assigned = $used; available = [Math]::Max(0, $bought - $used); status = [string]$_['capabilityStatus'] }
-            } | Sort-Object { - $_.purchased }, { $_.sku })
+                $bought = [int](Get-PostureValue $_ 'prepaidUnits.enabled'); $used = [int](Get-PostureValue $_ 'consumedUnits'); $part = [string]$_['skuPartNumber']
+                [ordered]@{ sku = $part; name = $(if ($licenceName.ContainsKey($part)) { $licenceName[$part] } else { $null }); purchased = $bought; assigned = $used; available = [Math]::Max(0, $bought - $used); status = [string]$_['capabilityStatus']; free = [bool]($givenAway.ContainsKey($part) -or $bought -ge 1000000) }
+            } | Sort-Object { [int][bool]$_.free }, { - $_.purchased }, { $_.sku })
     }
     # The licensing advisor: features owned, partly assigned or missing, goals, and what to add for the profile's
     # goals; and the checks that could not be judged for lack of a licence, by what they need.
