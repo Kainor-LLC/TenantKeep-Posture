@@ -46,6 +46,17 @@ Describe 'Public references the catalog is measured against' {
         }
     }
 
+    It 'accounts for every test of Microsoft''s Zero Trust Assessment' {
+        InModuleScope TenantKeep.Posture {
+            $zta = @(Get-PostureReferenceCoverage -Catalog (Import-PostureCheckCatalog) | Where-Object { $_.name -eq 'zero-trust-assessment' })[0]
+            $zta.version | Should -Be '3.1.0'
+            $zta.counts.total | Should -Be 364
+            $zta.counts.covered | Should -BeGreaterOrEqual 110
+            @($zta.items | Where-Object { $_.id -eq '21796' })[0].checks | Should -Be @('CA-001')
+            @($zta.items | Where-Object { $_.id -eq '41033' })[0].checks | Should -Be @('EM-003', 'EM-004') -Because 'one test can be covered by two checks'
+        }
+    }
+
     It 'knows every Secure Score action a check names, and counts the rest as shown from Microsoft''s own evaluation' {
         InModuleScope TenantKeep.Posture {
             $score = @(Get-PostureReferenceCoverage -Catalog (Import-PostureCheckCatalog) | Where-Object { $_.name -eq 'secure-score' })[0]

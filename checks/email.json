@@ -120,6 +120,9 @@
         "maester": [
           "ORCA.180",
           "ORCA.244"
+        ],
+        "zeroTrust": [
+          "41033"
         ]
       },
       "attack": [
@@ -170,6 +173,9 @@
           "mdo_targeteddomainprotectionaction",
           "mdo_targetedusersprotection",
           "mdo_targeteduserprotectionaction"
+        ],
+        "zeroTrust": [
+          "41033"
         ]
       },
       "attack": [
@@ -228,6 +234,10 @@
           "ORCA.236",
           "ORCA.237",
           "ORCA.238"
+        ],
+        "zeroTrust": [
+          "41031",
+          "41032"
         ]
       },
       "attack": [
@@ -278,6 +288,9 @@
           "ORCA.120.1",
           "ORCA.120.2",
           "ORCA.120.3"
+        ],
+        "zeroTrust": [
+          "41039"
         ]
       },
       "attack": [
@@ -870,6 +883,11 @@
         "cmmc": "AT.L2-3.2.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "41036"
+        ]
+      },
       "attack": [
         "T1566.001",
         "T1566.002"
@@ -1001,6 +1019,9 @@
         ],
         "maester": [
           "ORCA.205"
+        ],
+        "zeroTrust": [
+          "41029"
         ]
       },
       "attack": [

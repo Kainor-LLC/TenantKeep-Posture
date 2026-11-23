@@ -67,7 +67,7 @@ function Import-PostureCheckCatalog {
     $efforts = 'S', 'M', 'L'
     $categories = 'fix', 'improve'
     $userImpacts = 'none', 'low', 'medium', 'high'
-    $referenceKinds = @('secureScore', 'scuba', 'maester')
+    $referenceKinds = @('secureScore', 'scuba', 'maester', 'zeroTrust')
     $checks = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     $files = @()

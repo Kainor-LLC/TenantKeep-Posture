@@ -76,6 +76,11 @@
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21855"
+        ]
+      },
       "attack": [
         "T1098.003"
       ]
@@ -111,6 +116,11 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21857"
+        ]
+      },
       "attack": [
         "T1078.004"
       ]
@@ -145,6 +155,11 @@
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21898"
+        ]
       }
     },
     {
@@ -356,6 +371,12 @@
         "iso27001": "A.5.2",
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21867",
+          "24518"
+        ]
       }
     },
     {

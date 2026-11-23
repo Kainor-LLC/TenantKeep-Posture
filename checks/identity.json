@@ -49,6 +49,9 @@
         ],
         "maester": [
           "MT.1032"
+        ],
+        "zeroTrust": [
+          "21812"
         ]
       },
       "attack": [
@@ -102,6 +105,12 @@
         "maester": [
           "MT.1025",
           "MT.1031"
+        ],
+        "zeroTrust": [
+          "21815",
+          "21816",
+          "21876",
+          "51016"
         ]
       },
       "attack": [
@@ -156,6 +165,9 @@
         "maester": [
           "MT.1026",
           "MT.1081"
+        ],
+        "zeroTrust": [
+          "21814"
         ]
       },
       "attack": [
@@ -266,6 +278,11 @@
         "cmmc": "",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21835"
+        ]
+      },
       "attack": [
         "T1531"
       ]
@@ -303,6 +320,11 @@
         "iso27001": "A.8.2",
         "cmmc": "AC.L2-3.1.5",
         "cisa-scuba": "MS.AAD.7.6v1"
+      },
+      "references": {
+        "zeroTrust": [
+          "21817"
+        ]
       },
       "attack": [
         "T1078.004",
@@ -345,6 +367,9 @@
       "references": {
         "maester": [
           "MT.1027"
+        ],
+        "zeroTrust": [
+          "21836"
         ]
       },
       "attack": [
@@ -390,6 +415,9 @@
         ],
         "maester": [
           "EIDSCA.AP08"
+        ],
+        "zeroTrust": [
+          "21776"
         ]
       },
       "attack": [
@@ -436,6 +464,9 @@
         "maester": [
           "EIDSCA.CR01",
           "EIDSCA.CP04"
+        ],
+        "zeroTrust": [
+          "21809"
         ]
       },
       "attack": [
@@ -575,6 +606,11 @@
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21858"
+        ]
+      },
       "attack": [
         "T1078.004"
       ]
@@ -611,6 +647,12 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21822",
+          "21874"
+        ]
+      },
       "attack": [
         "T1199"
       ]
@@ -645,6 +687,11 @@
         "iso27001": "A.8.15",
         "cmmc": "AU.L2-3.3.1",
         "cisa-scuba": "MS.AAD.4.1v1"
+      },
+      "references": {
+        "zeroTrust": [
+          "21860"
+        ]
       },
       "attack": [
         "T1685.002"
@@ -687,6 +734,11 @@
         "iso27001": "A.5.24",
         "cmmc": "IR.L2-3.6.1",
         "cisa-scuba": "MS.AAD.2.1v1"
+      },
+      "references": {
+        "zeroTrust": [
+          "21861"
+        ]
       },
       "attack": [
         "T1078.004",
@@ -732,6 +784,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": "MS.AAD.1.1v1"
       },
+      "references": {
+        "zeroTrust": [
+          "21795"
+        ]
+      },
       "attack": [
         "T1078.004",
         "T1110.003"
@@ -773,6 +830,9 @@
       "references": {
         "secureScore": [
           "PWAgePolicyNew"
+        ],
+        "zeroTrust": [
+          "21811"
         ]
       },
       "attack": [
@@ -819,6 +879,9 @@
         ],
         "maester": [
           "EIDSCA.PR03"
+        ],
+        "zeroTrust": [
+          "21848"
         ]
       },
       "attack": [
@@ -873,6 +936,9 @@
         "maester": [
           "EIDSCA.PR01",
           "EIDSCA.PR02"
+        ],
+        "zeroTrust": [
+          "21847"
         ]
       },
       "attack": [
@@ -915,6 +981,9 @@
       "references": {
         "maester": [
           "EIDSCA.AP04"
+        ],
+        "zeroTrust": [
+          "21791"
         ]
       },
       "attack": [
@@ -955,6 +1024,10 @@
       "references": {
         "maester": [
           "EIDSCA.AP07"
+        ],
+        "zeroTrust": [
+          "21792",
+          "21821"
         ]
       },
       "attack": [
@@ -994,6 +1067,11 @@
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21790"
+        ]
       },
       "attack": [
         "T1537"
@@ -1090,6 +1168,9 @@
       "references": {
         "maester": [
           "MT.1079"
+        ],
+        "zeroTrust": [
+          "21770"
         ]
       },
       "attack": [

@@ -271,6 +271,9 @@
       "references": {
         "maester": [
           "MT.1173"
+        ],
+        "zeroTrust": [
+          "35013"
         ]
       },
       "attack": [

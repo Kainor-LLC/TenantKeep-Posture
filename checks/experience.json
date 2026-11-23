@@ -280,6 +280,9 @@
       "references": {
         "secureScore": [
           "SelfServicePasswordReset"
+        ],
+        "zeroTrust": [
+          "21870"
         ]
       }
     },
@@ -775,7 +778,12 @@
       "learn": "https://learn.microsoft.com/defender-office-365/submissions-users-report-message-add-in-configure",
       "deepLink": "https://security.microsoft.com/securitysettings/userSubmission",
       "narrative": "People who spot a phishing message often do nothing because reporting it is a chore. A Report button built into Outlook makes it a click, sends the message where the security team and Microsoft can act on it, and turns every alert user into an early warning.",
-      "frameworks": {}
+      "frameworks": {},
+      "references": {
+        "zeroTrust": [
+          "41035"
+        ]
+      }
     },
     {
       "id": "UX-024",

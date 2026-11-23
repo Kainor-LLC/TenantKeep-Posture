@@ -9,7 +9,8 @@
   (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), ScubaData
   (checks/references/cisa-scuba.json, every policy of CISA's SCuBA baselines from a ScubaGear release), SecureScoreData
   (checks/references/secure-score.json, Microsoft's Secure Score actions by id from a run's control list), MaesterData
-  (checks/references/maester.json, the ids and titles of Maester's tests from a Maester release), Upkeep (a
+  (checks/references/maester.json, the ids and titles of Maester's tests from a Maester release), ZeroTrustData
+  (checks/references/zero-trust-assessment.json, the same for Microsoft's Zero Trust Assessment), Upkeep (a
   report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Graph APIs a check waits on, Learn links; run weekly on
   GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
   Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
@@ -41,7 +42,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'Upkeep', 'Demo')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'ZeroTrustData', 'Upkeep', 'Demo')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -67,6 +68,9 @@ param(
 
     # MaesterData task: the tests folder of a Maester release (github.com/maester365/maester), downloaded by hand.
     [string] $MaesterTests,
+
+    # ZeroTrustData task: src/powershell/tests of a Zero Trust Assessment release (github.com/microsoft/zerotrustassessment).
+    [string] $ZeroTrustTests,
 
     # Upkeep task: where the report goes (default out/upkeep.md), and -Offline to skip every check that needs the network.
     [string] $UpkeepReport,
@@ -338,6 +342,36 @@ function Invoke-MaesterData {
     $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
     [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "  $($found.Count) tests of Maester $($doc['version']) written to checks/references/maester.json"
+}
+
+function Invoke-ZeroTrustData {
+    # checks/references/zero-trust-assessment.json: the id and title of every test of Microsoft's Zero Trust Assessment,
+    # read from the ZtTest attribute of each test in the release the file's version names. items is written here;
+    # notCovered and the rest are kept. To move releases: change version and source in the file, run this with that
+    # release's src/powershell/tests folder, then run the tests and work through what they name.
+    Write-Task 'ZeroTrustData'
+    if (-not $ZeroTrustTests -or -not (Test-Path -LiteralPath $ZeroTrustTests -PathType Container)) { throw '-ZeroTrustTests: src/powershell/tests of a release of github.com/microsoft/zerotrustassessment' }
+    $file = Join-Path $Root 'checks' 'references' 'zero-trust-assessment.json'
+    $doc = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+    $found = @{}
+    foreach ($script in Get-ChildItem -LiteralPath $ZeroTrustTests -Filter '*.ps1' | Sort-Object Name) {
+        $text = [System.IO.File]::ReadAllText($script.FullName)
+        $attribute = [regex]::Match($text, '(?s)\[ZtTest\((.*?)\)\]')
+        if (-not $attribute.Success) { continue }
+        $id = [regex]::Match($attribute.Groups[1].Value, 'TestId\s*=\s*[''"]?(\d+)').Groups[1].Value
+        $title = [regex]::Match($attribute.Groups[1].Value, "Title\s*=\s*'((?:[^']|'')*)'").Groups[1].Value.Replace("''", "'")
+        # Microsoft doubles a typographic apostrophe in some titles; one is meant.
+        if ($id) { $found[$id] = (($title.Replace([string][char]0x2019 + [string][char]0x2019, [string][char]0x2019) -replace '\s+', ' ').Trim()) }
+    }
+    if ($found.Count -lt 100) { throw "Only $($found.Count) tests under $ZeroTrustTests; that is not the assessment's tests folder." }
+    $items = [ordered]@{}
+    foreach ($id in ($found.get_Keys() | Sort-Object { [int]$_ })) { $items[$id] = $found[$id] }
+    $out = [ordered]@{}
+    foreach ($k in 'name', 'title', 'source', 'version', 'notice', 'checkKeys') { $out[$k] = $doc[$k] }
+    $out['items'] = $items
+    $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
+    [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "  $($items.Count) tests of the Zero Trust Assessment $($doc['version']) written to checks/references/zero-trust-assessment.json"
 }
 
 function Invoke-AttackData {
@@ -803,7 +837,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'ZeroTrustData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -820,6 +854,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 
         'ScubaData' { Invoke-ScubaData }
         'SecureScoreData' { Invoke-SecureScoreData }
         'MaesterData' { Invoke-MaesterData }
+        'ZeroTrustData' { Invoke-ZeroTrustData }
         'Upkeep' { Invoke-Upkeep }
         'Demo' { Invoke-Demo }
         'Publish' { Invoke-Publish -Stage $stage }

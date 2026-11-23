@@ -38,6 +38,11 @@
         "iso27001": "A.8.9",
         "cmmc": "CM.L2-3.4.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "24573"
+        ]
       }
     },
     {
@@ -85,6 +90,9 @@
         ],
         "maester": [
           "MT.1123"
+        ],
+        "zeroTrust": [
+          "24550"
         ]
       }
     },
@@ -133,6 +141,9 @@
           "scid_2071",
           "scid_2072",
           "scid_2073"
+        ],
+        "zeroTrust": [
+          "24540"
         ]
       },
       "attack": [
@@ -184,6 +195,10 @@
         ],
         "maester": [
           "MT.1177"
+        ],
+        "zeroTrust": [
+          "24560",
+          "21953"
         ]
       },
       "attack": [
@@ -242,6 +257,11 @@
           "MT.1158",
           "MT.1164",
           "MT.1171"
+        ],
+        "zeroTrust": [
+          "24575",
+          "41055",
+          "41060"
         ]
       },
       "attack": [
@@ -340,6 +360,9 @@
         ],
         "maester": [
           "MT.1165"
+        ],
+        "zeroTrust": [
+          "41053"
         ]
       },
       "attack": [
@@ -397,6 +420,10 @@
       "references": {
         "maester": [
           "MT.1178"
+        ],
+        "zeroTrust": [
+          "24574",
+          "41050"
         ]
       },
       "attack": [
@@ -587,6 +614,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "24551"
+        ]
+      },
       "attack": [
         "T1110.003",
         "T1566.002"
@@ -678,6 +710,11 @@
         "cmmc": "SI.L1-3.14.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "24553"
+        ]
+      },
       "attack": [
         "T1068",
         "T1203"
@@ -721,6 +758,11 @@
         "iso27001": "A.8.24",
         "cmmc": "SC.L2-3.13.16",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "24569"
+        ]
       }
     },
     {
@@ -771,6 +813,9 @@
         "maester": [
           "MT.1214",
           "MT.1215"
+        ],
+        "zeroTrust": [
+          "24552"
         ]
       },
       "attack": [
@@ -816,6 +861,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "24568"
+        ]
+      },
       "attack": [
         "T1566.002"
       ]
@@ -859,6 +909,13 @@
         "iso27001": "A.8.1",
         "cmmc": "AC.L2-3.1.18",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "24548",
+          "24549",
+          "51014"
+        ]
       }
     },
     {
@@ -908,6 +965,9 @@
         "secureScore": [
           "scid_20000",
           "scid_2000"
+        ],
+        "zeroTrust": [
+          "41045"
         ]
       }
     },
@@ -1198,6 +1258,11 @@
         "iso27001": "A.5.26",
         "cmmc": "IR.L2-3.6.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41061"
+        ]
       }
     }
   ]

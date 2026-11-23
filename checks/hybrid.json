@@ -128,6 +128,11 @@
         "cmmc": "IA.L2-3.5.3",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "21829"
+        ]
+      },
       "attack": [
         "T1484.002",
         "T1606.002"
@@ -354,6 +359,9 @@
         "maester": [
           "AD-SPN-12",
           "AD-SPN-13"
+        ],
+        "zeroTrust": [
+          "41004"
         ]
       },
       "attack": [
@@ -670,6 +678,9 @@
         ],
         "maester": [
           "AD-SCH-05"
+        ],
+        "zeroTrust": [
+          "41008"
         ]
       },
       "attack": [
@@ -1295,6 +1306,12 @@
         "iso27001": "A.8.16",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41018",
+          "41020"
+        ]
       },
       "attack": [
         "T1003.003",

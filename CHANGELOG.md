@@ -27,6 +27,11 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- The catalog is measured against Microsoft's Zero Trust Assessment (2026-11-22).
+  `checks/references/zero-trust-assessment.json` lists the 364 tests of release 3.1.0. 110 are covered by a check and
+  251 are planned, each with a note: the largest groups are Global Secure Access detail, Azure network security,
+  Microsoft Sentinel configuration and settings in policies the run already collects. Three are out of scope (a
+  licence held, and Security Copilot capacity). `build.ps1 -Task ZeroTrustData` rewrites the list from a release.
 - The catalog is measured against Maester (2026-11-22). `checks/references/maester.json` lists the 613 tests of
   Maester 2.3.0 in five families: its own tests (220), the Entra ID configuration tests (EIDSCA, 44), the Defender
   for Office 365 ones (ORCA, 67), exposure management (12) and Active Directory (270). 116 are covered by a check and

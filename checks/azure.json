@@ -112,6 +112,11 @@
         "iso27001": "A.8.16",
         "cmmc": "SI.L2-3.14.6",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "61022"
+        ]
       }
     },
     {
@@ -147,6 +152,11 @@
         "iso27001": "A.5.36",
         "cmmc": "CA.L2-3.12.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "61004"
+        ]
       }
     },
     {
@@ -463,6 +473,9 @@
       "references": {
         "maester": [
           "MT.1056"
+        ],
+        "zeroTrust": [
+          "21788"
         ]
       },
       "attack": [
@@ -1096,6 +1109,12 @@
         "iso27001": "A.8.15",
         "cmmc": "AU.L2-3.3.1",
         "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41201",
+          "61024"
+        ]
       }
     },
     {

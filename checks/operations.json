@@ -36,6 +36,11 @@
         "cmmc": "AU.L2-3.3.1",
         "cisa-scuba": ""
       },
+      "references": {
+        "zeroTrust": [
+          "61002"
+        ]
+      },
       "attack": [
         "T1685.002"
       ]

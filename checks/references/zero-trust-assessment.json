@@ -1,0 +1,1394 @@
+{
+  "name": "zero-trust-assessment",
+  "title": "Microsoft Zero Trust Assessment",
+  "source": "https://github.com/microsoft/zerotrustassessment/tree/3.1.0/src/powershell/tests",
+  "version": "3.1.0",
+  "notice": "Test ids and titles are from the Microsoft Zero Trust Assessment, Copyright (c) Microsoft Corporation, MIT License.",
+  "checkKeys": {
+    "reference": "zeroTrust"
+  },
+  "items": {
+    "21770": "Inactive applications don’t have highly privileged Microsoft Graph API permissions",
+    "21771": "Inactive applications don’t have highly privileged built-in roles",
+    "21772": "Applications don't have client secrets configured",
+    "21773": "Applications don't have certificates with expiration longer than 180 days",
+    "21774": "Microsoft services applications don't have credentials configured",
+    "21775": "Enforce standards for app secrets and certificates",
+    "21776": "User consent settings are restricted",
+    "21777": "App instance property lock is configured for all multitenant applications",
+    "21778": "Line-of-business and partner apps use MSAL",
+    "21779": "Use recent versions of Microsoft Applications",
+    "21780": "No usage of ADAL in the tenant",
+    "21781": "Privileged users sign in with phishing-resistant methods",
+    "21782": "Privileged accounts have phishing-resistant methods registered",
+    "21783": "Privileged Microsoft Entra built-in roles are targeted with Conditional Access policies to enforce phishing-resistant methods",
+    "21784": "All user sign in activity uses phishing-resistant authentication methods",
+    "21786": "User sign-in activity uses token protection",
+    "21787": "Permissions to create new tenants are limited to the Tenant Creator role",
+    "21788": "Global Administrators don't have standing access to Azure subscriptions",
+    "21789": "Tenant creation events are triaged",
+    "21790": "Outbound cross-tenant access settings are configured",
+    "21791": "Guests can’t invite other guests",
+    "21792": "Guests have restricted access to directory objects",
+    "21793": "Tenant restrictions v2 policy is configured",
+    "21795": "No legacy authentication sign-in activity",
+    "21796": "Block legacy authentication policy is configured",
+    "21797": "Restrict access to high risk users",
+    "21798": "ID Protection notifications are enabled",
+    "21799": "Restrict high risk sign-ins",
+    "21800": "All user sign-in activity uses strong authentication methods",
+    "21801": "Users have strong authentication methods configured",
+    "21802": "Microsoft Authenticator app shows sign-in context",
+    "21803": "Migrate from legacy MFA and SSPR policies",
+    "21804": "SMS and Voice Call authentication methods are disabled",
+    "21806": "Secure the MFA registration (My Security Info) page",
+    "21807": "Creating new applications and service principals is restricted to privileged users",
+    "21808": "Restrict device code flow",
+    "21809": "Admin consent workflow is enabled",
+    "21810": "Resource-specific consent is restricted",
+    "21811": "Password expiration is disabled",
+    "21812": "Maximum number of Global Administrators doesn't exceed eight users",
+    "21813": "High Global Administrator to privileged user ratio",
+    "21814": "Privileged accounts are cloud native identities",
+    "21815": "All privileged role assignments are activated just in time and not permanently active",
+    "21816": "All Microsoft Entra privileged role assignments are managed with PIM",
+    "21817": "Global Administrator role activation triggers an approval workflow",
+    "21818": "Privileged role activations have monitoring and alerting configured",
+    "21819": "Activation alert for Global Administrator role assignments",
+    "21820": "Activation alert for all privileged role assignments",
+    "21821": "Guest access is restricted",
+    "21822": "Guest access is limited to approved tenants",
+    "21823": "Guest self-service sign-up via user flow is disabled",
+    "21824": "Guests don't have long lived sign-in sessions",
+    "21825": "Privileged users have short-lived sign-in sessions",
+    "21828": "Authentication transfer is blocked",
+    "21829": "Use cloud authentication",
+    "21830": "Conditional Access policies for Privileged Access Workstations are configured",
+    "21831": "Protected actions are enabled for high-impact management tasks",
+    "21832": "All groups in Conditional Access policies belong to a restricted management administrative unit",
+    "21833": "Directory Sync account credentials haven't been rotated recently",
+    "21834": "Directory sync account is locked down to specific named location",
+    "21835": "Emergency access accounts are configured appropriately",
+    "21836": "Workload Identities are not assigned privileged roles",
+    "21837": "Limit the maximum number of devices per user to 10",
+    "21838": "Security key authentication method enabled",
+    "21839": "Passkey authentication method enabled",
+    "21840": "Security key attestation is enforced",
+    "21841": "Microsoft Authenticator app report suspicious activity setting is enabled",
+    "21842": "Block administrators from using SSPR",
+    "21843": "Block legacy Microsoft Online PowerShell module",
+    "21844": "Block legacy Azure AD PowerShell module",
+    "21845": "Temporary access pass is enabled",
+    "21846": "Restrict Temporary Access Pass to Single Use",
+    "21847": "Password protection for on-premises is enabled",
+    "21848": "Add organizational terms to the banned password list",
+    "21849": "Smart lockout duration is set to a minimum of 60",
+    "21850": "Smart lockout threshold set to 10 or less",
+    "21851": "Guest access is protected by strong authentication methods",
+    "21854": "Privileged roles aren't assigned to stale identities",
+    "21855": "Privileged roles have access reviews",
+    "21857": "Guest identities are lifecycle managed with access reviews",
+    "21858": "Inactive guest identities are disabled or removed from the tenant",
+    "21859": "GDAP admin least privilege",
+    "21860": "Diagnostic settings are configured for all Microsoft Entra logs",
+    "21861": "All high-risk users are triaged",
+    "21862": "All risky workload identities are triaged",
+    "21863": "All high-risk sign-ins are triaged",
+    "21864": "All risk detections are triaged",
+    "21865": "Named locations are configured",
+    "21866": "All Microsoft Entra recommendations are addressed",
+    "21867": "Enterprise applications with high privilege Microsoft Graph API permissions have owners",
+    "21868": "Guests don't own apps in the tenant",
+    "21869": "Enterprise applications must require explicit assignment or scoped provisioning",
+    "21870": "Enable self-service password reset",
+    "21872": "Require multifactor authentication for device join and device registration using user action",
+    "21874": "Guest access is limited to approved tenants",
+    "21875": "All entitlement management assignment policies that apply to external users require connected organizations",
+    "21876": "Use PIM for Microsoft Entra privileged roles",
+    "21877": "All guests have a sponsor",
+    "21878": "All entitlement management policies have an expiration date",
+    "21879": "All entitlement management assignment policies that apply to external users require approval",
+    "21881": "Azure subscriptions used by Identity Governance are secured consistently with Identity Governance roles",
+    "21882": "No nested groups in PIM for groups",
+    "21883": "Workload Identities are configured with risk-based policies",
+    "21884": "Conditional Access policies for workload identities based on known networks are configured",
+    "21885": "App registrations use safe redirect URIs",
+    "21886": "Applications are configured for automatic user provisioning",
+    "21887": "All registered redirect URIs must have proper DNS records and ownerships",
+    "21888": "App registrations must not have dangling or abandoned domain redirect URIs",
+    "21889": "Reduce the user-visible password surface area",
+    "21890": "Require password reset notifications for user roles",
+    "21891": "Require password reset notifications for administrator roles",
+    "21892": "All sign-in activity comes from managed devices",
+    "21893": "All users are required to register for MFA",
+    "21894": "All certificates Microsoft Entra Application Registrations and Service Principals must be issued by an approved certification authority",
+    "21895": "Application Certificate Credentials are managed using HSM",
+    "21896": "Service principals don't have certificates or credentials associated with them",
+    "21897": "All app assignment and group membership is governed",
+    "21898": "All supported access lifecycle resources are managed with entitlement management packages",
+    "21899": "All privileged role assignments have a recipient that can receive notifications",
+    "21912": "Azure resources used by Microsoft Entra only allow access from privileged roles",
+    "21929": "All entitlement management packages that apply to guests have expirations or access reviews configured in their assignment policies",
+    "21941": "Token protection policies are configured",
+    "21953": "Local Admin Password Solution is deployed",
+    "21954": "Restrict nonadministrator users from recovering the BitLocker keys for their owned devices",
+    "21955": "Manage the local administrators on Microsoft Entra joined devices",
+    "21964": "Enable protected actions to secure Conditional Access policy creation and changes",
+    "21983": "No Active Medium priority Entra recommendations found",
+    "21984": "No Active low priority Entra recommendations found",
+    "21985": "Turn off Seamless SSO if there is no usage",
+    "21992": "Application certificates must be rotated on a regular basis",
+    "22072": "Self-service password reset doesn't use security questions",
+    "22124": "High priority Microsoft Entra recommendations are addressed",
+    "22128": "Guests are not assigned high privileged directory roles",
+    "22659": "All risky workload identity sign-ins are triaged",
+    "23183": "Service principals use safe redirect URIs",
+    "24518": "Enterprise applications have owners",
+    "24540": "Windows Firewall policies protect against unauthorized network access",
+    "24541": "Compliance policies protect Windows devices",
+    "24542": "Compliance policies protect macOS devices",
+    "24543": "Compliance policies protect iOS/iPadOS devices",
+    "24545": "Compliance policies protect fully managed and corporate-owned Android devices",
+    "24546": "Windows automatic device enrollment is enforced to eliminate risks from unmanaged endpoints",
+    "24547": "Compliance policies protect personally owned Android devices",
+    "24548": "Data on iOS/iPadOS is protected by app protection policies",
+    "24549": "Data on Android is protected by app protection policies",
+    "24550": "Data on Windows is protected by BitLocker encryption",
+    "24551": "Authentication on Windows uses Windows Hello for Business",
+    "24552": "macOS Firewall policies protect against unauthorized network access",
+    "24553": "Windows Update policies are enforced to reduce risk from unpatched vulnerabilities",
+    "24554": "Update policies for iOS/iPadOS are enforced to reduce risk from unpatched vulnerabilities",
+    "24555": "Scope tag configuration is enforced to support delegated administration and least-privilege access",
+    "24560": "Local administrator credentials on Windows are protected by Windows LAPS",
+    "24561": "Local administrator credentials on macOS are protected during enrollment by macOS LAPS",
+    "24564": "Local account usage on Windows is restricted to reduce unauthorized access",
+    "24568": "Platform SSO is configured to strengthen authentication on macOS devices",
+    "24569": "FileVault encryption protects data on macOS devices",
+    "24570": "Entra Connect Sync is configured with Service Principal Credentials",
+    "24572": "Device enrollment notifications are enforced to ensure user awareness and secure onboarding",
+    "24573": "Security baselines are applied to Windows devices to strengthen security posture",
+    "24574": "Attack Surface Reduction rules are applied to Windows devices to prevent exploitation of vulnerable system components",
+    "24575": "Defender Antivirus policies protect Windows devices from malware",
+    "24576": "Endpoint Analytics is enabled to help identify risks on Windows devices",
+    "24690": "Update policies for macOS are enforced to reduce risk from unpatched vulnerabilities",
+    "24784": "Defender Antivirus policies protect macOS devices from malware",
+    "24794": "Terms and Conditions policies protect access to sensitive data",
+    "24802": "Device cleanup rules maintain tenant hygiene by hiding inactive devices",
+    "24823": "Company Portal branding and support settings enhance user experience and trust",
+    "24824": "Conditional Access policies block access from noncompliant devices",
+    "24827": "Conditional Access policies block access from unmanaged apps",
+    "24839": "Secure Wi-Fi profiles protect iOS devices from unauthorized network access",
+    "24840": "Secure Wi-Fi profiles protect Android devices from unauthorized network access",
+    "24870": "Secure Wi-Fi profiles protect macOS devices from unauthorized network access",
+    "24871": "Defender for Endpoint automatic enrollment is enforced to reduce risk from unmanaged Android threats",
+    "25370": "Source IP restoration is enabled",
+    "25371": "Network validation is configured through Universal Continuous Access Evaluation",
+    "25372": "Global Secure Access client is deployed on all managed endpoints",
+    "25375": "The tenant holds the licenses required to operate Global Secure Access",
+    "25376": "Microsoft 365 traffic is actively flowing through Global Secure Access",
+    "25377": "Universal tenant restrictions block unauthorized external tenant access",
+    "25379": "Conditional Access policies use compliant network controls",
+    "25380": "Global Secure Access signaling for Conditional Access is enabled",
+    "25381": "Network traffic is routed through Global Secure Access for security policy enforcement",
+    "25382": "Traffic forwarding profiles are scoped to appropriate users and groups for controlled deployment",
+    "25383": "Administrative privileges are tightly limited to prevent compromise",
+    "25384": "Application admin rights are constrained to specific Private Access apps",
+    "25391": "Private network connectors are active and healthy to maintain Zero Trust access to internal resources",
+    "25392": "Private network connectors are running the latest version",
+    "25393": "Quick Access is enabled and bound to a connector",
+    "25394": "Quick Access is bound to a Conditional Access policy",
+    "25395": "Entra Private Access Application segments are defined to enforce least-privilege access",
+    "25396": "Conditional Access policies enforce strong authentication for private apps",
+    "25398": "Domain controller RDP access is protected by phishing-resistant authentication through Global Secure Access",
+    "25399": "Private DNS is configured for internal name resolution",
+    "25400": "DNS traffic for internal domains is routed through Private Access",
+    "25401": "Application Proxy applications require preauthentication to block anonymous access",
+    "25403": "Private Access sensors are enforcing strong authentication policies on domain controllers",
+    "25405": "Intelligent Local Access is enabled and configured",
+    "25406": "Internet access forwarding profile is enabled",
+    "25407": "Web content filtering integrates with Conditional Access",
+    "25408": "Web content filtering policies are configured",
+    "25409": "Web content filtering uses category-based rules",
+    "25410": "Web content filtering policies are linked to security profiles",
+    "25411": "TLS inspection is enabled and correctly configured for outbound traffic",
+    "25412": "Internet traffic is protected against threats using Global Secure Access threat intelligence filtering",
+    "25413": "File transfer policies are configured to prevent data exfiltration",
+    "25415": "AI Gateway protects enterprise generative AI applications from prompt injection attacks",
+    "25416": "Global Secure Access cloud firewall protects branch office internet traffic",
+    "25419": "Network access activity is visible to security operations for threat detection and response",
+    "25420": "Network access logs are retained for security analysis and compliance requirements",
+    "25422": "Global Secure Access deployment logs are populated and reviewed",
+    "25466": "At least two Private Access connectors are active and healthy per connector group",
+    "25480": "Quick Access has user or group assignments",
+    "25481": "All Private Access apps have user or group assignments",
+    "25533": "DDoS Protection is enabled for all Public IP Addresses in VNETs",
+    "25535": "Outbound traffic from VNET integrated workloads is routed through Azure Firewall",
+    "25537": "Threat intelligence is Enabled in Deny Mode on Azure Firewall",
+    "25539": "IDPS Inspection is Enabled in Deny Mode on Azure Firewall",
+    "25541": "Application Gateway WAF is Enabled in Prevention mode",
+    "25543": "Azure Front Door WAF is Enabled in Prevention Mode",
+    "25550": "Inspection of Outbound TLS Traffic is Enabled on Azure Firewall",
+    "26879": "Request Body Inspection is enabled in Application Gateway WAF",
+    "26880": "Request Body Inspection is enabled in Azure Front Door WAF",
+    "26881": "Default Ruleset is enabled in Application Gateway WAF",
+    "26882": "Bot protection ruleset is enabled and assigned in Application Gateway WAF",
+    "26883": "Default rule set is assigned in Azure Front Door WAF",
+    "26884": "Bot protection rule set is enabled and assigned in Azure Front Door WAF",
+    "26885": "Metrics are enabled for DDoS-protected public IPs",
+    "26886": "Diagnostic logging is enabled for DDoS-protected public IPs",
+    "26887": "Diagnostic logging is enabled in Azure Firewall",
+    "26888": "Diagnostic logging is enabled in Application Gateway WAF",
+    "26889": "Diagnostic logging is enabled in Azure Front Door WAF",
+    "27000": "Web content filtering blocks high-risk categories",
+    "27001": "TLS inspection bypass rules are regularly reviewed",
+    "27002": "TLS inspection certificates have a sufficient validity period",
+    "27003": "TLS inspection failure rate is below 1%",
+    "27004": "TLS inspection custom bypass rules don't duplicate system bypass destinations",
+    "27015": "HTTP DDoS Protection Ruleset is Enabled in Application Gateway WAF",
+    "27016": "Rate Limiting is Enabled in Application Gateway WAF",
+    "27017": "JavaScript Challenge is Enabled in Application Gateway WAF",
+    "27018": "Rate Limiting is Enabled in Azure Front Door WAF",
+    "27019": "JavaScript Challenge is Enabled in Azure Front Door WAF",
+    "27020": "CAPTCHA challenge is enabled in Azure Front Door WAF",
+    "27024": "HTTP DDoS protection rule set is enabled in Azure Front Door WAF",
+    "27028": "A web content filtering policy governs Copilot Studio agent traffic through the baseline profile",
+    "35001": "Conditional Access policies don't exclude Rights Management workloads",
+    "35003": "Sensitivity labels are configured",
+    "35004": "Sensitivity label policies are published to users",
+    "35005": "Sensitivity labels are enabled for SharePoint and OneDrive",
+    "35006": "PDF labeling is enabled in SharePoint",
+    "35007": "Information Rights Management is enabled in SharePoint Online",
+    "35008": "Default sensitivity labels are configured for SharePoint document libraries",
+    "35009": "Co-authoring is enabled for files encrypted with sensitivity labels",
+    "35010": "Double Key Encryption labels are configured",
+    "35011": "Super user membership is configured for Microsoft Purview Information Protection",
+    "35012": "Container labels are configured for collaborative workspaces",
+    "35013": "Sensitivity labels with encryption are configured",
+    "35014": "Email label policies inherit sensitivity from attachments",
+    "35015": "Globally published sensitivity labels don't exceed the recommended maximum",
+    "35016": "Mandatory labeling is enabled in sensitivity label policies",
+    "35017": "A default sensitivity label is configured in label policies",
+    "35018": "Users must provide justification to downgrade sensitivity labels",
+    "35019": "Auto-labeling policies are configured for all Microsoft 365 workloads",
+    "35020": "Auto-labeling policies are in enforcement mode",
+    "35021": "Auto-labeling policies are enabled for SharePoint and OneDrive",
+    "35022": "On-demand scans are configured for sensitive information discovery",
+    "35023": "OCR is enabled for sensitive information detection",
+    "35024": "Azure Rights Management service is activated",
+    "35025": "Internal Rights Management licensing is enabled",
+    "35026": "Microsoft Purview Message Encryption is configured with simplified client access",
+    "35027": "Custom branding templates are configured for Microsoft Purview Message Encryption",
+    "35028": "Email retention policies are configured",
+    "35029": "Mail flow rules apply rights protection to sensitive messages",
+    "35030": "Data loss prevention policies are enabled",
+    "35032": "Adaptive Protection is enabled in data loss prevention policies",
+    "35033": "Custom sensitive information types are configured",
+    "35034": "Exact Data Match is configured for sensitive information detection",
+    "35035": "Named entity sensitive information types are used in auto-labeling and data loss prevention policies",
+    "35036": "Trainable classifiers are used in data loss prevention and auto-labeling policies",
+    "35038": "Insider Risk Management policies are enabled for risky AI usage",
+    "35039": "Communication compliance monitoring is configured for Microsoft Copilot",
+    "35040": "Communication compliance monitoring is configured for enterprise AI tools",
+    "35041": "Browser data loss prevention is enabled for AI apps via Edge for Business",
+    "41002": "Microsoft Defender for Identity sensor is installed and healthy on every domain controller",
+    "41003": "Microsoft Defender for Identity sensors are installed and healthy on AD FS, AD CS, and Microsoft Entra Connect servers",
+    "41004": "Privileged accounts in Active Directory have the \"Account is sensitive and cannot be delegated\" flag set",
+    "41008": "Local administrator passwords on identity assets are protected and managed with Microsoft LAPS",
+    "41009": "Dormant accounts have been removed from sensitive Active Directory groups",
+    "41011": "Non-administrative accounts do not have DC-Sync (Directory Replication) permissions",
+    "41012": "Microsoft Entra Connect synchronization account does not hold unnecessary replication permissions",
+    "41018": "No open Microsoft Defender for Identity health issues are present in the tenant",
+    "41019": "Compromised identities surfaced by Microsoft Defender for Identity have been remediated",
+    "41020": "Microsoft Defender for Identity sensor deployment is validated by reviewing the Health Issues page",
+    "41022": "Microsoft Defender for Identity security alerts have been triaged and tuned",
+    "41029": "Anti-malware policies are configured according to recommended settings",
+    "41031": "Safe Attachments policies in Microsoft Defender for Office 365 are configured to detonate and block",
+    "41032": "Safe Links policies in Microsoft Defender for Office 365 are configured to scan and block malicious URLs",
+    "41033": "Anti-phishing policies in Microsoft Defender for Office 365 are configured with impersonation and spoof protection",
+    "41034": "Anti-spam (hosted content filter) policies are configured with recommended thresholds and actions",
+    "41035": "User reporting for phishing and spam is enabled and routed to a reviewed mailbox",
+    "41036": "Attack Simulation Training is configured and a baseline simulation has been run in the last 12 months",
+    "41039": "Zero-hour auto purge (ZAP) is enabled for malware, phishing, and spam in email",
+    "41040": "Tenant Allow/Block List allow entries are reviewed for expiration, justification, and staleness",
+    "41041": "Automated Investigation and Response (AIR) recommendations are reviewed and actioned",
+    "41045": "All eligible endpoints are onboarded to Microsoft Defender for Endpoint",
+    "41049": "The Microsoft Defender Antivirus user interface is hidden from end users",
+    "41050": "Attack surface reduction (ASR) rules are enabled in block mode",
+    "41051": "Removable storage and device control policies are enforced via Intune",
+    "41052": "Application control (WDAC / App Control for Business) is enforced via Intune",
+    "41053": "Network protection is enabled in block mode",
+    "41054": "Controlled folder access is enabled in block mode",
+    "41055": "Real-time, behavioral, and heuristic protection are enabled on Microsoft Defender Antivirus",
+    "41059": "EDR in block mode is enabled when Microsoft Defender Antivirus is not the primary antivirus",
+    "41060": "Cloud-delivered protection is enabled in Microsoft Defender Antivirus",
+    "41061": "All active Microsoft Defender XDR incidents are triaged and remediated",
+    "41062": "Automated Investigation and Response (AIR) recommendations are reviewed and actioned",
+    "41080": "Conditional Access App Control session policies are enforced for sensitive cloud apps",
+    "41081": "At least one Microsoft Defender for Cloud Apps anomaly detection policy is generating alerts",
+    "41083": "Step-up authentication is required upon risky in-session action",
+    "41114": "Microsoft Teams protection policies are configured to block malicious messages, links, and attachments",
+    "41116": "Threat hunting against Email and Collaboration tables in Microsoft 365 Defender Advanced Hunting is operational",
+    "41119": "Local modification of Microsoft Defender Antivirus policy is blocked",
+    "41121": "Every open Microsoft Defender XDR alert is triaged across all Defender services, with no high-severity alert left unassigned or unworked past its triage window",
+    "41201": "At least one Microsoft (first-party) data connector is configured in every Microsoft Sentinel workspace",
+    "41202": "Third-party (non-Microsoft) data connectors are configured in Microsoft Sentinel for non-Microsoft workloads in scope",
+    "41203": "Custom data connectors are configured in Microsoft Sentinel for in-scope sources without a built-in connector",
+    "41204": "Interactive and long-term retention duration meets the security baseline on every Microsoft Sentinel workspace",
+    "41205": "Data collection rules (DCRs) are used to control ingestion into Microsoft Sentinel workspaces",
+    "41206": "At least one workbook is deployed in every Microsoft Sentinel workspace for visualization and operational reporting",
+    "41207": "Active analytics rules are configured in Microsoft Sentinel to detect threats",
+    "41208": "At least one watchlist is configured in Microsoft Sentinel for correlation against high-value entities",
+    "41209": "User and Entity Behavior Analytics (UEBA) is enabled in Microsoft Sentinel",
+    "41210": "Microsoft Threat Intelligence feeds are integrated into Microsoft Sentinel",
+    "41211": "Auditing and health monitoring is enabled for Microsoft Sentinel",
+    "41212": "Hunting capabilities are operationalized in Microsoft Sentinel via saved hunting queries or bookmarks",
+    "41213": "At least one automation rule is configured in Microsoft Sentinel to manage incident response",
+    "41214": "At least one Microsoft Sentinel automation rule executes a playbook for automated threat response",
+    "41215": "Microsoft Security Copilot capacity (Security Compute Units) is provisioned in the tenant",
+    "41216": "Microsoft Security Copilot SCU consumption is monitored and alerted on through Cost Management",
+    "41217": "Security tables are provisioned on the appropriate Log Analytics storage plan (Analytics, Basic, or Auxiliary)",
+    "50001": "Microsoft Defender for Cloud Recommendations",
+    "51001": "Windows Endpoint Privilege Management is configured and assigned",
+    "51013": "App Protection Policies block managed-app access when user re-authentication fails (disabled Entra ID accounts, blocked sign-ins, expired tokens)",
+    "51014": "App Protection Policies block managed-app access on jailbroken or rooted mobile devices",
+    "51015": "Multi Admin Approval is enabled in Intune to require a second admin to approve sensitive tenant changes",
+    "51016": "Privileged Identity Management is enforced for Intune Administrator role assignments",
+    "51018": "Windows App Control for Business (WDAC) is configured and assigned via Intune",
+    "51019": "MAM app access timeout and re-authentication are enforced after idle period",
+    "61002": "Microsoft Sentinel is onboarded on at least one Log Analytics workspace",
+    "61004": "Microsoft Defender for Cloud CSPM plan is enabled on all Azure subscriptions",
+    "61005": "Agents deployed to Microsoft 365 Copilot are discoverable in the Agent Registry",
+    "61006": "AI administrative roles have assigned principals",
+    "61008": "Agent identity lifecycle tagging (customSecurityAttributes present)",
+    "61009": "Conditional Access policies cover both agent identities and agent users",
+    "61011": "Require users to use Microsoft Entra ID auth to interact with agents",
+    "61012": "Risk-based Conditional Access blocks risky agent identities",
+    "61013": "Identity governance for agents — sponsors assigned, entitlement-management channel exists, and lifecycle automation in place",
+    "61014": "Agent identities and blueprint principals have assigned technical owners and no disabled agents remain in the directory",
+    "61016": "Microsoft Entra ID Protection risk events are flowing to the Microsoft Sentinel workspace",
+    "61017": "Microsoft Defender for AI Services alerts are flowing to the Microsoft Sentinel workspace via a single connector path",
+    "61018": "Microsoft Purview Information Protection data connector is enabled on the Microsoft Sentinel workspace",
+    "61021": "Microsoft 365 Copilot data connector is enabled on the Microsoft Sentinel workspace",
+    "61022": "Microsoft Defender for AI Services is enabled on every Azure subscription that hosts Azure OpenAI or Azure AI Services accounts",
+    "61023": "Agent 365 data connector is enabled on the Microsoft Sentinel workspace",
+    "61024": "Microsoft Defender XDR (unified) data connector is enabled on the Microsoft Sentinel workspace"
+  },
+  "notCovered": {
+    "21771": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21772": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21773": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21774": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21775": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21777": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21778": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21779": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21780": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21784": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21787": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21789": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21793": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21798": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21800": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21806": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21807": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21810": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21813": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21818": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21819": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21820": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21823": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21824": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21828": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21830": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21831": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21832": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21833": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21834": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21837": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21840": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "21841": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "21842": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21843": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21844": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21849": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "21850": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "21854": {
+      "reason": "planned",
+      "note": "A privileged access setting or alert."
+    },
+    "21859": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21862": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21863": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21864": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21865": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21866": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "21868": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21869": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21872": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21875": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21877": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21878": {
+      "reason": "planned",
+      "note": "Entitlement management and access reviews."
+    },
+    "21879": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21881": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21882": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21883": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21884": {
+      "reason": "planned",
+      "note": "A guest or cross-tenant setting."
+    },
+    "21885": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21886": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21887": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21888": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21889": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21890": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21891": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21894": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21895": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21896": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "21897": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21899": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21912": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21929": {
+      "reason": "planned",
+      "note": "Entitlement management and access reviews."
+    },
+    "21954": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21955": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "21964": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21983": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21984": {
+      "reason": "planned",
+      "note": "A Conditional Access or tenant access setting."
+    },
+    "21985": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "21992": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "22072": {
+      "reason": "planned",
+      "note": "An authentication method or password setting."
+    },
+    "22124": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "22128": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "22659": {
+      "reason": "planned",
+      "note": "Triage of risk detections and of Entra recommendations."
+    },
+    "23183": {
+      "reason": "planned",
+      "note": "A property of the app registrations and enterprise applications, which are already collected."
+    },
+    "24541": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24542": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24543": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24545": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24546": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24547": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24554": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24555": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24561": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24564": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24570": {
+      "reason": "planned",
+      "note": "A tenant identity setting not yet judged."
+    },
+    "24572": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24576": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24690": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24784": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24794": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24823": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24827": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24839": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24840": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24870": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "24871": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "25371": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25372": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25375": {
+      "reason": "outOfScope",
+      "note": "Whether a licence is held is shown in the Licensing view and is not judged as a check."
+    },
+    "25377": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25379": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25380": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25382": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25383": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25384": {
+      "reason": "planned",
+      "note": "A network access setting."
+    },
+    "25391": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25392": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25393": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25394": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25396": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25398": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25399": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25400": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25401": {
+      "reason": "planned",
+      "note": "A network access setting."
+    },
+    "25403": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25405": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25407": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25409": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25410": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25411": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25412": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25413": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25415": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25416": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25419": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25420": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25422": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25466": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25480": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25481": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "25533": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25535": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25537": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25539": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25541": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25543": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "25550": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26879": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26880": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26881": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26882": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26883": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26884": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26885": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26886": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26887": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26888": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "26889": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27000": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "27001": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "27002": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "27003": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "27004": {
+      "reason": "planned",
+      "note": "A detail of the Global Secure Access configuration."
+    },
+    "27015": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27016": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27017": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27018": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27019": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27020": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27024": {
+      "reason": "planned",
+      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
+    },
+    "27028": {
+      "reason": "planned",
+      "note": "A network access setting."
+    },
+    "35001": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35005": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35006": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35007": {
+      "reason": "planned",
+      "note": "A tenant setting not yet judged."
+    },
+    "35008": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35009": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35010": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35011": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35014": {
+      "reason": "planned",
+      "note": "The label policy setting that gives an email the label of its attachment. Label policies are already collected, so this needs a check and nothing new."
+    },
+    "35015": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35016": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35017": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35018": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35022": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35023": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35024": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35025": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35026": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35027": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35029": {
+      "reason": "planned",
+      "note": "A Microsoft Purview or message encryption setting."
+    },
+    "35032": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35033": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35034": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35035": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35036": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35039": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35040": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "35041": {
+      "reason": "planned",
+      "note": "A Microsoft Purview setting; label and DLP policies are already collected."
+    },
+    "41002": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41003": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41009": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41011": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41012": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41019": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41022": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41034": {
+      "reason": "planned",
+      "note": "A Defender for Office 365 setting or review."
+    },
+    "41040": {
+      "reason": "planned",
+      "note": "A Defender for Office 365 setting or review."
+    },
+    "41041": {
+      "reason": "planned",
+      "note": "A Defender for Office 365 setting or review."
+    },
+    "41049": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41051": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41052": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41054": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41059": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41062": {
+      "reason": "planned",
+      "note": "Triage of Defender alerts and automated investigations."
+    },
+    "41080": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41081": {
+      "reason": "planned",
+      "note": "A security operations setting or review."
+    },
+    "41083": {
+      "reason": "planned",
+      "note": "Defender for Identity posture or triage."
+    },
+    "41114": {
+      "reason": "planned",
+      "note": "A Defender for Office 365 setting or review."
+    },
+    "41116": {
+      "reason": "planned",
+      "note": "A Defender for Office 365 setting or review."
+    },
+    "41119": {
+      "reason": "planned",
+      "note": "A Defender for Endpoint or antivirus policy setting."
+    },
+    "41121": {
+      "reason": "planned",
+      "note": "A security operations setting or review."
+    },
+    "41202": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41203": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41204": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41205": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41206": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41207": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41208": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41209": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41210": {
+      "reason": "planned",
+      "note": "A security operations setting or review."
+    },
+    "41211": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41212": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41213": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41214": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "41215": {
+      "reason": "outOfScope",
+      "note": "Security Copilot capacity is something bought, not a setting."
+    },
+    "41216": {
+      "reason": "outOfScope",
+      "note": "Security Copilot capacity is something bought, not a setting."
+    },
+    "41217": {
+      "reason": "planned",
+      "note": "Microsoft Sentinel workspace configuration."
+    },
+    "50001": {
+      "reason": "planned",
+      "note": "Defender for Cloud recommendations, which the report already lists without judging them one by one."
+    },
+    "51001": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "51013": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "51018": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "51019": {
+      "reason": "planned",
+      "note": "An Intune policy or tenant setting."
+    },
+    "61005": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61006": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61008": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61009": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61011": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61012": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61013": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61014": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61016": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61017": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61018": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61021": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    },
+    "61023": {
+      "reason": "planned",
+      "note": "Agent identities, AI services and their Microsoft Sentinel connectors."
+    }
+  }
+}

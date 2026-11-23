@@ -558,6 +558,9 @@
       "references": {
         "maester": [
           "MT.1053"
+        ],
+        "zeroTrust": [
+          "24802"
         ]
       },
       "attack": [
@@ -1113,6 +1116,9 @@
       "references": {
         "maester": [
           "MT.1096"
+        ],
+        "zeroTrust": [
+          "51015"
         ]
       },
       "attack": [
