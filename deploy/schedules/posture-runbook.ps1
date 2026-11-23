@@ -28,10 +28,14 @@
     Identity roles: Grant-ManagedIdentityGraphRole.ps1 -IncludePosture (Graph application roles, Exchange.ManageAsApp,
     the Teams tenant admin API role, Global Reader), plus Reader and Security Reader on the subscriptions. SharePoint:
     the tenant settings are read through Graph. The admin read (site list) is opt-in: it needs Sites.FullControl.All
-    (Grant-ManagedIdentityGraphRole.ps1 -IncludeSharePointAdminRead) and TENANTKEEP_SHAREPOINT_ADMIN_URL.
+    (Grant-ManagedIdentityGraphRole.ps1 -IncludeSharePointAdminRead) and TENANTKEEP_SHAREPOINT_ADMIN_URL. Power BI:
+    opt-in too (TENANTKEEP_POWERBI). It needs no role and no permission: the identity is in a security group that the
+    Fabric tenant setting "Service principals can access read-only admin APIs" names
+    (Grant-ManagedIdentityGraphRole.ps1 -IncludePowerBI makes the group). Power Platform is never read here: an
+    unattended identity would have to be registered with full Power Platform administration.
 
     Variables: TENANTKEEP_POSTURE_CONTAINER_URL, TENANTKEEP_CLIENT_CONTAINER_URL, TENANTKEEP_POSTURE_KEEP_RUNS,
-    TENANTKEEP_ORGANIZATION, TENANTKEEP_SHAREPOINT_ADMIN_URL, TENANTKEEP_PURVIEW_APP_ID, TENANTKEEP_PURVIEW_CERT (a Key
+    TENANTKEEP_ORGANIZATION, TENANTKEEP_SHAREPOINT_ADMIN_URL, TENANTKEEP_POWERBI, TENANTKEEP_PURVIEW_APP_ID, TENANTKEEP_PURVIEW_CERT (a Key
     Vault secret URL, never the certificate), TEAMS_WEBHOOK, EMAIL_TO, EMAIL_FROM.
 #>
 [CmdletBinding()]
@@ -49,6 +53,7 @@ try {
     $keepRuns = [int]((& $getVar 'TENANTKEEP_POSTURE_KEEP_RUNS') -replace '[^0-9]', '0')
     $organization = & $getVar 'TENANTKEEP_ORGANIZATION'
     $spoAdmin = & $getVar 'TENANTKEEP_SHAREPOINT_ADMIN_URL'
+    $powerBi = & $getVar 'TENANTKEEP_POWERBI'
     $purviewAppId = & $getVar 'TENANTKEEP_PURVIEW_APP_ID'
     $purviewCert = & $getVar 'TENANTKEEP_PURVIEW_CERT'
     $webhook = & $getVar 'TEAMS_WEBHOOK'
@@ -265,6 +270,13 @@ try {
     else { Write-Output 'SharePoint admin read not set up (no TENANTKEEP_SHAREPOINT_ADMIN_URL): the tenant settings come from Graph, and the checks on the site list say not evaluated.' }
     Write-Output 'step: collect (Teams)'
     & $phase 'Teams' { Connect-MicrosoftTeams -Identity | Out-Null } @('Teams')
+    # Power BI: read as this identity through the Azure session opened above, with no role and no permission. Fabric
+    # answers it once the customer has put the identity in a security group and named that group in the tenant
+    # setting for read-only admin APIs. Only where the deployment says that was done, so one that never set it up
+    # does not fail a step every month. Power Platform is read only by a person who signs in.
+    Write-Output 'step: collect (Power BI)'
+    if ($powerBi -match '^(?i)(true|1|yes)$') { & $phase 'PowerBI' { } @('PowerBI') }
+    else { Write-Output 'Power BI not set up for the schedule (TENANTKEEP_POWERBI is not true): its checks say not evaluated. Power Platform is read only by a signed-in run.' }
     # The Active Directory read the client container holds, through the same checks as any evidence from another
     # machine (every file against the collector's bundle.json, the forest's sign-in names against the tenant's domains).
     $hybrid = Join-Path $client 'hybrid'

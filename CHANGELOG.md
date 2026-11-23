@@ -45,6 +45,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     one out of scope with the reason, one planned. SCuBA coverage goes from 82 to 97 of 109 policies.
   - `deploy/setup/New-PostureClientApp.ps1` registers the two APIs and prints the second link. The main consent
     link is unchanged, so a tenant that approved it is not asked again.
+  - A scheduled run can read Power BI, and it is opt-in: `deploy.ps1 -IncludePowerBI` sets one variable,
+    `Grant-ManagedIdentityGraphRole.ps1 -IncludePowerBI` puts the identity in a security group and grants it
+    nothing, and a Fabric administrator names that group in the tenant setting for read-only admin APIs.
 - Ten more checks, seven of them on Conditional Access (2026-11-23, catalog 2026.11.3), all from evidence already
   collected. Authentication transfer is blocked (CA-018). No policy asks for the retired approved client app grant
   (CA-019). User risk and sign-in risk sit in separate policies, since a policy with both applies only when both

@@ -430,8 +430,9 @@ The account that signs in needs a role each product accepts, and neither has a r
   counts) that has opened the Power BI portal once.
 - **Power Platform:** Power Platform Administrator.
 
-Global Administrator covers both. With PIM, activate the role before the run. To collect only these two into a run
-you already have:
+Global Administrator covers both. With PIM, activate the role before the run. A scheduled run can read Power BI
+(docs/scheduling.md says how, with no role granted) and never reads Power Platform. To collect only these two into
+a run you already have:
 
 ```powershell
 Resume-PostureRun -Path <run folder> -Collector PowerBI, PowerPlatform

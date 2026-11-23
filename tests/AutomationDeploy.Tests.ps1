@@ -510,3 +510,61 @@ Describe 'What the deployment tells the admin to run next' {
         (Get-Content -Raw (Join-Path $PSScriptRoot '..' 'docs' 'scheduling.md')) | Should -Match 'after up to a day'
     }
 }
+
+Describe 'Power BI in the scheduled run' {
+    BeforeAll {
+        $script:Automation = Join-Path $PSScriptRoot '..' 'deploy' 'automation'
+        $script:Runbook = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'deploy' 'schedules' 'posture-runbook.ps1')
+    }
+
+    It 'is opt-in: a deployment switch sets one variable, and the runbook reads Power BI only where it is true' {
+        $bicep = Get-Content -Raw (Join-Path $script:Automation 'main.bicep')
+        $bicep | Should -Match 'param includePowerBi bool = false'
+        $bicep | Should -Match ([regex]::Escape('{ name: ''TENANTKEEP_POWERBI'', value: includePowerBi ? ''"true"'' : ''""'', encrypted: false }'))
+        $deploy = Get-Content -Raw (Join-Path $script:Automation 'deploy.ps1')
+        $deploy | Should -Match '\[switch\] \$IncludePowerBI'
+        $deploy | Should -Match 'includePowerBi=\$\(\(\$IncludePosture -and \$IncludePowerBI\)'
+        $script:Runbook | Should -Match "\`$powerBi = & \`$getVar 'TENANTKEEP_POWERBI'"
+        $script:Runbook | Should -Match "if \(\`$powerBi -match '\^\(\?i\)\(true\|1\|yes\)\`$'\) \{ & \`$phase 'PowerBI' \{ \} @\('PowerBI'\) \}"
+    }
+
+    It 'never collects Power Platform on a schedule' {
+        $script:Runbook | Should -Not -Match "@\('PowerPlatform'\)|-Collector [^\r\n]*PowerPlatform" -Because 'an unattended identity would need full Power Platform administration'
+        $script:Runbook | Should -Match 'Power Platform is read only by a signed-in run'
+    }
+
+    It 'puts the identity in a security group and grants nothing on Power BI' {
+        # A plain variable, not a script one: the mock runs inside the grant script, whose script scope is its own.
+        $graphSent = [System.Collections.Generic.List[object]]::new()
+        Mock Get-MgContext { [pscustomobject]@{ Scopes = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All', 'Group.ReadWrite.All') } }
+        Mock Write-Host { }
+        Mock Invoke-MgGraphRequest {
+            $graphSent.Add([pscustomobject]@{ Method = [string]$Method; Uri = [string]$Uri; Body = $Body })
+            if ($Method -eq 'POST' -and $Uri -match '/groups$') { return @{ id = 'group-1'; displayName = $Body.displayName } }
+            if ($Method -ne 'GET') { return @{} }
+            if ($Uri -match 'appRoleAssignments$') { return @{ value = @() } }
+            if ($Uri -match "servicePrincipals\?\`$filter=appId eq '([^']+)'") {
+                return @{ value = @(@{ id = "sp-$($Matches[1])"; appRoles = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All' | ForEach-Object { @{ id = "role:$_"; value = $_; allowedMemberTypes = @('Application') } }) }) }
+            }
+            if ($Uri -match '/groups\?') { return @{ value = @() } }
+            if ($Uri -match '/groups/group-1/members\?') { return @{ value = @() } }
+            throw "unexpected request $Uri"
+        }
+        $null = & (Join-Path $script:Automation 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' -IncludePowerBI -WarningAction SilentlyContinue
+        $created = @($graphSent | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match '/groups$' })
+        $created.Count | Should -Be 1
+        $created[0].Body.displayName | Should -Be 'TenantKeep Posture (Power BI read)'
+        $created[0].Body.securityEnabled | Should -BeTrue
+        $created[0].Body.mailEnabled | Should -BeFalse
+        $added = @($graphSent | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match '/groups/group-1/members/\$ref$' })
+        $added.Count | Should -Be 1
+        $added[0].Body['@odata.id'] | Should -Be 'https://graph.microsoft.com/v1.0/directoryObjects/00000000-0000-0000-0000-000000000001'
+        @($graphSent | Where-Object { $_.Uri -match '00000009-0000-0000-c000-000000000000' }).Count | Should -Be 0 -Because 'the identity must hold no Power BI permission, or the read-only admin API refuses it'
+        @($graphSent | Where-Object { $_.Method -eq 'POST' -and $_.Uri -match 'appRoleAssignments$' } | ForEach-Object { [string]$_.Body.appRoleId }) | Should -Be @('role:Policy.Read.All', 'role:Directory.Read.All', 'role:Group.Read.All') -Because 'the switch adds a group membership and no role'
+    }
+
+    It 'refuses without the Graph permission that lets it make the group' {
+        Mock Get-MgContext { [pscustomobject]@{ Scopes = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All') } }
+        { & (Join-Path $script:Automation 'Grant-ManagedIdentityGraphRole.ps1') -PrincipalId '00000000-0000-0000-0000-000000000001' -IncludePowerBI } | Should -Throw '*missing Group.ReadWrite.All*'
+    }
+}

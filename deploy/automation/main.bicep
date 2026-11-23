@@ -56,6 +56,9 @@ param organization string = ''
 @description('SharePoint admin site URL, for the opt-in SharePoint admin read (app-only PnP sign-in, which needs Sites.FullControl.All): https://contoso-admin.sharepoint.com. Empty: the scheduled run reads the SharePoint tenant settings through Graph only.')
 param sharePointAdminUrl string = ''
 
+@description('True when the scheduled posture run should read the Power BI tenant settings. The identity needs no role for it: it is put in a security group (Grant-ManagedIdentityGraphRole.ps1 -IncludePowerBI) and a Fabric administrator names that group in the tenant setting "Service principals can access read-only admin APIs". False: the run does not try.')
+param includePowerBi bool = false
+
 @description('Object id of the identity a Hybrid Runbook Worker machine signs in as, when the posture runbook runs on a worker group instead of the sandbox. It gets the storage and vault roles the Automation account\'s identity has. Empty: no worker.')
 param workerPrincipalId string = ''
 
@@ -190,6 +193,7 @@ var variables = [
   { name: 'TENANTKEEP_POSTURE_KEEP_RUNS', value: string(postureKeepRuns), encrypted: false }
   { name: 'TENANTKEEP_ORGANIZATION', value: '"${organization}"', encrypted: false }
   { name: 'TENANTKEEP_SHAREPOINT_ADMIN_URL', value: '"${sharePointAdminUrl}"', encrypted: false }
+  { name: 'TENANTKEEP_POWERBI', value: includePowerBi ? '"true"' : '""', encrypted: false }
 ]
 
 resource automationVariables 'Microsoft.Automation/automationAccounts/variables@2023-11-01' = [for v in variables: {

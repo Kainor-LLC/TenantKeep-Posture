@@ -42,6 +42,10 @@ param(
     [switch] $IncludePosture,
     [string] $Organization,
     [string] $SharePointAdminUrl,
+    # The scheduled run also reads the Power BI tenant settings. No role is granted for it: the identity joins a
+    # security group (Grant-ManagedIdentityGraphRole.ps1 -IncludePowerBI) and a Fabric administrator names that group
+    # in the tenant setting "Service principals can access read-only admin APIs". Power Platform is not read on a schedule.
+    [switch] $IncludePowerBI,
     [ValidateRange(1, 28)] [int] $PostureDayOfMonth = 1,
     [string] $PostureTimeUtc = '03:00',
     [int] $PostureKeepRuns = 24,
@@ -97,7 +101,7 @@ $paramArgs = @("baseName=$BaseName", "envName=$EnvName", "scheduleTimeUtc=$Sched
     "emailTo=$(($EmailTo | ForEach-Object { $_ }) -join ',')", "emailFrom=$EmailFrom", "breakGlass=$(($BreakGlass | ForEach-Object { $_ }) -join ',')",
     "teamsWebhookUrl=$TeamsWebhookUrl",
     "includePosture=$($IncludePosture.IsPresent.ToString().ToLowerInvariant())", "postureDayOfMonth=$PostureDayOfMonth", "postureTimeUtc=$PostureTimeUtc", "postureKeepRuns=$PostureKeepRuns",
-    "organization=$Organization", "sharePointAdminUrl=$SharePointAdminUrl", "workerPrincipalId=$HybridWorkerPrincipalId")
+    "organization=$Organization", "sharePointAdminUrl=$SharePointAdminUrl", "includePowerBi=$(($IncludePosture -and $IncludePowerBI).ToString().ToLowerInvariant())", "workerPrincipalId=$HybridWorkerPrincipalId")
 $bicep = Join-Path $PSScriptRoot 'main.bicep'
 if (-not $PSCmdlet.ShouldProcess($ResourceGroup, 'Deploy main.bicep')) {
     Invoke-Az deployment group what-if -g $ResourceGroup -f $bicep -p @paramArgs | Write-Host
@@ -258,8 +262,9 @@ $notReady = @($imports | Where-Object State -NE 'Succeeded')
 Write-Host ''
 Write-Host 'Next, once, as a Global Administrator of the tenant:'
 # The grant script refuses without these; with -IncludePosture it also assigns Global Reader, which needs the third.
-Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All$(if ($IncludePosture) { ', RoleManagement.ReadWrite.Directory' }) -NoWelcome"
-Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })$(if ($IncludePosture -and $SharePointAdminUrl) { ' -IncludeSharePointAdminRead' })"
+Write-Host "  Connect-MgGraph -TenantId $($account.tenantId) -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All$(if ($IncludePosture) { ', RoleManagement.ReadWrite.Directory' })$(if ($IncludePosture -and $IncludePowerBI) { ', Group.ReadWrite.All' }) -NoWelcome"
+Write-Host "  ./deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -PrincipalId $($o.automationPrincipalId.value)$(if ($EmailTo) { ' -IncludeMailSend' })$(if ($IncludePosture) { ' -IncludePosture' })$(if ($IncludePosture -and $SharePointAdminUrl) { ' -IncludeSharePointAdminRead' })$(if ($IncludePosture -and $IncludePowerBI) { ' -IncludePowerBI' })"
+if ($IncludePosture -and $IncludePowerBI) { Write-Host '  (-IncludePowerBI puts the identity in a security group and grants nothing. A Fabric administrator then names that group in the Fabric admin portal, Tenant settings, Admin API settings, "Service principals can access read-only admin APIs".)' }
 if ($IncludePosture -and $SharePointAdminUrl) { Write-Host '  (-IncludeSharePointAdminRead grants Sites.FullControl.All on SharePoint Online, which the site list needs. Its help says what that means; leave -SharePointAdminUrl out to do without.)' }
 if ($IncludePosture -and $HybridWorkerGroup) {
     Write-Host "  The posture runbook runs on the worker group $HybridWorkerGroup, as the identity of the worker machine: grant that identity the same roles,"

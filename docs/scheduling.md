@@ -84,6 +84,20 @@ together: `deploy.ps1 -SharePointAdminUrl https://contoso-admin.sharepoint.com` 
 into the report keeps that permission off the identity: an admin runs `collectors/windows/Get-SpoBaseline.ps1` by
 hand and brings the folder in with `Import-PostureEvidence`.
 
+Power BI in the scheduled run. Opt-in, and it grants the identity nothing: no role and no API permission. Power BI
+lets a service principal call its read-only admin APIs when it is in a security group that the Fabric tenant setting
+"Service principals can access read-only admin APIs" names. Three things go together:
+`deploy.ps1 -IncludePosture -IncludePowerBI`, which sets the variable the runbook looks for;
+`Grant-ManagedIdentityGraphRole.ps1 -IncludePosture -IncludePowerBI`, which creates the security group TenantKeep
+Posture (Power BI read) and puts the identity in it (the Graph session needs Group.ReadWrite.All for that); and one
+click by a Fabric administrator, in the Fabric admin portal under Tenant settings, Admin API settings, to turn the
+setting on for that group. The identity must hold no Power BI permission of its own, or Power BI refuses it; the
+scripts give it none. Without the variable the run does not try, and the Power BI checks say not evaluated.
+
+Power Platform is not read by a scheduled run. Its admin API accepts an unattended identity only when it is
+registered as a management application, which Microsoft treats like a Power Platform Administrator with no way to
+limit it. An administrator collects it with `Start-PostureRun` or `Resume-PostureRun -Collector PowerPlatform`.
+
 A job that is stopped carries on. Azure Automation stops a sandbox job after three hours and starts it again from
 the top, up to three times (verify the limit for the PowerShell 7 runtime). The runbook copies the run to the
 `posture-runs` container as it goes: each evidence file when its step closes, with the run's journal and error files.

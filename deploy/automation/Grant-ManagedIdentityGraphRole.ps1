@@ -25,8 +25,15 @@
     it out unless the report needs the site list from the scheduled run; an admin can add that part by hand with
     collectors/windows/Get-SpoBaseline.ps1 and Import-PostureEvidence instead.
 
+    -IncludePowerBI grants no role and no permission. It puts the identity in a security group, TenantKeep Posture
+    (Power BI read), creating the group when it is not there. Power BI lets a service principal call its read-only
+    admin APIs when the tenant setting "Service principals can access read-only admin APIs" names a security group
+    the principal is in; turning that setting on, for this group, is a step a Fabric administrator takes in the
+    Fabric admin portal. The identity must hold no Power BI permission of its own, and this script gives it none.
+    Power Platform has no such path and is not read on a schedule.
+
     Needs a delegated Graph session with AppRoleAssignment.ReadWrite.All and Application.Read.All; -IncludePosture also
-    RoleManagement.ReadWrite.Directory for the Global Reader assignment.
+    RoleManagement.ReadWrite.Directory for the Global Reader assignment, and -IncludePowerBI Group.ReadWrite.All.
 .EXAMPLE
     Connect-MgGraph -TenantId <tenant> -Scopes AppRoleAssignment.ReadWrite.All, Application.Read.All, RoleManagement.ReadWrite.Directory
     ./Grant-ManagedIdentityGraphRole.ps1 -PrincipalId <automationPrincipalId output of the deployment> -IncludePosture
@@ -41,13 +48,14 @@ param(
     [Parameter(Mandatory)] [string] $PrincipalId,
     [switch] $IncludeMailSend,
     [switch] $IncludePosture,
-    [switch] $IncludeSharePointAdminRead
+    [switch] $IncludeSharePointAdminRead,
+    [switch] $IncludePowerBI
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $ctx = Get-MgContext
 if (-not $ctx) { throw 'Connect-MgGraph first, with AppRoleAssignment.ReadWrite.All and Application.Read.All.' }
-$needed = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All') + @($(if ($IncludePosture) { 'RoleManagement.ReadWrite.Directory' }))
+$needed = @('AppRoleAssignment.ReadWrite.All', 'Application.Read.All') + @($(if ($IncludePosture) { 'RoleManagement.ReadWrite.Directory' })) + @($(if ($IncludePowerBI) { 'Group.ReadWrite.All' }))
 foreach ($scope in $needed) { if (@($ctx.Scopes) -notcontains $scope) { throw "The Graph session is missing $scope." } }
 
 $roles = @('Policy.Read.All', 'Directory.Read.All', 'Group.Read.All')
@@ -118,6 +126,34 @@ Azure, per subscription the posture run should read (ARM roles, not Graph):
   az role assignment create --assignee-object-id $PrincipalId --assignee-principal-type ServicePrincipal --role Reader --scope /subscriptions/<id>
   az role assignment create --assignee-object-id $PrincipalId --assignee-principal-type ServicePrincipal --role "Security Reader" --scope /subscriptions/<id>
 Hybrid tenants: upload the Windows collector's ad-* files to the client container under hybrid/ before each run.
+"@
+}
+if ($IncludePowerBI) {
+    # Power BI: a security group and nothing else. The Fabric tenant setting that names it is a click only a Fabric
+    # administrator can make, in the Fabric admin portal.
+    $groupName = 'TenantKeep Posture (Power BI read)'
+    $groups = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$groupName'&`$select=id,displayName,securityEnabled" -OutputType HashTable).value)
+    $group = $(if ($groups.Count -gt 0) { $groups[0] } else { $null })
+    if (-not $group -and $PSCmdlet.ShouldProcess($groupName, 'Create the security group')) {
+        $body = @{ displayName = $groupName; description = 'The identity of the TenantKeep Posture scheduled run. Named in the Fabric tenant setting "Service principals can access read-only admin APIs" so the run can read the Power BI tenant settings. It grants nothing else.'; mailEnabled = $false; mailNickname = 'tenantkeep-posture-powerbi-read'; securityEnabled = $true }
+        $group = Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/groups' -Body $body -ContentType 'application/json' -OutputType HashTable
+        Write-Host "Security group created: $groupName"
+    }
+    if ($group) {
+        $members = @((Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$($group.id)/members?`$select=id" -OutputType HashTable).value)
+        if (@($members | Where-Object { $_.id -eq $PrincipalId }).Count -gt 0) { Write-Host "The identity is already in $groupName" }
+        elseif ($PSCmdlet.ShouldProcess($PrincipalId, "Add the identity to $groupName")) {
+            $body = @{ '@odata.id' = "https://graph.microsoft.com/v1.0/directoryObjects/$PrincipalId" }
+            $null = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/groups/$($group.id)/members/`$ref" -Body $body -ContentType 'application/json'
+            Write-Host "The identity was added to $groupName"
+        }
+    }
+    Write-Host @"
+
+Power BI, one step left, for a Fabric administrator:
+  In the Fabric admin portal, open Tenant settings, Admin API settings, and turn on
+  "Service principals can access read-only admin APIs" for Specific security groups: $groupName
+  Nothing else is granted. The next scheduled run reads the Power BI tenant settings; Power Platform is read only by a signed-in run.
 "@
 }
 Write-Host 'Done. Tokens issued to the identity from now on carry these roles. Azure keeps a managed identity''s token for up to a day, so a job started before then may run without the new ones: it names what it could not read, and the next run has them.'
