@@ -1251,6 +1251,308 @@
       "attack": [
         "T1199"
       ]
+    },
+    {
+      "id": "AZ-031",
+      "domain": "azure",
+      "title": "Azure Firewall denies what threat intelligence and intrusion detection flag",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-18-firewall-policies.json"
+      ],
+      "pass": "facts.firewallPoliciesNotDenying == 0",
+      "affected": "facts.firewallPoliciesNotDenying",
+      "remediation": [
+        "Open each listed firewall policy in the Azure portal.",
+        "Under Threat intelligence, set the mode to Alert and deny.",
+        "On a Premium policy, under IDPS, set the mode to Alert and deny. Read a week of alerts first and add a bypass for anything of yours that it would stop."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A connection to or from an address Microsoft knows as malicious, or one matching an attack signature, is dropped and not only logged."
+      },
+      "learn": "https://learn.microsoft.com/azure/firewall/threat-intel",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FfirewallPolicies",
+      "narrative": "In Alert mode the firewall writes a log line while the connection to a known command-and-control address goes through. The detection is already paid for; Deny is the setting that makes it a control.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25537",
+          "25539"
+        ]
+      },
+      "attack": [
+        "T1071.001"
+      ]
+    },
+    {
+      "id": "AZ-032",
+      "domain": "azure",
+      "title": "Azure Firewall Premium inspects encrypted traffic",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-18-firewall-policies.json"
+      ],
+      "pass": "facts.firewallPoliciesWithoutTlsInspection == 0",
+      "affected": "facts.firewallPoliciesWithoutTlsInspection",
+      "remediation": [
+        "Open each listed Premium firewall policy in the Azure portal, TLS inspection.",
+        "Turn it on with an intermediate certificate kept in Key Vault, and trust that certificate on the machines behind the firewall.",
+        "Turn on TLS inspection in the application rules that should be read, and leave out the categories you must not open, such as banking and health."
+      ],
+      "effort": "L",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Outbound web traffic from workloads behind the firewall is decrypted and checked. Applications that pin certificates need an exception."
+      },
+      "learn": "https://learn.microsoft.com/azure/firewall/premium-features#tls-inspection",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FfirewallPolicies",
+      "narrative": "Nearly all traffic is encrypted, so without TLS inspection the Premium features that read content, intrusion detection and URL filtering, see an address and nothing else. This is the costly one to set up, which is why it is the one most often left out.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25550"
+        ]
+      },
+      "attack": [
+        "T1071.001"
+      ]
+    },
+    {
+      "id": "AZ-033",
+      "domain": "azure",
+      "title": "Application Gateway WAF blocks, reads request bodies and runs the default rules",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-19-waf-policies.json"
+      ],
+      "pass": "facts.appGatewayWafBasicGaps == 0",
+      "affected": "facts.appGatewayWafBasicGaps",
+      "remediation": [
+        "Open each listed WAF policy in the Azure portal.",
+        "Under Policy settings, set the policy to Enabled and the mode to Prevention, with request body inspection on.",
+        "Under Managed rules, assign the default rule set. Run in Detection for a week first if the application is new to the firewall, and tune the exclusions."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A request that matches an attack rule is refused. A badly tuned rule can refuse a real request, which is what the week in Detection is for."
+      },
+      "learn": "https://learn.microsoft.com/azure/web-application-firewall/ag/policy-overview",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FApplicationGatewayWebApplicationFirewallPolicies",
+      "narrative": "A web application firewall in Detection mode is a log of the attacks that reached the application. Without the default rule set it has nothing to match, and without body inspection it reads the address of a request and not the form that carries the injection.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25541",
+          "26879",
+          "26881"
+        ]
+      },
+      "attack": [
+        "T1190"
+      ]
+    },
+    {
+      "id": "AZ-034",
+      "domain": "azure",
+      "title": "Application Gateway WAF defends against bots and floods",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-19-waf-policies.json"
+      ],
+      "pass": "facts.appGatewayWafFloodGaps == 0",
+      "affected": "facts.appGatewayWafFloodGaps",
+      "remediation": [
+        "Open each listed WAF policy in the Azure portal.",
+        "Under Managed rules, add the bot protection rule set and the HTTP DDoS rule set.",
+        "Under Custom rules, add a rate limit rule for the paths that matter (sign-in, search, checkout) and a JavaScript challenge for traffic that looks automated."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Automated clients are slowed, challenged or refused. A person on a browser sees nothing, or a brief check."
+      },
+      "learn": "https://learn.microsoft.com/azure/web-application-firewall/ag/bot-protection-overview",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FApplicationGatewayWebApplicationFirewallPolicies",
+      "narrative": "The default rules stop attacks that look like attacks. Password stuffing, scraping and a flood of ordinary-looking requests are valid requests one at a time, and it takes the bot rules, a rate limit or a challenge to see that they are not people.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "26882",
+          "27015",
+          "27016",
+          "27017"
+        ]
+      },
+      "attack": [
+        "T1190",
+        "T1110.003"
+      ]
+    },
+    {
+      "id": "AZ-035",
+      "domain": "azure",
+      "title": "Front Door WAF blocks, reads request bodies and runs the default rules",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-19-waf-policies.json"
+      ],
+      "pass": "facts.frontDoorWafBasicGaps == 0",
+      "affected": "facts.frontDoorWafBasicGaps",
+      "remediation": [
+        "Open each listed WAF policy in the Azure portal.",
+        "Under Policy settings, set the policy to Enabled and the mode to Prevention, with request body inspection on.",
+        "Under Managed rules, assign the default rule set. Run in Detection for a week first if the site is new to the firewall, and tune the exclusions."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A request that matches an attack rule is refused at the edge. A badly tuned rule can refuse a real request, which is what the week in Detection is for."
+      },
+      "learn": "https://learn.microsoft.com/azure/web-application-firewall/afds/afds-overview",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FfrontdoorWebApplicationFirewallPolicies",
+      "narrative": "Front Door is the first thing a request from the internet meets. A policy there in Detection mode, or with no rule set, passes every attack on to the application behind it and keeps a record.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "25543",
+          "26880",
+          "26883"
+        ]
+      },
+      "attack": [
+        "T1190"
+      ]
+    },
+    {
+      "id": "AZ-036",
+      "domain": "azure",
+      "title": "Front Door WAF defends against bots and floods",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-19-waf-policies.json"
+      ],
+      "pass": "facts.frontDoorWafFloodGaps == 0",
+      "affected": "facts.frontDoorWafFloodGaps",
+      "remediation": [
+        "Open each listed WAF policy in the Azure portal.",
+        "Under Managed rules, add the HTTP DDoS rule set, and on the Premium tier the bot protection rule set.",
+        "Under Custom rules, add a rate limit rule for the paths that matter, and a JavaScript challenge or CAPTCHA for traffic that looks automated."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Automated clients are slowed, challenged or refused. A person on a browser sees nothing, or a brief check."
+      },
+      "learn": "https://learn.microsoft.com/azure/web-application-firewall/afds/waf-front-door-rate-limit",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FfrontdoorWebApplicationFirewallPolicies",
+      "narrative": "A flood of ordinary-looking requests, a scraper or a password-stuffing run passes the attack rules because each request is valid. Rate limits and challenges at the edge are what turn them away before the application pays for them.",
+      "frameworks": {
+        "nist-csf-2": "PR.IR-01",
+        "iso27001": "A.8.20",
+        "cmmc": "SC.L2-3.13.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "26884",
+          "27018",
+          "27019",
+          "27020",
+          "27024"
+        ]
+      },
+      "attack": [
+        "T1190",
+        "T1110.003"
+      ]
     }
   ]
 }

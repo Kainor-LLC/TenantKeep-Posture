@@ -99,6 +99,41 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             $rows[2].Roles | Should -BeNullOrEmpty
         }
 
+        It 'saves what each firewall and WAF policy does, as flags and counts and not the rules themselves' {
+            $fw = @(& $script:Read 'az-18-firewall-policies')
+            @($fw.Name) | Should -Be @('fw-hub', 'fw-edge')
+            $fw[0].ThreatIntelMode | Should -Be 'Alert'
+            $fw[0].TlsInspection | Should -BeFalse
+            $waf = @(& $script:Read 'az-19-waf-policies')
+            @($waf | ForEach-Object { "$($_.Kind)/$($_.Name)" }) | Should -Be @('ApplicationGateway/waf-shop', 'ApplicationGateway/waf-unused', 'FrontDoor/fd-main')
+            $shop = $waf[0]
+            $shop.DefaultRuleSet | Should -BeTrue -Because 'OWASP is the default rule set under its older name'
+            $shop.BotRuleSet | Should -BeTrue
+            $shop.HttpDdosRuleSet | Should -BeFalse
+            $shop.RateLimitRules | Should -Be 1
+            $shop.ChallengeRules | Should -Be 0 -Because 'the one challenge rule is turned off'
+            $waf[2].CaptchaRules | Should -Be 1
+            $waf[2].RequestBodyCheck | Should -BeTrue -Because 'Front Door writes Enabled where Application Gateway writes true'
+            Get-Content -Raw (Join-Path $script:Folder 'az-19-waf-policies.json') | Should -Not -Match 'old-challenge' -Because 'the rules are counted, not copied'
+        }
+
+        It 'judges the firewall and WAF policies that are in use, and names what each one lacks' {
+            $profilePath = Join-Path $script:Root 'profile-net.json'
+            '{ "version": 1, "azure": "workloads", "identityModel": "cloud", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath
+            $run = Invoke-PostureChecks -Evidence $script:Folder -Domain azure -ProfilePath $profilePath -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by['AZ-031'].status | Should -Be 'fail'
+            @($by['AZ-031'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('fw-hub: threat intelligence: Alert, Prod (sub-1)') -Because 'the Standard policy denies, and intrusion detection on the Premium one does too'
+            $by['AZ-032'].status | Should -Be 'fail'
+            @($by['AZ-032'].affected.name) | Should -Be @('fw-hub') -Because 'TLS inspection is judged on Premium policies only'
+            $by['AZ-033'].status | Should -Be 'fail'
+            @($by['AZ-033'].affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('waf-shop: mode Detection, Prod (sub-1)') -Because 'a policy attached to nothing is not judged'
+            $by['AZ-034'].status | Should -Be 'fail'
+            $by['AZ-034'].affected[0].detail | Should -Match '^no HTTP DDoS rule set; no JavaScript challenge rule,'
+            $by['AZ-035'].status | Should -Be 'pass'
+            $by['AZ-036'].status | Should -Be 'pass'
+        }
+
         It 'judges policy compliance and the delegations that can change things' {
             $profilePath = Join-Path $script:Root 'profile-az.json'
             '{ "version": 1, "azure": "workloads", "identityModel": "cloud", "licenses": ["E5", "P1", "P2"] }' | Set-Content -LiteralPath $profilePath

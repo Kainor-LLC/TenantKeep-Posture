@@ -480,7 +480,16 @@
     "defaultEnvironmentHasDlp": "The default environment has a DLP policy",
     "environmentsWithoutDlp": "Other environments with no DLP policy",
     "tenantIsolationOn": "Tenant isolation is on",
-    "tenantIsolationAllowedTenants": "Tenants on the isolation allow list"
+    "tenantIsolationAllowedTenants": "Tenants on the isolation allow list",
+    "firewallPolicies": "Azure Firewall policies",
+    "firewallPoliciesNotDenying": "Firewall policies that alert where they could deny",
+    "firewallPoliciesWithoutTlsInspection": "Premium firewall policies without TLS inspection",
+    "appGatewayWafPolicies": "Application Gateway WAF policies in use",
+    "appGatewayWafBasicGaps": "Application Gateway WAF policies missing a basic",
+    "appGatewayWafFloodGaps": "Application Gateway WAF policies without bot or flood protection",
+    "frontDoorWafPolicies": "Front Door WAF policies in use",
+    "frontDoorWafBasicGaps": "Front Door WAF policies missing a basic",
+    "frontDoorWafFloodGaps": "Front Door WAF policies without bot or flood protection"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",

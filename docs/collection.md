@@ -230,8 +230,12 @@ lasts about an hour; the collector finishes well inside that on a few hundred su
 Also from the Azure collector: `az-12-open-management-ports` (inbound allow rules from anywhere for SSH, RDP and WinRM on
 network security groups in use), `az-13-budgets` (budgets per subscription), `az-14-backup-vaults` (soft delete and
 immutability on Recovery Services and Backup vaults), `az-15-sentinel` (Sentinel workspaces and their data connector
-kinds) and `az-16-entra-domain-services` (the managed domain's security settings), read through Resource Graph and ARM
-GETs (verify the vault, Sentinel and Entra Domain Services property paths on a tenant that has them). The Defender
+kinds), `az-16-entra-domain-services` (the managed domain's security settings), `az-18-firewall-policies` (each Azure
+Firewall policy's tier, threat intelligence mode, intrusion detection mode and whether TLS inspection is set up) and
+`az-19-waf-policies` (each Application Gateway and Front Door WAF policy: whether it is attached, on and in Prevention,
+whether it reads request bodies, which of the default, bot and HTTP DDoS rule sets it has, and how many rate limit,
+JavaScript challenge and CAPTCHA rules are on; the rules themselves are not saved), read through Resource Graph and ARM
+GETs (verify the vault, Sentinel, Entra Domain Services, firewall and WAF property paths on a tenant that has them). The Defender
 collector's Secure Score controls carry each control's points and Microsoft's action link.
 
 ## What the Windows collector writes (hybrid)

@@ -257,6 +257,39 @@ function Invoke-PostureAzureCollection {
                 [ordered]@{ Workspace = (Split-Path ([string]$_.workspaceId) -Leaf); SubscriptionId = (& $str $_.subscriptionId); Connectors = ($kinds -join ', ') }
             }) 'az-15-sentinel' $true
     } | Out-Null
+    Invoke-PostureStep -Label 'Network security policies' -Folder $Folder -Script {
+        # Azure Firewall policies and the two kinds of web application firewall policy: what each does with what it
+        # detects. Resource Graph gives the rule sets and custom rules as they are; what is kept is whether the ones
+        # Microsoft's Zero Trust Assessment looks for are there and on, not the rules themselves.
+        $fw = & $q "resources | where type =~ 'microsoft.network/firewallpolicies' | project name, subscriptionId, resourceGroup, tier = tostring(properties.sku.tier), threatIntelMode = tostring(properties.threatIntelMode), idpsMode = tostring(properties.intrusionDetection.mode), tlsCa = tostring(properties.transportSecurity.certificateAuthority.name), firewalls = coalesce(array_length(properties.firewalls), 0)"
+        & $save @($fw | ForEach-Object {
+                [ordered]@{ Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup); Tier = (& $str $_.tier); ThreatIntelMode = (& $str $_.threatIntelMode); IdpsMode = (& $str $_.idpsMode); TlsInspection = [bool](& $str $_.tlsCa); Firewalls = [int]$_.firewalls }
+            }) 'az-18-firewall-policies' $true
+        $count = { param($Rules, [scriptblock] $Test) @(@($Rules) | Where-Object { $_ } | Where-Object $Test).Count }
+        $has = { param($Sets, [string[]] $Kind) [bool]@(@($Sets) | Where-Object { $_ -and [string]$_.ruleSetType -in $Kind }).Count }
+        $appGw = & $q "resources | where type =~ 'microsoft.network/applicationgatewaywebapplicationfirewallpolicies' | project name, subscriptionId, resourceGroup, attached = coalesce(array_length(properties.applicationGateways), 0), state = tostring(properties.policySettings.state), mode = tostring(properties.policySettings.mode), bodyCheck = tostring(properties.policySettings.requestBodyCheck), ruleSets = properties.managedRules.managedRuleSets, customRules = properties.customRules"
+        $frontDoor = & $q "resources | where type =~ 'microsoft.network/frontdoorwebapplicationfirewallpolicies' | project name, subscriptionId, resourceGroup, sku = tostring(sku.name), attached = coalesce(array_length(properties.frontendEndpointLinks), 0) + coalesce(array_length(properties.securityPolicyLinks), 0), state = tostring(properties.policySettings.enabledState), mode = tostring(properties.policySettings.mode), bodyCheck = tostring(properties.policySettings.requestBodyCheck), ruleSets = properties.managedRules.managedRuleSets, customRules = properties.customRules.rules"
+        $waf = @(
+            @($appGw | ForEach-Object {
+                    [ordered]@{
+                        Kind = 'ApplicationGateway'; Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup); Sku = ''; Attached = [int]$_.attached
+                        State = (& $str $_.state); Mode = (& $str $_.mode); RequestBodyCheck = [bool]((& $str $_.bodyCheck) -match '(?i)^(true|enabled)$')
+                        DefaultRuleSet = (& $has $_.ruleSets @('Microsoft_DefaultRuleSet', 'OWASP')); BotRuleSet = (& $has $_.ruleSets @('Microsoft_BotManagerRuleSet')); HttpDdosRuleSet = (& $has $_.ruleSets @('Microsoft_HTTPDDoSRuleSet'))
+                        RateLimitRules = (& $count $_.customRules { [string]$_.ruleType -eq 'RateLimitRule' -and [string]$_.state -eq 'Enabled' }); ChallengeRules = (& $count $_.customRules { [string]$_.action -eq 'JSChallenge' -and [string]$_.state -eq 'Enabled' }); CaptchaRules = 0
+                    }
+                })
+            @($frontDoor | ForEach-Object {
+                    [ordered]@{
+                        Kind = 'FrontDoor'; Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); ResourceGroup = (& $str $_.resourceGroup); Sku = (& $str $_.sku); Attached = [int]$_.attached
+                        State = (& $str $_.state); Mode = (& $str $_.mode); RequestBodyCheck = [bool]((& $str $_.bodyCheck) -match '(?i)^(true|enabled)$')
+                        DefaultRuleSet = (& $has $_.ruleSets @('Microsoft_DefaultRuleSet')); BotRuleSet = (& $has $_.ruleSets @('Microsoft_BotManagerRuleSet')); HttpDdosRuleSet = (& $has $_.ruleSets @('Microsoft_HTTPDDoSRuleSet'))
+                        RateLimitRules = (& $count $_.customRules { [string]$_.ruleType -eq 'RateLimitRule' -and [string]$_.enabledState -eq 'Enabled' }); ChallengeRules = (& $count $_.customRules { [string]$_.action -eq 'JSChallenge' -and [string]$_.enabledState -eq 'Enabled' })
+                        CaptchaRules = (& $count $_.customRules { [string]$_.action -eq 'Captcha' -and [string]$_.enabledState -eq 'Enabled' })
+                    }
+                })
+        )
+        & $save @($waf | Where-Object { $_ }) 'az-19-waf-policies' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Entra Domain Services' -Folder $Folder -Script {
         $ds = & $q "resources | where type =~ 'microsoft.aad/domainservices' | project name, subscriptionId, s = properties.domainSecuritySettings"
         & $save @($ds | ForEach-Object { [ordered]@{ Name = (& $str $_.name); SubscriptionId = (& $str $_.subscriptionId); NtlmV1 = (& $str (& $v $_.s 'ntlmV1')); TlsV1 = (& $str (& $v $_.s 'tlsV1')); SyncNtlmPasswords = (& $str (& $v $_.s 'syncNtlmPasswords')); KerberosRc4Encryption = (& $str (& $v $_.s 'kerberosRc4Encryption')); KerberosArmoring = (& $str (& $v $_.s 'kerberosArmoring')); LdapSigning = (& $str (& $v $_.s 'ldapSigning')); ChannelBinding = (& $str (& $v $_.s 'channelBinding')) } }) 'az-16-entra-domain-services' $true

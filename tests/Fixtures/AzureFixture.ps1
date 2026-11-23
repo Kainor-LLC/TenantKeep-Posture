@@ -9,6 +9,23 @@ function Get-AzureFixtureQuery {
 
     $o = { param([hashtable] $h) [pscustomobject]$h }
     switch -Regex ($Query) {
+        # Network security policies. A Premium firewall policy that only alerts on threat intelligence and has no TLS
+        # inspection, beside a Standard one that denies; an Application Gateway WAF policy in Detection with no flood
+        # rules, beside one that is attached to nothing; a Front Door Premium policy with everything on.
+        "microsoft\.network/firewallpolicies'" {
+            & $o @{ name = 'fw-hub'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; tier = 'Premium'; threatIntelMode = 'Alert'; idpsMode = 'Deny'; tlsCa = ''; firewalls = 1 }
+            & $o @{ name = 'fw-edge'; subscriptionId = 'sub-1'; resourceGroup = 'rg-net'; tier = 'Standard'; threatIntelMode = 'Deny'; idpsMode = ''; tlsCa = ''; firewalls = 1 }
+            break
+        }
+        "applicationgatewaywebapplicationfirewallpolicies'" {
+            & $o @{ name = 'waf-shop'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; attached = 1; state = 'Enabled'; mode = 'Detection'; bodyCheck = 'true'; ruleSets = @((& $o @{ ruleSetType = 'OWASP'; ruleSetVersion = '3.2' }), (& $o @{ ruleSetType = 'Microsoft_BotManagerRuleSet'; ruleSetVersion = '1.1' })); customRules = @((& $o @{ name = 'limit'; ruleType = 'RateLimitRule'; state = 'Enabled'; action = 'Block' }), (& $o @{ name = 'old-challenge'; ruleType = 'MatchRule'; state = 'Disabled'; action = 'JSChallenge' })) }
+            & $o @{ name = 'waf-unused'; subscriptionId = 'sub-1'; resourceGroup = 'rg-web'; attached = 0; state = 'Disabled'; mode = 'Detection'; bodyCheck = 'false'; ruleSets = @(); customRules = @() }
+            break
+        }
+        "frontdoorwebapplicationfirewallpolicies'" {
+            & $o @{ name = 'fd-main'; subscriptionId = 'sub-2'; resourceGroup = 'rg-edge'; sku = 'Premium_AzureFrontDoor'; attached = 2; state = 'Enabled'; mode = 'Prevention'; bodyCheck = 'Enabled'; ruleSets = @((& $o @{ ruleSetType = 'Microsoft_DefaultRuleSet' }), (& $o @{ ruleSetType = 'Microsoft_BotManagerRuleSet' }), (& $o @{ ruleSetType = 'Microsoft_HTTPDDoSRuleSet' })); customRules = @((& $o @{ ruleType = 'RateLimitRule'; enabledState = 'Enabled'; action = 'Block' }), (& $o @{ ruleType = 'MatchRule'; enabledState = 'Enabled'; action = 'JSChallenge' }), (& $o @{ ruleType = 'MatchRule'; enabledState = 'Enabled'; action = 'Captcha' })) }
+            break
+        }
         "microsoft\.resources/subscriptions'" { & $o @{ subscriptionId = 'sub-1'; name = 'Prod'; state = 'Enabled'; chain = @(@{ displayName = 'Landing zones'; name = 'lz' }, @{ displayName = 'Tenant Root Group'; name = 'root' }) }; & $o @{ subscriptionId = 'sub-2'; name = 'Sandbox'; state = 'Enabled'; chain = @(@{ displayName = 'Tenant Root Group'; name = 'root' }) }; break }
         "microsoft\.management/managementgroups'" { & $o @{ name = 'lz'; displayName = 'Landing zones'; parent = 'root' }; break }
         "microsoft\.security/securescores'" { & $o @{ subscriptionId = 'sub-1'; name = 'ascScore'; current = 30.5; max = 58; percentage = 0.53 }; break }

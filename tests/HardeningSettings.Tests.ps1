@@ -596,3 +596,47 @@ Describe 'MSOnline, BitLocker keys and passkey attestation (catalog 2026.11.3)' 
         (& $script:Judge 'auth' (& $policy @{ state = 'enabled' }))['AU-011'].status | Should -Be 'notEvaluated'
     }
 }
+
+Describe 'Azure firewall and WAF policies (catalog 2026.11.3)' {
+    BeforeAll {
+        $script:Azure = {
+            param([System.Collections.IDictionary] $Files)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            # A subscription row as a collection saves it.
+            ConvertTo-Json -InputObject @(@{ SubscriptionId = 'sub-1'; Name = 'Prod'; State = 'Enabled'; ManagementGroupChain = 'Landing zones / Tenant Root Group'; ManagementGroupNames = @('lz', 'root'); AtTenantRoot = $false; DetailRead = $true }) -Depth 4 | Set-Content (Join-Path $dir 'az-01-subscriptions.json')
+            foreach ($name in $Files.Keys) { ConvertTo-Json -InputObject @($Files[$name]) -Depth 6 | Set-Content (Join-Path $dir "$name.json") }
+            '{ "version": 1, "azure": "workloads", "licenses": ["E5", "P1", "P2"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain azure -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by
+        }
+    }
+
+    It 'has no answer, with the reason, for a tenant that has none of the resource' {
+        $none = & $script:Azure @{ 'az-18-firewall-policies' = @(); 'az-19-waf-policies' = @() }
+        $none['AZ-031'].reason | Should -Be 'No Azure Firewall policy (Standard or Premium) in the subscriptions.'
+        $none['AZ-032'].reason | Should -Match 'No Azure Firewall Premium policy'
+        foreach ($id in 'AZ-033', 'AZ-034') { $none[$id].reason | Should -Be 'No Application Gateway WAF policy in use in the subscriptions.' -Because $id }
+        foreach ($id in 'AZ-035', 'AZ-036') { $none[$id].reason | Should -Be 'No Front Door WAF policy in use in the subscriptions.' -Because $id }
+        foreach ($id in 'AZ-031', 'AZ-032', 'AZ-033', 'AZ-034', 'AZ-035', 'AZ-036') { $none[$id].status | Should -Be 'notEvaluated' -Because "${id}: nothing to protect is not a pass" }
+    }
+
+    It 'says the files were not collected when an older Azure collection has none of them' {
+        $old = & $script:Azure @{}
+        $old['AZ-031'].reason | Should -Match 'az-18-firewall-policies\.json was not collected'
+        $old['AZ-035'].reason | Should -Match 'az-19-waf-policies\.json was not collected'
+    }
+
+    It 'judges a Standard firewall policy on threat intelligence alone, and Front Door bot rules on Premium alone' {
+        $r = & $script:Azure @{
+            'az-18-firewall-policies' = @(@{ Name = 'fw'; SubscriptionId = 'sub-1'; Tier = 'Standard'; ThreatIntelMode = 'Deny'; IdpsMode = ''; TlsInspection = $false; Firewalls = 1 })
+            'az-19-waf-policies'      = @(@{ Kind = 'FrontDoor'; Name = 'fd-standard'; SubscriptionId = 'sub-1'; Sku = 'Standard_AzureFrontDoor'; Attached = 1; State = 'Enabled'; Mode = 'Prevention'; RequestBodyCheck = $true; DefaultRuleSet = $true; BotRuleSet = $false; HttpDdosRuleSet = $true; RateLimitRules = 1; ChallengeRules = 1; CaptchaRules = 1 })
+        }
+        $r['AZ-031'].status | Should -Be 'pass' -Because 'intrusion detection is a Premium feature and is not held against a Standard policy'
+        $r['AZ-032'].status | Should -Be 'notEvaluated'
+        $r['AZ-035'].status | Should -Be 'pass'
+        $r['AZ-036'].status | Should -Be 'pass' -Because 'the bot rule set comes with Front Door Premium only'
+    }
+}

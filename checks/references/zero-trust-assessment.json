@@ -874,50 +874,6 @@
       "reason": "planned",
       "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
     },
-    "25537": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "25539": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "25541": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "25543": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "25550": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26879": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26880": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26881": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26882": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26883": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "26884": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
     "26885": {
       "reason": "planned",
       "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
@@ -957,34 +913,6 @@
     "27004": {
       "reason": "planned",
       "note": "A detail of the Global Secure Access configuration."
-    },
-    "27015": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27016": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27017": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27018": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27019": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27020": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
-    },
-    "27024": {
-      "reason": "planned",
-      "note": "Azure network security: DDoS protection, Azure Firewall and web application firewalls."
     },
     "27028": {
       "reason": "planned",

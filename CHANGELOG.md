@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 350 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 356 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Six checks on Azure network security (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment,
+  read through Resource Graph with the Azure permission already held. Azure Firewall denies what threat
+  intelligence and intrusion detection flag (AZ-031) and, on Premium, inspects encrypted traffic (AZ-032).
+  Application Gateway WAF policies in use block, read request bodies and run the default rules (AZ-033) and defend
+  against bots and floods (AZ-034); the same two for Front Door WAF (AZ-035, AZ-036). A policy attached to nothing
+  is not judged, a tenant with none of the resource gets no answer with the reason, and what is saved is flags and
+  counts, not the rules. Eighteen more of the assessment's tests now name a check. They need an Azure collection
+  made with this version.
 - A sixteenth domain, Power Platform and Power BI (2026-11-23, catalog 2026.11.3), with fifteen checks and two new
   collectors. It is optional: a tenant approves two more permissions on the TenantKeep app from a second link, and
   a tenant that has not is told so, with the link, while the rest of the run is unchanged.

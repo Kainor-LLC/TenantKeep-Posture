@@ -316,6 +316,54 @@ function Get-PostureAzureFact {
         $affected.backupVaultsUnprotected = @($weak | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "soft delete $(if ($_.SoftDelete) { $_.SoftDelete } else { 'off' }), immutability $(if ($_.Immutability) { $_.Immutability } else { 'off' })" } })
     }
 
+    # AZ-031, AZ-032: Azure Firewall policies. Threat intelligence and, on Premium, intrusion detection can alert or
+    # deny; only Deny stops the connection. TLS inspection is what lets Premium see inside encrypted traffic at all.
+    $fwPolicies = & $load 'az-18-firewall-policies'
+    if ($null -eq $fwPolicies) { & $missing @('AZ-031', 'AZ-032') 'az-18-firewall-policies' }
+    else {
+        $fw = @(& $rows $fwPolicies | Where-Object { [string]$_.Tier -in 'Standard', 'Premium' })
+        $premium = @($fw | Where-Object { [string]$_.Tier -eq 'Premium' })
+        $facts.firewallPolicies = $fw.Count
+        if ($fw.Count -eq 0) { $notEvaluated['AZ-031'] = 'No Azure Firewall policy (Standard or Premium) in the subscriptions.' }
+        $soft = foreach ($p in $fw) {
+            $issues = @($(if ([string]$p.ThreatIntelMode -ne 'Deny') { "threat intelligence: $(if ($p.ThreatIntelMode) { $p.ThreatIntelMode } else { 'off' })" }), $(if ([string]$p.Tier -eq 'Premium' -and [string]$p.IdpsMode -ne 'Deny') { "intrusion detection: $(if ($p.IdpsMode) { $p.IdpsMode } else { 'off' })" })) | Where-Object { $_ }
+            if (@($issues).Count -gt 0) { [ordered]@{ name = [string]$p.Name; detail = "$(@($issues) -join '; '), $(& $label $p.SubscriptionId)" } }
+        }
+        $facts.firewallPoliciesNotDenying = @($soft).Count
+        $affected.firewallPoliciesNotDenying = @($soft)
+        if ($premium.Count -eq 0) { $notEvaluated['AZ-032'] = 'No Azure Firewall Premium policy in the subscriptions; TLS inspection is a Premium feature.' }
+        $blind = @($premium | Where-Object { $_.TlsInspection -ne $true })
+        $facts.firewallPoliciesWithoutTlsInspection = $blind.Count
+        $affected.firewallPoliciesWithoutTlsInspection = @($blind | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = "no TLS inspection certificate, $(& $label $_.SubscriptionId)" } })
+    }
+
+    # AZ-033 to AZ-036: web application firewall policies that are attached to something. For each kind, one check on
+    # the basics (on, in Prevention, reading request bodies, running the default rules) and one on bots and floods.
+    $wafPolicies = & $load 'az-19-waf-policies'
+    if ($null -eq $wafPolicies) { & $missing @('AZ-033', 'AZ-034', 'AZ-035', 'AZ-036') 'az-19-waf-policies' }
+    else {
+        foreach ($kind in @(@{ name = 'ApplicationGateway'; label = 'Application Gateway'; basics = 'AZ-033'; floods = 'AZ-034'; fact = 'appGatewayWaf' }, @{ name = 'FrontDoor'; label = 'Front Door'; basics = 'AZ-035'; floods = 'AZ-036'; fact = 'frontDoorWaf' })) {
+            $inUse = @(& $rows $wafPolicies | Where-Object { [string]$_.Kind -eq $kind.name -and [int]$_.Attached -ge 1 })
+            $facts["$($kind.fact)Policies"] = $inUse.Count
+            if ($inUse.Count -eq 0) { foreach ($id in $kind.basics, $kind.floods) { $notEvaluated[$id] = "No $($kind.label) WAF policy in use in the subscriptions." } }
+            $weak = foreach ($p in $inUse) {
+                $issues = @($(if ([string]$p.State -ne 'Enabled') { 'the policy is off' }), $(if ([string]$p.Mode -ne 'Prevention') { "mode $(if ($p.Mode) { $p.Mode } else { 'not set' })" }), $(if ($p.RequestBodyCheck -ne $true) { 'request bodies are not inspected' }), $(if ($p.DefaultRuleSet -ne $true) { 'no default rule set' })) | Where-Object { $_ }
+                if (@($issues).Count -gt 0) { [ordered]@{ name = [string]$p.Name; detail = "$(@($issues) -join '; '), $(& $label $p.SubscriptionId)" } }
+            }
+            $facts["$($kind.fact)BasicGaps"] = @($weak).Count
+            $affected["$($kind.fact)BasicGaps"] = @($weak)
+            $open = foreach ($p in $inUse) {
+                # Front Door's bot rule set comes with the Premium tier only, and its CAPTCHA challenge has no Application Gateway twin.
+                $botApplies = $kind.name -eq 'ApplicationGateway' -or [string]$p.Sku -eq 'Premium_AzureFrontDoor'
+                $issues = @($(if ($botApplies -and $p.BotRuleSet -ne $true) { 'no bot protection rule set' }), $(if ($p.HttpDdosRuleSet -ne $true) { 'no HTTP DDoS rule set' }), $(if ([int]$p.RateLimitRules -eq 0) { 'no rate limit rule' }),
+                    $(if ([int]$p.ChallengeRules -eq 0) { 'no JavaScript challenge rule' }), $(if ($kind.name -eq 'FrontDoor' -and [int]$p.CaptchaRules -eq 0) { 'no CAPTCHA rule' })) | Where-Object { $_ }
+                if (@($issues).Count -gt 0) { [ordered]@{ name = [string]$p.Name; detail = "$(@($issues) -join '; '), $(& $label $p.SubscriptionId)" } }
+            }
+            $facts["$($kind.fact)FloodGaps"] = @($open).Count
+            $affected["$($kind.fact)FloodGaps"] = @($open)
+        }
+    }
+
     # AZ-027: a Sentinel workspace receives Entra, Microsoft 365 and Defender XDR.
     $sentinel = & $load 'az-15-sentinel'
     if ($null -eq $sentinel) { & $missing @('AZ-027') 'az-15-sentinel' }
