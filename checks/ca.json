@@ -88,7 +88,7 @@
         "nist-csf-2": "PR.AA-03",
         "iso27001": "A.8.5",
         "cmmc": "IA.L2-3.5.3",
-        "cisa-scuba": "MS.AAD.3.2v1"
+        "cisa-scuba": "MS.AAD.3.2v2"
       },
       "references": {
         "secureScore": [
@@ -137,9 +137,12 @@
         "nist-csf-2": "PR.AA-03",
         "iso27001": "A.8.2",
         "cmmc": "IA.L2-3.5.3",
-        "cisa-scuba": "MS.AAD.3.1v1"
+        "cisa-scuba": "MS.AAD.3.6v1"
       },
       "references": {
+        "scuba": [
+          "MS.AAD.3.1v1"
+        ],
         "secureScore": [
           "aad_phishing_MFA_strength"
         ]
@@ -187,6 +190,9 @@
         "cisa-scuba": "MS.AAD.2.1v1"
       },
       "references": {
+        "scuba": [
+          "MS.AAD.2.3v1"
+        ],
         "secureScore": [
           "SigninRiskPolicy",
           "UserRiskPolicy"
@@ -677,7 +683,7 @@
         "nist-csf-2": "PR.AA-03",
         "iso27001": "A.8.5",
         "cmmc": "IA.L2-3.5.3",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.AAD.3.9v1"
       },
       "attack": [
         "T1528",

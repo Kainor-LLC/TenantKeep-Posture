@@ -64,7 +64,7 @@ Describe 'Secure Score actions and the checks that judge the same setting' {
     It 'names each Secure Score control once per check in the shipped catalog, and only on checks that exist' {
         InModuleScope TenantKeep.Posture {
             $catalog = Import-PostureCheckCatalog
-            $with = @($catalog.checks | Where-Object { $_.Contains('references') })
+            $with = @($catalog.checks | Where-Object { $_.Contains('references') -and $_.references.Contains('secureScore') })
             $with.Count | Should -BeGreaterThan 20
             foreach ($check in $with) {
                 $ids = @($check.references.secureScore)

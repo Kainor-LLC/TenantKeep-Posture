@@ -32,9 +32,12 @@
         "nist-csf-2": "DE.CM-01",
         "iso27001": "A.8.15",
         "cmmc": "AU.L2-3.3.1",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SECURITYSUITE.5.1v1"
       },
       "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.5.2v1"
+        ],
         "secureScore": [
           "mip_search_auditlog"
         ]
@@ -215,9 +218,12 @@
         "nist-csf-2": "PR.DS-01",
         "iso27001": "A.8.12",
         "cmmc": "SC.L2-3.13.16",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SECURITYSUITE.3.2v1"
       },
       "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.3.1v1"
+        ],
         "secureScore": [
           "DLPEnabled"
         ]

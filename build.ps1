@@ -6,7 +6,8 @@
 .DESCRIPTION
   Tasks: Analyze, Test, Build, Sign, Verify, Integrity, Package, Catalog (the public catalog page for the website), Publish (the
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
-  (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), Upkeep (a
+  (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), ScubaData
+  (checks/references/cisa-scuba.json, every policy of CISA's SCuBA baselines from a ScubaGear release), Upkeep (a
   report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Graph APIs a check waits on, Learn links; run weekly on
   GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
   Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
@@ -38,7 +39,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'Upkeep', 'Demo')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'Upkeep', 'Demo')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -55,6 +56,9 @@ param(
 
     # AttackData task: MITRE's enterprise ATT&CK STIX bundle (enterprise-attack-<version>.json), downloaded by hand.
     [string] $AttackStix,
+
+    # ScubaData task: the folder PowerShell/ScubaGear/baselines from a ScubaGear release, downloaded by hand.
+    [string] $ScubaBaselines,
 
     # Upkeep task: where the report goes (default out/upkeep.md), and -Offline to skip every check that needs the network.
     [string] $UpkeepReport,
@@ -216,6 +220,40 @@ function Invoke-LicensingData {
     $path = Join-Path $dir 'bundles.json'
     [System.IO.File]::WriteAllText($path, ($doc | ConvertTo-Json -Depth 6) + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "Wrote $path ($(@($out).Count) SKUs)"
+}
+
+function Invoke-ScubaData {
+    # checks/references/cisa-scuba.json: every policy id and statement of CISA's SCuBA baselines, read from the Markdown
+    # files of the ScubaGear release the file's version names. items is written here; notCovered and the rest are kept.
+    # To move releases: change version and source in the file, run this with that release's baselines folder, then run
+    # the tests, which name every policy that is new, gone or renumbered until the checks and notCovered agree again.
+    Write-Task 'ScubaData'
+    if (-not $ScubaBaselines -or -not (Test-Path -LiteralPath $ScubaBaselines -PathType Container)) { throw '-ScubaBaselines: the folder PowerShell/ScubaGear/baselines from a release of github.com/cisagov/ScubaGear' }
+    $file = Join-Path $Root 'checks' 'references' 'cisa-scuba.json'
+    $doc = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+    $found = @{}
+    foreach ($md in Get-ChildItem -LiteralPath $ScubaBaselines -Filter '*.md' | Where-Object { $_.Name -ne 'removedpolicies.md' } | Sort-Object Name) {
+        $lines = [System.IO.File]::ReadAllLines($md.FullName)
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            # A policy is a heading that is its id, followed by its statement on the next line with text.
+            if ($lines[$i].Trim() -notmatch '^#{3,5}\s+(MS\.[A-Z]+\.\d+\.\d+v\d+)$') { continue }
+            $id = $Matches[1]
+            $text = ''
+            for ($j = $i + 1; $j -lt [Math]::Min($i + 8, $lines.Count); $j++) { $t = $lines[$j].Trim(); if ($t -and -not $t.StartsWith('<')) { $text = $t; break } }
+            # A mail address in a statement is written as words: the repository's commit guard lets no real mail domain in,
+            # and the one policy that names a mailbox applies to US federal agencies only.
+            $found[$id] = ($text -replace '`?[\w.+-]+@[\w-]+(\.[\w-]+)+`?', 'the mailbox CISA names')
+        }
+    }
+    if ($found.Count -lt 50) { throw "Only $($found.Count) policy ids under $ScubaBaselines; that is not a ScubaGear baselines folder." }
+    $items = [ordered]@{}
+    foreach ($id in ($found.get_Keys() | Sort-Object { ($_ -split '\.')[1] }, { [int]($_ -split '\.')[2] }, { [int](($_ -split '\.')[3] -replace 'v\d+$') })) { $items[$id] = $found[$id] }
+    $out = [ordered]@{}
+    foreach ($k in 'name', 'title', 'source', 'version', 'notice', 'checkKeys') { $out[$k] = $doc[$k] }
+    $out['items'] = $items
+    $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
+    [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "  $($items.Count) policies of $($doc['title']) $($doc['version']) written to checks/references/cisa-scuba.json"
 }
 
 function Invoke-AttackData {
@@ -681,7 +719,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -695,6 +733,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'Upkeep', 'Demo', 'Clean', 'Anal
         'Catalog' { Invoke-Catalog }
         'LicensingData' { Invoke-LicensingData }
         'AttackData' { Invoke-AttackData }
+        'ScubaData' { Invoke-ScubaData }
         'Upkeep' { Invoke-Upkeep }
         'Demo' { Invoke-Demo }
         'Publish' { Invoke-Publish -Stage $stage }

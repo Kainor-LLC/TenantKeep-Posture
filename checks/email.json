@@ -30,7 +30,12 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SECURITYSUITE.6.1v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.1.3v1"
+        ]
       },
       "attack": [
         "T1566.001",
@@ -106,7 +111,7 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": "MS.EXO.11.3v1"
+        "cisa-scuba": ""
       },
       "attack": [
         "T1684.002"
@@ -145,7 +150,12 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": "MS.EXO.11.1v1"
+        "cisa-scuba": "MS.SECURITYSUITE.2.1v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.2.2v1"
+        ]
       },
       "attack": [
         "T1657",
@@ -190,7 +200,7 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": "MS.EXO.15.1v1"
+        "cisa-scuba": "MS.SECURITYSUITE.7.1v1"
       },
       "references": {
         "secureScore": [
@@ -234,7 +244,7 @@
         "nist-csf-2": "DE.CM-09",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SECURITYSUITE.1.2v1"
       },
       "references": {
         "secureScore": [
@@ -320,7 +330,7 @@
         "nist-csf-2": "PR.DS-01",
         "iso27001": "A.8.7",
         "cmmc": "SC.L2-3.13.8",
-        "cisa-scuba": "MS.EXO.1.1v1"
+        "cisa-scuba": "MS.EXO.1.1v2"
       },
       "references": {
         "secureScore": [
@@ -359,7 +369,7 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
-        "cisa-scuba": "MS.EXO.12.1v1"
+        "cisa-scuba": "MS.SECURITYSUITE.8.1v1"
       },
       "attack": [
         "T1566.001",
@@ -510,6 +520,12 @@
         "cmmc": "SC.L2-3.13.8",
         "cisa-scuba": "MS.EXO.4.2v1"
       },
+      "references": {
+        "scuba": [
+          "MS.EXO.4.1v1",
+          "MS.EXO.4.4v1"
+        ]
+      },
       "attack": [
         "T1684.002"
       ]
@@ -544,7 +560,7 @@
         "nist-csf-2": "PR.DS-02",
         "iso27001": "A.8.7",
         "cmmc": "SC.L2-3.13.8",
-        "cisa-scuba": "MS.EXO.2.2v1"
+        "cisa-scuba": "MS.EXO.2.2v3"
       },
       "attack": [
         "T1684.002"
@@ -729,6 +745,9 @@
         "cisa-scuba": "MS.EXO.13.1v1"
       },
       "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.5.1v1"
+        ],
         "secureScore": [
           "exo_mailboxaudit"
         ]
@@ -883,7 +902,7 @@
         "nist-csf-2": "DE.CM-09",
         "iso27001": "A.8.7",
         "cmmc": "SI.L2-3.14.2",
-        "cisa-scuba": "MS.EXO.9.1v2"
+        "cisa-scuba": "MS.SECURITYSUITE.1.1v1"
       },
       "references": {
         "secureScore": [
@@ -1065,7 +1084,7 @@
         "nist-csf-2": "DE.CM-09",
         "iso27001": "A.8.7",
         "cmmc": "SI.L2-3.14.2",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SECURITYSUITE.1.4v1"
       },
       "references": {
         "secureScore": [

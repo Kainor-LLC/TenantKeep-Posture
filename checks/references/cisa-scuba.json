@@ -1,0 +1,340 @@
+{
+  "name": "cisa-scuba",
+  "title": "CISA SCuBA baselines for Microsoft 365",
+  "source": "https://github.com/cisagov/ScubaGear/tree/v2.0.0/PowerShell/ScubaGear/baselines",
+  "version": "v2.0.0",
+  "notice": "Policy ids and statements are from CISA's Secure Cloud Business Applications baselines, published with ScubaGear and dedicated to the public domain (CC0 1.0).",
+  "checkKeys": {
+    "framework": "cisa-scuba",
+    "reference": "scuba"
+  },
+  "items": {
+    "MS.AAD.1.1v1": "Legacy authentication SHALL be blocked.",
+    "MS.AAD.2.1v1": "Users detected as high risk SHALL be blocked.",
+    "MS.AAD.2.2v1": "A notification SHOULD be sent to the administrator when high-risk users are detected.",
+    "MS.AAD.2.3v1": "Sign-ins detected as high-risk SHALL be blocked.",
+    "MS.AAD.3.1v1": "Phishing-resistant MFA SHALL be enforced for all users.",
+    "MS.AAD.3.2v2": "MFA SHALL be enforced for all users.",
+    "MS.AAD.3.3v2": "If Microsoft Authenticator is enabled, it SHALL be configured to show login context information.",
+    "MS.AAD.3.4v1": "The \"Authentication methods manage migration\" feature SHALL be set to \"Migration complete.\"",
+    "MS.AAD.3.5v2": "The authentication methods of short message service (SMS), voice call, and email one-time passcode (OTP) SHALL be disabled.",
+    "MS.AAD.3.6v1": "Phishing-resistant MFA SHALL be required for highly privileged roles.",
+    "MS.AAD.3.7v1": "Managed devices SHOULD be required for authentication.",
+    "MS.AAD.3.8v1": "Managed devices SHOULD be required to register MFA.",
+    "MS.AAD.3.9v1": "Device code authentication SHOULD be blocked.",
+    "MS.AAD.4.1v1": "Security logs SHALL be sent to the agency's security operations center for monitoring.",
+    "MS.AAD.5.1v1": "Only administrators SHALL be allowed to register applications.",
+    "MS.AAD.5.2v1": "User consent to applications SHALL be restricted.",
+    "MS.AAD.5.3v1": "An administrative consent workflow SHALL be configured for applications.",
+    "MS.AAD.5.5v1": "Application password addition SHOULD be blocked.",
+    "MS.AAD.5.6v1": "Application password lifetime SHOULD be restricted to 180 days or less.",
+    "MS.AAD.5.7v1": "Application certificate lifetime SHOULD be restricted to 365 days or less.",
+    "MS.AAD.6.1v1": "User passwords SHALL NOT expire.",
+    "MS.AAD.7.1v1": "A minimum of two users and a maximum of eight users SHALL be provisioned with the Global Administrator role.",
+    "MS.AAD.7.2v1": "Privileged users SHALL be provisioned with finer-grained roles instead of the Global Administrator role.",
+    "MS.AAD.7.3v1": "Privileged users SHALL be provisioned cloud-only accounts separate from an on-premises directory or other federated identity providers.",
+    "MS.AAD.7.4v1": "Permanent active role assignments SHALL NOT be allowed for highly privileged roles.",
+    "MS.AAD.7.5v1": "Provisioning users to highly privileged roles SHALL NOT occur outside of a PAM system.",
+    "MS.AAD.7.6v1": "Activation of the Global Administrator role SHALL require approval.",
+    "MS.AAD.7.7v1": "Eligible and active highly privileged role assignments SHALL trigger an alert.",
+    "MS.AAD.7.8v1": "User activation of the Global Administrator role SHALL trigger an alert.",
+    "MS.AAD.7.9v1": "User activation of other highly privileged roles SHOULD trigger an alert.",
+    "MS.AAD.8.1v1": "Guest users SHOULD have limited or restricted access to Microsoft Entra ID directory objects.",
+    "MS.AAD.8.2v1": "Only users with the \"Guest Inviter\" role SHOULD be able to invite guest users.",
+    "MS.AAD.8.3v1": "Guest invites SHOULD only be allowed to be sent to specific external domains that have been authorized by the agency for legitimate business purposes.",
+    "MS.AAD.9.1v1": "Risky AI agents SHALL be blocked.",
+    "MS.EXO.1.1v2": "Automatic forwarding to external domains SHALL be disabled.",
+    "MS.EXO.2.2v3": "An SPF policy SHALL be published for each domain that fails all non-approved senders.",
+    "MS.EXO.3.1v1": "DKIM SHOULD be enabled for all domains.",
+    "MS.EXO.4.1v1": "A DMARC policy SHALL be published for every second-level domain.",
+    "MS.EXO.4.2v1": "The DMARC message rejection option SHALL be p=reject.",
+    "MS.EXO.4.3v1": "The DMARC point of contact for aggregate reports SHALL include the mailbox CISA names.",
+    "MS.EXO.4.4v1": "An agency point of contact SHOULD be included for aggregate and failure reports.",
+    "MS.EXO.5.1v1": "SMTP AUTH SHALL be disabled.",
+    "MS.EXO.6.1v1": "Contact folders SHALL NOT be shared with all domains.",
+    "MS.EXO.6.2v1": "Calendar details SHALL NOT be shared with all domains.",
+    "MS.EXO.7.1v1": "External sender warnings SHALL be implemented.",
+    "MS.EXO.13.1v1": "Mailbox auditing SHALL be enabled.",
+    "MS.POWERBI.1.1v1": "The \"Publish to Web\" feature SHOULD be disabled unless the agency mission requires the capability.",
+    "MS.POWERBI.2.1v1": "Guest user access to the Power BI tenant SHOULD be disabled unless the agency mission requires the capability.",
+    "MS.POWERBI.3.1v1": "The \"Invite external users to your organization\" feature SHOULD be disabled unless agency mission requires the capability.",
+    "MS.POWERBI.4.1v1": "Service principals with access to APIs SHOULD be restricted to specific security groups.",
+    "MS.POWERBI.4.2v1": "Service principals' ability to create and use profiles SHOULD be restricted to specific security groups.",
+    "MS.POWERBI.5.1v1": "ResourceKey-based authentication SHOULD be blocked unless a specific use case (e.g., streaming and/or \"push\" datasets) merits its use.",
+    "MS.POWERBI.6.1v1": "Python and R interactions SHOULD be disabled.",
+    "MS.POWERBI.7.1v1": "Sensitivity labels SHOULD be enabled for Power BI and employed for sensitive data per enterprise data protection policies.",
+    "MS.POWERPLATFORM.1.1v1": "The ability to create production and sandbox environments SHALL be restricted to administrators.",
+    "MS.POWERPLATFORM.1.2v1": "The ability to create trial environments SHALL be restricted to administrators.",
+    "MS.POWERPLATFORM.2.1v1": "A DLP policy SHALL be created to restrict connector access in the default Power Platform environment.",
+    "MS.POWERPLATFORM.2.2v1": "Non-default environments SHOULD have at least one DLP policy.",
+    "MS.POWERPLATFORM.3.1v1": "Power Platform tenant isolation SHALL be enabled.",
+    "MS.POWERPLATFORM.3.2v1": "An inbound/outbound connection allowlist SHOULD be configured.",
+    "MS.POWERPLATFORM.4.1v1": "Content Security Policy (CSP) SHALL be enforced for model-driven and canvas Power Apps.",
+    "MS.POWERPLATFORM.5.1v1": "The ability to create Power Pages sites SHOULD be restricted to administrators.",
+    "MS.POWERPLATFORM.6.1v1": "The \"Share with everyone\" feature SHOULD be disabled.",
+    "MS.SECURITYSUITE.1.1v1": "Emails with click-to-run file attachments SHALL be blocked including, at a minimum, .exe, .cmd, and .vbe files.",
+    "MS.SECURITYSUITE.1.2v1": "Email scanning SHALL be capable of reviewing emails after delivery.",
+    "MS.SECURITYSUITE.1.3v1": "Emails identified as containing malware SHALL be quarantined or dropped.",
+    "MS.SECURITYSUITE.1.4v1": "SharePoint, OneDrive, and Teams message attachments SHOULD be scanned for malware.",
+    "MS.SECURITYSUITE.2.1v1": "User impersonation protection SHOULD be enabled for sensitive accounts.",
+    "MS.SECURITYSUITE.2.2v1": "Domain impersonation protection SHOULD be enabled for domains owned by the agency.",
+    "MS.SECURITYSUITE.2.3v1": "Domain impersonation protection SHOULD be added for key suppliers and partners.",
+    "MS.SECURITYSUITE.2.4v1": "User warnings, comparable to the user safety tips included with EOP, SHOULD be displayed.",
+    "MS.SECURITYSUITE.3.1v1": "A DLP policy SHALL be configured to protect PII and sensitive information, as defined by the agency, blocking at a minimum: credit card numbers, U.S. Individual Taxpayer Identification Numbers (ITIN), and U.S. Social Security numbers (SSN).",
+    "MS.SECURITYSUITE.3.2v1": "The DLP policy SHOULD be applied to Exchange, OneDrive, SharePoint, Teams chat, and Devices.",
+    "MS.SECURITYSUITE.3.3v1": "The action for the DLP policy SHOULD be set to block sharing sensitive information with everyone.",
+    "MS.SECURITYSUITE.3.4v1": "Notifications to inform users and help educate them on the proper use of sensitive information SHOULD be enabled in the DLP policy.",
+    "MS.SECURITYSUITE.3.5v1": "The DLP policy SHOULD include an action to block access to sensitive information by restricted applications",
+    "MS.SECURITYSUITE.4.1v1": "At a minimum, the following alerts SHALL be enabled:",
+    "MS.SECURITYSUITE.4.2v1": "The alerts SHOULD be sent to a monitored address or incorporated into a Security Information and Event Management (SIEM).",
+    "MS.SECURITYSUITE.5.1v1": "Unified audit logging SHALL be enabled.",
+    "MS.SECURITYSUITE.5.2v1": "Audit logs SHALL be retained and searchable for a minimum of 3 months and retrievable for a minimum of 12 months.",
+    "MS.SECURITYSUITE.6.1v1": "Emails detected as spam and phishing SHALL NOT be delivered to the user's inbox.",
+    "MS.SECURITYSUITE.6.2v1": "Allowed domains SHALL NOT be added to inbound anti-spam protection policies.",
+    "MS.SECURITYSUITE.7.1v1": "URL comparison with a block-list SHOULD be enabled for URLs in emails, Teams messages, and Office documents.",
+    "MS.SECURITYSUITE.7.2v1": "Direct download links SHOULD be scanned for malware.",
+    "MS.SECURITYSUITE.7.3v1": "User click tracking SHOULD be enabled.",
+    "MS.SECURITYSUITE.8.1v1": "IP allow lists SHOULD NOT be created.",
+    "MS.SECURITYSUITE.8.2v1": "Safe lists SHOULD NOT be enabled.",
+    "MS.SHAREPOINT.1.1v1": "External sharing for SharePoint SHALL be limited to \"Existing guests\" or \"Only people in your organization.\"",
+    "MS.SHAREPOINT.1.2v1": "External sharing for OneDrive SHALL be limited to \"Existing guests\" or \"Only people in your organization.\"",
+    "MS.SHAREPOINT.1.3v1": "External sharing SHALL be restricted to approved external domains and/or users in approved security groups per interagency collaboration needs.",
+    "MS.SHAREPOINT.2.1v1": "File and folder default sharing scope SHALL be set to \"Specific people (only the people the user specifies).\"",
+    "MS.SHAREPOINT.2.2v1": "File and folder default sharing permissions SHALL be set to view only.",
+    "MS.SHAREPOINT.3.1v1": "Expiration days for \"Anyone\" links SHALL be set to 30 days or less.",
+    "MS.SHAREPOINT.3.2v1": "The allowable file and folder permissions for links SHALL be set to view only.",
+    "MS.SHAREPOINT.3.3v2": "Reauthentication days for people who use a verification code SHALL be set to 30 days or less.",
+    "MS.TEAMS.1.1v1": "External meeting participants SHOULD NOT be enabled to request control of shared desktops or windows.",
+    "MS.TEAMS.1.2v2": "Anonymous users SHALL NOT be enabled to start Microsoft Teams meetings.",
+    "MS.TEAMS.1.3v1": "Anonymous users and dial-in callers SHOULD NOT be admitted automatically.",
+    "MS.TEAMS.1.4v1": "Internal users SHOULD be admitted to Microsoft Teams meetings automatically.",
+    "MS.TEAMS.1.5v1": "Dial-in users SHOULD NOT be enabled to bypass the lobby.",
+    "MS.TEAMS.1.6v1": "Meeting recording SHOULD be disabled.",
+    "MS.TEAMS.1.7v2": "\"Record an event\" SHOULD NOT be set to \"Always record.\"",
+    "MS.TEAMS.2.1v2": "External access for users SHALL only be enabled on a per-domain basis.",
+    "MS.TEAMS.2.2v2": "Unmanaged users SHALL NOT be enabled to initiate contact with internal users.",
+    "MS.TEAMS.2.3v2": "Internal users SHOULD NOT be enabled to initiate contact with unmanaged users.",
+    "MS.TEAMS.4.1v1": "Microsoft Teams email integration SHALL be disabled.",
+    "MS.TEAMS.5.1v2": "Agencies SHOULD only allow installation of Microsoft applications approved by the agency.",
+    "MS.TEAMS.5.2v2": "Agencies SHOULD only allow installation of third-party applications approved by the agency.",
+    "MS.TEAMS.5.3v2": "Agencies SHOULD only allow installation of custom applications approved by the agency."
+  },
+  "notCovered": {
+    "MS.AAD.2.2v1": {
+      "reason": "planned",
+      "note": "Whether the recipients of the users-at-risk alert can be read is not yet known (verify)."
+    },
+    "MS.AAD.3.8v1": {
+      "reason": "planned",
+      "note": "A Conditional Access policy on the register-security-information action; the policies are already collected."
+    },
+    "MS.AAD.5.1v1": {
+      "reason": "planned",
+      "note": "The authorization policy is already collected."
+    },
+    "MS.AAD.5.5v1": {
+      "reason": "planned",
+      "note": "The tenant app management policy."
+    },
+    "MS.AAD.5.6v1": {
+      "reason": "planned",
+      "note": "The tenant app management policy."
+    },
+    "MS.AAD.5.7v1": {
+      "reason": "planned",
+      "note": "The tenant app management policy."
+    },
+    "MS.AAD.7.2v1": {
+      "reason": "planned",
+      "note": "A comparison of Global Administrators with the holders of narrower roles."
+    },
+    "MS.AAD.7.5v1": {
+      "reason": "planned",
+      "note": "Role assignments made outside Privileged Identity Management."
+    },
+    "MS.AAD.7.7v1": {
+      "reason": "planned",
+      "note": "The notification rules in the role settings."
+    },
+    "MS.AAD.7.8v1": {
+      "reason": "planned",
+      "note": "The notification rules in the role settings."
+    },
+    "MS.AAD.7.9v1": {
+      "reason": "planned",
+      "note": "The notification rules in the role settings."
+    },
+    "MS.AAD.8.3v1": {
+      "reason": "planned",
+      "note": "The allow list of domains for guest invitations."
+    },
+    "MS.AAD.9.1v1": {
+      "reason": "planned",
+      "note": "Risk policies for agent identities."
+    },
+    "MS.EXO.4.3v1": {
+      "reason": "outOfScope",
+      "note": "Names a mailbox of the US federal government; it applies to federal agencies only."
+    },
+    "MS.EXO.6.1v1": {
+      "reason": "planned",
+      "note": "Sharing policies."
+    },
+    "MS.EXO.6.2v1": {
+      "reason": "planned",
+      "note": "Sharing policies."
+    },
+    "MS.POWERBI.1.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.2.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.3.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.4.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.4.2v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.5.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.6.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERBI.7.1v1": {
+      "reason": "planned",
+      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.1.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.1.2v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.2.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.2.2v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.3.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.3.2v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.4.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.5.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.POWERPLATFORM.6.1v1": {
+      "reason": "planned",
+      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+    },
+    "MS.SECURITYSUITE.2.3v1": {
+      "reason": "planned",
+      "note": "Impersonation protection for partner domains, which needs the organisation to name them."
+    },
+    "MS.SECURITYSUITE.2.4v1": {
+      "reason": "planned",
+      "note": "Safety tips in the anti-phishing policies, already collected."
+    },
+    "MS.SECURITYSUITE.3.3v1": {
+      "reason": "planned",
+      "note": "The actions in the DLP rules."
+    },
+    "MS.SECURITYSUITE.3.4v1": {
+      "reason": "planned",
+      "note": "User notifications in the DLP rules."
+    },
+    "MS.SECURITYSUITE.3.5v1": {
+      "reason": "planned",
+      "note": "Restricted apps in endpoint DLP."
+    },
+    "MS.SECURITYSUITE.4.1v1": {
+      "reason": "planned",
+      "note": "Alert policies."
+    },
+    "MS.SECURITYSUITE.4.2v1": {
+      "reason": "planned",
+      "note": "Alert policies."
+    },
+    "MS.SECURITYSUITE.6.2v1": {
+      "reason": "planned",
+      "note": "Allowed domains in the anti-spam policies, already collected."
+    },
+    "MS.SECURITYSUITE.7.2v1": {
+      "reason": "planned",
+      "note": "One Safe Links setting, already collected."
+    },
+    "MS.SECURITYSUITE.7.3v1": {
+      "reason": "planned",
+      "note": "One Safe Links setting, already collected."
+    },
+    "MS.SECURITYSUITE.8.2v1": {
+      "reason": "planned",
+      "note": "The safe list in the connection filter policy, already collected."
+    },
+    "MS.SHAREPOINT.3.2v1": {
+      "reason": "planned",
+      "note": "Link permissions in the tenant settings."
+    },
+    "MS.SHAREPOINT.3.3v2": {
+      "reason": "planned",
+      "note": "Verification code reauthentication in the tenant settings."
+    },
+    "MS.TEAMS.1.1v1": {
+      "reason": "planned",
+      "note": "One meeting policy setting."
+    },
+    "MS.TEAMS.1.4v1": {
+      "reason": "planned",
+      "note": "One meeting policy setting."
+    },
+    "MS.TEAMS.1.5v1": {
+      "reason": "planned",
+      "note": "One meeting policy setting."
+    },
+    "MS.TEAMS.1.6v1": {
+      "reason": "planned",
+      "note": "One meeting policy setting."
+    },
+    "MS.TEAMS.1.7v2": {
+      "reason": "planned",
+      "note": "One live event policy setting."
+    },
+    "MS.TEAMS.4.1v1": {
+      "reason": "planned",
+      "note": "One Teams client setting, already collected."
+    },
+    "MS.TEAMS.5.1v2": {
+      "reason": "planned",
+      "note": "Microsoft apps in the app permission policies."
+    },
+    "MS.TEAMS.5.3v2": {
+      "reason": "planned",
+      "note": "Custom apps in the app permission policies."
+    }
+  }
+}

@@ -27,6 +27,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- The catalog is measured against CISA's SCuBA baselines, policy by policy (2026-11-22). A new file,
+  `checks/references/cisa-scuba.json`, lists all 109 policies of ScubaGear v2.0.0. 55 are covered by a check; 53 are
+  planned, each with a note on what it needs (17 of them Power BI and Power Platform, which need permissions the app
+  does not hold yet); one applies to US federal agencies only. A test fails when a policy has neither a check nor a
+  reason, or when a check names an id CISA no longer has. That found 13 checks filed under ids CISA has renumbered or
+  moved (the Defender for Office 365 policies went from MS.EXO to MS.SECURITYSUITE); they now carry the current ones,
+  and CL-013 is filed under the lobby policy it judges, not the one about requesting control. A check can name
+  further policies in `references.scuba`. `build.ps1 -Task ScubaData` rewrites the list from a ScubaGear release.
 - Every open Secure Score action, by product (2026-11-22). Under Top Secure Score Improvements in Operations, a list
   that opens shows every action Microsoft still scores as open in the tenant, under the product it belongs to, with
   the points to earn and Microsoft's link. The last column opens the check in this report that judges the same

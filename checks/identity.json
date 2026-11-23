@@ -399,7 +399,7 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.8.3",
         "cmmc": "",
-        "cisa-scuba": "MS.AAD.5.4v1"
+        "cisa-scuba": "MS.AAD.5.3v1"
       },
       "references": {
         "secureScore": [
@@ -601,7 +601,7 @@
         "nist-csf-2": "DE.CM-01",
         "iso27001": "A.8.15",
         "cmmc": "AU.L2-3.3.1",
-        "cisa-scuba": "MS.AAD.8.x"
+        "cisa-scuba": "MS.AAD.4.1v1"
       },
       "attack": [
         "T1685.002"

@@ -28,7 +28,7 @@ Every check carries, and the catalog test enforces:
 | `narrative` | Why it matters: two to four factual sentences |
 | `frameworks` | Reference numbers only: `nist-csf-2`, `iso27001`, `cmmc`, `cisa-scuba`. Never framework text. No CIS: the benchmarks are licensed and Kainor is not a SecureSuite vendor |
 | `attack` | Optional: the MITRE ATT&CK Enterprise technique ids the check helps stop or detect, for example `["T1078.004", "T1110.003"]`. Sub-techniques where one fits. Left off where no technique fits (the user experience domain, housekeeping checks) |
-| `references` | Optional: other tools' ids for the same setting, by kind. `secureScore` lists the Microsoft Secure Score control ids the check overlaps, for example `{ "secureScore": ["BlockLegacyAuthentication"] }`; the report then shows, beside each of Microsoft's open actions, the check here that also judges it. Ids are Microsoft's (the `id` of a control profile in Graph), matched ignoring case. An id Microsoft has renamed or retired simply stops matching, so the action shows as Microsoft's only; check the ids against a tenant's own list when adding one |
+| `references` | Optional: other tools' ids for the same setting, by kind. `secureScore` lists the Microsoft Secure Score control ids the check overlaps, for example `{ "secureScore": ["BlockLegacyAuthentication"] }`; the report then shows, beside each of Microsoft's open actions, the check here that also judges it. Those ids are Microsoft's (the `id` of a control profile in Graph), matched ignoring case; one Microsoft has renamed or retired simply stops matching, so check them against a tenant's own list when adding one. `scuba` lists CISA SCuBA policy ids the check covers beyond the one in `frameworks.cisa-scuba`, which stays the policy the check is filed under in the crosswalk. Covering a policy means judging the same setting; the check's own bar can differ from the reference's, and a baseline can raise it |
 
 `catalog.json` holds the catalog version recorded in every run (spec 12.7). `chains.json` holds the control chains
 (below). `facts.json` holds a plain label for every fact a pass expression reads and every threshold, shown on the
@@ -43,6 +43,21 @@ read yet when it could not be evaluated. A step naming a check the catalog lacks
 `id` (`JR-NNN`), a `name`, a `domain`, `why` (one sentence) and its `steps`.
 
 ## MITRE ATT&CK
+
+## References: what the catalog is measured against
+
+`references/` holds one file per public reference with every item of it, so coverage is a count and not a claim.
+`references/cisa-scuba.json` has each policy of CISA's SCuBA baselines for the ScubaGear release in `version` (ids and
+statements, public domain). An item is covered when a check names it, in `frameworks.cisa-scuba` or
+`references.scuba`. Every other item sits under `notCovered` with a reason and a note: `planned` (a check is still to
+be written), `noReadApi` (Microsoft offers no read-only way to see the setting) or `outOfScope` (it does not apply to
+the tenants this report is for). The catalog test fails on an item with neither a check nor a reason, on one with
+both, and on a check that names an id the reference no longer has, which is how a renumbered policy shows up.
+
+`build.ps1 -Task ScubaData -ScubaBaselines <folder>` rewrites the items from the `PowerShell/ScubaGear/baselines`
+folder of a ScubaGear release (github.com/cisagov/ScubaGear). To move releases, change `version` and `source` in the
+file, run the task, then run the tests and work through what they name. A mail address inside a statement is written
+as words, because the commit guard lets no real mail domain into the repository.
 
 `catalog.json` pins the ATT&CK release under `attack.version`. `build.ps1 -Task AttackData -AttackStix
 <enterprise-attack-<version>.json>` reads MITRE's STIX bundle for that release (github.com/mitre-attack/attack-stix-data),

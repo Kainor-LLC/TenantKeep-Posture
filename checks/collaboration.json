@@ -119,6 +119,11 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.SHAREPOINT.2.1v1"
       },
+      "references": {
+        "scuba": [
+          "MS.SHAREPOINT.2.2v1"
+        ]
+      },
       "attack": [
         "T1213.002",
         "T1530"
@@ -163,7 +168,7 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.20",
-        "cisa-scuba": ""
+        "cisa-scuba": "MS.SHAREPOINT.1.3v1"
       },
       "attack": [
         "T1537"
@@ -403,7 +408,7 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
-        "cisa-scuba": "MS.TEAMS.2.1v1"
+        "cisa-scuba": "MS.TEAMS.2.1v2"
       },
       "attack": [
         "T1566.003"
@@ -436,7 +441,12 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
-        "cisa-scuba": "MS.TEAMS.2.2v1"
+        "cisa-scuba": "MS.TEAMS.2.2v2"
+      },
+      "references": {
+        "scuba": [
+          "MS.TEAMS.2.3v2"
+        ]
       },
       "attack": [
         "T1566.003"
@@ -473,7 +483,7 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.18",
         "cmmc": "AC.L2-3.1.20",
-        "cisa-scuba": "MS.TEAMS.3.1v1"
+        "cisa-scuba": ""
       },
       "attack": [
         "T1213.005"
@@ -506,9 +516,12 @@
         "nist-csf-2": "PR.AA-05",
         "iso27001": "A.5.14",
         "cmmc": "AC.L2-3.1.20",
-        "cisa-scuba": "MS.TEAMS.1.1v1"
+        "cisa-scuba": "MS.TEAMS.1.3v1"
       },
       "references": {
+        "scuba": [
+          "MS.TEAMS.1.2v2"
+        ],
         "secureScore": [
           "meeting_autoadmitusers_v1",
           "meeting_restrictanonymousjoin_v1"
@@ -557,7 +570,7 @@
         "nist-csf-2": "GV.SC-04",
         "iso27001": "A.5.19",
         "cmmc": "CM.L2-3.4.8",
-        "cisa-scuba": "MS.TEAMS.5.1v1"
+        "cisa-scuba": "MS.TEAMS.5.2v2"
       },
       "attack": [
         "T1671"

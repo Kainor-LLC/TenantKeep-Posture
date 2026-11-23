@@ -18,7 +18,8 @@ function Import-PostureCheckCatalog {
         ATT&CK technique ids (T1078.004) the check helps stop or detect.
         references is optional: other tools' ids for the same setting, by kind. secureScore lists the Microsoft Secure
         Score control ids (BlockLegacyAuthentication) the check overlaps, so the report can say which of Microsoft's
-        open actions a check here also judges.
+        open actions a check here also judges. scuba lists CISA SCuBA policy ids the check covers beyond the one in
+        frameworks.cisa-scuba. checks/references/ holds each public reference's full list (returned as references).
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Specialized.OrderedDictionary])]
@@ -66,7 +67,7 @@ function Import-PostureCheckCatalog {
     $efforts = 'S', 'M', 'L'
     $categories = 'fix', 'improve'
     $userImpacts = 'none', 'low', 'medium', 'high'
-    $referenceKinds = @('secureScore')
+    $referenceKinds = @('secureScore', 'scuba')
     $checks = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     $files = @()
@@ -109,7 +110,8 @@ function Import-PostureCheckCatalog {
                     if (-not ($c['attack'] -is [array]) -or $bad.Count) { throw "$($file.Name): check '$($c['id'])' attack must be a list of ATT&CK technique ids like T1078.004" }
                 }
                 if ($c.Contains('references')) {
-                    # Other tools' ids for the same setting. secureScore: Microsoft Secure Score control ids.
+                    # Other tools' ids for the same setting. secureScore: Microsoft Secure Score control ids. scuba: CISA SCuBA
+                    # policy ids beyond the one in frameworks.cisa-scuba.
                     $refs = $c['references']
                     if (-not ($refs -is [System.Collections.IDictionary])) { throw "$($file.Name): check '$($c['id'])' references must be an object, for example { `"secureScore`": [`"BlockLegacyAuthentication`"] }" }
                     foreach ($kind in @($refs.get_Keys())) {
@@ -155,9 +157,24 @@ function Import-PostureCheckCatalog {
         foreach ($k in $entry['checks'].get_Keys()) { if (-not $seen.ContainsKey([string]$k)) { throw "catalog.json: changes for $($entry['version']) names '$k', which is not a check in the catalog." } }
     }
 
+    # The public references the catalog is measured against (checks/references/*.json): every item of each, and the
+    # ones no check covers with the reason. Get-PostureReferenceCoverage joins them to the checks.
+    $references = [ordered]@{}
+    $referenceFolder = Join-Path $Path 'references'
+    if (Test-Path -LiteralPath $referenceFolder -PathType Container) {
+        foreach ($file in (Get-ChildItem -LiteralPath $referenceFolder -Filter '*.json' | Sort-Object Name)) {
+            $doc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json -AsHashtable
+            $name = [string]$doc['name']
+            if (-not $name -or -not ($doc['items'] -is [System.Collections.IDictionary]) -or -not ($doc['checkKeys'] -is [System.Collections.IDictionary])) { throw "references/$($file.Name): needs name, items and checkKeys." }
+            if (-not $doc.Contains('notCovered') -or -not $doc['notCovered']) { $doc['notCovered'] = [ordered]@{} }
+            $references[$name] = $doc
+        }
+    }
+
     return [ordered]@{
         version = $version
         changes = $changes
+        references = $references
         completion = $completion
         domains = $domainList
         labels  = $labels
