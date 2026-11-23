@@ -634,10 +634,6 @@
       "reason": "planned",
       "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
     },
-    "EIDSCA.AF03": {
-      "reason": "planned",
-      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
-    },
     "EIDSCA.AF04": {
       "reason": "planned",
       "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
@@ -886,22 +882,6 @@
       "reason": "outOfScope",
       "note": "Azure DevOps is not a product this report covers."
     },
-    "MT.1015": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
-    "MT.1017": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
-    "MT.1018": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
-    "MT.1019": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
     "MT.1020": {
       "reason": "planned",
       "note": "A property of the Conditional Access policies, which are already collected."
@@ -946,10 +926,6 @@
       "reason": "planned",
       "note": "An Exchange Online organisation setting or mail flow report."
     },
-    "MT.1049": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
-    },
     "MT.1057": {
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
@@ -981,10 +957,6 @@
     "MT.1071": {
       "reason": "outOfScope",
       "note": "Azure DevOps is not a product this report covers."
-    },
-    "MT.1072": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
     },
     "MT.1074": {
       "reason": "planned",
@@ -1197,10 +1169,6 @@
     "MT.1183": {
       "reason": "planned",
       "note": "A hybrid identity setting."
-    },
-    "MT.1184": {
-      "reason": "planned",
-      "note": "A property of the Conditional Access policies, which are already collected."
     },
     "MT.1185": {
       "reason": "planned",

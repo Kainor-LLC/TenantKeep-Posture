@@ -512,3 +512,87 @@ Describe 'Mail protection detail (catalog 2026.11.3)' {
         $r.affected[0].detail | Should -Match 'mail between colleagues checked False'
     }
 }
+
+Describe 'Conditional Access detail (catalog 2026.11.3)' {
+    BeforeAll {
+        # The sample snapshot with its policies changed: the scriptblock gets them by id.
+        $script:Policies = {
+            param([scriptblock] $Change)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot') -Destination $dir -Recurse
+            $path = Join-Path $dir 'policies.json'
+            $policies = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 30
+            $byId = @{}; foreach ($policy in $policies) { $byId[$policy.id] = $policy }
+            if ($Change) { & $Change $byId }
+            ConvertTo-Json -InputObject @($policies) -Depth 30 | Set-Content -LiteralPath $path
+            '{ "version": 1, "licenses": ["E5", "P1", "P2"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain ca -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by
+        }
+    }
+
+    It 'CA-018 wants authentication transfer blocked for everyone, and needs a snapshot that carries the flows' {
+        (& $script:Policies $null)['CA-018'].status | Should -Be 'fail'
+        $blocked = & $script:Policies { param($p) $p['p-003'].conditions.authenticationFlows = @{ transferMethods = 'deviceCodeFlow,authenticationTransfer' } }
+        $blocked['CA-018'].status | Should -Be 'pass'
+        $blocked['CA-016'].status | Should -Be 'pass'
+        $bare = & $script:Policies { param($p) foreach ($policy in $p.Values) { $policy.conditions.Remove('authenticationFlows') } }
+        $bare['CA-018'].status | Should -Be 'notEvaluated'
+        $bare['CA-018'].reason | Should -Match 'carries no authentication flows'
+    }
+
+    It 'CA-019 and CA-020 name the policy with a retired grant, and the one that needs both risks at once' {
+        $clean = & $script:Policies $null
+        foreach ($id in 'CA-019', 'CA-020', 'CA-024') { $clean[$id].status | Should -Be 'pass' -Because $id }
+        $r = & $script:Policies { param($p) $p['p-005'].grantControls.builtInControls = @('compliantDevice', 'approvedApplication'); $p['p-002'].conditions.signInRiskLevels = @('high'); $p['p-002'].conditions.userRiskLevels = @('high') }
+        $r['CA-019'].status | Should -Be 'fail'
+        @($r['CA-019'].affected.id) | Should -Be @('p-005')
+        $r['CA-020'].status | Should -Be 'fail'
+        @($r['CA-020'].affected.id) | Should -Be @('p-002')
+    }
+
+    It 'CA-021 passes on a block for every platform but the named ones' {
+        (& $script:Policies $null)['CA-021'].status | Should -Be 'fail'
+        (& $script:Policies { param($p) $p['p-003'].conditions.platforms = @{ includePlatforms = @('all'); excludePlatforms = @('windows', 'macOS', 'iOS', 'android') } })['CA-021'].status | Should -Be 'pass'
+        (& $script:Policies { param($p) $p['p-003'].conditions.platforms = @{ includePlatforms = @('all'); excludePlatforms = @() } })['CA-021'].status | Should -Be 'fail' -Because 'a block with no platform excluded blocks everything and is not this control'
+    }
+
+    It 'CA-022 wants both session controls on a policy for unmanaged devices' {
+        $unmanaged = { param($p, [bool] $Frequency) $p['p-002'].conditions.devices = @{ deviceFilter = @{ mode = 'include'; rule = 'device.isCompliant -ne True' } }; $p['p-002'].sessionControls = @{ persistentBrowser = @{ isEnabled = $true; mode = 'never' }; signInFrequency = @{ isEnabled = $Frequency; value = 8; type = 'hours' } } }
+        (& $script:Policies { param($p) & $unmanaged $p $true })['CA-022'].status | Should -Be 'pass'
+        (& $script:Policies { param($p) & $unmanaged $p $false })['CA-022'].status | Should -Be 'fail' -Because 'the session never persists but is never asked to sign in again either'
+        (& $script:Policies $null)['CA-022'].status | Should -Be 'fail' -Because 'the sample''s only device filter is about ownership'
+    }
+
+    It 'CA-023 looks for app enforced restrictions on Office 365 for everyone' {
+        (& $script:Policies $null)['CA-023'].status | Should -Be 'fail'
+        (& $script:Policies { param($p) $p['p-002'].sessionControls = @{ applicationEnforcedRestrictions = @{ isEnabled = $true } } })['CA-023'].status | Should -Be 'pass'
+    }
+
+    It 'CA-024 names an enabled policy that targets nothing' {
+        $r = (& $script:Policies { param($p) $p['p-003'].conditions.applications.includeApplications = @() })['CA-024']
+        $r.status | Should -Be 'fail'
+        @($r.affected.id) | Should -Be @('p-003')
+    }
+}
+
+Describe 'MSOnline, BitLocker keys and passkey attestation (catalog 2026.11.3)' {
+    It 'ID-040 and ID-041 each read one switch of the authorization policy' {
+        $good = & $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ blockMsolPowerShell = $true } @{ allowedToReadBitlockerKeysForOwnedDevice = $false }))
+        foreach ($id in 'ID-040', 'ID-041') { $good[$id].status | Should -Be 'pass' -Because $id }
+        $bad = & $script:Judge 'identity' (& $script:Identity (& $script:Authz @{ blockMsolPowerShell = $false } @{ allowedToReadBitlockerKeysForOwnedDevice = $true }))
+        foreach ($id in 'ID-040', 'ID-041') { $bad[$id].status | Should -Be 'fail' -Because $id }
+        $silent = & $script:Judge 'identity' (& $script:Identity (& $script:Authz))
+        foreach ($id in 'ID-040', 'ID-041') { $silent[$id].status | Should -Be 'notEvaluated' -Because "${id}: a switch the policy did not send is not a pass" }
+    }
+
+    It 'AU-011 judges attestation only where passkeys are on' {
+        $policy = { param([hashtable] $Fido) @{ '02-authentication-methods-policy' = @{ policyMigrationState = 'migrationComplete'; authenticationMethodConfigurations = @((@{ id = 'Fido2'; includeTargets = @(@{ id = 'all_users' }); keyRestrictions = @{ isEnforced = $false } } + $Fido)) } } }
+        (& $script:Judge 'auth' (& $policy @{ state = 'enabled'; isAttestationEnforced = $true }))['AU-011'].status | Should -Be 'pass'
+        (& $script:Judge 'auth' (& $policy @{ state = 'enabled'; isAttestationEnforced = $false }))['AU-011'].status | Should -Be 'fail'
+        (& $script:Judge 'auth' (& $policy @{ state = 'disabled'; isAttestationEnforced = $false }))['AU-011'].reason | Should -Match 'AU-003 comes first'
+        (& $script:Judge 'auth' (& $policy @{ state = 'enabled' }))['AU-011'].status | Should -Be 'notEvaluated'
+    }
+}

@@ -53,11 +53,11 @@ function Get-PostureAuthFact {
 
     $policy = & $load '02-authentication-methods-policy'
     if ($null -eq $policy) {
-        foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005') { $notEvaluated[$id] = '02-authentication-methods-policy.json was not collected.' }
+        foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005', 'AU-011') { $notEvaluated[$id] = '02-authentication-methods-policy.json was not collected.' }
     }
     elseif (@(& $v $policy 'authenticationMethodConfigurations' | Where-Object { $_ }).Count -eq 0) {
         # The policy always lists its methods. A file without them is not a tenant with every method off.
-        foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005') { $notEvaluated[$id] = '02-authentication-methods-policy.json lists no authentication methods, so the policy was not read whole. Collect Entra again (Resume-PostureRun -Collector Entra).' }
+        foreach ($id in 'AU-001', 'AU-002', 'AU-003', 'AU-004', 'AU-005', 'AU-011') { $notEvaluated[$id] = '02-authentication-methods-policy.json lists no authentication methods, so the policy was not read whole. Collect Entra again (Resume-PostureRun -Collector Entra).' }
     }
     else {
         $configs = @(& $v $policy 'authenticationMethodConfigurations' | Where-Object { $_ })
@@ -86,6 +86,9 @@ function Get-PostureAuthFact {
         $facts.fido2Enabled = & $enabled $fido
         $facts.fido2KeyRestrictionsEnforced = [bool](& $v $fido 'keyRestrictions.isEnforced')
         $facts.fido2AttestationEnforced = [bool](& $v $fido 'isAttestationEnforced')
+        # AU-011 judges attestation only where passkeys are on; with them off there is nothing to attest, and that is AU-003's finding.
+        if (-not $facts.fido2Enabled) { $notEvaluated['AU-011'] = 'Passkeys are not enabled, so there is no attestation to enforce. AU-003 comes first.' }
+        elseif ($null -eq (& $v $fido 'isAttestationEnforced')) { $notEvaluated['AU-011'] = 'The authentication methods policy did not say whether passkey attestation is enforced.' }
 
         $facts.policyMigrationState = [string](& $v $policy 'policyMigrationState')
 

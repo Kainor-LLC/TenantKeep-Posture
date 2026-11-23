@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Forty-three new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Fifty-three new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -54,7 +54,17 @@
         "EM-036": "New: whether impersonation detections are quarantined, and whether trusted senders or domains skip them.",
         "EM-037": "New: whether Safe Attachments holds back a file it cannot clear, and Safe Documents allows no click-through.",
         "EM-038": "New: mail flow rules that tell Defender to skip Safe Attachments or Safe Links. Needs an Exchange collection made with this version or later.",
-        "EM-039": "New: individual senders on an anti-spam policy's allowed list."
+        "EM-039": "New: individual senders on an anti-spam policy's allowed list.",
+        "CA-018": "New: whether authentication transfer is blocked. Needs a snapshot that carries authentication flows, like CA-016.",
+        "CA-019": "New: policies that still ask for the retired approved client app grant.",
+        "CA-020": "New: policies that combine user risk and sign-in risk.",
+        "CA-021": "New: whether unknown device platforms are blocked.",
+        "CA-022": "New: whether unmanaged devices get a browser session that ends.",
+        "CA-023": "New: whether Office 365 applies its own limits on unmanaged devices.",
+        "CA-024": "New: enabled policies that target nothing.",
+        "ID-040": "New: whether the MSOnline PowerShell module is blocked.",
+        "ID-041": "New: whether people can read the BitLocker keys of their own devices.",
+        "AU-011": "New: whether passkey attestation is enforced."
       }
     },
     {

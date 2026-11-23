@@ -809,6 +809,315 @@
         "T1098.005",
         "T1078.004"
       ]
+    },
+    {
+      "id": "CA-018",
+      "domain": "ca",
+      "title": "Authentication transfer blocked",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.authTransferBlockPolicies >= 1",
+      "remediation": [
+        "Open the Conditional Access policy that blocks device code sign-in (CA-016), or create one for all users and all resources.",
+        "Under Conditions, Authentication flows, tick Authentication transfer as well, with the grant Block access.",
+        "Exclude only the break-glass accounts."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People can no longer scan a QR code in a desktop app to sign in the same app on a phone. They sign in on the phone itself."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-block-authentication-flows",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Authentication transfer hands a signed-in session from a computer to a phone through a QR code. It skips the checks a fresh sign-in on the phone would meet, the device check among them, and a person can be talked into scanning a code that signs an attacker's phone in. Few organisations depend on it.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21828"
+        ]
+      },
+      "attack": [
+        "T1528"
+      ]
+    },
+    {
+      "id": "CA-019",
+      "domain": "ca",
+      "title": "No policy asks for the retired approved client app grant",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.retiredGrantPolicies == 0",
+      "affected": "facts.retiredGrantPolicies",
+      "remediation": [
+        "Open each listed policy and look at Grant.",
+        "Replace Require approved client app with Require app protection policy, or tick both with Require one of the selected controls while you move over.",
+        "Check that the apps people use have an app protection policy in Intune before you remove the old control."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Nothing changes for people whose phones already get an app protection policy. Others are asked to install the Company Portal or Authenticator once."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/migrate-approved-client-app",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Microsoft retired the approved client app grant and replaced it with the app protection policy grant. A policy that still asks for the old control is a rule Microsoft no longer enforces as written, so the phones it was meant to hold to managed apps are not held to anything.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1072"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "CA-020",
+      "domain": "ca",
+      "title": "User risk and sign-in risk are in separate policies",
+      "severityDefault": "Medium",
+      "license": [
+        "P2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.combinedRiskPolicies == 0",
+      "affected": "facts.combinedRiskPolicies",
+      "remediation": [
+        "Open each listed policy and remove one of the two risk conditions.",
+        "Create a second policy for the condition you removed: sign-in risk asks for MFA, user risk asks for a password change or blocks.",
+        "Keep the same users and exclusions on both."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People are asked for MFA on a risky sign-in, or to change a password when their account is at risk, each when it happens."
+      },
+      "learn": "https://learn.microsoft.com/entra/id-protection/howto-identity-protection-configure-risk-policies",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A Conditional Access policy applies only when every one of its conditions is met. With user risk and sign-in risk in the same policy, it acts only on a risky sign-in by someone already marked at risk. A leaked password with a normal-looking sign-in, or an odd sign-in by a clean account, passes straight through.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1049"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "CA-021",
+      "domain": "ca",
+      "title": "Unknown device platforms are blocked",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.unknownPlatformBlockPolicies >= 1",
+      "remediation": [
+        "Read the sign-in log for the device platforms people really use.",
+        "Create a Conditional Access policy for all users and all resources: Device platforms, include Any device, exclude the platforms you support, grant Block access.",
+        "Start in report-only mode and exclude the break-glass accounts."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "A sign-in from a platform you did not list, often Linux or ChromeOS, is refused. People on those platforms need an exception or a supported device."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-device-unknown-unsupported",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Your device rules are written per platform: compliant Windows, managed iPhones. A platform nobody wrote a rule for meets none of them. An attacker's tooling can claim to be any platform it likes, and the ones with no rule are the ones it picks.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1015"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "CA-022",
+      "domain": "ca",
+      "title": "Unmanaged devices get a browser session that ends",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.unmanagedNonPersistentPolicies >= 1 && facts.unmanagedSignInFrequencyPolicies >= 1",
+      "remediation": [
+        "Create a Conditional Access policy for all users and all resources with a device filter that picks out unmanaged devices (for example, include devices where isCompliant is not True).",
+        "Under Session, set Persistent browser session to Never persistent and Sign-in frequency to a number of hours.",
+        "Start in report-only mode and exclude the break-glass accounts."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "On a personal or shared computer people are not offered to stay signed in, and sign in again after the hours you set."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-persistent-browser",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A browser on a home or hotel computer keeps a session for weeks unless told otherwise, and the next person at that keyboard, or malware that copies the cookie, has the mailbox. On a device you manage you can protect the session; on one you do not, the only control is to make it short.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.11",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1017",
+          "MT.1018"
+        ]
+      },
+      "attack": [
+        "T1539"
+      ]
+    },
+    {
+      "id": "CA-023",
+      "domain": "ca",
+      "title": "Office 365 limits what an unmanaged device can do",
+      "severityDefault": "Low",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.appEnforcedRestrictionPolicies >= 1",
+      "remediation": [
+        "In the SharePoint admin center, under Access control, Unmanaged devices, choose Allow limited, web-only access.",
+        "Create a Conditional Access policy for all users and Office 365 with the session control Use app enforced restrictions.",
+        "Tell people what to expect: on a device that is not managed they read and edit in the browser and cannot download, print or sync."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "On a device that is not managed, files open in the browser only, with no download, print or sync."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-app-enforced-restrictions",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Blocking unmanaged devices outright is more than many organisations can do. This is the middle setting: people can still read and edit in a browser, and the file never lands on a disk you cannot wipe. It takes effect only when both halves are set, the policy here and the unmanaged devices setting in SharePoint.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.1",
+        "cmmc": "AC.L2-3.1.18",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1019"
+        ]
+      },
+      "attack": [
+        "T1530"
+      ]
+    },
+    {
+      "id": "CA-024",
+      "domain": "ca",
+      "title": "Every enabled policy targets something",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.untargetedPolicies == 0",
+      "affected": "facts.untargetedPolicies",
+      "remediation": [
+        "Open each listed policy and look at Target resources.",
+        "Choose the resources, user action or authentication context it was meant for, or disable and delete it if it is a leftover.",
+        "Use the What If tool to confirm it now applies to a sign-in you expect it to."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A policy that starts applying may ask people for something new. Check it in report-only mode first."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-conditional-access-cloud-apps",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A policy with no application, no user action and no authentication context applies to nothing. It still shows as On in the list, with a name that says what it protects, and everyone who reads the list believes it. It is usually what is left after an application was removed from the tenant.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.18",
+        "cmmc": "",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1184"
+        ]
+      }
     }
   ]
 }

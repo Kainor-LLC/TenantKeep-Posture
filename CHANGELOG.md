@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 325 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 335 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,14 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Ten more checks, seven of them on Conditional Access (2026-11-23, catalog 2026.11.3), all from evidence already
+  collected. Authentication transfer is blocked (CA-018). No policy asks for the retired approved client app grant
+  (CA-019). User risk and sign-in risk sit in separate policies, since a policy with both applies only when both
+  are met (CA-020). Unknown device platforms are blocked (CA-021). Unmanaged devices get a browser session that
+  ends (CA-022). Office 365 limits what an unmanaged device can do (CA-023). Every enabled policy targets something
+  (CA-024). The MSOnline PowerShell module is blocked (ID-040). People do not read their own BitLocker keys by
+  self-service (ID-041). Passkeys must prove what kind of key they are (AU-011). Each is a Maester or Zero Trust
+  Assessment test that had no check.
 - Six more checks on mail protection (2026-11-23, catalog 2026.11.3), from the settings Microsoft's ORCA tool tests
   and Maester carries, all in the Exchange evidence already collected. Anti-spam policies quarantine what Microsoft
   recommends: bulk threshold, actions for spam, bulk, high-confidence spam and phishing, quarantine kept 30 days,

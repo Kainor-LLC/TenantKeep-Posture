@@ -1626,6 +1626,9 @@
       "references": {
         "maester": [
           "EIDSCA.AP01"
+        ],
+        "zeroTrust": [
+          "21842"
         ]
       },
       "attack": [
@@ -1855,6 +1858,90 @@
       },
       "attack": [
         "T1098"
+      ]
+    },
+    {
+      "id": "ID-040",
+      "domain": "identity",
+      "title": "The MSOnline PowerShell module is blocked",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "facts.msolPowerShellBlocked",
+      "remediation": [
+        "The admin center has no switch for this.",
+        "With Microsoft Graph PowerShell, as a Global Administrator: Update-MgPolicyAuthorizationPolicy -BlockMsolPowerShell:$true",
+        "Move any script that still loads MSOnline to Microsoft Graph PowerShell first; Microsoft has retired the module."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Nothing changes for users. A script that still uses the MSOnline module stops working."
+      },
+      "learn": "https://learn.microsoft.com/graph/api/resources/authorizationpolicy",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "MSOnline is the oldest way to script the directory, and any signed-in user could use it to list every account, group and role holder in the tenant. Microsoft has retired the module; the setting closes the door for whatever old tooling still knocks on it.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21843"
+        ]
+      },
+      "attack": [
+        "T1087.004"
+      ]
+    },
+    {
+      "id": "ID-041",
+      "domain": "identity",
+      "title": "People do not read their own BitLocker keys by self-service",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.usersCanReadOwnBitLockerKeys",
+      "remediation": [
+        "In the Entra admin center, open Devices, Device settings.",
+        "Set Restrict users from recovering the BitLocker key(s) for their owned devices to Yes.",
+        "Make sure the help desk can look up a key and has a way to check who is asking."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Someone locked out of a laptop asks the help desk for the recovery key and no longer looks it up from another device."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/devices/manage-device-identities#configure-device-settings",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DevicesMenuBlade/~/DeviceSettings",
+      "narrative": "The recovery key unlocks the disk without the PIN or the person. If the owner can read it from their account, so can anyone who has taken over that account and has the laptop, which is the stolen-laptop case BitLocker exists for.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.24",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21954"
+        ]
+      },
+      "attack": [
+        "T1078.004"
       ]
     }
   ]

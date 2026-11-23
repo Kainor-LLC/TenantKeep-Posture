@@ -100,8 +100,8 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         $script:By = @{}; foreach ($r in $script:Run.results) { $script:By[$r.id] = $r }
     }
 
-    It 'evaluates all 17 CA checks against the shipped catalog version' {
-        $script:Run.results.Count | Should -Be 17
+    It 'evaluates all 24 CA checks against the shipped catalog version' {
+        $script:Run.results.Count | Should -Be 24
         $script:Run.catalogVersion | Should -Match '^\d{4}\.'
         Join-Path $script:Root 'checks.json' | Should -Exist
     }
@@ -123,6 +123,13 @@ Describe 'Invoke-PostureChecks on the sample snapshot (shipped catalog)' {
         @{ Id = 'CA-014'; Status = 'fail' }
         @{ Id = 'CA-015'; Status = 'fail' }
         @{ Id = 'CA-017'; Status = 'pass' }   # p-007 blocks registration away from trusted locations
+        @{ Id = 'CA-018'; Status = 'fail' }   # no policy blocks authentication transfer
+        @{ Id = 'CA-019'; Status = 'pass' }
+        @{ Id = 'CA-020'; Status = 'pass' }
+        @{ Id = 'CA-021'; Status = 'fail' }
+        @{ Id = 'CA-022'; Status = 'fail' }   # p-005's device filter is about ownership, not compliance
+        @{ Id = 'CA-023'; Status = 'fail' }
+        @{ Id = 'CA-024'; Status = 'pass' }   # p-007 names a user action, which is a target
     ) {
         $script:By[$Id].status | Should -Be $Status
     }

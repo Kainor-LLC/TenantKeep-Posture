@@ -203,7 +203,55 @@ function Get-PostureCaFact {
                 @(Get-PostureValue $_ 'conditions.users.includeUsers') -contains 'All' -and [string](Get-PostureValue $_ 'conditions.authenticationFlows.transferMethods') -match 'deviceCodeFlow'
             })
         $facts.deviceCodeFlowBlockPolicies = $deviceCode.Count
+        # CA-018: authentication transfer, the QR code that carries a signed-in session from a computer to a phone. The
+        # same condition of the same snapshot as the device code block.
+        $facts.authTransferBlockPolicies = @($rawItems | Where-Object {
+                [string](Get-PostureValue $_ 'state') -eq 'enabled' -and @(Get-PostureValue $_ 'grantControls.builtInControls') -contains 'block' -and
+                @(Get-PostureValue $_ 'conditions.users.includeUsers') -contains 'All' -and [string](Get-PostureValue $_ 'conditions.authenticationFlows.transferMethods') -match 'authenticationTransfer'
+            }).Count
     }
+    if ($notEvaluated.ContainsKey('CA-016')) { $notEvaluated['CA-018'] = 'The Conditional Access snapshot carries no authentication flows, so a block on authentication transfer cannot be read from it. Take the snapshot again (Export-PostureCaSnapshot -ApiVersion beta) and check the policy in the portal.' }
+
+    # CA-019: the approved client app grant, which Microsoft has retired in favour of app protection policy. A policy
+    # that still asks for it stops granting access to the apps it was written for.
+    $retiredGrant = @($enabled | Where-Object { @($_.grant.builtInControls) -contains 'approvedApplication' })
+    $facts.retiredGrantPolicies = $retiredGrant.Count
+    $affected.retiredGrantPolicies = @($retiredGrant | ForEach-Object { & $label $_ 'asks for an approved client app' })
+
+    # CA-020: user risk and sign-in risk in one policy. A policy applies only when every condition is met, so this
+    # one acts only on a risky sign-in by a user who is already at risk, and misses each of the two on its own.
+    $bothRisks = @($enabled | Where-Object { @($_.conditions.signInRiskLevels).Count -gt 0 -and @($_.conditions.userRiskLevels).Count -gt 0 })
+    $facts.combinedRiskPolicies = $bothRisks.Count
+    $affected.combinedRiskPolicies = @($bothRisks | ForEach-Object { & $label $_ 'has a user risk and a sign-in risk condition, and applies only when both are met' })
+
+    # CA-021: a block for device platforms the tenant does not name: every platform included, the known ones excluded.
+    $facts.unknownPlatformBlockPolicies = @($enabled | Where-Object { (& $blocks $_) -and @($_.conditions.includePlatforms) -contains 'all' -and @($_.conditions.excludePlatforms | Where-Object { $_ }).Count -gt 0 }).Count
+
+    # CA-022: a device the organisation does not manage gets a browser session that ends: no "stay signed in", and a
+    # sign-in again after some hours. A policy counts when its device filter picks out unmanaged devices (it includes
+    # the ones that are not compliant, or excludes the ones that are) and it sets the session control.
+    $unmanaged = {
+        param($p)
+        $filter = $p.conditions.deviceFilter
+        $mode = [string](Get-PostureValue $filter 'mode'); $rule = [string](Get-PostureValue $filter 'rule')
+        ($mode -eq 'include' -and $rule -match '(?i)device\.isCompliant\s+-ne\s+True') -or ($mode -eq 'exclude' -and $rule -match '(?i)device\.isCompliant\s+-eq\s+True')
+    }
+    $forUnmanaged = @($enabled | Where-Object { & $unmanaged $_ })
+    $facts.unmanagedNonPersistentPolicies = @($forUnmanaged | Where-Object { (Get-PostureValue $_.session.persistentBrowser 'isEnabled') -eq $true -and [string](Get-PostureValue $_.session.persistentBrowser 'mode') -eq 'never' }).Count
+    $facts.unmanagedSignInFrequencyPolicies = @($forUnmanaged | Where-Object { (Get-PostureValue $_.session.signInFrequency 'isEnabled') -eq $true }).Count
+
+    # CA-023: Office 365 told to apply its own limits on a device that is not managed (no download, no sync), which
+    # SharePoint and Exchange then enforce.
+    $facts.appEnforcedRestrictionPolicies = @($enabled | Where-Object { (& $allUsers $_) -and (& $office365OrAll $_) -and (Get-PostureValue $_.session.applicationEnforcedRestrictions 'isEnabled') -eq $true }).Count
+
+    # CA-024: an enabled policy that names no application, no user action and no authentication context applies to
+    # nothing, whatever its name promises.
+    $untargeted = @($enabled | Where-Object {
+            @($_.targets.includeApplications | Where-Object { $_ -and $_.id -and $_.id -ne 'None' }).Count -eq 0 -and @($_.targets.userActions | Where-Object { $_ }).Count -eq 0 -and
+            @($_.targets.authenticationContexts | Where-Object { $_ }).Count -eq 0 -and -not $_.targets.applicationFilter
+        })
+    $facts.untargetedPolicies = $untargeted.Count
+    $affected.untargetedPolicies = @($untargeted | ForEach-Object { & $label $_ 'names no application, user action or authentication context, so it applies to nothing' })
 
     return @{
         available    = $true

@@ -41,7 +41,8 @@
         "CA-001",
         "ID-016",
         "CA-016",
-        "EM-017"
+        "EM-017",
+        "CA-018"
       ],
       "needs": [
         {
@@ -63,7 +64,8 @@
         "AU-007",
         "AU-008",
         "CA-003",
-        "AU-010"
+        "AU-010",
+        "AU-011"
       ],
       "needs": [
         {
@@ -111,7 +113,8 @@
         "AZ-022",
         "ID-026",
         "ID-027",
-        "ID-030"
+        "ID-030",
+        "ID-040"
       ],
       "needs": [
         {
@@ -131,7 +134,10 @@
         "CA-011",
         "CA-013",
         "CA-014",
-        "CA-015"
+        "CA-015",
+        "CA-019",
+        "CA-020",
+        "CA-024"
       ],
       "needs": [],
       "after": []
@@ -309,7 +315,10 @@
       "what": "Company data opens only on a device the organisation manages and judges healthy, with sessions bound to that device.",
       "checks": [
         "CA-005",
-        "CA-010"
+        "CA-010",
+        "CA-021",
+        "CA-022",
+        "CA-023"
       ],
       "needs": [
         {
@@ -336,7 +345,8 @@
         "EP-002",
         "EP-015",
         "DEV-005",
-        "DEV-006"
+        "DEV-006",
+        "ID-041"
       ],
       "needs": [
         {

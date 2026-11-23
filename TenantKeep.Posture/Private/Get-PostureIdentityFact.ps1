@@ -267,7 +267,7 @@ function Get-PostureIdentityFact {
     }
     # ID-030, ID-031, ID-033, ID-034: more switches of the authorization policy. Each is its own question, and one the
     # policy did not answer has no answer.
-    if ($null -eq $authz) { foreach ($id in 'ID-030', 'ID-031', 'ID-033', 'ID-034') { & $missing $id '02-authorization-policy' } }
+    if ($null -eq $authz) { foreach ($id in 'ID-030', 'ID-031', 'ID-033', 'ID-034', 'ID-040', 'ID-041') { & $missing $id '02-authorization-policy' } }
     else {
         $switch = {
             param([string] $Id, [string] $Path, [string] $Fact, [string] $What)
@@ -277,6 +277,10 @@ function Get-PostureIdentityFact {
         & $switch 'ID-030' 'defaultUserRolePermissions.allowedToCreateTenants' 'usersCanCreateTenants' 'users may create tenants'
         & $switch 'ID-031' 'defaultUserRolePermissions.allowedToCreateSecurityGroups' 'usersCanCreateSecurityGroups' 'users may create security groups'
         & $switch 'ID-034' 'allowedToUseSSPR' 'adminsCanSelfServiceReset' 'administrators may reset their own password by self-service'
+        # ID-040: the MSOnline PowerShell module, retired by Microsoft and still a way in for old scripts and old tooling.
+        & $switch 'ID-040' 'blockMsolPowerShell' 'msolPowerShellBlocked' 'the MSOnline PowerShell module is blocked'
+        # ID-041: whether a person can read the BitLocker recovery keys of the devices they own, from their own account.
+        & $switch 'ID-041' 'defaultUserRolePermissions.allowedToReadBitlockerKeysForOwnedDevice' 'usersCanReadOwnBitLockerKeys' 'people may read the BitLocker keys of their own devices'
         # ID-033: two ways into the directory with nothing but an email address: signing up for a self-service
         # subscription, and joining the tenant by proving ownership of a mailbox in one of its domains.
         $signUp = & $v $authz 'allowedToSignUpEmailBasedSubscriptions'; $joinByEmail = & $v $authz 'allowEmailVerifiedUsersToJoinOrganization'

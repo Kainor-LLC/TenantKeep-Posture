@@ -29,7 +29,7 @@ Describe 'New-PostureCaDocument' {
 
         It 'renders the Coverage findings page from the engine with statuses and remediation' {
             $cov = $script:Result.Document.coverage
-            $cov.run.results.Count | Should -Be 17
+            $cov.run.results.Count | Should -Be 24
             ($cov.run.results | Where-Object id -eq 'CA-007').status | Should -Be 'fail'
             $script:Md | Should -Match '\| CA-007 \| Exclusion groups under the size threshold \| Fail \| High \| CA-Exclude-MFA-Legacy \|'
             $script:Md | Should -Match '\| CA-001 \| Legacy authentication blocked \| Pass \| Critical \|'

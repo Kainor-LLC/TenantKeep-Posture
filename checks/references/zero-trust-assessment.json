@@ -442,10 +442,6 @@
       "reason": "planned",
       "note": "A guest or cross-tenant setting."
     },
-    "21828": {
-      "reason": "planned",
-      "note": "A Conditional Access or tenant access setting."
-    },
     "21830": {
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
@@ -469,18 +465,6 @@
     "21837": {
       "reason": "planned",
       "note": "A tenant identity setting not yet judged."
-    },
-    "21840": {
-      "reason": "planned",
-      "note": "An authentication method or password setting."
-    },
-    "21842": {
-      "reason": "planned",
-      "note": "A tenant identity setting not yet judged."
-    },
-    "21843": {
-      "reason": "planned",
-      "note": "A Conditional Access or tenant access setting."
     },
     "21844": {
       "reason": "planned",
@@ -613,10 +597,6 @@
     "21929": {
       "reason": "planned",
       "note": "Entitlement management and access reviews."
-    },
-    "21954": {
-      "reason": "planned",
-      "note": "A tenant identity setting not yet judged."
     },
     "21955": {
       "reason": "planned",

@@ -445,7 +445,18 @@
     "antiPhishSpoofActionGaps": "Anti-phishing policies that let spoofed mail through unmarked",
     "antiPhishImpersonationActionGaps": "Anti-phishing policies that do not act on impersonation",
     "safeAttachmentGaps": "Safe Attachments settings that let a flagged file through",
-    "safeScanBypassRules": "Mail flow rules that skip Safe Attachments or Safe Links"
+    "safeScanBypassRules": "Mail flow rules that skip Safe Attachments or Safe Links",
+    "authTransferBlockPolicies": "Policies that block authentication transfer for everyone",
+    "retiredGrantPolicies": "Policies that ask for the retired approved client app",
+    "combinedRiskPolicies": "Policies with user risk and sign-in risk together",
+    "unknownPlatformBlockPolicies": "Policies that block unknown device platforms",
+    "unmanagedNonPersistentPolicies": "Policies that end the browser session on unmanaged devices",
+    "unmanagedSignInFrequencyPolicies": "Policies that set a sign-in frequency for unmanaged devices",
+    "appEnforcedRestrictionPolicies": "Policies that turn on app enforced restrictions for Office 365",
+    "untargetedPolicies": "Enabled policies that target nothing",
+    "msolPowerShellBlocked": "MSOnline PowerShell module blocked",
+    "usersCanReadOwnBitLockerKeys": "People can read the BitLocker keys of their own devices",
+    "fido2AttestationEnforced": "Passkey attestation enforced"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
