@@ -178,6 +178,14 @@ function Get-PostureIdentityFact {
         $facts.userConsentMode = if ($grants.Count -eq 0) { 'none' } elseif ($grants -match 'microsoft-user-default-low') { 'low' } else { 'all' }
         $facts.userConsentPolicies = ($grants -join ', ')
     }
+    # ID-025: whether an ordinary user may register an application, which is how a consent-phishing app or a
+    # forgotten test app with a secret comes to exist.
+    if ($null -eq $authz) { & $missing 'ID-025' '02-authorization-policy' }
+    else {
+        $mayRegister = & $v $authz 'defaultUserRolePermissions.allowedToCreateApps'
+        if ($null -eq $mayRegister) { $notEvaluated['ID-025'] = 'The authorization policy did not say whether users may register applications.' }
+        else { $facts.usersCanRegisterApps = [bool]($mayRegister -eq $true) }
+    }
     if ($null -eq $authz) { & $missing 'ID-020' '02-authorization-policy'; & $missing 'ID-021' '02-authorization-policy' }
     else {
         # Who can invite guests, and what guests can see: guests inviting guests, and guests with member access, are

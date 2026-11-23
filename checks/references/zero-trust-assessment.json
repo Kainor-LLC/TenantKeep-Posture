@@ -438,10 +438,6 @@
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."
     },
-    "21807": {
-      "reason": "planned",
-      "note": "A property of the app registrations and enterprise applications, which are already collected."
-    },
     "21810": {
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."

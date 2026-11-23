@@ -694,10 +694,6 @@
       "reason": "planned",
       "note": "A consent setting in the directory settings."
     },
-    "EIDSCA.AP10": {
-      "reason": "planned",
-      "note": "A setting in the authorization policy, which is already collected."
-    },
     "EIDSCA.AP14": {
       "reason": "planned",
       "note": "A setting in the authorization policy, which is already collected."
@@ -750,10 +746,6 @@
       "reason": "planned",
       "note": "A setting in the anti-spam policies, which are already collected."
     },
-    "ORCA.105": {
-      "reason": "planned",
-      "note": "A Safe Links policy setting; the policies are already collected."
-    },
     "ORCA.106": {
       "reason": "planned",
       "note": "A setting in the anti-spam policies, which are already collected."
@@ -774,10 +766,6 @@
       "reason": "planned",
       "note": "A setting in the anti-phishing policies, which are already collected."
     },
-    "ORCA.113": {
-      "reason": "planned",
-      "note": "A Safe Links policy setting; the policies are already collected."
-    },
     "ORCA.115": {
       "reason": "planned",
       "note": "A setting in the anti-phishing policies, which are already collected."
@@ -786,25 +774,9 @@
       "reason": "planned",
       "note": "A setting in the anti-phishing policies, which are already collected."
     },
-    "ORCA.118.1": {
-      "reason": "planned",
-      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
-    },
-    "ORCA.118.3": {
-      "reason": "planned",
-      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
-    },
-    "ORCA.119": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
     "ORCA.121": {
       "reason": "planned",
       "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.123": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
     },
     "ORCA.124": {
       "reason": "planned",
@@ -829,10 +801,6 @@
     "ORCA.143": {
       "reason": "planned",
       "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.156": {
-      "reason": "planned",
-      "note": "A Safe Links policy setting; the policies are already collected."
     },
     "ORCA.179": {
       "reason": "planned",
@@ -859,10 +827,6 @@
       "note": "A setting in the anti-phishing policies, which are already collected."
     },
     "ORCA.223": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.224": {
       "reason": "planned",
       "note": "A setting in the anti-phishing policies, which are already collected."
     },
@@ -901,10 +865,6 @@
     "ORCA.239": {
       "reason": "planned",
       "note": "Exclusions from the built-in protection policy."
-    },
-    "ORCA.241": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
     },
     "ORCA.242": {
       "reason": "planned",
@@ -1158,17 +1118,9 @@
       "reason": "planned",
       "note": "An Exchange Online organisation setting or mail flow report."
     },
-    "MT.1042": {
-      "reason": "planned",
-      "note": "One Teams meeting policy setting."
-    },
     "MT.1044": {
       "reason": "planned",
       "note": "An Exchange Online organisation setting or mail flow report."
-    },
-    "MT.1048": {
-      "reason": "planned",
-      "note": "One Teams meeting policy setting."
     },
     "MT.1049": {
       "reason": "planned",

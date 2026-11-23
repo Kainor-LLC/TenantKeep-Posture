@@ -379,7 +379,26 @@
     "messageCenterActionsDue": "Message Center posts close to their act-by date",
     "mdiOpenHealthIssues": "Open Defender for Identity health issues",
     "multiAdminApprovalPolicies": "Multi-admin approval policies",
-    "intuneRolesOrgWide": "Intune role assignments over every device and user"
+    "intuneRolesOrgWide": "Intune role assignments over every device and user",
+    "usersCanRegisterApps": "Users can register applications",
+    "antiSpamAllowedSenderDomains": "Sender domains on the anti-spam allowed list",
+    "safeLinksPoliciesJudged": "Safe Links policies judged",
+    "safeLinksPoliciesWithGaps": "Safe Links policies with a gap",
+    "connectionFilterSafeListOn": "Connection filter policies with the safe list on",
+    "antiPhishSafetyTipGaps": "Anti-phishing policies with a safety tip off",
+    "sharingPoliciesOpenToAllDomains": "Sharing rules giving every domain contacts or calendar detail",
+    "teamsEmailIntoChannel": "Teams channels accept email",
+    "anyoneLinksViewOnly": "Anyone links are view only",
+    "anyoneLinkPermissions": "What an Anyone link may do",
+    "externalSharingToNewPeople": "Sharing with new outside people is allowed",
+    "verificationCodeReauthRequired": "One-time code sign-ins must be repeated",
+    "verificationCodeReauthDays": "Days before a one-time code sign-in is repeated",
+    "verificationCodeReauthOk": "One-time code sign-ins are repeated within the limit",
+    "teamsExternalControl": "Outside participants can take control in meetings",
+    "teamsDialInBypassLobby": "People dialing in skip the lobby",
+    "guestsCanReshare": "Guests can share items they do not own",
+    "anyoneLinksAllowed": "Anyone links are allowed",
+    "legacyAuthProtocolsEnabled": "Legacy authentication to SharePoint is allowed"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -446,6 +465,7 @@
     "minPolicyCompliancePct": "Azure Policy compliance, minimum (%)",
     "minOneDriveRetentionDays": "Deleted user's OneDrive kept at least (days)",
     "maxIdleSignOutMinutes": "Idle session sign-out, at most (minutes)",
-    "messageCenterWarningDays": "Message Center act-by warning window (days)"
+    "messageCenterWarningDays": "Message Center act-by warning window (days)",
+    "maxVerificationCodeReauthDays": "One-time code sign-in, maximum days before it is repeated"
   }
 }

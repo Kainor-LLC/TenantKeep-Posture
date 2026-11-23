@@ -9,9 +9,22 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "One new check, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Fourteen new checks from settings the run already collects, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
-        "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later."
+        "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
+        "ID-025": "New: whether ordinary users may register applications.",
+        "EM-029": "New: sender domains on an anti-spam policy's allowed list.",
+        "EM-030": "New: Safe Links policies that check links before delivery, record clicks and allow no click-through.",
+        "EM-031": "New: the connection filter's safe list.",
+        "EM-032": "New: the safety tips of the anti-phishing policies.",
+        "EM-033": "New: sharing policies that give every outside domain contacts or calendar detail.",
+        "CL-020": "New: whether Teams channels accept email.",
+        "CL-021": "New: whether Anyone links can do more than view.",
+        "CL-022": "New: how soon a one-time code sign-in must be repeated. Needs a SharePoint collection made with this version or later.",
+        "CL-023": "New: whether outside participants may take control in a Teams meeting.",
+        "CL-024": "New: whether people who dial in skip the lobby.",
+        "CL-025": "New: whether SharePoint accepts legacy authentication.",
+        "CL-026": "New: whether guests may share items they do not own."
       }
     },
     {

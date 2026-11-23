@@ -128,10 +128,6 @@
       "reason": "planned",
       "note": "A Conditional Access policy on the register-security-information action; the policies are already collected."
     },
-    "MS.AAD.5.1v1": {
-      "reason": "planned",
-      "note": "The authorization policy is already collected."
-    },
     "MS.AAD.5.5v1": {
       "reason": "planned",
       "note": "The tenant app management policy."
@@ -175,14 +171,6 @@
     "MS.EXO.4.3v1": {
       "reason": "outOfScope",
       "note": "Names a mailbox of the US federal government; it applies to federal agencies only."
-    },
-    "MS.EXO.6.1v1": {
-      "reason": "planned",
-      "note": "Sharing policies."
-    },
-    "MS.EXO.6.2v1": {
-      "reason": "planned",
-      "note": "Sharing policies."
     },
     "MS.POWERBI.1.1v1": {
       "reason": "planned",
@@ -256,10 +244,6 @@
       "reason": "planned",
       "note": "Impersonation protection for partner domains, which needs the organisation to name them."
     },
-    "MS.SECURITYSUITE.2.4v1": {
-      "reason": "planned",
-      "note": "Safety tips in the anti-phishing policies, already collected."
-    },
     "MS.SECURITYSUITE.3.3v1": {
       "reason": "planned",
       "note": "The actions in the DLP rules."
@@ -280,39 +264,7 @@
       "reason": "planned",
       "note": "Alert policies."
     },
-    "MS.SECURITYSUITE.6.2v1": {
-      "reason": "planned",
-      "note": "Allowed domains in the anti-spam policies, already collected."
-    },
-    "MS.SECURITYSUITE.7.2v1": {
-      "reason": "planned",
-      "note": "One Safe Links setting, already collected."
-    },
-    "MS.SECURITYSUITE.7.3v1": {
-      "reason": "planned",
-      "note": "One Safe Links setting, already collected."
-    },
-    "MS.SECURITYSUITE.8.2v1": {
-      "reason": "planned",
-      "note": "The safe list in the connection filter policy, already collected."
-    },
-    "MS.SHAREPOINT.3.2v1": {
-      "reason": "planned",
-      "note": "Link permissions in the tenant settings."
-    },
-    "MS.SHAREPOINT.3.3v2": {
-      "reason": "planned",
-      "note": "Verification code reauthentication in the tenant settings."
-    },
-    "MS.TEAMS.1.1v1": {
-      "reason": "planned",
-      "note": "One meeting policy setting."
-    },
     "MS.TEAMS.1.4v1": {
-      "reason": "planned",
-      "note": "One meeting policy setting."
-    },
-    "MS.TEAMS.1.5v1": {
       "reason": "planned",
       "note": "One meeting policy setting."
     },
@@ -323,10 +275,6 @@
     "MS.TEAMS.1.7v2": {
       "reason": "planned",
       "note": "One live event policy setting."
-    },
-    "MS.TEAMS.4.1v1": {
-      "reason": "planned",
-      "note": "One Teams client setting, already collected."
     },
     "MS.TEAMS.5.1v2": {
       "reason": "planned",

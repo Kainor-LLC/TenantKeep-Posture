@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 283 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 296 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,19 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Thirteen more checks from settings the run already collects (2026-11-23, catalog 2026.11.3), each one a policy of
+  CISA's SCuBA baselines, a Maester test or a Secure Score action that had no check. Identity: only administrators
+  can register applications (ID-025). Email: no sender domains on the anti-spam allowed list (EM-029); Safe Links
+  checks links first, records clicks and allows no click-through (EM-030); the connection filter's safe list is off
+  (EM-031); the anti-phishing safety tips are on (EM-032); contacts and calendar detail are not shared with every
+  outside domain (EM-033). Collaboration: Teams channels do not accept email (CL-020); Anyone links give view access
+  only (CL-021); a one-time code sign-in is repeated within 30 days (CL-022); outside participants cannot take
+  control in a meeting (CL-023); people who dial in wait in the lobby (CL-024); SharePoint refuses legacy
+  authentication (CL-025); guests cannot share items they do not own (CL-026). Each has no answer, not a pass,
+  when its setting was not in what was read. EM-030 and EM-032 count as covered where the profile names a
+  third-party email gateway, like the Defender for Office 365 checks beside them. CL-022 needs a SharePoint
+  collection made with this version: the collectors now save the two settings it reads. SCuBA coverage goes from
+  55 to 68 of 109 policies.
 - New check PV-009 (2026-11-23, catalog 2026.11.3): an email takes the sensitivity label of its attachment. A file
   labelled Confidential that is attached to an unlabelled message otherwise leaves with no label and no encryption.
   The check passes when an enabled label policy has the setting, applied automatically or as a recommendation, which

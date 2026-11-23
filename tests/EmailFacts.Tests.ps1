@@ -83,10 +83,10 @@ Describe 'Get-PostureEmailFact' {
 }
 
 Describe 'Email catalog' {
-    It 'ships 28 email checks with coverage only on the delivery checks' {
+    It 'ships 33 email checks with coverage only on the delivery checks' {
         $cat = @(Get-PostureCheckCatalog -Domain email -Full)
-        $cat.Count | Should -Be 28
-        @($cat | Where-Object { $_.CoveredBy -contains 'email:*' } | ForEach-Object { $_.Id }) | Should -Be @('EM-001', 'EM-002', 'EM-003', 'EM-004', 'EM-005', 'EM-006', 'EM-007', 'EM-022', 'EM-023')
-        @($cat | Where-Object { $_.License -contains 'MDO2' } | ForEach-Object { $_.Id }) | Should -Be @('EM-002', 'EM-004', 'EM-005', 'EM-020', 'EM-027')
+        $cat.Count | Should -Be 33
+        @($cat | Where-Object { $_.CoveredBy -contains 'email:*' } | ForEach-Object { $_.Id }) | Should -Be @('EM-001', 'EM-002', 'EM-003', 'EM-004', 'EM-005', 'EM-006', 'EM-007', 'EM-022', 'EM-023', 'EM-030', 'EM-032')
+        @($cat | Where-Object { $_.License -contains 'MDO2' } | ForEach-Object { $_.Id }) | Should -Be @('EM-002', 'EM-004', 'EM-005', 'EM-020', 'EM-027', 'EM-030', 'EM-032')
     }
 }

@@ -103,7 +103,7 @@ try {
         $props = @('SharingCapability', 'DefaultSharingLinkType', 'DefaultLinkPermission', 'RequireAnonymousLinksExpireInDays', 'FileAnonymousLinkType', 'FolderAnonymousLinkType', 'OneDriveSharingCapability',
             'SharingDomainRestrictionMode', 'SharingAllowedDomainList', 'SharingBlockedDomainList', 'ExternalUserExpirationRequired', 'ExternalUserExpireInDays', 'ShowEveryoneClaim', 'ShowEveryoneExceptExternalUsersClaim',
             'ShowAllUsersClaim', 'LegacyAuthProtocolsEnabled', 'ConditionalAccessPolicy', 'EnableRestrictedAccessControl', 'EnableAzureADB2BIntegration', 'PreventExternalUsersFromResharing', 'NotifyOwnersWhenItemsReshared',
-            'RequireAcceptingAccountMatchInvitedAccount', 'DisallowInfectedFileDownload', 'ShowPeoplePickerSuggestionsForGuestUsers', 'EnableAIPIntegration', 'BlockUserInfoVisibilityInOneDrive', 'OneDriveLoopSharingCapability', 'CoreSharingCapability')
+            'RequireAcceptingAccountMatchInvitedAccount', 'DisallowInfectedFileDownload', 'ShowPeoplePickerSuggestionsForGuestUsers', 'EnableAIPIntegration', 'BlockUserInfoVisibilityInOneDrive', 'OneDriveLoopSharingCapability', 'CoreSharingCapability', 'EmailAttestationRequired', 'EmailAttestationReAuthDays')
         $t = Get-SPOTenant
         $row = [ordered]@{}
         foreach ($p in $props) { $row[$p] = Get-Plain $t $p }

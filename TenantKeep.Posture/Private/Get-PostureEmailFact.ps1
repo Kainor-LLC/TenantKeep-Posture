@@ -62,7 +62,7 @@ function Get-PostureEmailFact {
 
     # Anti-phish (EM-003 spoof, EM-004 impersonation)
     $ap = & $load 'exo-04-antiphish'
-    if ($null -eq $ap) { & $missing @('EM-003', 'EM-004') 'exo-04-antiphish' }
+    if ($null -eq $ap) { & $missing @('EM-003', 'EM-004', 'EM-032') 'exo-04-antiphish' }
     else {
         $pol = @(& $rows $ap | Where-Object { $_.Enabled -ne $false })
         $facts.antiPhishPolicies = $pol.Count
@@ -132,6 +132,73 @@ function Get-PostureEmailFact {
         $entries = @(& $rows $conn | ForEach-Object { $p = $_; @($p.IPAllowList | Where-Object { $_ }) | ForEach-Object { [ordered]@{ name = [string]$_; detail = "allow listed in $($p.Name)" } } })
         $facts.connectionFilterAllowListEntries = $entries.Count
         $affected.connectionFilterAllowListEntries = $entries
+    }
+
+    # EM-031: the connection filter's safe list lets a list of senders kept by Microsoft skip spam filtering.
+    if ($null -eq $conn) { & $missing @('EM-031') 'exo-04-eop-connection-filter' }
+    else {
+        $safeList = @(& $rows $conn | Where-Object { (& $v $_ 'EnableSafeList') -eq $true })
+        $facts.connectionFilterSafeListOn = $safeList.Count
+        $affected.connectionFilterSafeListOn = @($safeList | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = 'safe list on' } })
+    }
+
+    # EM-029: a sender domain on an anti-spam policy's allowed list skips spam filtering and the spoof checks.
+    if ($null -eq $cf) { & $missing @('EM-029') 'exo-04-eop-content-filter' }
+    else {
+        $allowedDomains = @(& $rows $cf | ForEach-Object {
+                $policy = $_
+                @(& $v $policy 'AllowedSenderDomains') | Where-Object { $_ } | ForEach-Object {
+                    # A domain is saved as text, or as an object with the domain in it, depending on the module's version.
+                    $domain = $(if ($_ -is [string]) { $_ } else { $inner = & $v $_ 'Domain'; if ($inner) { $inner } else { [string]$_ } })
+                    [ordered]@{ name = [string]$domain; detail = "allowed in $(& $v $policy 'Name')" }
+                }
+            })
+        $facts.antiSpamAllowedSenderDomains = $allowedDomains.Count
+        $affected.antiSpamAllowedSenderDomains = $allowedDomains
+    }
+
+    # EM-030: Safe Links that checks a link before the message arrives, records clicks and lets nobody click through a
+    # warning. The built-in protection policy applies only to people no other policy covers, so it is judged only
+    # when it is the one policy there is.
+    if ($null -eq $sl) { & $missing @('EM-030') 'exo-05-mdo-safelinks' }
+    else {
+        $slAll = @(& $rows $sl)
+        $slOwn = @($slAll | Where-Object { (& $v $_ 'IsBuiltInProtection') -ne $true })
+        $slJudged = @($(if ($slOwn.Count -gt 0) { $slOwn } else { $slAll }))
+        $slGaps = @($slJudged | Where-Object { (& $v $_ 'ScanUrls') -ne $true -or (& $v $_ 'DeliverMessageAfterScan') -ne $true -or (& $v $_ 'TrackClicks') -ne $true -or (& $v $_ 'AllowClickThrough') -ne $false })
+        $facts.safeLinksPoliciesJudged = $slJudged.Count
+        $facts.safeLinksPoliciesWithGaps = $slGaps.Count
+        $affected.safeLinksPoliciesWithGaps = @($slGaps | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = "checks links $(& $v $_ 'ScanUrls'), holds the message until checked $(& $v $_ 'DeliverMessageAfterScan'), records clicks $(& $v $_ 'TrackClicks'), click-through allowed $(& $v $_ 'AllowClickThrough')" } })
+    }
+
+    # EM-032: the safety tips an anti-phishing policy shows in the message: first contact, a look-alike sender or
+    # domain, unusual characters in a name.
+    if ($null -ne $ap) {
+        $tips = 'EnableFirstContactSafetyTips', 'EnableSimilarUsersSafetyTips', 'EnableSimilarDomainsSafetyTips', 'EnableUnusualCharactersSafetyTips'
+        $enabledPolicies = @(& $rows $ap | Where-Object { (& $v $_ 'Enabled') -ne $false })
+        $tipGaps = @($enabledPolicies | Where-Object { $policy = $_; @($tips | Where-Object { (& $v $policy $_) -ne $true }).Count -gt 0 })
+        $facts.antiPhishSafetyTipGaps = $tipGaps.Count
+        $affected.antiPhishSafetyTipGaps = @($tipGaps | ForEach-Object { $policy = $_; [ordered]@{ name = [string](& $v $policy 'Name'); detail = 'off: ' + ((@($tips | Where-Object { (& $v $policy $_) -ne $true }) | ForEach-Object { ($_ -replace '^Enable|SafetyTips$', '') -creplace '([a-z])([A-Z])', '$1 $2' }) -join ', ').ToLowerInvariant() } })
+    }
+
+    # EM-033: an enabled sharing policy that gives every outside domain contacts or calendar detail. Free and busy
+    # time alone is not counted.
+    $sharing = & $load 'exo-06-sharing-policies'
+    if ($null -eq $sharing) { & $missing @('EM-033') 'exo-06-sharing-policies' }
+    else {
+        $openSharing = @(& $rows $sharing | Where-Object { (& $v $_ 'Enabled') -ne $false } | ForEach-Object {
+                $policy = $_
+                @(& $v $policy 'Domains') | Where-Object { $_ } | ForEach-Object {
+                    # "domain:what is shared", as text or as an object with the two parts.
+                    $text = $(if ($_ -is [string]) { $_ } else { "$(& $v $_ 'Domain'):$(@(& $v $_ 'Actions') -join ', ')" })
+                    $domain, $shared = $text -split ':', 2
+                    if ($domain.Trim() -eq '*' -and $shared -match '(?i)ContactsSharing|CalendarSharingFreeBusyDetail|CalendarSharingFreeBusyReviewer') {
+                        [ordered]@{ name = [string](& $v $policy 'Name'); detail = "every outside domain gets $((@($shared -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '(?i)Contacts|Detail|Reviewer' }) -join ', ')" }
+                    }
+                }
+            })
+        $facts.sharingPoliciesOpenToAllDomains = $openSharing.Count
+        $affected.sharingPoliciesOpenToAllDomains = $openSharing
     }
 
     # SCL -1 transport rules (EM-010)

@@ -30,7 +30,7 @@ function Invoke-PostureSharePointCollection {
         $props = @('SharingCapability', 'DefaultSharingLinkType', 'DefaultLinkPermission', 'RequireAnonymousLinksExpireInDays', 'FileAnonymousLinkType', 'FolderAnonymousLinkType', 'OneDriveSharingCapability',
             'SharingDomainRestrictionMode', 'SharingAllowedDomainList', 'SharingBlockedDomainList', 'ExternalUserExpirationRequired', 'ExternalUserExpireInDays', 'ShowEveryoneClaim', 'ShowEveryoneExceptExternalUsersClaim',
             'ShowAllUsersClaim', 'LegacyAuthProtocolsEnabled', 'ConditionalAccessPolicy', 'EnableRestrictedAccessControl', 'EnableAzureADB2BIntegration', 'PreventExternalUsersFromResharing', 'NotifyOwnersWhenItemsReshared',
-            'RequireAcceptingAccountMatchInvitedAccount', 'DisallowInfectedFileDownload', 'ShowPeoplePickerSuggestionsForGuestUsers', 'EnableAIPIntegration', 'BlockUserInfoVisibilityInOneDrive', 'OneDriveLoopSharingCapability', 'CoreSharingCapability')
+            'RequireAcceptingAccountMatchInvitedAccount', 'DisallowInfectedFileDownload', 'ShowPeoplePickerSuggestionsForGuestUsers', 'EnableAIPIntegration', 'BlockUserInfoVisibilityInOneDrive', 'OneDriveLoopSharingCapability', 'CoreSharingCapability', 'EmailAttestationRequired', 'EmailAttestationReAuthDays')
         $t = @(& $pnp 'Get-PnPTenant')
         $row = $(if ($t.Count -gt 0) { $t[0] | ConvertTo-PostureFlatObject -Property $props } else { [ordered]@{} })
         & $saveOne $row 'spo-tenant-settings'

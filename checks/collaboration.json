@@ -814,6 +814,317 @@
           "spo_idle_session_timeout"
         ]
       }
+    },
+    {
+      "id": "CL-020",
+      "domain": "collaboration",
+      "title": "Teams channels do not accept email",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-client-config.json"
+      ],
+      "pass": "!facts.teamsEmailIntoChannel",
+      "remediation": [
+        "In the Teams admin center, open Teams, Teams settings.",
+        "Under Email integration, turn off \"Users can send emails to a channel email address\"."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A channel's email address stops working. People who forward mail into a channel post a link or the file instead."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/settings-policies-reference#email-integration",
+      "deepLink": "https://admin.teams.microsoft.com/company-wide-settings/teams-settings",
+      "narrative": "A channel's email address is a way into Teams that skips Teams sign-in: anyone who learns the address can put a message, a link or a file in front of the whole channel.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.TEAMS.4.1v1"
+      },
+      "attack": [
+        "T1213.005"
+      ]
+    },
+    {
+      "id": "CL-021",
+      "domain": "collaboration",
+      "title": "Anyone links give view access only",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
+      ],
+      "pass": "!facts.anyoneLinksAllowed || facts.anyoneLinksViewOnly",
+      "remediation": [
+        "In the SharePoint admin center, open Policies, Sharing, More external sharing settings.",
+        "Under \"Choose the permission that's selected by default for Anyone links\", set files and folders to View."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A link that works for anyone opens the file to read. To let an outsider edit, people share with that person by name."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off#file-and-folder-links",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
+      "narrative": "An Anyone link needs no sign-in and leaves no name in the audit log. One that allows editing lets whoever holds it change the file or drop new ones into the folder, and nobody can say who did.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.SHAREPOINT.3.2v1"
+      },
+      "attack": [
+        "T1213.002",
+        "T1530"
+      ]
+    },
+    {
+      "id": "CL-022",
+      "domain": "collaboration",
+      "title": "People signing in with a one-time code are asked again within the limit",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxVerificationCodeReauthDays": 30
+      },
+      "evidence": [
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
+      ],
+      "pass": "!facts.externalSharingToNewPeople || facts.verificationCodeReauthOk",
+      "remediation": [
+        "In the SharePoint admin center, open Policies, Sharing, More external sharing settings.",
+        "Tick \"People who use a verification code must reauthenticate after this many days\" and set 30 or fewer."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "An outside person who opens shared files with a one-time code is sent a new code once the days are up."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off#more-external-sharing-settings",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
+      "narrative": "Someone who opens a shared file with a one-time code has no account you can disable. Without a limit, a browser that was signed in once keeps its access for good, long after the person has left the partner or the laptop has changed hands.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.SHAREPOINT.3.3v2"
+      },
+      "attack": [
+        "T1213.002",
+        "T1530"
+      ]
+    },
+    {
+      "id": "CL-023",
+      "domain": "collaboration",
+      "title": "Outside participants cannot take control in Teams meetings",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-meeting-policy-global.json"
+      ],
+      "pass": "!facts.teamsExternalControl",
+      "remediation": [
+        "In the Teams admin center, open Meetings, Meeting policies, and edit the Global policy.",
+        "Under Content sharing, turn off \"External participants can give or request control\"."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A guest or outside participant can no longer be handed control of a shared screen. Colleagues still can."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/meeting-policies-content-sharing#external-participants-can-give-or-request-control",
+      "deepLink": "https://admin.teams.microsoft.com/policies/meetings",
+      "narrative": "Control of a shared screen is control of the presenter's computer for as long as it lasts. Handing it to someone outside the organisation is how a support scam ends with software installed.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.TEAMS.1.1v1"
+      },
+      "references": {
+        "secureScore": [
+          "meeting_externalrequestcontrol_v1"
+        ],
+        "maester": [
+          "MT.1048"
+        ]
+      },
+      "attack": [
+        "T1213.005"
+      ]
+    },
+    {
+      "id": "CL-024",
+      "domain": "collaboration",
+      "title": "People who dial in wait in the lobby",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "teams-meeting-policy-global.json"
+      ],
+      "pass": "!facts.teamsDialInBypassLobby",
+      "remediation": [
+        "In the Teams admin center, open Meetings, Meeting policies, and edit the Global policy.",
+        "Under Meeting join and lobby, turn off \"People dialing in can bypass the lobby\"."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who joins by phone waits until an organiser lets them in."
+      },
+      "learn": "https://learn.microsoft.com/microsoftteams/who-can-bypass-meeting-lobby#overview-of-lobby-settings-and-policies",
+      "deepLink": "https://admin.teams.microsoft.com/policies/meetings",
+      "narrative": "A caller by phone shows as a number, not a name. If callers skip the lobby, anyone with the dial-in details is in the meeting, listening, before anybody has seen who joined.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.TEAMS.1.5v1"
+      },
+      "references": {
+        "secureScore": [
+          "meeting_pstnusersbypasslobby_v1"
+        ],
+        "maester": [
+          "MT.1042"
+        ]
+      },
+      "attack": [
+        "T1213.005"
+      ]
+    },
+    {
+      "id": "CL-025",
+      "domain": "collaboration",
+      "title": "Legacy authentication to SharePoint blocked",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
+      ],
+      "pass": "!facts.legacyAuthProtocolsEnabled",
+      "remediation": [
+        "In the SharePoint admin center, open Policies, Access control, Apps that don't use modern authentication.",
+        "Choose Block access."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Old apps that sign in to SharePoint with a user name and password stop working: Office 2010, and scripts or tools built before modern sign-in. Current Office, OneDrive and browsers are not affected."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/control-access-from-unmanaged-devices#block-access-using-the-new-sharepoint-admin-center",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=accessControl&modern=true",
+      "narrative": "An app that signs in with a user name and password cannot be asked for a second factor. While SharePoint accepts those sign-ins, a stolen password opens every file its owner can reach, whatever Conditional Access says about multifactor.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "spo_legacy_auth"
+        ]
+      },
+      "attack": [
+        "T1110.003"
+      ]
+    },
+    {
+      "id": "CL-026",
+      "domain": "collaboration",
+      "title": "Guests cannot share items they do not own",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "spo-tenant-settings.json",
+        "spo-tenant-settings-graph.json"
+      ],
+      "evidenceAnyOf": [
+        [
+          "spo-tenant-settings.json",
+          "spo-tenant-settings-graph.json"
+        ]
+      ],
+      "pass": "!facts.guestsCanReshare",
+      "remediation": [
+        "In the SharePoint admin center, open Policies, Sharing, More external sharing settings.",
+        "Clear \"Allow guests to share items they don't own\"."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A guest who wants a colleague of theirs added asks the owner of the file or site."
+      },
+      "learn": "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off#more-external-sharing-settings",
+      "deepLink": "https://admin.microsoft.com/sharepoint?page=sharing&modern=true",
+      "narrative": "When a guest can share on, the people who decide who sees a file are no longer the people who work for you. Access spreads one invitation at a time to names nobody in the organisation chose.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "spo_external_users_sharing"
+        ]
+      },
+      "attack": [
+        "T1213.002",
+        "T1530"
+      ]
     }
   ]
 }

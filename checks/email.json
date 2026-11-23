@@ -1258,6 +1258,244 @@
       "attack": [
         "T1566.002"
       ]
+    },
+    {
+      "id": "EM-029",
+      "domain": "email",
+      "title": "No sender domains on the anti-spam allowed list",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-content-filter.json"
+      ],
+      "pass": "facts.antiSpamAllowedSenderDomains == 0",
+      "affected": "facts.antiSpamAllowedSenderDomains",
+      "remediation": [
+        "In the Defender portal, open Email and collaboration, Policies and rules, Threat policies, Anti-spam.",
+        "In each inbound policy, remove every entry under Allowed domains.",
+        "Where a partner's mail really is caught by mistake, use the Tenant Allow/Block List, which lets an entry expire, or fix the partner's SPF and DKIM."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Mail from the removed domains is filtered like everyone else's. A sender that was only getting through because of the list may land in junk until its own records are fixed."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/create-safe-sender-lists-in-office-365",
+      "deepLink": "https://security.microsoft.com/antispam",
+      "narrative": "Mail from a domain on the allowed list skips spam filtering and the sender checks. An attacker who forges that domain, or takes over one mailbox in it, lands in the inbox with nothing looking at the message.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.SECURITYSUITE.6.2v1"
+      },
+      "references": {
+        "secureScore": [
+          "mdo_allowedsenderscombined"
+        ],
+        "maester": [
+          "ORCA.118.1",
+          "ORCA.118.3"
+        ]
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-030",
+      "domain": "email",
+      "title": "Safe Links checks links first, records clicks and allows no click-through",
+      "severityDefault": "Medium",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-05-mdo-safelinks.json"
+      ],
+      "pass": "facts.safeLinksPoliciesJudged > 0 && facts.safeLinksPoliciesWithGaps == 0",
+      "affected": "facts.safeLinksPoliciesWithGaps",
+      "remediation": [
+        "In the Defender portal, open Threat policies, Safe Links, and edit each policy.",
+        "Turn on real-time scanning of links, and waiting for the scan before a message is delivered.",
+        "Turn on tracking of clicks, and turn off letting people click through to the original address."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A message with a link may arrive a few seconds later. A person who clicks a link judged malicious gets a warning page with no way past it."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/safe-links-policies-configure",
+      "deepLink": "https://security.microsoft.com/safelinksv2",
+      "narrative": "Safe Links only protects as far as its settings go. Without the scan, a link to a file is not checked; without click tracking, nobody can tell who followed a link that later turned bad; and with click-through allowed, the warning is a page people get past in one click.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.SECURITYSUITE.7.2v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.SECURITYSUITE.7.3v1"
+        ],
+        "maester": [
+          "ORCA.105",
+          "ORCA.113",
+          "ORCA.156"
+        ]
+      },
+      "attack": [
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-031",
+      "domain": "email",
+      "title": "Connection filter safe list off",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-connection-filter.json"
+      ],
+      "pass": "facts.connectionFilterSafeListOn == 0",
+      "affected": "facts.connectionFilterSafeListOn",
+      "remediation": [
+        "In the Defender portal, open Threat policies, Anti-spam, and edit the connection filter policy.",
+        "Clear \"Turn on safe list\"."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing people notice."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/connection-filter-policies-configure",
+      "deepLink": "https://security.microsoft.com/antispam",
+      "narrative": "The safe list is a set of sending addresses that Microsoft maintains and that you cannot see or change. Mail from them skips spam filtering, so the organisation is trusting a list it has never read.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": "MS.SECURITYSUITE.8.2v1"
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-032",
+      "domain": "email",
+      "title": "Anti-phishing safety tips shown in the message",
+      "severityDefault": "Low",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-antiphish.json"
+      ],
+      "pass": "facts.antiPhishPolicies > 0 && facts.antiPhishSafetyTipGaps == 0",
+      "affected": "facts.antiPhishSafetyTipGaps",
+      "remediation": [
+        "In the Defender portal, open Threat policies, Anti-phishing, and edit each policy.",
+        "Under safety tips, turn on the first contact tip, the user and domain impersonation tips and the unusual characters tip."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People see a line at the top of a message from someone they have not heard from before, or from a name that looks like a colleague's."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/anti-phishing-policies-about#first-contact-safety-tip",
+      "deepLink": "https://security.microsoft.com/antiphishing",
+      "narrative": "A safety tip is the one warning that appears at the moment someone is about to trust a message: this person has not written to you before, this name resembles a colleague's. It costs nothing and catches the impersonation that filtering let through.",
+      "frameworks": {
+        "nist-csf-2": "PR.AT-01",
+        "iso27001": "A.6.3",
+        "cmmc": "AT.L2-3.2.1",
+        "cisa-scuba": "MS.SECURITYSUITE.2.4v1"
+      },
+      "references": {
+        "secureScore": [
+          "mdo_similardomainssafetytips",
+          "mdo_similaruserssafetytips",
+          "mdo_unusualcharacterssafetytips"
+        ],
+        "maester": [
+          "ORCA.119",
+          "ORCA.123",
+          "ORCA.224",
+          "ORCA.241"
+        ]
+      },
+      "attack": [
+        "T1657",
+        "T1684.001"
+      ]
+    },
+    {
+      "id": "EM-033",
+      "domain": "email",
+      "title": "Contacts and calendar detail not shared with every outside domain",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-06-sharing-policies.json"
+      ],
+      "pass": "facts.sharingPoliciesOpenToAllDomains == 0",
+      "affected": "facts.sharingPoliciesOpenToAllDomains",
+      "remediation": [
+        "In the Exchange admin center, open Organization, Sharing, and edit each individual sharing policy.",
+        "For the rule that applies to all domains, share free and busy time only, or remove the rule.",
+        "Add a rule per partner domain where more is needed."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People outside see when someone is free or busy and nothing more, unless their organisation was named."
+      },
+      "learn": "https://learn.microsoft.com/exchange/sharing/sharing-policies/sharing-policies",
+      "deepLink": "https://admin.exchange.microsoft.com/#/individualsharing",
+      "narrative": "A calendar shared in detail tells an outsider who someone meets, where and about what; shared contacts hand over the address book. With that an attacker writes a far more convincing message. Free and busy time is enough to book a meeting.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.EXO.6.1v1"
+      },
+      "references": {
+        "scuba": [
+          "MS.EXO.6.2v1"
+        ]
+      },
+      "attack": [
+        "T1213.005"
+      ]
     }
   ]
 }

@@ -20,7 +20,7 @@ function Get-PostureCollaborationFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxAnonymousLinkDays = 30; maxGuestExpireDays = 60; minOneDriveRetentionDays = 30; maxIdleSignOutMinutes = 480 }
+    $t = @{ maxAnonymousLinkDays = 30; maxGuestExpireDays = 60; minOneDriveRetentionDays = 30; maxIdleSignOutMinutes = 480; maxVerificationCodeReauthDays = 30 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -45,7 +45,7 @@ function Get-PostureCollaborationFact {
     if ($null -eq $spo -and $null -eq $teamsFed) { return @{ available = $false; reason = 'No SharePoint or Teams evidence in the folder (the Entra collector reads Graph''s SharePoint settings; Invoke-PostureCollection -Collector Teams needs a Teams session).' } }
 
     # SharePoint tenant settings (CL-001 to CL-006, CL-008, CL-016)
-    if ($null -eq $spo) { foreach ($id in 'CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008', 'CL-016') { $notEvaluated[$id] = 'No SharePoint settings were collected: the Entra collector reads them through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
+    if ($null -eq $spo) { foreach ($id in 'CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005', 'CL-006', 'CL-008', 'CL-016', 'CL-021', 'CL-022', 'CL-025', 'CL-026') { $notEvaluated[$id] = 'No SharePoint settings were collected: the Entra collector reads them through Graph (SharePointTenantSettings.Read.All); check errors.txt.' } }
     else {
         $cap = [string](& $v $spo 'SharingCapability')
         $facts.sharingCapability = $cap
@@ -54,6 +54,14 @@ function Get-PostureCollaborationFact {
         $facts.sharingDomainRestrictionMode = [string](& $v $spo 'SharingDomainRestrictionMode')
         $facts.sharingDomainRestricted = $facts.sharingDomainRestrictionMode -in @('AllowList', 'BlockList')
         $facts.legacyAuthProtocolsEnabled = (& $v $spo 'LegacyAuthProtocolsEnabled') -eq $true
+        # CL-025: apps that sign in to SharePoint with a user name and password, which skip the second factor. Both
+        # ways of reading carry it; a value that did not come back is no answer.
+        if ($null -eq (& $v $spo 'LegacyAuthProtocolsEnabled')) { $notEvaluated['CL-025'] = 'The SharePoint settings that were read did not say whether legacy authentication is allowed.' }
+        # CL-026: whether a guest may share on something they do not own.
+        $reshare = & $v $spo 'PreventExternalUsersFromResharing'
+        if ($null -eq $reshare) { $notEvaluated['CL-026'] = 'The SharePoint settings that were read did not say whether guests may share items they do not own.' }
+        else { $facts.guestsCanReshare = [bool]($reshare -ne $true) }
+        $facts.externalSharingToNewPeople = $cap -in @('ExternalUserSharingOnly', 'ExternalUserAndGuestSharing')
     }
     # CL-017 to CL-019: three settings Graph carries whichever way the rest was read. A departed user's OneDrive
     # (the admin read has that one too), sync limited to the organisation's own domain-joined computers, and
@@ -92,6 +100,8 @@ function Get-PostureCollaborationFact {
         & $adminOnly 'CL-005' 'the Everyone claims in the people picker'
         & $adminOnly 'CL-006' 'the guest access expiry'
         & $adminOnly 'CL-008' 'restricted access control'
+        if ($facts.anyoneLinksAllowed) { & $adminOnly 'CL-021' 'what an Anyone link may do' }
+        if ($facts.externalSharingToNewPeople) { & $adminOnly 'CL-022' 'verification code reauthentication' }
     }
     elseif ($null -ne $spo) {
         # CL-016: OneDrive holds personal working files; Anyone links there are rarely deliberate.
@@ -109,6 +119,19 @@ function Get-PostureCollaborationFact {
         $facts.guestExpireDays = $(if ($null -ne $exp) { [int]$exp } else { -1 })
         $facts.guestExpirationOk = $facts.guestExpirationRequired -and $facts.guestExpireDays -ge 1 -and $facts.guestExpireDays -le [int]$t.maxGuestExpireDays
         $facts.restrictedAccessControlEnabled = (& $v $spo 'EnableRestrictedAccessControl') -eq $true
+        # CL-021: an Anyone link that lets its holder edit. Only the links' types are read; no link is.
+        $fileLink = [string](& $v $spo 'FileAnonymousLinkType'); $folderLink = [string](& $v $spo 'FolderAnonymousLinkType')
+        if ($facts.anyoneLinksAllowed -and (-not $fileLink -or -not $folderLink)) { $notEvaluated['CL-021'] = 'The SharePoint settings that were read did not say what an Anyone link may do.' }
+        else { $facts.anyoneLinksViewOnly = [bool]($fileLink -eq 'View' -and $folderLink -eq 'View'); $facts.anyoneLinkPermissions = "files $fileLink, folders $folderLink" }
+        # CL-022: people who sign in with a one-time code are asked for a new one after so many days. A collection
+        # from before 2026-11-23 did not save the two settings.
+        $codeRequired = & $v $spo 'EmailAttestationRequired'; $codeDays = & $v $spo 'EmailAttestationReAuthDays'
+        if ($null -eq $codeRequired) { if ($facts.externalSharingToNewPeople) { $notEvaluated['CL-022'] = 'spo-tenant-settings.json was collected before TenantKeep read the verification code settings. Collect SharePoint again (Resume-PostureRun -Collector SharePoint).' } }
+        else {
+            $facts.verificationCodeReauthRequired = [bool]($codeRequired -eq $true)
+            $facts.verificationCodeReauthDays = $(if ($null -ne $codeDays) { [int]$codeDays } else { -1 })
+            $facts.verificationCodeReauthOk = [bool]($facts.verificationCodeReauthRequired -and $facts.verificationCodeReauthDays -ge 1 -and $facts.verificationCodeReauthDays -le [int]$t.maxVerificationCodeReauthDays)
+        }
     }
 
     # Ownerless sites and teams (CL-007)
@@ -160,20 +183,32 @@ function Get-PostureCollaborationFact {
         $facts.teamsConsumerBlocked = (& $v $teamsFed 'AllowTeamsConsumer') -ne $true -and (& $v $teamsFed 'AllowPublicUsers') -ne $true
     }
     $client = & $load 'teams-client-config'
-    if ($null -eq $client) { & $missing @('CL-012') 'teams-client-config' 'Teams' }
+    if ($null -eq $client) { & $missing @('CL-012', 'CL-020') 'teams-client-config' 'Teams' }
     else {
         $facts.teamsGuestAccess = (& $v $client 'AllowGuestUser') -eq $true
+        # CL-020: a channel's email address, which lets anyone who learns it post into the channel.
+        $channelMail = & $v $client 'AllowEmailIntoChannel'
+        if ($null -eq $channelMail) { $notEvaluated['CL-020'] = 'The Teams client configuration did not say whether channels accept email.' }
+        else { $facts.teamsEmailIntoChannel = [bool]($channelMail -eq $true) }
         # Guests off needs nothing more. Guests on is governed by guest expiry, which only the SharePoint admin read
         # reports: without it the answer is unknown, not "ungoverned".
         $facts.teamsGuestAccessGoverned = $(if (-not $facts.teamsGuestAccess) { $true } elseif ($facts.Contains('guestExpirationOk')) { [bool]$facts.guestExpirationOk } else { $null })
     }
     $meeting = & $load 'teams-meeting-policy-global'
-    if ($null -eq $meeting) { & $missing @('CL-013') 'teams-meeting-policy-global' 'Teams' }
+    if ($null -eq $meeting) { & $missing @('CL-013', 'CL-023', 'CL-024') 'teams-meeting-policy-global' 'Teams' }
     else {
         $facts.anonymousMeetingJoin = (& $v $meeting 'AllowAnonymousUsersToJoinMeeting') -eq $true
         $facts.anonymousCanStartMeeting = (& $v $meeting 'AllowAnonymousUsersToStartMeeting') -eq $true
         $facts.autoAdmittedUsers = [string](& $v $meeting 'AutoAdmittedUsers')
         $facts.lobbyForExternal = $facts.autoAdmittedUsers -in @('EveryoneInCompany', 'EveryoneInCompanyExcludingGuests', 'OrganizerOnly', 'InvitedUsers')
+        # CL-023 and CL-024: an outside participant taking control of a shared screen, and callers by phone walking
+        # past the lobby. Each is one setting of the global meeting policy; one that did not come back is no answer.
+        $control = & $v $meeting 'AllowExternalParticipantGiveRequestControl'
+        if ($null -eq $control) { $notEvaluated['CL-023'] = 'The global meeting policy did not say whether outside participants may take control.' }
+        else { $facts.teamsExternalControl = [bool]($control -eq $true) }
+        $dialIn = & $v $meeting 'AllowPSTNUsersToBypassLobby'
+        if ($null -eq $dialIn) { $notEvaluated['CL-024'] = 'The global meeting policy did not say whether callers by phone skip the lobby.' }
+        else { $facts.teamsDialInBypassLobby = [bool]($dialIn -eq $true) }
     }
     # CL-014. Under app centric management the org-wide setting for third-party apps decides whether every third-party
     # app is available by default; GlobalApp is that setting, as GlobalCatalogApps named third-party apps in the old

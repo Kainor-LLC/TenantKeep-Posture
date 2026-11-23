@@ -1177,6 +1177,55 @@
         "T1098.001",
         "T1078.004"
       ]
+    },
+    {
+      "id": "ID-025",
+      "domain": "identity",
+      "title": "Only administrators can register applications",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "02-authorization-policy.json"
+      ],
+      "pass": "!facts.usersCanRegisterApps",
+      "remediation": [
+        "In the Entra admin center, open Identity, Users, User settings.",
+        "Set \"Users can register applications\" to No.",
+        "Give the Application Developer role to the people who do need to register apps."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Someone who tries to register an app is told to ask an administrator. Apps that exist keep working."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/role-based-access-control/delegate-app-roles#restrict-who-can-create-applications",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/UserSettings",
+      "narrative": "Any user who can register an app can create one with a secret, give it a convincing name and ask colleagues to consent to it. Forgotten test apps with credentials start the same way. Limiting registration to a role keeps the list of apps to ones somebody answers for.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.AAD.5.1v1"
+      },
+      "references": {
+        "secureScore": [
+          "aad_third_party_apps"
+        ],
+        "maester": [
+          "EIDSCA.AP10"
+        ],
+        "zeroTrust": [
+          "21807"
+        ]
+      },
+      "attack": [
+        "T1528",
+        "T1671"
+      ]
     }
   ]
 }
