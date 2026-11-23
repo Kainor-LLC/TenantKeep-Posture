@@ -1106,50 +1106,6 @@
       "reason": "planned",
       "note": "Microsoft Sentinel workspace configuration."
     },
-    "41204": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41205": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41206": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41207": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41208": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41209": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41210": {
-      "reason": "planned",
-      "note": "A security operations setting or review."
-    },
-    "41211": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41212": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41213": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
-    "41214": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
-    },
     "41215": {
       "reason": "outOfScope",
       "note": "Security Copilot capacity is something bought, not a setting."
@@ -1157,10 +1113,6 @@
     "41216": {
       "reason": "outOfScope",
       "note": "Security Copilot capacity is something bought, not a setting."
-    },
-    "41217": {
-      "reason": "planned",
-      "note": "Microsoft Sentinel workspace configuration."
     },
     "50001": {
       "reason": "planned",

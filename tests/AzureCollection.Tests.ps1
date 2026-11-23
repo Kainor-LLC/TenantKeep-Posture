@@ -54,6 +54,28 @@ Describe 'Invoke-PostureCollection -Collector Azure' {
             $ports = @(& $script:Read 'az-12-open-management-ports')
             @($ports | ForEach-Object { "$($_.Rule)=$($_.Ports)" }) | Should -Be @('allow-rdp=3389', 'allow-range=22') -Because 'SSH sits inside 20-25; HTTPS is not a management port'
             (& $script:Read 'az-15-sentinel').Connectors | Should -Be 'AzureActiveDirectory, MicrosoftThreatProtection, Office365'
+            # What the workspace is set up to do, one row: counts and names of settings, never a rule or an indicator.
+            $sentinel = & $script:Read 'az-22-sentinel-settings'
+            $sentinel.Workspace | Should -Be 'law-sec'
+            $sentinel.RulesEnabled | Should -Be 2 -Because 'a rule that is off is not counted'
+            $sentinel.RuleKinds | Should -Be 'Fusion, Scheduled'
+            $sentinel.AutomationActive | Should -Be 1 -Because 'a rule past its expiry date no longer runs'
+            $sentinel.PlaybookRules | Should -Be 1
+            $sentinel.PlaybooksOff | Should -Be 1 -Because 'the Logic App the rule runs is turned off'
+            $sentinel.Watchlists | Should -Be 1
+            $sentinel.Ueba | Should -Be 'off' -Because 'the setting answers 404 until behaviour analytics is first turned on'
+            $sentinel.ThreatIntelConnectors | Should -Be ''
+            $sentinel.ThreatIndicators | Should -Be 4500
+            $sentinel.HealthLogs | Should -Be 'on'
+            $sentinel.RetentionDays | Should -Be 90
+            $sentinel.TableRetention | Should -Be 'SigninLogs=365; AuditLogs=90' -Because 'only the security tables are kept'
+            $sentinel.TablePlans | Should -Be 'SigninLogs=Analytics; AuditLogs=Basic'
+            $sentinel.HuntingQueries | Should -Be 1
+            $sentinel.Bookmarks | Should -Be 0
+            $sentinel.Workbooks | Should -Be 1
+            $sentinel.CollectionRules | Should -Be 1
+            $sentinel.Solutions | Should -Be 'Microsoft Defender XDR; Microsoft Entra ID'
+            $sentinel.NotRead | Should -Be ''
             (& $script:Read 'az-14-backup-vaults').Immutability | Should -Be 'Disabled'
             @(& $script:Read 'az-01-subscriptions' | Where-Object { $_.AtTenantRoot }).Name | Should -Be 'Sandbox'
             @(& $script:Read 'az-03-policy-assignments' | Where-Object { $_.IsMcsb }).Count | Should -Be 1

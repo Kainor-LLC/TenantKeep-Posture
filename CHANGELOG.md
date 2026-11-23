@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 358 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 370 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,29 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Twelve checks on how Microsoft Sentinel is set up (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust
+  Assessment. Until now the catalog asked one thing of Sentinel: whether it receives Entra, Microsoft 365 and Defender
+  XDR (AZ-027). These ask what a workspace does with what arrives.
+  - Detect: a detection rule turned on beyond Fusion (AZ-039), threat intelligence indicators (AZ-043), behaviour
+    analytics on with a data source in every workspace (AZ-042), and the tables detection reads kept on the
+    Analytics plan (AZ-050).
+  - Respond: an automation rule that is on and not expired (AZ-040), and one that runs a playbook, with every
+    playbook a rule runs turned on (AZ-041).
+  - Keep and watch: 90 days to hand and a year in total on the security tables, with both figures as thresholds
+    (AZ-045), and Sentinel's own health and audit events (AZ-044).
+  - Use: a watchlist (AZ-046), saved hunting queries or bookmarks (AZ-047), a workbook (AZ-048) and a data collection
+    rule (AZ-049) for every workspace.
+  - One new evidence file, `az-22-sentinel-settings`: a row per workspace with counts and the names of settings,
+    never a rule's query, an indicator or a watchlist's contents. Read with the Reader role the Azure collector
+    already uses. A part that cannot be read is named in the row, and the checks that need it have no answer for
+    that workspace instead of reading it as zero.
+  - Following the reference, some checks ask it of one workspace (a team often has one that matters and others for
+    testing) and some of every workspace; each check says which.
+  - A new project in the remediation plan, Microsoft Sentinel that detects and responds, after the one that
+    connects the logs.
+  - Zero Trust Assessment coverage goes from 149 to 161 of 364 tests. Not yet seen live: the property paths of
+    these reads, and where the health diagnostic setting sits (the collector looks on Sentinel's own health
+    resource and on the workspace).
 - The TenantKeep app is read-only on every API, and a second app reads Azure, Teams and Power Platform
   (2026-11-23). Three APIs offer no read-only permission, only one to act as the signed-in administrator: Azure
   Service Management, the Teams admin API and the Power Platform admin API. Until now the TenantKeep app held those

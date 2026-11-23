@@ -257,6 +257,81 @@ function Invoke-PostureAzureCollection {
                 [ordered]@{ Workspace = (Split-Path ([string]$_.workspaceId) -Leaf); SubscriptionId = (& $str $_.subscriptionId); Connectors = ($kinds -join ', ') }
             }) 'az-15-sentinel' $true
     } | Out-Null
+    Invoke-PostureStep -Label 'Microsoft Sentinel configuration' -Folder $Folder -Script {
+        # What each Sentinel workspace is set up to do with what it receives: detect, respond, keep, and watch
+        # itself. One row per workspace, holding counts and the names of settings, never a rule's query or an
+        # indicator. A part that cannot be read is named in NotRead and its fields stay empty, so a check has no
+        # answer for it and never reads it as zero.
+        $ws = @(& $q "resources | where type =~ 'microsoft.operationsmanagement/solutions' and name startswith 'SecurityInsights' | project workspaceId = tostring(properties.workspaceResourceId), subscriptionId" | Where-Object { $_.workspaceId } | Select-Object -First 50)
+        # Listed once for every workspace: the Sentinel workbooks, the data collection rules with where they send,
+        # and which Logic Apps are turned on (a playbook is one).
+        $shared = @{ workbooks = $null; rules = $null; logicApps = $null }
+        if ($ws.Count -gt 0) {
+            try { $shared.workbooks = @(& $q "resources | where type =~ 'microsoft.insights/workbooks' | where tostring(properties.category) =~ 'sentinel' | project source = tolower(tostring(properties.sourceId))") } catch { Write-Verbose "Sentinel workbooks not read: $($_.Exception.Message)" }
+            try { $shared.rules = @(& $q "resources | where type =~ 'microsoft.insights/datacollectionrules' | mv-expand destination = properties.destinations.logAnalytics | extend destinationName = tostring(destination.name), workspace = tolower(tostring(destination.workspaceResourceId)) | where isnotempty(workspace) | mv-expand flow = properties.dataFlows | where flow.destinations has destinationName | summarize flows = count() by id, workspace") } catch { Write-Verbose "Data collection rules not read: $($_.Exception.Message)" }
+            try { $shared.logicApps = @(& $q "resources | where type =~ 'microsoft.logic/workflows' | project id = tolower(id), state = tostring(properties.state)") } catch { Write-Verbose "Logic Apps not read: $($_.Exception.Message)" }
+        }
+        $securityTables = @('SecurityEvent', 'SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs', 'AADServicePrincipalSignInLogs', 'OfficeActivity', 'SecurityAlert', 'SecurityIncident', 'CommonSecurityLog', 'Syslog', 'WindowsFirewall', 'DeviceLogonEvents', 'IdentityLogonEvents', 'EmailEvents', 'CloudAppEvents')
+        $detectionTables = @('SigninLogs', 'AuditLogs', 'AADNonInteractiveUserSignInLogs', 'AADServicePrincipalSignInLogs', 'OfficeActivity', 'SecurityAlert', 'SecurityIncident', 'IdentityLogonEvents', 'EmailEvents', 'CloudAppEvents', 'SecurityEvent')
+        $now = [datetime]::UtcNow
+        & $save @($ws | ForEach-Object {
+                $id = [string]$_.workspaceId; $key = $id.ToLowerInvariant(); $si = "$id/providers/Microsoft.SecurityInsights"
+                $notRead = [System.Collections.Generic.List[string]]::new()
+                $row = [ordered]@{ Workspace = (Split-Path $id -Leaf); SubscriptionId = (& $str $_.subscriptionId) }
+                # Each part by itself: one refusal leaves the others read.
+                $part = { param([string] $What, [scriptblock] $Read) try { & $Read } catch { $notRead.Add($What); Write-Verbose "Sentinel $What not read for $($row.Workspace): $($_.Exception.Message)" } }
+                foreach ($field in 'RulesEnabled', 'RuleKinds', 'AutomationActive', 'PlaybookRules', 'PlaybooksOff', 'Watchlists', 'Ueba', 'UebaSources', 'ThreatIntelConnectors', 'ThreatIndicators', 'HealthLogs', 'RetentionDays', 'TableRetention', 'TablePlans', 'HuntingQueries', 'Bookmarks', 'Workbooks', 'CollectionRules', 'Solutions') { $row[$field] = $null }
+                & $part 'analytics rules' {
+                    $on = @(& $rest "$si/alertRules?api-version=2024-09-01" | Where-Object { (& $v $_ 'properties.enabled') -eq $true })
+                    $row.RulesEnabled = $on.Count
+                    $row.RuleKinds = (@($on | ForEach-Object { & $str (& $v $_ 'kind') } | Sort-Object -Unique) -join ', ')
+                }
+                & $part 'automation rules' {
+                    # Active: turned on and not past its expiry.
+                    $active = @(& $rest "$si/automationRules?api-version=2024-09-01" | Where-Object {
+                            $expires = & $v $_ 'properties.triggeringLogic.expirationTimeUtc'
+                            (& $v $_ 'properties.triggeringLogic.isEnabled') -eq $true -and (-not $expires -or (ConvertTo-PostureUtcDateTime $expires) -gt $now)
+                        })
+                    $playbooks = @($active | ForEach-Object { @(& $v $_ 'properties.actions') } | Where-Object { $_ -and [string](& $v $_ 'actionType') -eq 'RunPlaybook' } | ForEach-Object { ([string](& $v $_ 'actionConfiguration.logicAppResourceId')).ToLowerInvariant() } | Where-Object { $_ })
+                    $row.AutomationActive = $active.Count
+                    $row.PlaybookRules = $playbooks.Count
+                    # A playbook the list of Logic Apps shows as turned off. One it does not show (a Standard Logic App) is not counted.
+                    if ($null -ne $shared.logicApps) { $row.PlaybooksOff = @($playbooks | Where-Object { $p = $_; @($shared.logicApps | Where-Object { [string]$_.id -eq $p -and [string]$_.state -ne 'Enabled' }).Count -gt 0 }).Count }
+                }
+                & $part 'watchlists' { $row.Watchlists = @(& $rest "$si/watchlists?api-version=2024-09-01").Count }
+                & $part 'UEBA' {
+                    try { $ueba = @(& $rest "$si/settings/Ueba?api-version=2024-10-01-preview")[0]; $sources = @(@(& $v $ueba 'properties.dataSources') | Where-Object { $_ }); $row.Ueba = 'on'; $row.UebaSources = ($sources -join ', ') }
+                    catch { if ([string]$_.Exception.Message -match 'returned 404') { $row.Ueba = 'off'; $row.UebaSources = '' } else { throw } }
+                }
+                & $part 'threat intelligence' {
+                    $row.ThreatIntelConnectors = (@(& $rest "$si/dataConnectors?api-version=2024-03-01" | ForEach-Object { & $str (& $v $_ 'kind') } | Where-Object { $_ -in 'MicrosoftThreatIntelligence', 'ThreatIntelligence', 'ThreatIntelligenceTaxii' } | Sort-Object -Unique) -join ', ')
+                    $total = 0
+                    foreach ($m in @(& $rest "$si/threatIntelligence/main/metrics?api-version=2024-09-01")) { foreach ($source in @(& $v $m 'properties.sourceMetrics')) { if ($source) { $total += [int](& $v $source 'metricValue') } } }
+                    $row.ThreatIndicators = $total
+                }
+                & $part 'health and audit logging' {
+                    # Where the setting is made (verify on a live run): on Sentinel's own health resource, or on the workspace.
+                    $settings = @(foreach ($scope in "$si/settings/SentinelHealth", $id) { try { & $rest "$scope/providers/microsoft.insights/diagnosticSettings?api-version=2021-05-01-preview" } catch { if ([string]$_.Exception.Message -notmatch 'returned 40[04]') { throw } } })
+                    $row.HealthLogs = $(if (@($settings | Where-Object { $_ -and (& $v $_ 'properties.workspaceId') -and @(@(& $v $_ 'properties.logs') | Where-Object { $_ -and (& $v $_ 'enabled') -eq $true }).Count -gt 0 }).Count -gt 0) { 'on' } else { 'off' })
+                }
+                & $part 'retention' {
+                    $row.RetentionDays = [int](& $v (@(& $rest "$($id)?api-version=2023-09-01")[0]) 'properties.retentionInDays')
+                    $tables = @(& $rest "$id/tables?api-version=2022-10-01")
+                    # The days each security table the workspace has is kept in total, and the plan each detection table is on.
+                    $row.TableRetention = (@($tables | Where-Object { [string](& $v $_ 'name') -in $securityTables -and $null -ne (& $v $_ 'properties.totalRetentionInDays') } | ForEach-Object { "$(& $v $_ 'name')=$([int](& $v $_ 'properties.totalRetentionInDays'))" }) -join '; ')
+                    $row.TablePlans = (@($tables | Where-Object { [string](& $v $_ 'name') -in $detectionTables -and [string](& $v $_ 'properties.plan') } | ForEach-Object { "$(& $v $_ 'name')=$(& $v $_ 'properties.plan')" }) -join '; ')
+                }
+                & $part 'hunting' {
+                    $row.HuntingQueries = @(& $rest "$id/savedSearches?api-version=2020-08-01" | Where-Object { [string](& $v $_ 'properties.category') -eq 'Hunting Queries' }).Count
+                    $row.Bookmarks = @(& $rest "$si/bookmarks?api-version=2024-09-01").Count
+                }
+                & $part 'solutions' { $row.Solutions = (@(& $rest "$si/contentPackages?api-version=2024-09-01" | ForEach-Object { & $str (& $v $_ 'properties.displayName') } | Where-Object { $_ } | Sort-Object -Unique) -join '; ') }
+                if ($null -ne $shared.workbooks) { $row.Workbooks = @($shared.workbooks | Where-Object { [string]$_.source -eq $key }).Count } else { $notRead.Add('workbooks') }
+                if ($null -ne $shared.rules) { $row.CollectionRules = @($shared.rules | Where-Object { [string]$_.workspace -eq $key }).Count } else { $notRead.Add('data collection rules') }
+                $row.NotRead = ($notRead -join ', ')
+                $row
+            }) 'az-22-sentinel-settings' $true
+    } | Out-Null
     Invoke-PostureStep -Label 'Network security policies' -Folder $Folder -Script {
         # Azure Firewall policies and the two kinds of web application firewall policy: what each does with what it
         # detects. Resource Graph gives the rule sets and custom rules as they are; what is kept is whether the ones

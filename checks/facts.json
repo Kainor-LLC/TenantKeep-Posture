@@ -494,7 +494,21 @@
     "networkResourcesWithoutLogs": "Of those, sending no log anywhere",
     "publicIpsInUse": "Public IP addresses in use",
     "publicIpsDdosUnknown": "Addresses whose virtual network could not be worked out",
-    "publicIpsUnprotected": "Public IP addresses without DDoS protection"
+    "publicIpsUnprotected": "Public IP addresses without DDoS protection",
+    "sentinelSettingsWorkspaces": "Microsoft Sentinel workspaces read",
+    "sentinelDetectionRules": "A workspace has a detection rule turned on beyond Fusion",
+    "sentinelAutomationRule": "A workspace has an automation rule that is on",
+    "sentinelPlaybookRules": "Playbooks that active automation rules run",
+    "sentinelPlaybooksOff": "Of those, playbooks that are turned off",
+    "sentinelWithoutUeba": "Workspaces without behaviour analytics",
+    "sentinelThreatIntel": "A workspace holds threat intelligence indicators",
+    "sentinelHealthLogs": "A workspace records Sentinel's health and audit events",
+    "sentinelShortRetention": "Workspaces that keep security logs too briefly",
+    "sentinelWatchlist": "A workspace has a watchlist",
+    "sentinelHunting": "A workspace has saved hunting queries or bookmarks",
+    "sentinelWithoutWorkbook": "Workspaces without a workbook",
+    "sentinelWithoutCollectionRule": "Workspaces no data collection rule sends to",
+    "sentinelOffPlanTables": "Workspaces with a detection table off the Analytics plan"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -571,6 +585,8 @@
     "maxLockoutThreshold": "Failed sign-ins before lockout, at most",
     "minLockoutSeconds": "Lockout length, at least (seconds)",
     "maxBulkThreshold": "Bulk complaint level, highest allowed",
-    "minPhishThresholdLevel": "Phishing threshold, lowest allowed"
+    "minPhishThresholdLevel": "Phishing threshold, lowest allowed",
+    "sentinelInteractiveDays": "Days a Sentinel workspace keeps logs to hand, at least",
+    "sentinelTotalDays": "Days a security table is kept in total, at least"
   }
 }

@@ -230,7 +230,12 @@ lasts about an hour; the collector finishes well inside that on a few hundred su
 Also from the Azure collector: `az-12-open-management-ports` (inbound allow rules from anywhere for SSH, RDP and WinRM on
 network security groups in use), `az-13-budgets` (budgets per subscription), `az-14-backup-vaults` (soft delete and
 immutability on Recovery Services and Backup vaults), `az-15-sentinel` (Sentinel workspaces and their data connector
-kinds), `az-16-entra-domain-services` (the managed domain's security settings), `az-18-firewall-policies` (each Azure
+kinds), `az-22-sentinel-settings` (for each Sentinel workspace: how many analytics rules are on and of which kinds,
+how many automation rules are active and how many run a playbook that is turned off, watchlists, whether behaviour
+analytics is on and with which sources, threat intelligence connectors and the indicator count, whether Sentinel's
+health and audit events are kept, the workspace's retention with the total retention and plan of its security
+tables, saved hunting queries, bookmarks, workbooks, data collection rules that send to it, the names of the
+installed solutions, and what could not be read; counts and names of settings only), `az-16-entra-domain-services` (the managed domain's security settings), `az-18-firewall-policies` (each Azure
 Firewall policy's tier, threat intelligence mode, intrusion detection mode and whether TLS inspection is set up) and
 `az-19-waf-policies` (each Application Gateway and Front Door WAF policy: whether it is attached, on and in Prevention,
 whether it reads request bodies, which of the default, bot and HTTP DDoS rule sets it has, and how many rate limit,

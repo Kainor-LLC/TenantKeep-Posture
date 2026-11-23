@@ -640,3 +640,90 @@ Describe 'Azure firewall and WAF policies (catalog 2026.11.3)' {
         $r['AZ-036'].status | Should -Be 'pass' -Because 'the bot rule set comes with Front Door Premium only'
     }
 }
+
+Describe 'Microsoft Sentinel configuration (catalog 2026.11.3)' {
+    BeforeAll {
+        $script:SentinelIds = 'AZ-039', 'AZ-040', 'AZ-041', 'AZ-042', 'AZ-043', 'AZ-044', 'AZ-045', 'AZ-046', 'AZ-047', 'AZ-048', 'AZ-049', 'AZ-050'
+        # A workspace set up the way every check asks, as the collector saves it; a test changes what it is about.
+        $script:Workspace = {
+            param([System.Collections.IDictionary] $Change = @{})
+            $row = [ordered]@{
+                Workspace = 'law-soc'; SubscriptionId = 'sub-1'; RulesEnabled = 14; RuleKinds = 'Fusion, MicrosoftSecurityIncidentCreation, Scheduled'; AutomationActive = 2; PlaybookRules = 1; PlaybooksOff = 0
+                Watchlists = 1; Ueba = 'on'; UebaSources = 'AuditLogs, SigninLogs'; ThreatIntelConnectors = 'MicrosoftThreatIntelligence'; ThreatIndicators = 5200; HealthLogs = 'on'
+                RetentionDays = 90; TableRetention = 'SigninLogs=365; AuditLogs=730; SecurityAlert=365'; TablePlans = 'SigninLogs=Analytics; AuditLogs=Analytics; SecurityAlert=Analytics'
+                HuntingQueries = 3; Bookmarks = 0; Workbooks = 2; CollectionRules = 1; Solutions = 'Microsoft Entra ID; Microsoft Defender XDR'; NotRead = ''
+            }
+            foreach ($key in $Change.Keys) { $row[$key] = $Change[$key] }
+            $row
+        }
+        $script:Sentinel = { param([object[]] $Rows) & $script:Azure @{ 'az-22-sentinel-settings' = @($Rows) } }
+    }
+
+    It 'passes every check on a workspace that detects, responds, keeps its logs and watches itself' {
+        $r = & $script:Sentinel @(& $script:Workspace)
+        foreach ($id in $script:SentinelIds) { $r[$id].status | Should -Be 'pass' -Because "$id $($r[$id].reason)" }
+    }
+
+    It 'has no answer where there is no Sentinel workspace, and says the file is missing for an older collection' {
+        $none = & $script:Azure @{ 'az-22-sentinel-settings' = @() }
+        foreach ($id in $script:SentinelIds) {
+            $none[$id].status | Should -Be 'notEvaluated' -Because "${id}: no workspace is not a pass"
+            $none[$id].reason | Should -Match '^No Microsoft Sentinel workspace in the subscriptions'
+        }
+        $old = & $script:Azure @{}
+        foreach ($id in $script:SentinelIds) { $old[$id].reason | Should -Match 'az-22-sentinel-settings\.json was not collected' -Because $id }
+    }
+
+    It 'fails each check on the setting it is about' {
+        (& $script:Sentinel @(& $script:Workspace @{ RulesEnabled = 1; RuleKinds = 'Fusion' }))['AZ-039'].status | Should -Be 'fail' -Because 'Fusion is on by default and detects little alone'
+        (& $script:Sentinel @(& $script:Workspace @{ RulesEnabled = 0; RuleKinds = '' }))['AZ-039'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ AutomationActive = 0; PlaybookRules = 0 }))['AZ-040'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ PlaybookRules = 0 }))['AZ-041'].status | Should -Be 'fail' -Because 'no automation rule runs a playbook'
+        $off = & $script:Sentinel @(& $script:Workspace @{ PlaybookRules = 2; PlaybooksOff = 1 })
+        $off['AZ-041'].status | Should -Be 'fail' -Because 'a rule that runs a playbook that is off runs nothing'
+        @($off['AZ-041'].affected)[0].detail | Should -Match '1 playbook'
+        $ueba = & $script:Sentinel @(& $script:Workspace @{ Ueba = 'off'; UebaSources = '' })
+        $ueba['AZ-042'].status | Should -Be 'fail'
+        @($ueba['AZ-042'].affected)[0].detail | Should -Be 'off'
+        @((& $script:Sentinel @(& $script:Workspace @{ UebaSources = '' }))['AZ-042'].affected)[0].detail | Should -Be 'on, with no data source chosen'
+        (& $script:Sentinel @(& $script:Workspace @{ ThreatIndicators = 0 }))['AZ-043'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ HealthLogs = 'off' }))['AZ-044'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ Watchlists = 0 }))['AZ-046'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ HuntingQueries = 0; Bookmarks = 0 }))['AZ-047'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ HuntingQueries = 0; Bookmarks = 4 }))['AZ-047'].status | Should -Be 'pass' -Because 'bookmarks are hunting too'
+        (& $script:Sentinel @(& $script:Workspace @{ Workbooks = 0 }))['AZ-048'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ CollectionRules = 0 }))['AZ-049'].status | Should -Be 'fail'
+        $plan = & $script:Sentinel @(& $script:Workspace @{ TablePlans = 'SigninLogs=Basic; AuditLogs=Analytics' })
+        $plan['AZ-050'].status | Should -Be 'fail'
+        @($plan['AZ-050'].affected)[0].detail | Should -Be 'SigninLogs on Basic'
+    }
+
+    It 'AZ-045 asks for 90 days to hand and a year in total, and a profile can ask for more' {
+        $short = & $script:Sentinel @(& $script:Workspace @{ RetentionDays = 30; TableRetention = 'SigninLogs=90; AuditLogs=365' })
+        $short['AZ-045'].status | Should -Be 'fail'
+        @($short['AZ-045'].affected)[0].detail | Should -Be 'to hand for 30 days; kept in total: SigninLogs 90 days'
+        (& $script:Sentinel @(& $script:Workspace @{ TableRetention = 'SigninLogs=364' }))['AZ-045'].status | Should -Be 'fail'
+        (& $script:Sentinel @(& $script:Workspace @{ TableRetention = '' }))['AZ-045'].status | Should -Be 'pass' -Because 'only the tables the workspace has are judged'
+    }
+
+    It 'asks "one workspace" of some checks and "every workspace" of others' {
+        $two = & $script:Sentinel @((& $script:Workspace), (& $script:Workspace @{ Workspace = 'law-dev'; RulesEnabled = 0; RuleKinds = ''; AutomationActive = 0; PlaybookRules = 0; Watchlists = 0; ThreatIndicators = 0; HealthLogs = 'off'; HuntingQueries = 0; Ueba = 'off'; UebaSources = ''; Workbooks = 0; CollectionRules = 0; RetentionDays = 30 }))
+        foreach ($id in 'AZ-039', 'AZ-040', 'AZ-041', 'AZ-043', 'AZ-044', 'AZ-046', 'AZ-047') { $two[$id].status | Should -Be 'pass' -Because "${id}: one workspace that does it is enough" }
+        foreach ($id in 'AZ-042', 'AZ-045', 'AZ-048', 'AZ-049') {
+            $two[$id].status | Should -Be 'fail' -Because "${id}: every workspace is asked"
+            @($two[$id].affected).name | Should -Be @('law-dev')
+        }
+    }
+
+    It 'has no answer for a part that could not be read, and never reads it as zero' {
+        $unread = & $script:Sentinel @(& $script:Workspace @{ RulesEnabled = $null; RuleKinds = $null; Ueba = $null; UebaSources = $null; PlaybooksOff = $null; RetentionDays = $null; TableRetention = $null; TablePlans = $null; NotRead = 'analytics rules, UEBA, retention' })
+        foreach ($id in 'AZ-039', 'AZ-041', 'AZ-042', 'AZ-045', 'AZ-050') { $unread[$id].status | Should -Be 'notEvaluated' -Because "${id}: $($unread[$id].reason)" }
+        $unread['AZ-040'].status | Should -Be 'pass' -Because 'the automation rules were read'
+        # One workspace read and failing is an answer, whatever the other could not say.
+        $mixed = & $script:Sentinel @((& $script:Workspace @{ Ueba = 'off'; UebaSources = '' }), (& $script:Workspace @{ Workspace = 'law-2'; Ueba = $null; UebaSources = $null; NotRead = 'UEBA' }))
+        $mixed['AZ-042'].status | Should -Be 'fail'
+        # One workspace read and passing settles a "one workspace" check; none passing with one unread does not.
+        $one = & $script:Sentinel @((& $script:Workspace @{ Watchlists = 0 }), (& $script:Workspace @{ Workspace = 'law-2'; Watchlists = $null; NotRead = 'watchlists' }))
+        $one['AZ-046'].status | Should -Be 'notEvaluated'
+    }
+}

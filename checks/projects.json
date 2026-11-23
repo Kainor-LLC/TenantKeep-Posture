@@ -872,6 +872,32 @@
           "why": "Power BI carries your sensitivity labels, so they are worth publishing first."
         }
       ]
+    },
+    {
+      "id": "PJ-044",
+      "name": "Microsoft Sentinel that detects and responds",
+      "what": "Whether each Sentinel workspace has rules that detect, automation that responds, the history an investigation needs, and a watch on its own health.",
+      "checks": [
+        "AZ-039",
+        "AZ-040",
+        "AZ-041",
+        "AZ-042",
+        "AZ-043",
+        "AZ-044",
+        "AZ-045",
+        "AZ-046",
+        "AZ-047",
+        "AZ-048",
+        "AZ-049",
+        "AZ-050"
+      ],
+      "needs": [
+        {
+          "project": "PJ-012",
+          "why": "Rules, analytics and retention only matter for logs that arrive, so the sources are connected first."
+        }
+      ],
+      "after": []
     }
   ]
 }

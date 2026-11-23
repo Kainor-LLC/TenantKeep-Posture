@@ -1657,6 +1657,544 @@
       "attack": [
         "T1190"
       ]
+    },
+    {
+      "id": "AZ-039",
+      "domain": "azure",
+      "title": "Microsoft Sentinel has detection rules turned on",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelDetectionRules",
+      "affected": "facts.sentinelDetectionRules",
+      "remediation": [
+        "In the Sentinel workspace, open Content hub and install the solutions for the sources you connected; each brings analytics rule templates.",
+        "Under Analytics, Rule templates, create rules from the templates that fit your sources and turn them on.",
+        "Turn on the Microsoft security incident creation rules, or the Defender XDR connector's incident sync, so alerts from Microsoft's products become incidents."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/detect-threats-built-in",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A workspace that collects logs and has no rule reading them is storage, not detection. Fusion, the one rule that is on by default, correlates signals other rules and products raise and finds little alone. This check looks for at least one scheduled, near-real-time or incident-creation rule that is turned on in a workspace.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41207"
+        ]
+      }
+    },
+    {
+      "id": "AZ-040",
+      "domain": "azure",
+      "title": "Microsoft Sentinel handles incidents with an automation rule",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelAutomationRule",
+      "remediation": [
+        "In the Sentinel workspace, open Automation and create an automation rule that runs when an incident is created.",
+        "Start with the routine: assign an owner by product or severity, set the severity, add a tag, close the incident types you have decided are noise.",
+        "Give rules that should end an expiry date; one that has passed its date no longer runs."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/automate-incident-handling-with-automation-rules",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Automation rules are where a workspace says what happens to an incident before a person looks at it: who owns it, how urgent it is, whether it is closed as known noise. With none that is on, every incident waits in one queue for someone to sort by hand. A rule past its expiry date counts as off.",
+      "frameworks": {
+        "nist-csf-2": "RS.MA-01",
+        "iso27001": "A.5.26",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41213"
+        ]
+      }
+    },
+    {
+      "id": "AZ-041",
+      "domain": "azure",
+      "title": "A Sentinel automation rule runs a playbook that is turned on",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelPlaybookRules >= 1 && facts.sentinelPlaybooksOff == 0",
+      "affected": "facts.sentinelPlaybooksOff",
+      "remediation": [
+        "Pick one response you already do by hand for a common incident: revoke a user's sessions, isolate a device, open a ticket, post to the team's channel.",
+        "Install or build the playbook for it (Automation, Playbook templates) and give Sentinel's automation account permission to run it.",
+        "Add a Run playbook action to an automation rule, and turn back on any playbook the list shows as off."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/automate-responses-with-playbooks",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A playbook is a Logic App that acts on an incident: it can contain an account or a device in the minutes before an analyst is free. This check looks for an active automation rule that runs one, and fails when a playbook a rule runs is turned off, because the rule then runs nothing and says so nowhere obvious.",
+      "frameworks": {
+        "nist-csf-2": "RS.MI-01",
+        "iso27001": "A.5.26",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41214"
+        ]
+      }
+    },
+    {
+      "id": "AZ-042",
+      "domain": "azure",
+      "title": "Every Sentinel workspace analyses user and entity behaviour",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelWithoutUeba == 0",
+      "affected": "facts.sentinelWithoutUeba",
+      "remediation": [
+        "In the Sentinel workspace, open Settings, then Settings again, and Set UEBA.",
+        "Turn the feature on and sync the directory it should learn from (Microsoft Entra ID, and Active Directory through Defender for Identity where you have it).",
+        "Choose the data sources to analyse: sign-in logs and audit logs at least."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/enable-entity-behavior-analytics",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Behaviour analytics builds a picture of what is normal for each account and device and marks what is not: a first sign-in from a country, a first use of an admin tool. Rules catch what you thought to write; this catches the account that is doing something new. It is off until someone turns it on, and on with no data source chosen it analyses nothing.",
+      "frameworks": {
+        "nist-csf-2": "DE.AE-06",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.7",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41209"
+        ]
+      }
+    },
+    {
+      "id": "AZ-043",
+      "domain": "azure",
+      "title": "Microsoft Sentinel receives threat intelligence",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelThreatIntel",
+      "remediation": [
+        "In Content hub, install the Threat Intelligence solution.",
+        "Connect the Microsoft Defender Threat Intelligence data connector, which is free, and any TAXII or platform feed you subscribe to.",
+        "Turn on the TI map analytics rules that match your log sources, so an indicator seen in your logs raises an incident."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/understand-threat-intelligence",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Threat intelligence indicators are known-bad addresses, domains and file hashes. In a workspace they let a rule say that a device in your network just spoke to one. This check passes when a workspace holds indicators, from any source.",
+      "frameworks": {
+        "nist-csf-2": "ID.RA-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41210"
+        ]
+      }
+    },
+    {
+      "id": "AZ-044",
+      "domain": "azure",
+      "title": "Microsoft Sentinel records its own health and audit events",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelHealthLogs",
+      "remediation": [
+        "In the Sentinel workspace, open Settings, then Settings again, and Auditing and health monitoring.",
+        "Select Enable. Sentinel adds the diagnostic setting that fills the SentinelHealth and SentinelAudit tables.",
+        "Add an analytics rule on SentinelHealth for a data connector that stopped and a rule that keeps failing."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/enable-monitoring",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A connector that stops sending and a rule that fails every run look, from the incident queue, exactly like a quiet day. The health table says which is which, and the audit table says who changed or turned off a rule. Neither exists until this is turned on.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-09",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41211"
+        ]
+      }
+    },
+    {
+      "id": "AZ-045",
+      "domain": "azure",
+      "title": "Sentinel workspaces keep security logs long enough",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {
+        "sentinelInteractiveDays": 90,
+        "sentinelTotalDays": 365
+      },
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelShortRetention == 0",
+      "affected": "facts.sentinelShortRetention",
+      "remediation": [
+        "In the Log Analytics workspace, Usage and estimated costs, Data retention: set the workspace default to at least 90 days. For a Sentinel workspace the first 90 days cost nothing extra.",
+        "Under Tables, set total retention on the security tables listed to at least a year. Days beyond the interactive period are kept as long-term retention at a much lower price.",
+        "If a regulation names a longer period, set that and record it in the profile's thresholds."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Intrusions are often found months after they began, and an investigation can only go back as far as the logs do. This check asks for 90 days to hand in the workspace and a year in total on the sign-in, audit, mail, alert and endpoint tables that hold the trail, and reads only the tables the workspace has.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-11",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41204"
+        ]
+      }
+    },
+    {
+      "id": "AZ-046",
+      "domain": "azure",
+      "title": "Microsoft Sentinel has a watchlist of what matters most",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelWatchlist",
+      "remediation": [
+        "Decide what deserves a closer look than everything else: administrator accounts, executives, the servers that hold the important data, accounts being offboarded.",
+        "In the Sentinel workspace, open Watchlist and add the list from a file, or use one of the templates.",
+        "Use it in analytics rules to raise severity when an alert names something on the list."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/watchlists",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A watchlist tells detection what your organisation cares about most, which no built-in rule can know. With it, the same sign-in alert can be routine for one account and urgent for another.",
+      "frameworks": {
+        "nist-csf-2": "ID.AM-08",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41208"
+        ]
+      }
+    },
+    {
+      "id": "AZ-047",
+      "domain": "azure",
+      "title": "Microsoft Sentinel is used for hunting",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelHunting",
+      "remediation": [
+        "In the Sentinel workspace, open Hunting and run the queries that come with the solutions you installed.",
+        "Save the queries your team finds useful, and bookmark results worth keeping so they can join an incident.",
+        "Set a rhythm for it: a short hunt each week finds what no rule was written for."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/hunting",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Rules find what someone anticipated. Hunting is how a team looks for the rest, and saved hunting queries and bookmarks are the trace it leaves. A workspace with neither has only ever been asked the questions its rules ask.",
+      "frameworks": {
+        "nist-csf-2": "DE.AE-06",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.7",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41212"
+        ]
+      }
+    },
+    {
+      "id": "AZ-048",
+      "domain": "azure",
+      "title": "Every Sentinel workspace has a workbook",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelWithoutWorkbook == 0",
+      "affected": "facts.sentinelWithoutWorkbook",
+      "remediation": [
+        "In the Sentinel workspace, open Workbooks, Templates.",
+        "Save the workbooks for the sources you connected: sign-ins, Microsoft 365 activity, and the data collection health monitoring workbook at least.",
+        "Pin the ones the team looks at each day."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/sentinel/monitor-your-data",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Workbooks are the dashboards of a workspace: what is arriving, from where, how much, and what changed. Without one the only view of the data is a query someone has to write.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41206"
+        ]
+      }
+    },
+    {
+      "id": "AZ-049",
+      "domain": "azure",
+      "title": "Data collection rules decide what reaches each Sentinel workspace",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelWithoutCollectionRule == 0",
+      "affected": "facts.sentinelWithoutCollectionRule",
+      "remediation": [
+        "For Windows and Linux machines, collect through the Azure Monitor Agent with a data collection rule that names the events to send.",
+        "Add a transformation where a source is noisy, to drop the columns and rows nobody reads before they are stored.",
+        "Send each rule's data flow to the Sentinel workspace."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/essentials/data-collection-rule-overview",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "A data collection rule is where you say which events are sent and in what shape. Without one a workspace takes whatever its connectors send by default, which costs more and still misses events that have to be asked for by name.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.15",
+        "cmmc": "AU.L2-3.3.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41205"
+        ]
+      }
+    },
+    {
+      "id": "AZ-050",
+      "domain": "azure",
+      "title": "The tables detection reads are on the Analytics plan",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {
+        "azure": [
+          "platform",
+          "workloads"
+        ]
+      },
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "az-22-sentinel-settings.json"
+      ],
+      "pass": "facts.sentinelOffPlanTables == 0",
+      "affected": "facts.sentinelOffPlanTables",
+      "remediation": [
+        "In the Log Analytics workspace, open Tables and find each table listed.",
+        "Choose Manage table and set the plan to Analytics.",
+        "Keep the cheaper plans for verbose tables no rule reads, such as raw firewall and network logs."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people; the security team gets more from the workspace it already pays for."
+      },
+      "learn": "https://learn.microsoft.com/azure/azure-monitor/logs/logs-table-plans",
+      "deepLink": "https://portal.azure.com/#view/HubsExtension/BrowseResource/resourceType/microsoft.securityinsightsarg%2Fsentinel",
+      "narrative": "Scheduled rules and behaviour analytics run only against tables on the Analytics plan. A sign-in, audit, mail or alert table moved to Basic or Auxiliary to save money still fills, and the rules that read it quietly stop finding anything.",
+      "frameworks": {
+        "nist-csf-2": "DE.CM-01",
+        "iso27001": "A.8.16",
+        "cmmc": "SI.L2-3.14.6",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "41217"
+        ]
+      }
     }
   ]
 }

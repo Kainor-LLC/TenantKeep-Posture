@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Seventy-six new checks, most from settings the run already collects, two from new reads on permissions already held and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Eighty-eight new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -87,7 +87,19 @@
         "AZ-035": "New: the same basics for Front Door WAF policies in use. Needs an Azure collection made with this version or later.",
         "AZ-036": "New: the same bot and flood protection for Front Door WAF policies in use. Needs an Azure collection made with this version or later.",
         "AZ-037": "New: whether Azure Firewalls, Application Gateway WAFs, Front Door profiles and DDoS-protected public IPs send their logs somewhere. Needs an Azure collection made with this version or later.",
-        "AZ-038": "New: whether public IP addresses in use have DDoS protection, their own or their virtual network's. Needs an Azure collection made with this version or later."
+        "AZ-038": "New: whether public IP addresses in use have DDoS protection, their own or their virtual network's. Needs an Azure collection made with this version or later.",
+        "AZ-039": "New: whether a Microsoft Sentinel workspace has a detection rule turned on beyond Fusion. Needs an Azure collection from this version, like the eleven checks that follow.",
+        "AZ-040": "New: whether a Sentinel workspace has an automation rule that is on and not past its expiry.",
+        "AZ-041": "New: whether an active automation rule runs a playbook, and whether every playbook a rule runs is turned on.",
+        "AZ-042": "New: whether every Sentinel workspace has behaviour analytics on with a data source chosen.",
+        "AZ-043": "New: whether a Sentinel workspace holds threat intelligence indicators.",
+        "AZ-044": "New: whether Sentinel's own health and audit events are kept.",
+        "AZ-045": "New: whether every Sentinel workspace keeps logs 90 days to hand and its security tables a year in total.",
+        "AZ-046": "New: whether a Sentinel workspace has a watchlist.",
+        "AZ-047": "New: whether a Sentinel workspace has saved hunting queries or bookmarks.",
+        "AZ-048": "New: whether every Sentinel workspace has a workbook.",
+        "AZ-049": "New: whether a data collection rule sends to every Sentinel workspace.",
+        "AZ-050": "New: whether the tables detection reads are on the Analytics plan in every Sentinel workspace."
       }
     },
     {

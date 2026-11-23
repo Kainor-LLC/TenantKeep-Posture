@@ -21,7 +21,7 @@ function Get-PostureAzureFact {
     )
 
     $ErrorActionPreference = 'Stop'
-    $t = @{ maxOwnersPerSubscription = 3; minTaggedPct = 95; maxUserResourceScopeAssignments = 10; maxServicePrincipalOwners = 0; minPolicyCompliancePct = 80 }
+    $t = @{ maxOwnersPerSubscription = 3; minTaggedPct = 95; maxUserResourceScopeAssignments = 10; maxServicePrincipalOwners = 0; minPolicyCompliancePct = 80; sentinelInteractiveDays = 90; sentinelTotalDays = 365 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     # Parsed once per evaluation and shared with the other domains (Read-PostureEvidenceFile); a missing file is
     # $null, an empty one an empty array.
@@ -408,6 +408,84 @@ function Get-PostureAzureFact {
         $facts.sentinelWithCoreConnectors = $complete.Count
         if ($ws.Count -eq 0) { $notEvaluated['AZ-027'] = 'No Microsoft Sentinel workspace in the subscriptions; OP-001 asks whether a SIEM receives these logs.' }
         $affected.sentinelWithCoreConnectors = @($ws | Where-Object { $_ -notin $complete } | ForEach-Object { $have = @(([string]$_.Connectors) -split ',\s*'); [ordered]@{ name = [string]$_.Workspace; detail = "missing $(@($core | Where-Object { $_ -notin $have }) -join ', ')" } })
+    }
+
+    # AZ-039 to AZ-050: how each Microsoft Sentinel workspace is set up, one row per workspace in
+    # az-22-sentinel-settings. A part the collector could not read is empty in the row and named in NotRead, and a
+    # workspace with an empty field has no answer for the check that reads it. A check that asks for one workspace
+    # passes on the first that has it and fails only when every workspace was read and none has it. A check that
+    # asks it of every workspace fails on the first that lacks it, and has no answer when none lacks it and one was
+    # not read.
+    $sentinelChecks = @('AZ-039', 'AZ-040', 'AZ-041', 'AZ-042', 'AZ-043', 'AZ-044', 'AZ-045', 'AZ-046', 'AZ-047', 'AZ-048', 'AZ-049', 'AZ-050')
+    $settings = & $load 'az-22-sentinel-settings'
+    if ($null -eq $settings) { & $missing $sentinelChecks 'az-22-sentinel-settings' }
+    else {
+        $sw = @(& $rows $settings)
+        $facts.sentinelSettingsWorkspaces = $sw.Count
+        if ($sw.Count -eq 0) { foreach ($id in $sentinelChecks) { $notEvaluated[$id] = 'No Microsoft Sentinel workspace in the subscriptions; OP-001 asks whether a SIEM receives the logs.' } }
+        else {
+            # $one: true when a workspace has it, false when all were read and none has it, otherwise unknown.
+            $one = {
+                param([string[]] $Field, [scriptblock] $Has)
+                $known = @($sw | Where-Object { $w = $_; @($Field | Where-Object { $null -eq $w.$_ }).Count -eq 0 })
+                if (@($known | Where-Object $Has).Count -gt 0) { return $true }
+                if ($known.Count -lt $sw.Count) { return $null }
+                return $false
+            }
+            # $lacking: the workspaces known to lack it, and how many could not be read for it.
+            $lacking = {
+                param([string[]] $Field, [scriptblock] $Has)
+                $known = @($sw | Where-Object { $w = $_; @($Field | Where-Object { $null -eq $w.$_ }).Count -eq 0 })
+                # $with, never $has: PowerShell variables ignore case, and that would overwrite the parameter.
+                $with = @($known | Where-Object $Has)
+                @{ rows = @($known | Where-Object { $_ -notin $with }); unread = $sw.Count - $known.Count }
+            }
+            # Sets a "how many workspaces lack it" fact: the count when one is known to, zero when all were read and
+            # none does, unknown when none is known to and some were not read.
+            $every = {
+                param([string] $Fact, [string[]] $Field, [scriptblock] $Has, [scriptblock] $Detail)
+                $l = & $lacking $Field $Has
+                $facts[$Fact] = $(if ($l.rows.Count -gt 0) { $l.rows.Count } elseif ($l.unread -gt 0) { $null } else { 0 })
+                $affected[$Fact] = @($l.rows | ForEach-Object { [ordered]@{ name = [string]$_.Workspace; detail = [string](& $Detail $_) } })
+            }
+            $pairs = { param([string] $Text) $map = [ordered]@{}; foreach ($p in @(([string]$Text) -split ';\s*' | Where-Object { $_ -match '=' })) { $k, $val = $p -split '=', 2; $map[$k.Trim()] = $val.Trim() }; $map }
+            $substantive = @('Scheduled', 'NRT', 'MicrosoftSecurityIncidentCreation')
+
+            # AZ-039: detection rules beyond Fusion, which is on by default and detects little by itself.
+            $facts.sentinelDetectionRules = & $one @('RulesEnabled', 'RuleKinds') { [int]$_.RulesEnabled -gt 0 -and @(([string]$_.RuleKinds) -split ',\s*' | Where-Object { $_ -in $substantive }).Count -gt 0 }
+            $affected.sentinelDetectionRules = @($sw | Where-Object { $null -ne $_.RulesEnabled } | ForEach-Object { [ordered]@{ name = [string]$_.Workspace; detail = "$([int]$_.RulesEnabled) rule(s) on$(if ([string]$_.RuleKinds) { ": $([string]$_.RuleKinds)" })" } })
+            # AZ-040 and AZ-041: an automation rule that is on, and one that runs a playbook that is on.
+            $facts.sentinelAutomationRule = & $one @('AutomationActive') { [int]$_.AutomationActive -ge 1 }
+            $withPlaybooks = @($sw | Where-Object { $null -ne $_.PlaybookRules })
+            $facts.sentinelPlaybookRules = $(if (@($withPlaybooks | Where-Object { [int]$_.PlaybookRules -ge 1 }).Count -gt 0 -or $withPlaybooks.Count -eq $sw.Count) { [int](@($withPlaybooks | ForEach-Object { [int]$_.PlaybookRules } | Measure-Object -Sum).Sum) } else { $null })
+            $offKnown = @($withPlaybooks | Where-Object { $null -ne $_.PlaybooksOff })
+            $facts.sentinelPlaybooksOff = $(if (@($offKnown | Where-Object { [int]$_.PlaybooksOff -ge 1 }).Count -gt 0 -or $offKnown.Count -eq $sw.Count) { [int](@($offKnown | ForEach-Object { [int]$_.PlaybooksOff } | Measure-Object -Sum).Sum) } else { $null })
+            $affected.sentinelPlaybooksOff = @($offKnown | Where-Object { [int]$_.PlaybooksOff -ge 1 } | ForEach-Object { [ordered]@{ name = [string]$_.Workspace; detail = "$([int]$_.PlaybooksOff) playbook(s) an automation rule runs are turned off" } })
+            # AZ-042: behaviour analytics on, with something to analyse, in every workspace.
+            & $every 'sentinelWithoutUeba' @('Ueba') { [string]$_.Ueba -eq 'on' -and [string]$_.UebaSources } { $(if ([string]$_.Ueba -eq 'on') { 'on, with no data source chosen' } else { 'off' }) }
+            # AZ-043: threat intelligence indicators in a workspace.
+            $facts.sentinelThreatIntel = & $one @('ThreatIndicators') { [int]$_.ThreatIndicators -gt 0 }
+            # AZ-044: Sentinel's own health and audit events are kept.
+            $facts.sentinelHealthLogs = & $one @('HealthLogs') { [string]$_.HealthLogs -eq 'on' }
+            # AZ-045: how long each workspace keeps security logs to hand, and in total.
+            & $every 'sentinelShortRetention' @('RetentionDays', 'TableRetention') {
+                [int]$_.RetentionDays -ge [int]$t.sentinelInteractiveDays -and @((& $pairs $_.TableRetention).get_Values() | Where-Object { [int]$_ -lt [int]$t.sentinelTotalDays }).Count -eq 0
+            } {
+                $short = & $pairs $_.TableRetention
+                $names = @($short.get_Keys() | Where-Object { [int]$short[$_] -lt [int]$t.sentinelTotalDays } | ForEach-Object { "$_ $($short[$_]) days" })
+                (@($(if ([int]$_.RetentionDays -lt [int]$t.sentinelInteractiveDays) { "to hand for $([int]$_.RetentionDays) days" }), $(if ($names.Count) { "kept in total: $($names -join ', ')" })) | Where-Object { $_ }) -join '; '
+            }
+            # AZ-046 and AZ-047: a watchlist, and hunting in use.
+            $facts.sentinelWatchlist = & $one @('Watchlists') { [int]$_.Watchlists -ge 1 }
+            $facts.sentinelHunting = & $one @('HuntingQueries', 'Bookmarks') { [int]$_.HuntingQueries -ge 1 -or [int]$_.Bookmarks -ge 1 }
+            # AZ-048 and AZ-049: every workspace has a workbook, and a data collection rule that sends to it.
+            & $every 'sentinelWithoutWorkbook' @('Workbooks') { [int]$_.Workbooks -ge 1 } { 'no workbook' }
+            & $every 'sentinelWithoutCollectionRule' @('CollectionRules') { [int]$_.CollectionRules -ge 1 } { 'no data collection rule sends to it' }
+            # AZ-050: the tables detection reads are on the Analytics plan.
+            & $every 'sentinelOffPlanTables' @('TablePlans') { @((& $pairs $_.TablePlans).get_Values() | Where-Object { $_ -ne 'Analytics' }).Count -eq 0 } { $plans = & $pairs $_.TablePlans; @($plans.get_Keys() | Where-Object { $plans[$_] -ne 'Analytics' } | ForEach-Object { "$_ on $($plans[$_])" }) -join ', ' }
+            $unread = @($sw | Where-Object { [string]$_.NotRead })
+            if ($unread.Count -gt 0) { foreach ($id in $sentinelChecks) { $notes[$id] = "Not everything could be read in $($unread.Count) of $($sw.Count) workspace(s): $(@($unread | ForEach-Object { "$([string]$_.Workspace) ($([string]$_.NotRead))" }) -join '; ')." } }
+        }
     }
 
     # AZ-028: Entra Domain Services without NTLMv1, TLS 1.0, RC4 or NTLM password hashes it does not need.
