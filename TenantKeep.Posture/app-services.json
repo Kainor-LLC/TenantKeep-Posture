@@ -1,6 +1,6 @@
 {
   "displayName": "TenantKeep Posture for Azure, Teams and Power Platform",
-  "clientId": "",
+  "clientId": "a686cc9b-9c27-46ac-8138-055836506946",
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "https://tenantkeep.app/consent/",
