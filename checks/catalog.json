@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Thirty-seven new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Forty-three new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -48,7 +48,13 @@
         "ID-036": "New: whether group owners may consent to apps for their groups.",
         "ID-037": "New: whether admin consent requests notify a reviewer and expire.",
         "ID-038": "New: the smart lockout threshold and duration.",
-        "ID-039": "New: whether guests may own Microsoft 365 groups."
+        "ID-039": "New: whether guests may own Microsoft 365 groups.",
+        "EM-034": "New: whether the anti-spam policies that can apply use Microsoft's recommended thresholds and actions.",
+        "EM-035": "New: whether spoofed mail is marked and moved out of the inbox.",
+        "EM-036": "New: whether impersonation detections are quarantined, and whether trusted senders or domains skip them.",
+        "EM-037": "New: whether Safe Attachments holds back a file it cannot clear, and Safe Documents allows no click-through.",
+        "EM-038": "New: mail flow rules that tell Defender to skip Safe Attachments or Safe Links. Needs an Exchange collection made with this version or later.",
+        "EM-039": "New: individual senders on an anti-spam policy's allowed list."
       }
     },
     {

@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 319 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 325 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,18 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Six more checks on mail protection (2026-11-23, catalog 2026.11.3), from the settings Microsoft's ORCA tool tests
+  and Maester carries, all in the Exchange evidence already collected. Anti-spam policies quarantine what Microsoft
+  recommends: bulk threshold, actions for spam, bulk, high-confidence spam and phishing, quarantine kept 30 days,
+  safety tips, the advanced spam filter options off (EM-034). Spoofed mail is marked and moved out of the inbox
+  (EM-035). Impersonation detections are quarantined, with no trusted senders or domains (EM-036). Safe Attachments
+  holds back what it cannot clear, and Safe Documents allows no click-through (EM-037). No mail flow rule sets the
+  header that skips Safe Attachments or Safe Links (EM-038; needs an Exchange collection made with this version,
+  which saves the header a rule sets). No individual senders on the anti-spam allowed list (EM-039). A policy is
+  judged only when it can apply: where a preset security policy covers everyone, the default and custom policies
+  reach nobody and are left alone, and a preset policy's own values are never second-guessed. EM-030 now also
+  fails a Safe Links policy that leaves mail between colleagues unchecked. 26 more Maester tests and 10 more Secure
+  Score actions now name a check.
 - Eleven more checks from settings the run already collects (2026-11-23, catalog 2026.11.3), each one a Maester
   or Zero Trust Assessment test that had no check. Several have no switch in any admin center, and the
   remediation gives the Microsoft Graph PowerShell line. Entra: only administrators can create tenants (ID-030)

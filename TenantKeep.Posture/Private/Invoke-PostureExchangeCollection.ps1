@@ -34,7 +34,7 @@ function Invoke-PostureExchangeCollection {
         ('DKIM', 'Get-DkimSigningConfig', 'exo-02-dkim', $false, @('Domain', 'Enabled', 'Status', 'Selector1CNAME', 'Selector2CNAME', 'LastChecked', 'RotateOnDate')),
         ('Inbound connectors', 'Get-InboundConnector', 'exo-03-inbound-connectors', $false, @('Name', 'Enabled', 'ConnectorType', 'ConnectorSource', 'RestrictDomainsToIPAddresses', 'RestrictDomainsToCertificate', 'TreatMessagesAsInternal', 'EFSkipLastIP', 'EFSkipIPs', 'EFUsers', 'SenderIPAddresses', 'SenderDomains', 'TlsSenderCertificateName', 'WhenChanged')),
         ('Outbound connectors', 'Get-OutboundConnector', 'exo-03-outbound-connectors', $false, @('Name', 'Enabled', 'ConnectorType', 'UseMXRecord', 'SmartHosts', 'RecipientDomains', 'TlsSettings', 'TlsDomain', 'RouteAllMessagesViaOnPremises', 'WhenChanged')),
-        ('Transport rules', 'Get-TransportRule', 'exo-03-transport-rules', $false, @('Name', 'State', 'Priority', 'Mode', 'SetSCL', 'SenderIpRanges', 'FromScope', 'SentToScope', 'HeaderContainsMessageHeader', 'Description', 'WhenChanged')),
+        ('Transport rules', 'Get-TransportRule', 'exo-03-transport-rules', $false, @('Name', 'State', 'Priority', 'Mode', 'SetSCL', 'SetHeaderName', 'SetHeaderValue', 'SenderIpRanges', 'FromScope', 'SentToScope', 'HeaderContainsMessageHeader', 'Description', 'WhenChanged')),
         ('EOP content filter', 'Get-HostedContentFilterPolicy', 'exo-04-eop-content-filter', $false, $null),
         ('EOP connection filter', 'Get-HostedConnectionFilterPolicy', 'exo-04-eop-connection-filter', $false, $null),
         ('EOP anti-malware', 'Get-MalwareFilterPolicy', 'exo-04-eop-malware', $false, $null),

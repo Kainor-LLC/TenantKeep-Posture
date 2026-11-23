@@ -172,10 +172,14 @@
           "mdo_enabledomainstoprotect",
           "mdo_targeteddomainprotectionaction",
           "mdo_targetedusersprotection",
-          "mdo_targeteduserprotectionaction"
+          "mdo_targeteduserprotectionaction",
+          "mdo_enablemailboxintelligence"
         ],
         "zeroTrust": [
           "41033"
+        ],
+        "maester": [
+          "ORCA.221"
         ]
       },
       "attack": [
@@ -1353,7 +1357,8 @@
         "maester": [
           "ORCA.105",
           "ORCA.113",
-          "ORCA.156"
+          "ORCA.156",
+          "ORCA.179"
         ]
       },
       "attack": [
@@ -1495,6 +1500,325 @@
       },
       "attack": [
         "T1213.005"
+      ]
+    },
+    {
+      "id": "EM-034",
+      "domain": "email",
+      "title": "Anti-spam policies quarantine what Microsoft recommends",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {
+        "maxBulkThreshold": 6
+      },
+      "evidence": [
+        "exo-04-eop-content-filter.json",
+        "exo-04-preset-rules-eop.json"
+      ],
+      "pass": "facts.antiSpamSettingGaps == 0",
+      "affected": "facts.antiSpamSettingGaps",
+      "remediation": [
+        "The simplest fix is to assign the Standard preset security policy to everyone (EM-001): it sets every value below and keeps them current.",
+        "Otherwise, in the Defender portal open Email & collaboration, Policies & rules, Threat policies, Anti-spam, and edit each listed policy.",
+        "Bulk threshold 6 or lower and bulk marked as spam; spam and bulk to Junk or Quarantine; high-confidence spam and phishing to Quarantine; quarantine kept 30 days; safety tips on; the advanced spam filter options off."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "More junk lands in Junk or quarantine and less in the inbox. People release their own spam from quarantine if the quarantine policy lets them."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/recommended-settings-for-eop-and-office365#anti-spam-anti-malware-and-anti-phishing-protection-in-eop",
+      "deepLink": "https://security.microsoft.com/antispam",
+      "narrative": "The default anti-spam policy ships looser than Microsoft's own recommendation: a bulk threshold of 7, and high-confidence spam sent to Junk where one click opens it. Each value here is one where the Standard preset is stricter than the default, so a policy that still has the default lets through what Microsoft itself would hold.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mdo_bulkspamaction",
+          "mdo_bulkthreshold",
+          "mdo_highconfidencespamaction",
+          "mdo_phisspamacation",
+          "mdo_quarantineretentionperiod",
+          "mdo_spamaction"
+        ],
+        "maester": [
+          "ORCA.100",
+          "ORCA.101",
+          "ORCA.102",
+          "ORCA.106",
+          "ORCA.121",
+          "ORCA.139",
+          "ORCA.140",
+          "ORCA.141",
+          "ORCA.142",
+          "ORCA.143"
+        ]
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-035",
+      "domain": "email",
+      "title": "Spoofed mail is marked and moved out of the inbox",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-antiphish.json",
+        "exo-04-preset-rules-eop.json"
+      ],
+      "pass": "facts.antiPhishSpoofActionGaps == 0",
+      "affected": "facts.antiPhishSpoofActionGaps",
+      "remediation": [
+        "In the Defender portal open Email & collaboration, Policies & rules, Threat policies, Anti-phishing, and edit each listed policy.",
+        "Under Actions, set the action for a message detected as spoof to Move to Junk or Quarantine.",
+        "Under Safety tips & indicators, turn on the question mark for unauthenticated senders."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A sender that fails authentication shows a question mark in Outlook, and mail judged spoofed goes to Junk or quarantine."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/anti-phishing-policies-about#spoof-settings",
+      "deepLink": "https://security.microsoft.com/antiphishing",
+      "narrative": "Spoof intelligence decides that a message is not from who it claims. This check is about what happens next: a policy that detects the spoof and delivers it anyway, with nothing in Outlook to say so, has done the work and thrown it away.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "ORCA.111",
+          "ORCA.112"
+        ]
+      },
+      "attack": [
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-036",
+      "domain": "email",
+      "title": "Impersonation detections are quarantined, with no trusted senders",
+      "severityDefault": "Medium",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {
+        "minPhishThresholdLevel": 3
+      },
+      "evidence": [
+        "exo-04-antiphish.json",
+        "exo-04-preset-rules-mdo.json"
+      ],
+      "pass": "facts.antiPhishImpersonationActionGaps == 0",
+      "affected": "facts.antiPhishImpersonationActionGaps",
+      "remediation": [
+        "The simplest fix is to assign the Standard preset security policy to everyone (EM-002).",
+        "Otherwise, in the Defender portal open Anti-phishing and edit each listed policy: phishing email threshold 3 (More aggressive) or higher.",
+        "Under Actions, quarantine a message that impersonates a protected person or domain, and move or quarantine one mailbox intelligence flags.",
+        "Empty the trusted senders and domains unless each entry has an owner and a reason."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A message that pretends to be an executive or a look-alike of your domain goes to quarantine and not to Junk."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/recommended-settings-for-eop-and-office365#impersonation-settings-in-anti-phishing-policies-in-microsoft-defender-for-office-365",
+      "deepLink": "https://security.microsoft.com/antiphishing",
+      "narrative": "Impersonation protection finds the message that claims to be the finance director from a look-alike address. Left at its defaults the policy takes no action on it, and a trusted sender or domain entry tells it never to look. The detections only count when the policy does something with them.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "secureScore": [
+          "mdo_mailboxintelligenceprotection",
+          "mdo_mailboxintelligenceprotectionaction",
+          "mdo_phishthresholdlevel"
+        ],
+        "maester": [
+          "ORCA.115",
+          "ORCA.116",
+          "ORCA.220",
+          "ORCA.222",
+          "ORCA.223",
+          "ORCA.228",
+          "ORCA.229"
+        ]
+      },
+      "attack": [
+        "T1657",
+        "T1684.001"
+      ]
+    },
+    {
+      "id": "EM-037",
+      "domain": "email",
+      "title": "Safe Attachments holds back what it cannot clear",
+      "severityDefault": "Medium",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [
+        "email:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "exo-05-mdo-safeattachments.json",
+        "exo-05-mdo-global.json"
+      ],
+      "pass": "facts.safeAttachmentGaps == 0",
+      "affected": "facts.safeAttachmentGaps",
+      "remediation": [
+        "In the Defender portal open Email & collaboration, Policies & rules, Threat policies, Safe Attachments, and edit each listed policy.",
+        "Set the unknown malware response to Block, or to Dynamic Delivery if people need the message body at once.",
+        "Under Global settings, turn off the option that lets people click through Protected View when Safe Documents flags a file."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A message with an attachment that is still being checked arrives a little later, or arrives with the attachment following."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/safe-attachments-about#safe-attachments-policy-settings",
+      "deepLink": "https://security.microsoft.com/safeattachmentv2",
+      "narrative": "Safe Attachments opens an attachment in a sandbox before the person does. With the response set to Off or Monitor it watches the malware being delivered and writes a report. Block and Dynamic Delivery are the two settings where the file a sandbox flagged never reaches the mailbox.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "ORCA.124",
+          "ORCA.234"
+        ]
+      },
+      "attack": [
+        "T1566.001"
+      ]
+    },
+    {
+      "id": "EM-038",
+      "domain": "email",
+      "title": "No mail flow rule skips Safe Attachments or Safe Links",
+      "severityDefault": "High",
+      "license": [
+        "MDO1",
+        "MDO2"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-03-transport-rules.json"
+      ],
+      "pass": "facts.safeScanBypassRules == 0",
+      "affected": "facts.safeScanBypassRules",
+      "remediation": [
+        "In the Exchange admin center open Mail flow, Rules, and open each listed rule.",
+        "Remove the action that sets the header X-MS-Exchange-Organization-SkipSafeAttachmentProcessing or X-MS-Exchange-Organization-SkipSafeLinksProcessing.",
+        "A phishing simulation or a security mailbox that needs unfiltered mail belongs in the advanced delivery policy, which is made for it."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users, apart from mail the rule used to wave through now being checked."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/advanced-delivery-policy-configure",
+      "deepLink": "https://admin.exchange.microsoft.com/#/transportrules",
+      "narrative": "A mail flow rule can set a header that tells Defender not to open the attachments or check the links of the messages it matches. It is usually written for one supplier or one scanner and scoped by a condition an attacker can meet, such as a sender domain. Whatever matches arrives unchecked.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "ORCA.189",
+          "ORCA.189.2"
+        ]
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
+      ]
+    },
+    {
+      "id": "EM-039",
+      "domain": "email",
+      "title": "No individual senders on the anti-spam allowed list",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "exo-04-eop-content-filter.json"
+      ],
+      "pass": "facts.antiSpamAllowedSenders == 0",
+      "affected": "facts.antiSpamAllowedSenders",
+      "remediation": [
+        "In the Defender portal open Anti-spam and edit each listed policy: remove the addresses under Allowed senders.",
+        "For mail that is wrongly filtered, report it to Microsoft from the Submissions page and add a time-limited entry to the Tenant Allow/Block List.",
+        "If an address has to stay, write down who asked and review the list twice a year."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "low",
+        "text": "Mail from an address that was on the list is filtered like any other. A real message caught by mistake is released and reported."
+      },
+      "learn": "https://learn.microsoft.com/defender-office-365/create-safe-sender-lists-in-office-365",
+      "deepLink": "https://security.microsoft.com/antispam",
+      "narrative": "An allowed sender skips spam filtering and the checks that the message really came from that address. Anyone who writes that address in the From line gets the same pass. One address is a smaller hole than a whole domain (EM-029), and it is still the entry attackers look for.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "ORCA.109"
+        ]
+      },
+      "attack": [
+        "T1566.001",
+        "T1566.002"
       ]
     }
   ]

@@ -438,7 +438,14 @@
     "guestsCanOwnGroups": "Guests can own Microsoft 365 groups",
     "reportSuspiciousActivityOn": "Report suspicious activity is on for everyone",
     "reportSuspiciousActivityState": "Report suspicious activity, setting",
-    "authenticatorLocationInformation": "Authenticator shows the sign-in location to everyone"
+    "authenticatorLocationInformation": "Authenticator shows the sign-in location to everyone",
+    "antiSpamPoliciesJudged": "Anti-spam policies judged",
+    "antiSpamSettingGaps": "Anti-spam policies below Microsoft's recommended settings",
+    "antiSpamAllowedSenders": "Senders on an anti-spam allowed list",
+    "antiPhishSpoofActionGaps": "Anti-phishing policies that let spoofed mail through unmarked",
+    "antiPhishImpersonationActionGaps": "Anti-phishing policies that do not act on impersonation",
+    "safeAttachmentGaps": "Safe Attachments settings that let a flagged file through",
+    "safeScanBypassRules": "Mail flow rules that skip Safe Attachments or Safe Links"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -513,6 +520,8 @@
     "maxAppCertificateDays": "Certificate, longest lifetime allowed (days)",
     "maxConsentRequestDays": "Consent request, longest it may stay open (days)",
     "maxLockoutThreshold": "Failed sign-ins before lockout, at most",
-    "minLockoutSeconds": "Lockout length, at least (seconds)"
+    "minLockoutSeconds": "Lockout length, at least (seconds)",
+    "maxBulkThreshold": "Bulk complaint level, highest allowed",
+    "minPhishThresholdLevel": "Phishing threshold, lowest allowed"
   }
 }

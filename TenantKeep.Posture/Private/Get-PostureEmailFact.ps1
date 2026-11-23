@@ -157,18 +157,18 @@ function Get-PostureEmailFact {
         $affected.antiSpamAllowedSenderDomains = $allowedDomains
     }
 
-    # EM-030: Safe Links that checks a link before the message arrives, records clicks and lets nobody click through a
-    # warning. The built-in protection policy applies only to people no other policy covers, so it is judged only
+    # EM-030: Safe Links that checks a link before the message arrives, records clicks, lets nobody click through a
+    # warning and covers mail between colleagues. The built-in protection policy applies only to people no other policy covers, so it is judged only
     # when it is the one policy there is.
     if ($null -eq $sl) { & $missing @('EM-030') 'exo-05-mdo-safelinks' }
     else {
         $slAll = @(& $rows $sl)
         $slOwn = @($slAll | Where-Object { (& $v $_ 'IsBuiltInProtection') -ne $true })
         $slJudged = @($(if ($slOwn.Count -gt 0) { $slOwn } else { $slAll }))
-        $slGaps = @($slJudged | Where-Object { (& $v $_ 'ScanUrls') -ne $true -or (& $v $_ 'DeliverMessageAfterScan') -ne $true -or (& $v $_ 'TrackClicks') -ne $true -or (& $v $_ 'AllowClickThrough') -ne $false })
+        $slGaps = @($slJudged | Where-Object { (& $v $_ 'ScanUrls') -ne $true -or (& $v $_ 'DeliverMessageAfterScan') -ne $true -or (& $v $_ 'TrackClicks') -ne $true -or (& $v $_ 'AllowClickThrough') -ne $false -or (& $v $_ 'EnableForInternalSenders') -eq $false })
         $facts.safeLinksPoliciesJudged = $slJudged.Count
         $facts.safeLinksPoliciesWithGaps = $slGaps.Count
-        $affected.safeLinksPoliciesWithGaps = @($slGaps | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = "checks links $(& $v $_ 'ScanUrls'), holds the message until checked $(& $v $_ 'DeliverMessageAfterScan'), records clicks $(& $v $_ 'TrackClicks'), click-through allowed $(& $v $_ 'AllowClickThrough')" } })
+        $affected.safeLinksPoliciesWithGaps = @($slGaps | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = "checks links $(& $v $_ 'ScanUrls'), holds the message until checked $(& $v $_ 'DeliverMessageAfterScan'), records clicks $(& $v $_ 'TrackClicks'), click-through allowed $(& $v $_ 'AllowClickThrough'), mail between colleagues checked $(& $v $_ 'EnableForInternalSenders')" } })
     }
 
     # EM-032: the safety tips an anti-phishing policy shows in the message: first contact, a look-alike sender or
@@ -434,6 +434,136 @@ function Get-PostureEmailFact {
         # With a group that holds a role unopened, some of the accounts listed may be administrators.
         $roleGap = Get-PostureRoleHolderGap -Holder $roleHolders
         if ($roleGap -and $known -and $psCount.n -gt 0 -and -not $notes.ContainsKey('EM-025')) { $notes['EM-025'] = "Some of the accounts listed may be administrators: $roleGap." }
+    }
+
+    # ---------- Mail protection detail (EM-034 to EM-039) ----------
+    # A policy is judged only when it can apply. A preset security policy carries Microsoft's own values, and where
+    # the Standard or Strict preset covers everyone no other anti-spam or anti-phishing policy ever applies: then there
+    # is nothing left to judge and the check passes on the preset. Whether a preset covers everyone comes from the
+    # preset rules, so each check that leans on it names that file. A custom policy is judged whether or not its
+    # rule is on: the rules are not collected, and a policy held ready with weak settings is worth knowing about.
+    $isPreset = { param($p) [string](& $v $p 'RecommendedPolicyType') -in @('Standard', 'Strict') -or [string](& $v $p 'Name') -match '(?i)^(Standard|Strict) Preset Security Policy' }
+    $nameOf = { param($p) $n = [string](& $v $p 'Name'); if ($n) { $n } else { [string](& $v $p 'Identity') } }
+    $carries = { param($x, [string] $Name) if ($x -is [System.Collections.IDictionary]) { $x.Contains($Name) } else { $null -ne $x.PSObject.Properties[$Name] } }
+    $again = 'Collect Exchange again (Resume-PostureRun -Collector Exchange).'
+
+    # EM-034: what the anti-spam policies do with what they catch. EM-039: individual senders they let through.
+    if ($null -eq $cf) { & $missing @('EM-034', 'EM-039') 'exo-04-eop-content-filter' }
+    else {
+        if (-not $facts.Contains('presetEopAllUsers')) { & $missing @('EM-034') 'exo-04-preset-rules-eop' }
+        else {
+            $spam = @($(if ($facts.presetEopAllUsers) { @() } else { @(& $rows $cf | Where-Object { -not (& $isPreset $_) }) }))
+            if ($spam.Count -gt 0 -and @($spam | Where-Object { [string](& $v $_ 'SpamAction') }).Count -eq 0) { $notEvaluated['EM-034'] = "exo-04-eop-content-filter.json does not say what each policy does with spam. $again" }
+            else {
+                $maxBulk = [int]$(if ($t.ContainsKey('maxBulkThreshold')) { $t.maxBulkThreshold } else { 6 })
+                $asf = 'IncreaseScoreWithImageLinks', 'IncreaseScoreWithNumericIps', 'IncreaseScoreWithRedirectToOtherPort', 'IncreaseScoreWithBizOrInfoUrls', 'MarkAsSpamEmptyMessages', 'MarkAsSpamJavaScriptInHtml', 'MarkAsSpamFramesInHtml', 'MarkAsSpamObjectTagsInHtml', 'MarkAsSpamEmbedTagsInHtml', 'MarkAsSpamFormTagsInHtml', 'MarkAsSpamWebBugsInHtml', 'MarkAsSpamSensitiveWordList', 'MarkAsSpamFromAddressAuthFail', 'MarkAsSpamNdrBackscatter', 'MarkAsSpamSpfRecordHardFail'
+                $wanted = @(
+                    @{ setting = 'SpamAction'; what = 'spam'; ok = @('MoveToJmf', 'Quarantine') }, @{ setting = 'BulkSpamAction'; what = 'bulk mail'; ok = @('MoveToJmf', 'Quarantine') },
+                    @{ setting = 'HighConfidenceSpamAction'; what = 'high-confidence spam'; ok = @('Quarantine') }, @{ setting = 'PhishSpamAction'; what = 'phishing'; ok = @('Quarantine') }
+                )
+                $spamGaps = foreach ($p in $spam) {
+                    $issues = [System.Collections.Generic.List[string]]::new()
+                    $bulk = & $v $p 'BulkThreshold'
+                    if ($null -ne $bulk -and [int]$bulk -gt $maxBulk) { $issues.Add("bulk threshold $bulk (limit $maxBulk)") }
+                    $markBulk = [string](& $v $p 'MarkAsSpamBulkMail')
+                    if ($markBulk -and $markBulk -ne 'On') { $issues.Add('bulk mail is not marked as spam') }
+                    foreach ($w in $wanted) { $act = [string](& $v $p $w.setting); if ($act -and $act -notin $w.ok) { $issues.Add("$($w.what): $act") } }
+                    $keep = & $v $p 'QuarantineRetentionPeriod'
+                    if ($null -ne $keep -and [int]$keep -lt 30) { $issues.Add("quarantine kept $keep days") }
+                    if ((& $v $p 'InlineSafetyTipsEnabled') -eq $false) { $issues.Add('safety tips off') }
+                    $asfOn = @($asf | Where-Object { [string](& $v $p $_) -eq 'On' })
+                    if ($asfOn.Count -gt 0) { $issues.Add("$($asfOn.Count) advanced spam filter option(s) on") }
+                    if ($issues.Count -gt 0) { [ordered]@{ name = (& $nameOf $p); detail = ($issues -join '; ') } }
+                }
+                $facts.antiSpamPoliciesJudged = $spam.Count
+                $facts.antiSpamSettingGaps = @($spamGaps).Count
+                $affected.antiSpamSettingGaps = @($spamGaps)
+            }
+        }
+        $allowedSenders = @(& $rows $cf | ForEach-Object {
+                $policy = $_
+                @(& $v $policy 'AllowedSenders') | Where-Object { $_ } | ForEach-Object {
+                    # An address is saved as text, or as an object with the address in it, depending on the module's version (verify).
+                    $address = $(if ($_ -is [string]) { $_ } else { $inner = & $v $_ 'Sender.Address'; if (-not $inner) { $inner = & $v $_ 'Sender' }; if (-not $inner) { $inner = & $v $_ 'Address' }; if ($inner) { $inner } else { [string]$_ } })
+                    [ordered]@{ name = [string]$address; detail = "allowed in $(& $nameOf $policy)" }
+                }
+            })
+        $facts.antiSpamAllowedSenders = $allowedSenders.Count
+        $affected.antiSpamAllowedSenders = $allowedSenders
+    }
+
+    # EM-035 (every tenant) and EM-036 (Defender for Office 365): what the anti-phishing policies do.
+    if ($null -eq $ap) { & $missing @('EM-035', 'EM-036') 'exo-04-antiphish' }
+    else {
+        $own = @(& $rows $ap | Where-Object { (& $v $_ 'Enabled') -ne $false -and -not (& $isPreset $_) })
+        if (-not $facts.Contains('presetEopAllUsers')) { & $missing @('EM-035') 'exo-04-preset-rules-eop' }
+        else {
+            $spoof = @($(if ($facts.presetEopAllUsers) { @() } else { $own }))
+            if ($spoof.Count -gt 0 -and @($spoof | Where-Object { [string](& $v $_ 'AuthenticationFailAction') }).Count -eq 0) { $notEvaluated['EM-035'] = "exo-04-antiphish.json does not say what each policy does with spoofed mail. $again" }
+            else {
+                $spoofGaps = foreach ($p in $spoof) {
+                    $issues = [System.Collections.Generic.List[string]]::new()
+                    if ((& $v $p 'EnableUnauthenticatedSender') -eq $false) { $issues.Add('no question mark on senders that fail authentication') }
+                    $act = [string](& $v $p 'AuthenticationFailAction')
+                    if ($act -and $act -notin @('MoveToJmf', 'Quarantine')) { $issues.Add("spoofed mail: $act") }
+                    if ($issues.Count -gt 0) { [ordered]@{ name = (& $nameOf $p); detail = ($issues -join '; ') } }
+                }
+                $facts.antiPhishSpoofActionGaps = @($spoofGaps).Count
+                $affected.antiPhishSpoofActionGaps = @($spoofGaps)
+            }
+        }
+        if (-not $facts.Contains('presetMdoAllUsers')) { & $missing @('EM-036') 'exo-04-preset-rules-mdo' }
+        else {
+            $imp = @($(if ($facts.presetMdoAllUsers) { @() } else { $own }))
+            if ($imp.Count -gt 0 -and @($imp | Where-Object { $null -ne (& $v $_ 'PhishThresholdLevel') }).Count -eq 0) { $notEvaluated['EM-036'] = "exo-04-antiphish.json does not carry the Defender for Office 365 settings of the policies. $again" }
+            else {
+                $minLevel = [int]$(if ($t.ContainsKey('minPhishThresholdLevel')) { $t.minPhishThresholdLevel } else { 3 })
+                $impGaps2 = foreach ($p in $imp) {
+                    $issues = [System.Collections.Generic.List[string]]::new()
+                    $level = & $v $p 'PhishThresholdLevel'
+                    if ($null -ne $level -and [int]$level -lt $minLevel) { $issues.Add("phishing threshold $level (at least $minLevel)") }
+                    if ((& $v $p 'EnableMailboxIntelligenceProtection') -eq $false) { $issues.Add('mailbox intelligence does not act on impersonation') }
+                    else { $act = [string](& $v $p 'MailboxIntelligenceProtectionAction'); if ($act -and $act -notin @('MoveToJmf', 'Quarantine')) { $issues.Add("mailbox intelligence: $act") } }
+                    $act = [string](& $v $p 'TargetedUserProtectionAction')
+                    if ((& $v $p 'EnableTargetedUserProtection') -eq $true -and $act -and $act -ne 'Quarantine') { $issues.Add("impersonated people: $act") }
+                    $act = [string](& $v $p 'TargetedDomainProtectionAction')
+                    if (((& $v $p 'EnableTargetedDomainsProtection') -eq $true -or (& $v $p 'EnableOrganizationDomainsProtection') -eq $true) -and $act -and $act -ne 'Quarantine') { $issues.Add("impersonated domains: $act") }
+                    $trustedSenders = @(& $v $p 'ExcludedSenders' | Where-Object { $_ }).Count; $trustedDomains = @(& $v $p 'ExcludedDomains' | Where-Object { $_ }).Count
+                    if ($trustedSenders -gt 0) { $issues.Add("$trustedSenders trusted sender(s) skip impersonation protection") }
+                    if ($trustedDomains -gt 0) { $issues.Add("$trustedDomains trusted domain(s) skip impersonation protection") }
+                    if ($issues.Count -gt 0) { [ordered]@{ name = (& $nameOf $p); detail = ($issues -join '; ') } }
+                }
+                $facts.antiPhishImpersonationActionGaps = @($impGaps2).Count
+                $affected.antiPhishImpersonationActionGaps = @($impGaps2)
+            }
+        }
+    }
+
+    # EM-037: Safe Attachments that holds back what it cannot clear, and Safe Documents with no way past the warning.
+    # As with Safe Links, the built-in protection policy is judged only when it is the one policy there is.
+    if ($null -eq $sa) { & $missing @('EM-037') 'exo-05-mdo-safeattachments' }
+    elseif ($null -eq $g) { & $missing @('EM-037') 'exo-05-mdo-global' }
+    elseif (@(& $rows $sa).Count -eq 0) { $notEvaluated['EM-037'] = 'There is no Safe Attachments policy to judge. EM-005 comes first.' }
+    else {
+        $saAll = @(& $rows $sa); $saOwn = @($saAll | Where-Object { (& $v $_ 'IsBuiltInProtection') -ne $true })
+        $saGaps = [System.Collections.Generic.List[object]]::new()
+        foreach ($p in @($(if ($saOwn.Count -gt 0) { $saOwn } else { $saAll }))) {
+            if ((& $v $p 'Enable') -ne $true) { $saGaps.Add([ordered]@{ name = (& $nameOf $p); detail = 'the policy is off' }) }
+            elseif ([string](& $v $p 'Action') -notin @('Block', 'DynamicDelivery')) { $saGaps.Add([ordered]@{ name = (& $nameOf $p); detail = "an attachment it cannot clear: $([string](& $v $p 'Action'))" }) }
+        }
+        $global = @(& $rows $g | Select-Object -First 1)
+        if ($global.Count -gt 0 -and (& $v $global[0] 'EnableSafeDocs') -eq $true -and (& $v $global[0] 'AllowSafeDocsOpen') -eq $true) { $saGaps.Add([ordered]@{ name = 'Safe Documents'; detail = 'people can leave Protected View for a file Safe Documents flagged' }) }
+        $facts.safeAttachmentGaps = $saGaps.Count
+        $affected.safeAttachmentGaps = $saGaps.ToArray()
+    }
+
+    # EM-038: a transport rule that sets the header telling Defender to skip Safe Attachments or Safe Links.
+    if ($null -eq $tr) { & $missing @('EM-038') 'exo-03-transport-rules' }
+    elseif (@(& $rows $tr).Count -gt 0 -and @(& $rows $tr | Where-Object { & $carries $_ 'SetHeaderName' }).Count -eq 0) { $notEvaluated['EM-038'] = "exo-03-transport-rules.json was collected before TenantKeep read the headers a rule sets. $again" }
+    else {
+        $skips = @(& $rows $tr | Where-Object { [string](& $v $_ 'State') -eq 'Enabled' -and [string](& $v $_ 'SetHeaderName') -match '(?i)^X-MS-Exchange-Organization-Skip(SafeAttachment|SafeLinks)Processing$' })
+        $facts.safeScanBypassRules = $skips.Count
+        $affected.safeScanBypassRules = @($skips | ForEach-Object { [ordered]@{ name = [string](& $v $_ 'Name'); detail = "sets $([string](& $v $_ 'SetHeaderName'))" } })
     }
 
     return @{ available = $true; facts = $facts; affected = $affected; affectedCounts = $affectedCounts; notEvaluated = $notEvaluated; notes = $notes; evidence = @('exo-01-orgconfig.json', 'dns-01-mail-records.json') }

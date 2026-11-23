@@ -40,6 +40,7 @@ Describe 'Invoke-PostureCollection -Collector Exchange' {
             Join-Path $script:Folder 'exo-09-mailboxes.csv' | Should -Exist
             Join-Path $script:Folder 'dns-01-mail-records.csv' | Should -Exist
             $script:Result.Collectors | Should -Be @('Exchange')
+            @(& $script:Read 'exo-03-transport-rules')[0].Contains('SetHeaderName') | Should -BeTrue -Because 'EM-038 reads the header a rule sets, and a rule that sets none still says so'
         }
 
         It 'flattens single objects to one dictionary and lists to arrays of scalars' {

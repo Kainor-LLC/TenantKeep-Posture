@@ -670,101 +670,9 @@
       "reason": "planned",
       "note": "A Microsoft 365 groups setting for guests."
     },
-    "ORCA.100": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.101": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.102": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.106": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.109": {
-      "reason": "planned",
-      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
-    },
     "ORCA.110": {
       "reason": "planned",
       "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.111": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.112": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.115": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.116": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.121": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.124": {
-      "reason": "planned",
-      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
-    },
-    "ORCA.139": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.140": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.141": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.142": {
-      "reason": "planned",
-      "note": "A setting in the anti-spam policies, which are already collected."
-    },
-    "ORCA.143": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.179": {
-      "reason": "planned",
-      "note": "A Safe Links policy setting; the policies are already collected."
-    },
-    "ORCA.189": {
-      "reason": "planned",
-      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
-    },
-    "ORCA.189.2": {
-      "reason": "planned",
-      "note": "A Safe Links policy setting; the policies are already collected."
-    },
-    "ORCA.220": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.221": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.222": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.223": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
     },
     "ORCA.226": {
       "reason": "planned",
@@ -773,14 +681,6 @@
     "ORCA.227": {
       "reason": "planned",
       "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
-    },
-    "ORCA.228": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
-    },
-    "ORCA.229": {
-      "reason": "planned",
-      "note": "A setting in the anti-phishing policies, which are already collected."
     },
     "ORCA.230": {
       "reason": "planned",
@@ -793,10 +693,6 @@
     "ORCA.232": {
       "reason": "planned",
       "note": "Which domains each anti-spam and anti-malware policy applies to."
-    },
-    "ORCA.234": {
-      "reason": "planned",
-      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
     },
     "ORCA.239": {
       "reason": "planned",

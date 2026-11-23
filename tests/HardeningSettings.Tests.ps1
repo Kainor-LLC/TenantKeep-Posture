@@ -408,3 +408,107 @@ Describe 'Directory and sign-in settings (catalog 2026.11.3)' {
         (& $script:Judge 'auth' (& $policy 'enabled' '6f1c3a52-0000-4000-8000-000000000001'))['AU-002'].status | Should -Be 'fail' -Because 'the location is shown to a pilot group only'
     }
 }
+
+Describe 'Mail protection detail (catalog 2026.11.3)' {
+    BeforeAll {
+        # Policies as Exchange saves them whole. A key in $Set replaces the sound value.
+        $script:Spam = {
+            param([hashtable] $Set = @{})
+            $p = @{ Name = 'Default'; IsDefault = $true; RecommendedPolicyType = 'Custom'; ZapEnabled = $true; SpamZapEnabled = $true; PhishZapEnabled = $true; HighConfidencePhishQuarantineTag = 'AdminOnlyAccessPolicy'; AllowedSenderDomains = @(); AllowedSenders = @(); BulkThreshold = 6; MarkAsSpamBulkMail = 'On'; SpamAction = 'MoveToJmf'; BulkSpamAction = 'MoveToJmf'; HighConfidenceSpamAction = 'Quarantine'; PhishSpamAction = 'Quarantine'; QuarantineRetentionPeriod = 30; InlineSafetyTipsEnabled = $true; MarkAsSpamNdrBackscatter = 'Off' }
+            foreach ($k in $Set.Keys) { $p[$k] = $Set[$k] }
+            $p
+        }
+        $script:Phish = {
+            param([hashtable] $Set = @{})
+            $p = @{ Name = 'Office365 AntiPhish Default'; RecommendedPolicyType = 'Custom'; Enabled = $true; EnableSpoofIntelligence = $true; HonorDmarcPolicy = $true; EnableTargetedUserProtection = $true; TargetedUsersToProtect = @('x'); EnableOrganizationDomainsProtection = $true; EnableTargetedDomainsProtection = $false; EnableMailboxIntelligence = $true; EnableFirstContactSafetyTips = $true; EnableSimilarUsersSafetyTips = $true; EnableSimilarDomainsSafetyTips = $true; EnableUnusualCharactersSafetyTips = $true; EnableUnauthenticatedSender = $true; AuthenticationFailAction = 'MoveToJmf'; PhishThresholdLevel = 3; EnableMailboxIntelligenceProtection = $true; MailboxIntelligenceProtectionAction = 'Quarantine'; TargetedUserProtectionAction = 'Quarantine'; TargetedDomainProtectionAction = 'Quarantine'; ExcludedSenders = @(); ExcludedDomains = @() }
+            foreach ($k in $Set.Keys) { $p[$k] = $Set[$k] }
+            $p
+        }
+        # The preset's rule: for everyone, or for one pilot group.
+        $script:PresetRule = { param([bool] $Everyone) @(@{ Name = 'Standard Preset Security Policy'; State = 'Enabled'; Priority = 0; SentTo = @(); SentToMemberOf = @($(if (-not $Everyone) { 'pilot@contoso.example' })); RecipientDomainIs = @() }) }
+        $script:SpamFiles = { param($Policies, [bool] $PresetForAll = $false) @{ 'exo-04-eop-content-filter' = @($Policies); 'exo-04-preset-rules-eop' = (& $script:PresetRule $PresetForAll) } }
+        $script:PhishFiles = { param($Policies, [bool] $PresetForAll = $false) @{ 'exo-04-antiphish' = @($Policies); 'exo-04-preset-rules-eop' = (& $script:PresetRule $PresetForAll); 'exo-04-preset-rules-mdo' = (& $script:PresetRule $PresetForAll) } }
+    }
+
+    It 'EM-034 holds an anti-spam policy to the recommended values, and says which it misses' {
+        (& $script:Judge 'email' (& $script:SpamFiles (& $script:Spam)))['EM-034'].status | Should -Be 'pass'
+        $loose = & $script:Spam @{ BulkThreshold = 7; HighConfidenceSpamAction = 'MoveToJmf'; MarkAsSpamNdrBackscatter = 'On' }
+        $r = (& $script:Judge 'email' (& $script:SpamFiles $loose))['EM-034']
+        $r.status | Should -Be 'fail'
+        $r.affected[0].detail | Should -Be 'bulk threshold 7 (limit 6); high-confidence spam: MoveToJmf; 1 advanced spam filter option(s) on'
+    }
+
+    It 'EM-034 judges only a policy that can apply' {
+        $loose = & $script:Spam @{ BulkThreshold = 7 }
+        (& $script:Judge 'email' (& $script:SpamFiles $loose $true))['EM-034'].status | Should -Be 'pass' -Because 'where the preset covers everyone the default policy reaches nobody'
+        $preset = & $script:Spam @{ Name = 'Standard Preset Security Policy1700000000000'; RecommendedPolicyType = 'Standard'; IsDefault = $false; BulkThreshold = 9 }
+        $r = (& $script:Judge 'email' (& $script:SpamFiles @($preset, $loose)))['EM-034']
+        @($r.affected.name) | Should -Be @('Default') -Because 'a preset policy carries Microsoft''s values and is not second-guessed'
+    }
+
+    It 'EM-034 has no answer without the preset rules, or from a policy list with no actions in it' {
+        $files = & $script:SpamFiles (& $script:Spam); $files.Remove('exo-04-preset-rules-eop')
+        $r = (& $script:Judge 'email' $files)['EM-034']
+        $r.status | Should -Be 'notEvaluated'
+        $r.reason | Should -Match 'exo-04-preset-rules-eop'
+        (& $script:Judge 'email' (& $script:SpamFiles @(@{ Name = 'Default'; ZapEnabled = $true; SpamZapEnabled = $true; PhishZapEnabled = $true; HighConfidencePhishQuarantineTag = 'AdminOnlyAccessPolicy' })))['EM-034'].status | Should -Be 'notEvaluated'
+    }
+
+    It 'EM-039 names each sender on an allowed list, however the module wrote it' {
+        (& $script:Judge 'email' (& $script:SpamFiles (& $script:Spam)))['EM-039'].status | Should -Be 'pass'
+        $r = (& $script:Judge 'email' (& $script:SpamFiles (& $script:Spam @{ AllowedSenders = @('billing@partner.example', @{ Sender = @{ Address = 'news@other.example' } }) })))['EM-039']
+        $r.status | Should -Be 'fail'
+        @($r.affected.name) | Should -Be @('billing@partner.example', 'news@other.example')
+    }
+
+    It 'EM-035 fails a policy that lets spoofed mail through unmarked' {
+        (& $script:Judge 'email' (& $script:PhishFiles (& $script:Phish)))['EM-035'].status | Should -Be 'pass'
+        $r = (& $script:Judge 'email' (& $script:PhishFiles (& $script:Phish @{ EnableUnauthenticatedSender = $false; AuthenticationFailAction = 'NoAction' })))['EM-035']
+        $r.status | Should -Be 'fail'
+        $r.affected[0].detail | Should -Be 'no question mark on senders that fail authentication; spoofed mail: NoAction'
+    }
+
+    It 'EM-036 wants impersonation quarantined, a threshold of three and nobody trusted past it' {
+        (& $script:Judge 'email' (& $script:PhishFiles (& $script:Phish)))['EM-036'].status | Should -Be 'pass'
+        $weak = & $script:Phish @{ PhishThresholdLevel = 1; TargetedUserProtectionAction = 'NoAction'; ExcludedDomains = @('partner.example') }
+        $r = (& $script:Judge 'email' (& $script:PhishFiles $weak))['EM-036']
+        $r.status | Should -Be 'fail'
+        $r.affected[0].detail | Should -Be 'phishing threshold 1 (at least 3); impersonated people: NoAction; 1 trusted domain(s) skip impersonation protection'
+        (& $script:Judge 'email' (& $script:PhishFiles $weak $true))['EM-036'].status | Should -Be 'pass' -Because 'the preset covers everyone'
+        $files = & $script:PhishFiles $weak; $files.Remove('exo-04-preset-rules-mdo')
+        $half = & $script:Judge 'email' $files
+        $half['EM-036'].status | Should -Be 'notEvaluated'
+        $half['EM-035'].status | Should -Be 'pass' -Because 'the spoof settings lean on the EOP preset rules only'
+    }
+
+    It 'EM-037 wants Safe Attachments to hold a file back, and Safe Documents to allow no click-through' {
+        $files = { param([string] $Action = 'Block', [bool] $ClickThrough = $false, [bool] $BuiltIn = $false) @{ 'exo-05-mdo-safeattachments' = @(@{ Name = 'Attachments'; Enable = $true; Action = $Action; IsBuiltInProtection = $BuiltIn }); 'exo-05-mdo-global' = @{ EnableATPForSPOTeamsODB = $true; EnableSafeDocs = $true; AllowSafeDocsOpen = $ClickThrough } } }
+        (& $script:Judge 'email' (& $files))['EM-037'].status | Should -Be 'pass'
+        (& $script:Judge 'email' (& $files 'DynamicDelivery' $false $true))['EM-037'].status | Should -Be 'pass' -Because 'the built-in policy is what people get when it is the only one'
+        $r = (& $script:Judge 'email' (& $files 'Allow' $true))['EM-037']
+        $r.status | Should -Be 'fail'
+        @($r.affected | ForEach-Object { "$($_.name): $($_.detail)" }) | Should -Be @('Attachments: an attachment it cannot clear: Allow', 'Safe Documents: people can leave Protected View for a file Safe Documents flagged')
+        $none = (& $script:Judge 'email' @{ 'exo-05-mdo-safeattachments' = @(); 'exo-05-mdo-global' = @{ EnableSafeDocs = $false } })['EM-037']
+        $none.status | Should -Be 'notEvaluated'
+        $none.reason | Should -Match 'EM-005 comes first'
+    }
+
+    It 'EM-038 fails on an enabled rule that skips Safe Attachments or Safe Links' {
+        $rule = { param([string] $State = 'Enabled', $Header = 'X-MS-Exchange-Organization-SkipSafeLinksProcessing') @{ 'exo-03-transport-rules' = @(@{ Name = 'Scanner'; State = $State; Priority = 0; SetSCL = $null; SetHeaderName = $Header; SetHeaderValue = '1'; SenderIpRanges = @(); HeaderContainsMessageHeader = $null; FromScope = 'NotInOrganization' }) } }
+        $r = (& $script:Judge 'email' (& $rule))['EM-038']
+        $r.status | Should -Be 'fail'
+        $r.affected[0].detail | Should -Be 'sets X-MS-Exchange-Organization-SkipSafeLinksProcessing'
+        (& $script:Judge 'email' (& $rule 'Disabled'))['EM-038'].status | Should -Be 'pass'
+        (& $script:Judge 'email' (& $rule 'Enabled' 'X-Disclaimer'))['EM-038'].status | Should -Be 'pass'
+        $old = (& $script:Judge 'email' @{ 'exo-03-transport-rules' = @(@{ Name = 'Scanner'; State = 'Enabled'; SetSCL = $null; SenderIpRanges = @() }) })['EM-038']
+        $old.status | Should -Be 'notEvaluated'
+        $old.reason | Should -Match 'collected before TenantKeep read the headers a rule sets'
+    }
+
+    It 'EM-030 also fails a Safe Links policy that leaves mail between colleagues unchecked' {
+        $policy = (& $script:SafeLinks 'Standard' $true) + @{ EnableForInternalSenders = $false }
+        $r = (& $script:Judge 'email' @{ 'exo-05-mdo-safelinks' = @($policy) })['EM-030']
+        $r.status | Should -Be 'fail'
+        $r.affected[0].detail | Should -Match 'mail between colleagues checked False'
+    }
+}
