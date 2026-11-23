@@ -57,6 +57,7 @@ function Get-PosturePurviewFact {
     # Sensitivity labels (PV-002), container labels (PV-004)
     $labels = & $load 'pv-01-sensitivity-labels'; $policies = & $load 'pv-01-label-policies'
     if ($null -eq $labels -or $null -eq $policies) { & $missing @('PV-002', 'PV-004') $(if ($null -eq $labels) { 'pv-01-sensitivity-labels' } else { 'pv-01-label-policies' }) }
+    if ($null -eq $policies) { & $missing @('PV-009') 'pv-01-label-policies' }
     else {
         $l = @(& $rows $labels | Where-Object { $_.Disabled -ne $true }); $p = @(& $rows $policies | Where-Object { $_.Enabled -ne $false })
         $facts.sensitivityLabels = $l.Count
@@ -66,6 +67,20 @@ function Get-PosturePurviewFact {
         $settings = { param($x) (@(@(Get-PostureValue $x 'Settings') | ForEach-Object { [string]$_ }) -join ' ') }   # Settings is absent on older collections
         $facts.encryptingLabels = @($l | Where-Object { $_.EncryptionEnabled -eq $true -or (& $settings $_) -match '(?i)\[encryptionenabled, ?true\]' }).Count
         $facts.containerLabels = @($l | Where-Object { $_.SiteAndGroupProtectionEnabled -eq $true -or (& $settings $_) -match '(?i)\[siteandgroupprotectionenabled, ?true\]' -or [string](Get-PostureValue $_ 'ContentType') -match '(?i)Site|UnifiedGroup' }).Count
+        # PV-009: an email takes the label of its attachment. A label policy carries that as the setting attachmentaction
+        # (Automatic or Recommended) among its Settings, which a collection before 2026-11-23 did not save: then the
+        # policies are there and the answer is not, so the check has none.
+        # Saved and empty is an answer (the policy has no such setting); not saved at all is not.
+        $savedSettings = { param($x) if ($x -is [System.Collections.IDictionary]) { $x.Contains('Settings') } else { $null -ne $x.PSObject.Properties['Settings'] } }
+        if ($p.Count -gt 0 -and @($p | Where-Object { & $savedSettings $_ }).Count -eq 0) {
+            $notEvaluated['PV-009'] = 'pv-01-label-policies.json was collected before label policy settings were saved; collect Purview again.'
+        }
+        else {
+            $inheriting = @($p | Where-Object { (& $settings $_) -match '(?i)\[attachmentaction, ?(automatic|recommended)\]' })
+            $facts.labelPoliciesWithAttachmentInheritance = $inheriting.Count
+            $facts.labelPoliciesWithoutAttachmentInheritance = $p.Count - $inheriting.Count
+            $affected.labelPoliciesWithoutAttachmentInheritance = @($p | Where-Object { $_ -notin $inheriting } | ForEach-Object { [ordered]@{ name = [string]$_.Name; detail = 'an email does not take the label of its attachment' } })
+        }
         $sites = & $load 'spo-sites-summary'
         $facts.labeledSites = $(if ($null -ne $sites) { [int](& $v $sites 'Labeled') } else { $null })
         if ($null -eq $sites) { $notEvaluated['PV-004'] = 'spo-sites-summary.json was not collected (SharePoint collector); labeled sites unknown.' }

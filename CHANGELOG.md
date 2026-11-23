@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 282 in 15 (catalog 2026.11.2). User experience and network
+- The catalog went from 204 checks in 13 domains to 283 in 15 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,12 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- New check PV-009 (2026-11-23, catalog 2026.11.3): an email takes the sensitivity label of its attachment. A file
+  labelled Confidential that is attached to an unlabelled message otherwise leaves with no label and no encryption.
+  The check passes when an enabled label policy has the setting, applied automatically or as a recommendation, which
+  is what Microsoft's Zero Trust Assessment asks for (its test 35014). The Purview collection now saves each label
+  policy's settings; a run collected before that has no answer for this check and says to collect Purview again.
+  The setting's name in the saved file is as Microsoft documents it (verify on the first live Purview collection).
 - The catalog is measured against Microsoft's Zero Trust Assessment (2026-11-22).
   `checks/references/zero-trust-assessment.json` lists the 364 tests of release 3.1.0. 110 are covered by a check and
   251 are planned, each with a note: the largest groups are Global Secure Access detail, Azure network security,

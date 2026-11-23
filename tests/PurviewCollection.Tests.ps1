@@ -39,6 +39,7 @@ Describe 'Invoke-PostureCollection -Collector Purview' {
             $script:Result.Collectors | Should -Be @('Purview')
             $script:Result.Errors.Count | Should -Be 0
             @(& $script:Read 'pv-01-label-policies')[0].ExchangeLocation | Should -Be @('All')
+            @(& $script:Read 'pv-01-label-policies')[0].Settings | Should -Contain '[attachmentaction, Automatic]' -Because 'a label policy''s settings are where PV-009 finds its answer'
         }
 
         It 'feeds the purview checks' {
@@ -56,6 +57,7 @@ Describe 'Invoke-PostureCollection -Collector Purview' {
             $by['PV-007'].status | Should -Be 'fail'
             $by['PV-008'].status | Should -Be 'fail' -Because 'six distinct members across the two admin groups'
             $by['PV-008'].affectedCount | Should -Be 6
+            $by['PV-009'].status | Should -Be 'pass' -Because 'the label policy gives an email the label of its attachment'
         }
 
         It 'does not fail audit retention it could not read' {
@@ -76,3 +78,40 @@ Describe 'Invoke-PostureCollection -Collector Purview' {
         }
     }
 }
+
+Describe 'PV-009: an email takes the sensitivity label of its attachment' {
+    BeforeAll {
+        $script:Judge = {
+            param([object[]] $Policies)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            ConvertTo-Json -InputObject @(@{ DisplayName = 'General'; Name = 'l1'; Guid = 'g1'; Priority = 0; ContentType = 'File, Email'; ParentId = $null; Disabled = $false; EncryptionEnabled = $false; SiteAndGroupProtectionEnabled = $false; Settings = @() }) -Depth 5 | Set-Content (Join-Path $dir 'pv-01-sensitivity-labels.json')
+            # A collection saves every property it selects, empty when the tenant has none; Settings is the one a case may leave out.
+            $saved = @($Policies | ForEach-Object { $row = [ordered]@{ Name = $_.Name; Enabled = $_.Enabled; Mode = 'Enforce'; Labels = @('l1'); ExchangeLocation = @('All'); ModernGroupLocation = @() }; if ($_.ContainsKey('Settings')) { $row['Settings'] = $_.Settings }; $row })
+            ConvertTo-Json -InputObject $saved -Depth 5 | Set-Content (Join-Path $dir 'pv-01-label-policies.json')
+            '{ "version": 1, "licenses": ["E5"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain purview -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            @($run.results | Where-Object id -EQ 'PV-009')[0]
+        }
+    }
+
+    It 'passes when a label policy applies the attachment''s label, automatically or as a recommendation' {
+        (& $script:Judge @(@{ Name = 'Everyone'; Enabled = $true; ExchangeLocation = @('All'); Settings = @('[mandatory, true]', '[AttachmentAction, Recommended]') })).status | Should -Be 'pass'
+        (& $script:Judge @(@{ Name = 'Pilot'; Enabled = $true; Settings = @() }, @{ Name = 'Everyone'; Enabled = $true; Settings = @('[attachmentaction, automatic]') })).status | Should -Be 'pass' -Because 'one policy with it is what Microsoft''s own assessment asks for'
+    }
+
+    It 'fails and names the policies when none does' {
+        $r = & $script:Judge @(@{ Name = 'Everyone'; Enabled = $true; ExchangeLocation = @('All'); Settings = @('[mandatory, true]') }, @{ Name = 'Off'; Enabled = $false; Settings = @('[attachmentaction, Automatic]') })
+        $r.status | Should -Be 'fail' -Because 'the only policy with the setting is disabled'
+        @($r.affected.name) | Should -Be @('Everyone')
+        (& $script:Judge @(@{ Name = 'Everyone'; Enabled = $true; Settings = $null })).status | Should -Be 'fail' -Because 'settings saved as empty are an answer: the policy has no such setting'
+    }
+
+    It 'has no answer for evidence collected before label policy settings were saved' {
+        $r = & $script:Judge @(@{ Name = 'Everyone'; Enabled = $true; ExchangeLocation = @('All') })
+        $r.status | Should -Be 'notEvaluated'
+        $r.reason | Should -Match 'collected before label policy settings were saved'
+    }
+}
+

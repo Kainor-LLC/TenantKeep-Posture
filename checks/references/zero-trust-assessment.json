@@ -1082,10 +1082,6 @@
       "reason": "planned",
       "note": "A Microsoft Purview setting; label and DLP policies are already collected."
     },
-    "35014": {
-      "reason": "planned",
-      "note": "The label policy setting that gives an email the label of its attachment. Label policies are already collected, so this needs a check and nothing new."
-    },
     "35015": {
       "reason": "planned",
       "note": "A Microsoft Purview setting; label and DLP policies are already collected."

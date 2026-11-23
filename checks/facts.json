@@ -146,6 +146,8 @@
     "krbtgtPasswordAgeDays": "krbtgt password age (days)",
     "labelInheritanceTested": "Label inheritance tested",
     "labelPoliciesEnabled": "Label policies enabled",
+    "labelPoliciesWithAttachmentInheritance": "Label policies where an email takes its attachment's label",
+    "labelPoliciesWithoutAttachmentInheritance": "Label policies where it does not",
     "labelPolicyToAllUsers": "A label policy covers all users",
     "labeledSites": "Labeled sites",
     "labelsPublished": "Labels published",

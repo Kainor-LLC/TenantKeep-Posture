@@ -23,7 +23,7 @@ function Invoke-PosturePurviewCollection {
 
     $steps = @(
         ('Sensitivity labels', 'Get-Label', @{}, 'pv-01-sensitivity-labels', $true, @('DisplayName', 'Name', 'Guid', 'Priority', 'ContentType', 'ParentId', 'Disabled', 'Tooltip', 'EncryptionEnabled', 'EncryptionProtectionType', 'SiteAndGroupProtectionEnabled', 'SiteAndGroupProtectionPrivacy', 'Settings', 'WhenChanged')),
-        ('Label policies', 'Get-LabelPolicy', @{}, 'pv-01-label-policies', $false, @('Name', 'Enabled', 'Mode', 'Type', 'Labels', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'ModernGroupLocation', 'WhenChanged')),
+        ('Label policies', 'Get-LabelPolicy', @{}, 'pv-01-label-policies', $false, @('Name', 'Enabled', 'Mode', 'Type', 'Labels', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'ModernGroupLocation', 'Settings', 'WhenChanged')),
         ('Auto-labeling policies', 'Get-AutoSensitivityLabelPolicy', @{}, 'pv-01-autolabel-policies', $false, @('Name', 'Enabled', 'Mode', 'ApplySensitivityLabel', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'WhenChanged')),
         ('DLP policies', 'Get-DlpCompliancePolicy', @{}, 'pv-02-dlp-policies', $true, @('Name', 'Enabled', 'Mode', 'Priority', 'Workload', 'ExchangeLocation', 'SharePointLocation', 'OneDriveLocation', 'TeamsLocation', 'EndpointDlpLocation', 'Locations', 'EnforcementPlanes', 'WhenCreated', 'WhenChanged')),
         ('DLP rules', 'Get-DlpComplianceRule', @{}, 'pv-02-dlp-rules', $true, @('Name', 'ParentPolicyName', 'Disabled', 'Priority', 'ReportSeverityLevel', 'BlockAccess', 'BlockAccessScope', 'NotifyUser', 'Mode')),

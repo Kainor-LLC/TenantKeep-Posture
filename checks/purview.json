@@ -385,6 +385,51 @@
       "attack": [
         "T1098.003"
       ]
+    },
+    {
+      "id": "PV-009",
+      "domain": "purview",
+      "title": "An email takes the sensitivity label of its attachment",
+      "severityDefault": "Medium",
+      "license": [
+        "E3",
+        "E5",
+        "BusinessPremium",
+        "Purview"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pv-01-label-policies.json"
+      ],
+      "pass": "facts.labelPoliciesEnabled > 0 && facts.labelPoliciesWithAttachmentInheritance > 0",
+      "affected": "facts.labelPoliciesWithoutAttachmentInheritance",
+      "remediation": [
+        "In the Purview portal, open Information protection, then Label policies, and edit the policy that goes to all users.",
+        "Under the settings for email, turn on \"Email inherits highest priority label from attachments\" and choose to apply it automatically.",
+        "Do the same in every other label policy that covers people who send mail."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "An email with a labelled attachment gets that label by itself. People see the label appear on the message, and when the label encrypts, the message is encrypted too."
+      },
+      "learn": "https://learn.microsoft.com/purview/sensitivity-labels-office-apps#configure-label-inheritance-from-email-attachments",
+      "deepLink": "https://purview.microsoft.com/informationprotection/labelpolicies",
+      "narrative": "A confidential file attached to an unlabelled email travels under the email's protection, which is none. With inheritance on, the message takes the highest label among its attachments and whatever encryption that label carries, so the protection people chose for the file is not lost the moment they send it.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-02",
+        "iso27001": "A.5.13",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "35014"
+        ]
+      }
     }
   ]
 }
