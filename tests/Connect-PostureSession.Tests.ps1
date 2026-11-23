@@ -9,6 +9,8 @@ BeforeAll {
     }
     $script:Tid = '33333333-3333-3333-3333-333333333333'
     $script:GraphJwt = New-FakeJwt @{ tid = $script:Tid; upn = 'admin@contoso.example'; scp = 'Directory.Read.All Policy.Read.All Group.Read.All'; exp = 1 }
+    # What the browser step returns: a token that signs the admin in and reads nothing a report needs.
+    $script:FirstJwt = New-FakeJwt @{ tid = $script:Tid; upn = 'admin@contoso.example'; scp = 'User.Read openid profile'; exp = 1 }
 }
 
 AfterAll { Remove-Module TenantKeep.Posture -Force -ErrorAction SilentlyContinue }
@@ -25,8 +27,9 @@ Describe 'ConvertFrom-PostureJwt' {
 
 Describe 'Connect-PostureSession in the browser flow' {
     BeforeAll {
-        InModuleScope TenantKeep.Posture -Parameters @{ jwt = $script:GraphJwt; tid = $script:Tid } {
+        InModuleScope TenantKeep.Posture -Parameters @{ jwt = $script:GraphJwt; first = $script:FirstJwt; tid = $script:Tid } {
             $script:TestJwt = $jwt
+            $script:TestFirstJwt = $first
             $script:TestTid = $tid
             Mock Start-Process { }
             Mock New-PostureLoopbackListener { @{ listener = $null; port = 43210; redirectUri = 'http://localhost:43210' } }
@@ -36,7 +39,8 @@ Describe 'Connect-PostureSession in the browser flow' {
             Mock Invoke-PostureGraphRequest { @{ id = $script:TestTid; displayName = 'Contoso'; verifiedDomains = @(@{ name = 'contoso.com'; isInitial = $false }, @{ name = 'contoso.onmicrosoft.com'; isInitial = $true }) } }
             Mock Invoke-PostureTokenRequest {
                 param($Endpoint, $TenantId, $Form)
-                if ($Form['grant_type'] -eq 'authorization_code') { return @{ access_token = $script:TestJwt; refresh_token = 'refresh-1'; expires_in = 3600; scope = 'Directory.Read.All' } }
+                if ($Form['grant_type'] -eq 'authorization_code') { return @{ access_token = $script:TestFirstJwt; refresh_token = 'refresh-0'; expires_in = 3600; scope = 'User.Read' } }
+                if ($Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://graph.microsoft.com/.default' -and $Form['refresh_token'] -eq 'refresh-0') { return @{ access_token = $script:TestJwt; refresh_token = 'refresh-1'; expires_in = 3600; scope = 'Directory.Read.All' } }
                 if ($Form['grant_type'] -eq 'refresh_token') { return @{ access_token = "token-for-$($Form['scope'])"; refresh_token = 'refresh-2'; expires_in = 3600 } }
                 throw "unexpected grant $($Form['grant_type'])"
             }
@@ -57,6 +61,27 @@ Describe 'Connect-PostureSession in the browser flow' {
             Should -Invoke Connect-PostureService -Times 1 -Exactly -ParameterFilter { $Name -eq 'graph' }
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-1'
             $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be $script:TestJwt
+        }
+    }
+
+    It 'asks the browser only to sign the admin in, and fetches what the organisation approved without a prompt' {
+        InModuleScope TenantKeep.Posture {
+            $null = Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null
+            Should -Invoke Start-Process -Times 1 -Exactly -Scope It -ParameterFilter { [uri]::UnescapeDataString($FilePath) -match 'scope=openid profile offline_access https://graph\.microsoft\.com/User\.Read&' } -Because 'a .default request in the browser would, in a tenant that approved nothing, offer every permission registered on the shared app'
+            Should -Invoke Start-Process -Times 0 -Exactly -Scope It -ParameterFilter { $FilePath -match '\.default' }
+            Should -Invoke Invoke-PostureTokenRequest -Times 1 -Exactly -Scope It -ParameterFilter { $Form['grant_type'] -eq 'refresh_token' -and $Form['scope'] -eq 'https://graph.microsoft.com/.default' -and $TenantId -eq $script:TestTid }
+            $script:PostureSession['refreshToken'] | Should -Be 'refresh-1' -Because 'the newer of the two refresh tokens is kept'
+        }
+    }
+
+    It 'says where an admin approves the reads when the sign-in works and nothing was approved' {
+        InModuleScope TenantKeep.Posture {
+            Mock Invoke-PostureTokenRequest {
+                param($Endpoint, $TenantId, $Form)
+                # A tenant where people may sign in to an app by themselves: both steps answer, with the basics only.
+                return @{ access_token = $script:TestFirstJwt; refresh_token = 'refresh-0'; expires_in = 3600; scope = 'User.Read' }
+            }
+            { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*has not approved what TenantKeep Posture reads yet*v2.0/adminconsent?client_id=aaaaaaaa-0000-0000-0000-000000000001*'
         }
     }
 
@@ -84,7 +109,7 @@ Describe 'Connect-PostureSession in the browser flow' {
     It 'tells an unconsented tenant where the admin consents, with the app id' {
         InModuleScope TenantKeep.Posture {
             Mock Invoke-PostureTokenRequest { throw 'Sign-in failed (invalid_grant): AADSTS65001: The user or administrator has not consented to use the application' }
-            { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*adminconsent?client_id=aaaaaaaa-0000-0000-0000-000000000001*'
+            { Connect-PostureSession -ClientId 'aaaaaaaa-0000-0000-0000-000000000001' 6>$null } | Should -Throw '*v2.0/adminconsent?client_id=aaaaaaaa-0000-0000-0000-000000000001&scope=*'
         }
     }
 
@@ -119,6 +144,8 @@ Describe 'Connect-PostureSession with a device code' {
             Mock Invoke-PostureTokenRequest {
                 param($Endpoint, $TenantId, $Form)
                 if ($Endpoint -eq 'devicecode') { return @{ device_code = 'dc'; user_code = 'ABCD-1234'; verification_uri = 'https://microsoft.com/devicelogin'; expires_in = 900; interval = 5; message = 'Go to https://microsoft.com/devicelogin and enter ABCD-1234' } }
+                # After the device code is redeemed, the Graph token comes from the refresh token: not a poll.
+                if ($Form['grant_type'] -eq 'refresh_token') { return @{ access_token = $script:TestJwt; refresh_token = 'refresh-dc2'; expires_in = 3600 } }
                 $script:Polls++
                 if ($script:Polls -eq 1) { return @{ error = 'authorization_pending' } }
                 if ($script:Polls -eq 2) { return @{ error = 'slow_down' } }

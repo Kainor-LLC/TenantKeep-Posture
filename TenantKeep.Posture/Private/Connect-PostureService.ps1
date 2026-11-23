@@ -40,7 +40,7 @@ function Connect-PostureService {
         }
         'exchange' {
             # Since 2026-11-20 Exchange signs in like Purview, through the Exchange module's own first-party app, so the
-            # TenantKeep Posture app asks for no Exchange permission: the only delegated one, Exchange.Manage, reads
+            # TenantKeep app asks for no Exchange permission: the only delegated one, Exchange.Manage, reads
             # "Manage Exchange configuration" on the consent screen. Same admin, delegated, bounded by that admin's roles;
             # the module renews its own tokens through a long run, and Purview has usually signed the same admin in
             # through the same module just before, so there is no second prompt (verify on the first live run).
@@ -99,7 +99,7 @@ function Connect-PostureTeamsOwnSession {
         (Get-M365UnifiedTenantSettings and Get-AllM365TeamsApps): in the browser on Windows, by device code elsewhere.
     .DESCRIPTION
         Those two cmdlets ask the Teams module for a token to a Microsoft 365 service (substrate.office.com) that a
-        session opened with access tokens does not carry, and that no permission on the TenantKeep Posture app
+        session opened with access tokens does not carry, and that no permission on the TenantKeep app
         provides. The module's own sign-in can get it. Still delegated, still bounded by the admin's own roles,
         nothing stored by this module. Asked for with Start-PostureRun -TeamsAppSignIn, never otherwise: it is a
         second sign-in, and it comes when the run reaches Teams, near its end. The session must be the run's tenant

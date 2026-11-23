@@ -107,8 +107,11 @@ function Restore-PostureSignIn {
 
     $account = [string]$Session['account']
     $target = $(if ($Holder -eq 'sharepoint') { $Session['sharepoint'] } else { $Session })
-    $appName = $(if ($Holder -eq 'sharepoint') { 'TenantKeep Posture for SharePoint' } else { 'TenantKeep Posture' })
-    $resourceScope = $(if ($Holder -eq 'sharepoint') { Get-PostureResourceScope -Resource sharepoint -TenantName $Session['tenantName'] } else { 'https://graph.microsoft.com/.default' })
+    $appName = $(if ($Holder -eq 'sharepoint') { 'TenantKeep Posture for SharePoint' } else { [string](Get-PostureAppManifest)['displayName'] })
+    # The main app is shared with TenantKeep On-Call, so its browser step asks only to sign in, as the first sign-in
+    # does (Connect-PostureSession); the Graph token is fetched with the new refresh token below. The SharePoint app
+    # holds one permission and is asked for it directly.
+    $resourceScope = $(if ($Holder -eq 'sharepoint') { Get-PostureResourceScope -Resource sharepoint -TenantName $Session['tenantName'] } else { 'https://graph.microsoft.com/User.Read' })
     $mode = [string]$(if ($Session.Contains('signInMode')) { $Session['signInMode'] } else { 'browser' })
     Write-Host ''
     Write-Host "The sign-in for $account has ended$(if ($code) { " ($code)" }). The run is paused: nothing is lost, and it carries on from the request it was making once $account has signed in again." -ForegroundColor Yellow
@@ -119,6 +122,11 @@ function Restore-PostureSignIn {
         if ([string]$claims['tid'] -ne [string]$Session['tenantId']) { throw "the new sign-in went to tenant $($claims['tid']), not the run's tenant" }
         if ($who -and -not [string]::Equals($who, $account, [System.StringComparison]::OrdinalIgnoreCase)) { throw "the new sign-in was as $who, and the run is $account's" }
         if (-not $tokens['refresh_token']) { throw 'the new sign-in returned no refresh token' }
+        if ($Holder -ne 'sharepoint') {
+            $renewedRefresh = [string]$tokens['refresh_token']
+            $tokens = Invoke-PostureTokenRequest -Endpoint token -TenantId ([string]$Session['tenantId']) -Form @{ grant_type = 'refresh_token'; client_id = [string]$target['clientId']; refresh_token = $renewedRefresh; scope = 'https://graph.microsoft.com/.default' }
+            if (-not ($tokens.ContainsKey('refresh_token') -and $tokens['refresh_token'])) { $tokens['refresh_token'] = $renewedRefresh }
+        }
     }
     catch { & $stop "the new sign-in did not complete ($((([string]$_.Exception.Message) -replace '\s*[\r\n]+\s*', ' ').Trim()))." }
 

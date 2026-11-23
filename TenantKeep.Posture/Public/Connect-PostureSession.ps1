@@ -4,13 +4,17 @@ function Connect-PostureSession {
     .SYNOPSIS
         One sign-in for every service the posture run reads. Opens the browser, holds the session in memory.
     .DESCRIPTION
-        Signs the admin in to the TenantKeep Posture app (a multi-tenant public client with delegated, read-only
+        Signs the admin in to the TenantKeep app (a multi-tenant public client with delegated, read-only
         permissions; see app.json and docs/plan-one-signin.md) with the authorization code flow and PKCE on a loopback
         port, in plain PowerShell. From that one sign-in the module gets a token for each service as it needs one
         (Get-PostureToken) and opens the Graph session right away. The refresh token lives in this process only and
         is never written to disk. Every token is the signed-in admin's, bounded by that admin's own roles.
 
-        A tenant that has not consented to the app yet is told so, with the admin consent link. A Conditional Access
+        The browser step asks only to sign the admin in; what the organisation approved for Graph is then fetched
+        with the refresh token. The app is shared with TenantKeep On-Call, and a browser request for everything the
+        app holds would offer an unapproved tenant both products' permissions.
+
+        A tenant that has not approved Posture's permissions yet is told so, with a link that names exactly those. A Conditional Access
         policy that blocks the sign-in is reported with the app id, so the admin can allow it; the module does not
         work around it. Pass -TenantId to refuse a sign-in to any other tenant.
 
@@ -61,18 +65,30 @@ function Connect-PostureSession {
     $manifest = Get-PostureAppManifest
     $clientId = $(if ($ClientId) { $ClientId } else { [string]$manifest['clientId'] })
     if (-not $clientId) { throw 'app.json carries no clientId: this build has no app registration to sign in to. Pass -ClientId for a registration of your own.' }
-    $scope = 'openid profile offline_access https://graph.microsoft.com/.default'
-    $consentLink = "https://login.microsoftonline.com/organizations/adminconsent?client_id=$clientId&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))"
+    # The browser step asks only to sign the administrator in. Asking there for everything the app holds (.default)
+    # would, in a tenant that has approved nothing yet, show a consent prompt for every permission registered on the
+    # app, and the registration is shared with TenantKeep On-Call. What the organisation approved for Graph is then
+    # fetched with the refresh token, a request that cannot show a prompt.
+    $scope = 'openid profile offline_access https://graph.microsoft.com/User.Read'
+    $appName = [string]$manifest['displayName']
+    $consentLink = Get-PostureConsentLink -ClientId $clientId -TenantId $TenantId -Manifest $manifest
 
-    $signIn = @{ ClientId = $clientId; Scope = $scope; TenantId = $TenantId; AppName = 'TenantKeep Posture'; DeviceCode = $DeviceCode; NoBrowser = $NoBrowser; TimeoutSeconds = $TimeoutSeconds }
-    try { $tokens = Invoke-PostureSignIn @signIn }
+    $signIn = @{ ClientId = $clientId; Scope = $scope; TenantId = $TenantId; AppName = $appName; DeviceCode = $DeviceCode; NoBrowser = $NoBrowser; TimeoutSeconds = $TimeoutSeconds }
+    try {
+        $signedIn = Invoke-PostureSignIn @signIn
+        if (-not $signedIn['refresh_token']) { throw 'The sign-in returned no refresh token (offline_access missing from consent?). Other services cannot be reached from it.' }
+        $first = ConvertFrom-PostureJwt -Token ([string]$signedIn['access_token'])
+        $tokenTenant = [string]$(if ($first.ContainsKey('tid') -and $first['tid']) { $first['tid'] } else { $TenantId })
+        $tokens = Invoke-PostureTokenRequest -Endpoint token -TenantId $tokenTenant -Form @{ grant_type = 'refresh_token'; client_id = $clientId; refresh_token = [string]$signedIn['refresh_token']; scope = 'https://graph.microsoft.com/.default' }
+        if (-not ($tokens.ContainsKey('refresh_token') -and $tokens['refresh_token'])) { $tokens['refresh_token'] = [string]$signedIn['refresh_token'] }
+    }
     catch {
         $text = $_.Exception.Message
         if ($text -match 'AADSTS65001|consent_required|AADSTS650') {
-            throw "This tenant has not consented to TenantKeep Posture yet. An admin consents once, here: $consentLink  Then run the command again. ($text)"
+            throw "This tenant has not approved what TenantKeep Posture reads yet. An admin approves it once, here: $consentLink  Then run the command again. ($text)"
         }
         if ($text -match 'AADSTS5300\d|AADSTS530032') {
-            throw "A Conditional Access policy in this tenant blocked this sign-in to TenantKeep Posture (app id $clientId). The policy says what it wants: a compliant device, an approved app, or an exclusion for the admin running the report. Nothing was read. ($text)"
+            throw "A Conditional Access policy in this tenant blocked this sign-in to $appName (app id $clientId). The policy says what it wants: a compliant device, an approved app, or an exclusion for the admin running the report. Nothing was read. ($text)"
         }
         throw
     }
@@ -81,6 +97,10 @@ function Connect-PostureSession {
     $tid = [string]$claims['tid']
     $account = [string]$(foreach ($k in 'upn', 'preferred_username', 'unique_name') { if ($claims.ContainsKey($k) -and $claims[$k]) { $claims[$k]; break } })
     if ($TenantId -match '^[0-9a-fA-F-]{36}$' -and $tid -ne $TenantId) { throw "Signed in to tenant $tid, but -TenantId $TenantId was asked for. Nothing was read; sign in with an account in that tenant." }
+    # A tenant where a person could sign in but no administrator has approved the reads: the token then carries the
+    # sign-in basics and nothing a report can be built from.
+    $granted = @(([string]$(if ($claims.ContainsKey('scp')) { $claims['scp'] })) -split ' ' | Where-Object { $_ })
+    if ('Directory.Read.All' -notin $granted) { throw "This tenant has not approved what TenantKeep Posture reads yet. An admin approves it once, here: $consentLink  Then run the command again." }
     $now = [datetime]::UtcNow
     $script:PostureSession = @{
         clientId     = $clientId

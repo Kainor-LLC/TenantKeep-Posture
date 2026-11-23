@@ -41,7 +41,7 @@ What you need:
 - Consent, once per tenant. TenantKeep Posture is a multi-tenant app published by Kainor with delegated, read-only
   permissions (the list is in the module's app.json and on the consent screen). The first run in a tenant that has
   not consented stops and prints the admin consent link; an admin clicks it once, then runs the command again.
-- Exchange and Purview sign in through the Exchange module's own Microsoft app, not the TenantKeep Posture app.
+- Exchange and Purview sign in through the Exchange module's own Microsoft app, not the TenantKeep app.
   Exchange Online's only delegated permission reads "Manage Exchange configuration" on a consent screen and Security
   and Compliance PowerShell issues no token to a third-party app at all, so the app asks for neither. The Exchange
   module may open one window for the same admin (a device code with `-DeviceCode` or `-NoBrowser`); it often reuses
@@ -50,7 +50,7 @@ What you need:
   however long Exchange takes. Everything else comes from the one sign-in, with one exception.
 - Two Teams reads need the Teams module's own sign-in: the org-wide app settings and each app's availability, which
   the Teams apps check (CL-014) goes by. The Teams module reads them with a token no permission of the TenantKeep
-  Posture app provides. `Start-PostureRun -TeamsAppSignIn` lets the module sign in by itself as the same admin: a
+  app provides. `Start-PostureRun -TeamsAppSignIn` lets the module sign in by itself as the same admin: a
   browser window on Windows, a device code elsewhere, because the Teams module has no browser sign-in outside
   Windows. It asks when the run reaches Teams, near its end, so stay for it. Many tenants block device code sign-in
   with Conditional Access, and should: there the code is refused (seen on macOS, 2026-11-22), the run says so once,
@@ -413,7 +413,7 @@ diff, and the scheduled cycle in deploy/schedules runs that nightly with a Teams
 
 Not every organisation has, or wants, anything in Azure. Local runs need no Azure at all: with `azure: none` in the
 profile (the wizard sets it when no subscription is in scope) the Azure collector is skipped and the Azure domain
-reads as not applicable. Nothing is installed in the tenant beyond the consent to the TenantKeep Posture app. What does need
+reads as not applicable. Nothing is installed in the tenant beyond the consent to the TenantKeep app. What does need
 an Azure subscription is the scheduled cycle, because the Automation account is where it runs; the full inventory of
 what that puts where is in docs/footprint.md. For a nightly Conditional Access cycle without Azure, the GitHub Action
 and launchd samples in deploy/schedules run it from a machine you already have.

@@ -159,7 +159,7 @@ function Get-PostureFailureAdvice {
     switch ([string]$Failure['cause']) {
         'permission' {
             $t = $(if ($roles.Count) { "Give the account that runs the assessment one of: $($roles -join ', ')." } else { 'The account was refused; the message says by what.' })
-            if ($scopes.Count) { $t += " The TenantKeep Posture app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
+            if ($scopes.Count) { $t += " The TenantKeep app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
             if ($licence) { $t += " It also needs $licence." }
             return $t
         }

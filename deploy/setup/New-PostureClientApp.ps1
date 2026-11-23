@@ -64,9 +64,17 @@ $appJsonPath = (Resolve-Path -LiteralPath $AppJsonPath).Path
 $manifest = Get-Content -LiteralPath $appJsonPath -Raw | ConvertFrom-Json -AsHashtable
 $name = [string]$manifest['displayName']
 
-# 2. Scope values to ids, per resource, from the service principals in this tenant.
+# 2. Scope values to ids, per resource, from the service principals in this tenant. The registration carries what
+#    this product asks for (resources) and what a product sharing the app asks for (sharedWith), each scope once.
+$shared = @($(if ($manifest.ContainsKey('sharedWith')) { $manifest['sharedWith'] }) | Where-Object { $_ })
+$wanted = [ordered]@{}
+foreach ($resource in @($manifest['resources']) + @($shared | ForEach-Object { $_['resources'] })) {
+    $key = [string]$resource['appId']
+    if (-not $wanted.Contains($key)) { $wanted[$key] = @{ appId = $key; label = [string]$resource['label']; scopes = [System.Collections.Generic.List[string]]::new() } }
+    foreach ($value in @($resource['scopes'])) { if (-not $wanted[$key].scopes.Contains([string]$value)) { $wanted[$key].scopes.Add([string]$value) } }
+}
 $required = [System.Collections.Generic.List[hashtable]]::new()
-foreach ($resource in @($manifest['resources'])) {
+foreach ($resource in @($wanted.Values)) {
     $sps = @((Get-GraphValue "$graph/servicePrincipals?`$filter=appId eq '$($resource['appId'])'&`$select=id,displayName,oauth2PermissionScopes").value)
     if ($sps.Count -eq 0) { Write-Warning "No service principal for $($resource['label']) ($($resource['appId'])) in this tenant; its scopes are left out."; continue }
     $exposed = @{}
@@ -88,15 +96,23 @@ $fields = @{
     displayName            = $name
     signInAudience         = 'AzureADMultipleOrgs'
     isFallbackPublicClient = $true
-    publicClient           = @{ redirectUris = @([string]$manifest['redirectUri']) }
+    publicClient           = @{ redirectUris = @(@([string]$manifest['redirectUri']) + @($shared | ForEach-Object { $_['redirectUris'] }) | Where-Object { $_ } | Select-Object -Unique) }
     # No consent page for an app that is never consented organisation-wide (app-sharepoint.json leaves it empty).
     web                    = @{ redirectUris = @(@([string]$manifest['consentRedirectUri']) | Where-Object { $_ }); implicitGrantSettings = @{ enableAccessTokenIssuance = $false; enableIdTokenIssuance = $false } }
     requiredResourceAccess = @($required)
     notes                  = [string]$manifest['notes']
     info                   = @{ privacyStatementUrl = 'https://tenantkeep.app/licensing/'; termsOfServiceUrl = 'https://tenantkeep.app/licensing/'; marketingUrl = 'https://tenantkeep.app/' }
 }
+# The registration is found by the client id app.json records, so a change of name renames it and does not create a
+# second one. Only a manifest with no client id yet is looked up by name.
 $escaped = $name -replace "'", "''"
-$apps = @((Get-GraphValue "$graph/applications?`$filter=displayName eq '$escaped'&`$select=id,appId,publisherDomain,verifiedPublisher").value)
+$known = [string]$manifest['clientId']
+$filter = $(if ($known -match '^[0-9a-fA-F-]{36}$') { "appId eq '$known'" } else { "displayName eq '$escaped'" })
+$apps = @((Get-GraphValue "$graph/applications?`$filter=$filter&`$select=id,appId,publisherDomain,verifiedPublisher").value)
+if ($apps.Count -eq 0 -and $filter -like 'appId eq*') {
+    # The recorded id belongs to another tenant: someone registering a copy of their own. Then the name decides.
+    $apps = @((Get-GraphValue "$graph/applications?`$filter=displayName eq '$escaped'&`$select=id,appId,publisherDomain,verifiedPublisher").value)
+}
 if ($apps.Count -eq 0) {
     if ($PSCmdlet.ShouldProcess($name, 'Create the multi-tenant public client')) {
         $app = Send-GraphPost "$graph/applications" $fields
@@ -117,7 +133,7 @@ $wantDomain = [string]$manifest['publisherDomain']
 $haveDomain = [string]$(if ($app.ContainsKey('publisherDomain')) { $app.publisherDomain })
 if ($app.id -and $wantDomain -and $haveDomain -ne $wantDomain -and $PSCmdlet.ShouldProcess($name, "Set publisher domain $wantDomain")) {
     try { $null = Send-GraphPatch "$graph/applications/$($app.id)" @{ publisherDomain = $wantDomain }; Write-Host "Publisher domain set to $wantDomain" }
-    catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > TenantKeep Posture > Branding & properties > Publisher domain." }
+    catch { Write-Warning "Publisher domain is '$haveDomain' and Entra refused '$wantDomain' ($($_.Exception.Message)). Set it in the portal: App registrations > $name > Branding & properties > Publisher domain." }
 }
 
 # 4. Record the client id where the module reads it, before anything that can still fail.
@@ -149,12 +165,18 @@ if ($PartnerId -and $app.id) {
 }
 
 if ([string]$manifest['consentRedirectUri']) {
+    # The link names what this product asks for and nothing else: a link for everything registered would have a
+    # customer approve the permissions of the product that shares the app.
+    $basics = 'openid', 'profile', 'offline_access'
+    $named = @(foreach ($resource in @($manifest['resources'])) { foreach ($value in @($resource['scopes'])) { if ($value -in $basics) { [string]$value } else { "$($resource['audience'])/$value" } } }) | Select-Object -Unique
+    $link = "https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=$($app.appId)&scope=$([uri]::EscapeDataString(($named -join ' ')))&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))&state=posture"
     Write-Host @"
 
-Done. Customers consent once with an admin account at:
-  https://login.microsoftonline.com/organizations/adminconsent?client_id=$($app.appId)&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))
-Start-PostureRun prints that link when a tenant has not consented yet. Nothing else is created anywhere.
+Done. Customers approve what TenantKeep Posture reads once, with an admin account, at:
+  $link
+Start-PostureRun prints that link when a tenant has not approved it yet. Nothing else is created anywhere.
 "@
+    if ($shared.Count -gt 0) { Write-Host "The registration also carries what $(@($shared | ForEach-Object { $_['product'] }) -join ', ') asks for; that product has its own link, which names its own permissions." }
 }
 else {
     Write-Host @"

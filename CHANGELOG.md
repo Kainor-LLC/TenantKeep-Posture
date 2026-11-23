@@ -27,6 +27,18 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- One app for everything TenantKeep reads (2026-11-22). The sign-in app is now named TenantKeep and is shared with
+  the TenantKeep On-Call app for what that reads; the client id is unchanged, and so is every consent already given.
+  `app.json` lists what Posture asks for under `resources` and what On-Call asks for under `sharedWith`. Nothing on
+  the app can write: every write lives in a separate On-Call app, and a test fails if a scope that could is added
+  here. Two things changed in the sign-in because the app is shared. The link an unapproved tenant is given now names
+  Posture's permissions one by one (the older link approved everything registered, which would now include On-Call's
+  reads, a LAPS password and a BitLocker key among them). And the browser step asks only to sign the admin in; what
+  the organisation approved is fetched with the refresh token, which can show no prompt. In a tenant that uses both
+  products a token for either carries what was approved for both; Microsoft issues one set of permissions per app.
+  `New-PostureClientApp.ps1` finds the registration by its client id, so the new name renames it. Not yet run live
+  (verify): the new sign-in, and whether one link may name the permissions of three APIs. If not,
+  `Get-PostureConsentLink -Resource` gives a link per API.
 - A remediation plan (2026-11-22). Recommendations gains a flow chart under the Roadmap lanes. The lanes still sort
   findings by risk; the plan says what has to happen first. The checks are grouped into 42 projects, every check in
   exactly one (`checks/projects.json`), each naming what it needs first and what it is better after, with the

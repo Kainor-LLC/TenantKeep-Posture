@@ -1,6 +1,6 @@
 {
   "version": "2026.11.0",
-  "about": "What each collection step needs, least privilege first: the Entra or service role that grants the read, the delegated Graph scopes on the TenantKeep Posture app, and the licence when the API answers only for licensed tenants. Errors name these so a failed run says what to grant. A role list is any-of. Entries marked verify are not yet confirmed by the least-privilege live run (plan Phase 3).",
+  "about": "What each collection step needs, least privilege first: the Entra or service role that grants the read, the delegated Graph scopes on the TenantKeep app, and the licence when the API answers only for licensed tenants. Errors name these so a failed run says what to grant. A role list is any-of. Entries marked verify are not yet confirmed by the least-privilege live run (plan Phase 3).",
   "collectors": {
     "Entra": {
       "service": "Microsoft Graph",
@@ -593,7 +593,7 @@
       "scopes": [
         "SharePointTenantSettings.Read.All"
       ],
-      "note": "Graph's read of the SharePoint tenant settings, beside the PnP one, to see whether Global Reader is enough (verify on the Phase 3 run). Needs the tenant to consent to the TenantKeep Posture app again after the scope was added on 2026-11-20."
+      "note": "Graph's read of the SharePoint tenant settings, beside the PnP one, to see whether Global Reader is enough (verify on the Phase 3 run). Needs the tenant to consent to the TenantKeep app again after the scope was added on 2026-11-20."
     },
     {
       "collector": "Entra",

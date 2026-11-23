@@ -24,7 +24,7 @@ the Azure Automation option yourself.
 
 | Sign-in | What it reads | Permissions |
 |---|---|---|
-| **TenantKeep Posture** (Kainor's multi-tenant public client) | Entra, Intune, Defender, Teams, Azure, and SharePoint tenant settings through Graph | Delegated read scopes only, listed in `TenantKeep.Posture/app.json`, which is also what the consent screen shows. No SharePoint permission. |
+| **TenantKeep** (Kainor's multi-tenant public client, shared with the TenantKeep On-Call app for what that reads) | Entra, Intune, Defender, Teams, Azure, and SharePoint tenant settings through Graph | Delegated read scopes only. Posture's are under `resources` in `TenantKeep.Posture/app.json`, and the approval link names exactly those. On-Call's are under `sharedWith` and are approved from On-Call's own link. Nothing on the app can write; a test fails if that changes. No SharePoint permission. |
 | **TenantKeep Posture for SharePoint** (optional, Kainor's second public client) | The SharePoint settings Graph does not return: default links, Anyone link expiry, guest expiry, the site list | Delegated SharePoint `AllSites.FullControl` plus the sign-in scopes, listed in `TenantKeep.Posture/app-sharepoint.json`. See below. |
 | **Exchange Online PowerShell** (Microsoft's own app, through the ExchangeOnlineManagement module) | Exchange Online and Purview configuration | The administrator's own Exchange and Purview roles. The module runs `Get-` commands only. |
 | **Azure** (through Az.Accounts) | Subscriptions, Defender for Cloud, policy, role assignments, Microsoft 365 pay-as-you-go spend | The administrator's own Azure roles (Reader, Security Reader, Cost Management Reader). |

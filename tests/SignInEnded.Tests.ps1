@@ -81,10 +81,10 @@ Describe 'A renewal the identity platform refuses' {
             # The token service of the second process holds a copy of the session; it gets the new refresh token too.
             $script:PostureTokenServer = @{ pipe = 'p'; session = [hashtable]::Synchronized(@{ refreshToken = 'refresh-1' }) }
             Get-PostureToken -Resource azure | Should -Be "token-for-$(Get-PostureResourceScope -Resource azure)-with-refresh-2"
-            Should -Invoke Invoke-PostureSignIn -Times 1 -Exactly -ParameterFilter { $LoginHint -eq 'admin@contoso.example' -and $DeviceCode -and $TenantId -eq '33333333-3333-3333-3333-333333333333' -and $Scope -match 'offline_access https://graph\.microsoft\.com/\.default$' }
+            Should -Invoke Invoke-PostureSignIn -Times 1 -Exactly -ParameterFilter { $LoginHint -eq 'admin@contoso.example' -and $DeviceCode -and $TenantId -eq '33333333-3333-3333-3333-333333333333' -and $Scope -match 'offline_access https://graph\.microsoft\.com/User\.Read$' } -Because 'the browser step asks only to sign in: the app is shared, and a request for everything it holds could offer more than this product asks for'
             $script:PostureSession['refreshToken'] | Should -Be 'refresh-2'
             $script:PostureSession['signInsRenewed'] | Should -Be 1
-            $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be $Jwt
+            $script:PostureSession['tokens']['graph']['accessToken'] | Should -Be 'token-for-https://graph.microsoft.com/.default-with-refresh-2' -Because 'what the organisation approved is fetched with the new refresh token, a request that shows no prompt'
             $script:PostureTokenServer['session']['refreshToken'] | Should -Be 'refresh-2'
             $script:PostureSessionEnded.get_Count() | Should -Be 0
         }

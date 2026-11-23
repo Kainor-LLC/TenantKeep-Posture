@@ -1,10 +1,10 @@
 {
-  "displayName": "TenantKeep Posture",
+  "displayName": "TenantKeep",
   "clientId": "e5b148e7-9689-40b2-9b09-9d0bef133049",
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "https://tenantkeep.app/consent/",
-  "notes": "TenantKeep Posture: the one sign-in behind Start-PostureRun. Public client, delegated read permissions only, no credentials. Owned by Kainor LLC; the manifest is published in the source repository. SharePoint full control is not here: it lives only in the optional app-sharepoint.json, granted to named admins.",
+  "notes": "TenantKeep: one registration that TenantKeep Posture and TenantKeep On-Call both sign in to for everything they read. Public client, delegated read permissions only, no credentials, and it exposes nothing. Owned by Kainor LLC; the manifest is published in the Posture source repository. resources is what Posture asks for. sharedWith is what On-Call asks for, by name, when a customer approves it from On-Call's own link; Posture never requests those. Nothing that writes is here: every write lives in a separate On-Call app, and SharePoint full control lives only in the optional app-sharepoint.json, granted to named admins.",
   "resources": [
     {
       "name": "graph",
@@ -68,6 +68,54 @@
       "audience": "https://management.core.windows.net/",
       "scopes": [
         "user_impersonation"
+      ]
+    }
+  ],
+  "sharedWith": [
+    {
+      "product": "TenantKeep On-Call",
+      "notes": "The phone, tablet and Mac app. It asks for these by name as each of its features is first used, and a customer approves them from its own link. Two of them reveal a secret to an administrator who already holds the role for it: DeviceLocalCredential.Read.All (a Windows LAPS password) and BitLockerKey.Read.All (a recovery key).",
+      "redirectUris": [
+        "msauth.com.kainor.lapslock://auth",
+        "msauth.com.kainor.tenantkeep.menubar://auth"
+      ],
+      "resources": [
+        {
+          "name": "graph",
+          "label": "Microsoft Graph",
+          "appId": "00000003-0000-0000-c000-000000000000",
+          "audience": "https://graph.microsoft.com",
+          "scopes": [
+            "openid",
+            "profile",
+            "offline_access",
+            "DeviceManagementManagedDevices.Read.All",
+            "Device.Read.All",
+            "DeviceLocalCredential.ReadBasic.All",
+            "DeviceLocalCredential.Read.All",
+            "BitLockerKey.ReadBasic.All",
+            "BitLockerKey.Read.All",
+            "User.ReadBasic.All",
+            "User.Read.All",
+            "AuditLog.Read.All",
+            "Policy.Read.All",
+            "Directory.Read.All",
+            "ServiceHealth.Read.All",
+            "ServiceMessage.Read.All",
+            "Application.Read.All",
+            "DeviceManagementServiceConfig.Read.All",
+            "SecurityEvents.Read.All",
+            "SecurityIncident.Read.All",
+            "ThreatHunting.Read.All",
+            "IdentityRiskyUser.Read.All",
+            "RoleEligibilitySchedule.Read.Directory",
+            "RoleAssignmentSchedule.Read.Directory",
+            "RoleManagementPolicy.Read.Directory",
+            "RoleManagementPolicy.Read.AzureADGroup",
+            "PrivilegedEligibilitySchedule.Read.AzureADGroup",
+            "PrivilegedAssignmentSchedule.Read.AzureADGroup"
+          ]
+        }
       ]
     }
   ]

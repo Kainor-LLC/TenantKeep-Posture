@@ -65,7 +65,7 @@ function Start-PostureRun {
     .PARAMETER TeamsAppSignIn
         Let the Teams module sign in by itself to read the two app settings the one sign-in cannot (the org-wide
         app settings and each app's availability, which the Teams apps check goes by). The Teams module reads them
-        with a token no permission of the TenantKeep Posture app provides. It asks when the run reaches Teams, near
+        with a token no permission of the TenantKeep app provides. It asks when the run reaches Teams, near
         its end, and the sign-in must be the account the run signed in as: a browser window on Windows, a code to
         enter elsewhere (the Teams module has no browser sign-in outside Windows). A tenant whose Conditional
         Access blocks device code sign-in refuses the code, and the run says so once. Without the switch those two
