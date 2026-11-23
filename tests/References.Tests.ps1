@@ -28,6 +28,21 @@ Describe 'Public references the catalog is measured against' {
         }
     }
 
+    It 'accounts for every Maester test in the families compared so far' {
+        InModuleScope TenantKeep.Posture {
+            $catalog = Import-PostureCheckCatalog
+            $maester = @(Get-PostureReferenceCoverage -Catalog $catalog | Where-Object { $_.name -eq 'maester' })[0]
+            $maester.version | Should -Be '2.3.0'
+            @($catalog.references['maester']['families']) | Should -Contain 'eidsca'
+            @($catalog.references['maester']['families']) | Should -Contain 'orca'
+            $maester.counts.total | Should -BeGreaterOrEqual 111 -Because 'a family is added once its tests have been compared with the catalog'
+            $maester.counts.covered | Should -BeGreaterOrEqual 41
+            @($maester.items | Where-Object { $_.id -eq 'EIDSCA.AT01' })[0].checks | Should -Be @('AU-005')
+            @($maester.items | Where-Object { $_.id -eq 'ORCA.120.1' })[0].checks | Should -Be @('EM-006')
+            @($maester.items | Where-Object { $_.id -like 'CIS.*' }).Count | Should -Be 0 -Because 'CIS benchmark content is licensed and is not reproduced'
+        }
+    }
+
     It 'knows every Secure Score action a check names, and counts the rest as shown from Microsoft''s own evaluation' {
         InModuleScope TenantKeep.Posture {
             $score = @(Get-PostureReferenceCoverage -Catalog (Import-PostureCheckCatalog) | Where-Object { $_.name -eq 'secure-score' })[0]

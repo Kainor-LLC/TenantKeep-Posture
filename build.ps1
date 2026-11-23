@@ -8,7 +8,8 @@
   PowerShell Gallery), LicensingData (licensing/bundles.json from licensing/bundle-list.json and Microsoft's service plan CSV), AttackData
   (checks/attack.json, the MITRE ATT&CK techniques the checks name, checked against MITRE's release), ScubaData
   (checks/references/cisa-scuba.json, every policy of CISA's SCuBA baselines from a ScubaGear release), SecureScoreData
-  (checks/references/secure-score.json, Microsoft's Secure Score actions by id from a run's control list), Upkeep (a
+  (checks/references/secure-score.json, Microsoft's Secure Score actions by id from a run's control list), MaesterData
+  (checks/references/maester.json, the ids and titles of Maester's tests from a Maester release), Upkeep (a
   report of what has gone stale: Microsoft's licensing list, ATT&CK, module versions, Graph APIs a check waits on, Learn links; run weekly on
   GitHub by .github/workflows/upkeep.yml, never by the module), Demo (the sample report and the website's screenshots from
   Fernquill Engineering, the made-up tenant samples/demo/New-PostureDemoRun.ps1 writes). Package and Publish need Sign or Verify in the same run, or -Unsigned said explicitly; the integrity
@@ -40,7 +41,7 @@
 [CmdletBinding()]
 [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Build script output is for the console, not the pipeline.')]
 param(
-    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'Upkeep', 'Demo')]
+    [ValidateSet('Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Clean', 'Catalog', 'Publish', 'LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'Upkeep', 'Demo')]
     [string[]] $Task = @('Analyze', 'Test'),
 
     [string] $CertificateThumbprint = $env:TENANTKEEP_SIGNING_THUMBPRINT,
@@ -63,6 +64,9 @@ param(
 
     # SecureScoreData task: a run's def-06-secure-score-controls.json. Only each action's id and title are read.
     [string] $SecureScoreControls,
+
+    # MaesterData task: the tests folder of a Maester release (github.com/maester365/maester), downloaded by hand.
+    [string] $MaesterTests,
 
     # Upkeep task: where the report goes (default out/upkeep.md), and -Offline to skip every check that needs the network.
     [string] $UpkeepReport,
@@ -288,6 +292,52 @@ function Invoke-SecureScoreData {
     $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
     [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "  $($items.Count) Secure Score actions in checks/references/secure-score.json ($($items.Count - $before) new)"
+}
+
+function Invoke-MaesterData {
+    # checks/references/maester.json: the id and title of every Maester test in the families the file lists, read from
+    # the tests folder of the Maester release the file's version names. items is written here; families, notCovered
+    # and the rest are kept. A family is a folder under tests (eidsca, orca, maester, ...): add one to families once
+    # its tests have been compared with the catalog, run this, then run the tests, which name each one that still has
+    # neither a check nor a reason. Both of Maester's layouts are read: a test function with a MaesterTest attribute,
+    # and the older It "ID: title".
+    Write-Task 'MaesterData'
+    if (-not $MaesterTests -or -not (Test-Path -LiteralPath $MaesterTests -PathType Container)) { throw '-MaesterTests: the tests folder of a release of github.com/maester365/maester' }
+    $file = Join-Path $Root 'checks' 'references' 'maester.json'
+    $doc = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json -AsHashtable -Depth 10
+    $families = @($doc['families'] | ForEach-Object { ([string]$_).ToLowerInvariant() })
+    $found = [ordered]@{}
+    foreach ($family in $families) {
+        $folder = @(Get-ChildItem -LiteralPath $MaesterTests -Directory | Where-Object { $_.Name.ToLowerInvariant() -eq $family })
+        if ($folder.Count -eq 0) { throw "No folder '$family' under $MaesterTests." }
+        $ofFamily = @{}
+        foreach ($script in Get-ChildItem -LiteralPath $folder[0].FullName -Recurse -Filter '*.ps1' | Sort-Object FullName) {
+            $text = [System.IO.File]::ReadAllText($script.FullName)
+            foreach ($m in [regex]::Matches($text, '(?s)\[MaesterTest\((.*?)\)\]')) {
+                $id = [regex]::Match($m.Groups[1].Value, "Id\s*=\s*'([^']+)'").Groups[1].Value
+                $title = [regex]::Match($m.Groups[1].Value, "Title\s*=\s*'((?:[^']|'')*)'").Groups[1].Value.Replace("''", "'")
+                if ($id -and -not $ofFamily.ContainsKey($id)) { $ofFamily[$id] = $title }
+            }
+            foreach ($m in [regex]::Matches($text, '(?m)^\s*It\s+(["''])((?:(?!\1).)+)\1')) {
+                $named = [regex]::Match($m.Groups[2].Value, '^([A-Z][A-Za-z]*(?:[.\-][A-Za-z0-9]+)+)\s*:\s*(.+)$')
+                if ($named.Success -and -not $ofFamily.ContainsKey($named.Groups[1].Value)) { $ofFamily[$named.Groups[1].Value] = $named.Groups[2].Value }
+            }
+        }
+        if ($ofFamily.Count -eq 0) { throw "No test ids found in $($folder[0].FullName)." }
+        # In the order a reader expects: letters, then the numbers in them as numbers (ORCA.99 before ORCA.100).
+        $natural = { param([string] $id) [regex]::Replace($id, '\d+', { param($n) $n.Value.PadLeft(8, '0') }) }
+        foreach ($id in ($ofFamily.get_Keys() | Sort-Object { & $natural $_ })) {
+            # A title ends where Maester adds its own link, and the commit guard lets no stray address in.
+            $found[$id] = ((($ofFamily[$id] -replace '\s*See https?://\S+\s*$', '') -replace '\s+', ' ').Trim()).TrimEnd('.')
+        }
+        Write-Host "  $family`: $($ofFamily.Count) tests"
+    }
+    $out = [ordered]@{}
+    foreach ($k in 'name', 'title', 'source', 'version', 'notice', 'families', 'checkKeys') { $out[$k] = $doc[$k] }
+    $out['items'] = $found
+    $out['notCovered'] = $(if ($doc.Contains('notCovered') -and $doc['notCovered']) { $doc['notCovered'] } else { [ordered]@{} })
+    [System.IO.File]::WriteAllText($file, ((ConvertTo-Json -InputObject $out -Depth 10) -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host "  $($found.Count) tests of Maester $($doc['version']) written to checks/references/maester.json"
 }
 
 function Invoke-AttackData {
@@ -753,7 +803,7 @@ if ($tasks -contains 'Sign'    -and $tasks -notcontains 'Build') { $tasks.Add('B
 if ($tasks -contains 'Sign') { $null = Get-SigningCertificate }
 
 $stage = $null
-foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
+foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 'MaesterData', 'Upkeep', 'Demo', 'Clean', 'Analyze', 'Test', 'Build', 'Sign', 'Verify', 'Integrity', 'Package', 'Catalog', 'Publish')) {
     if ($tasks -notcontains $t) { continue }
     switch ($t) {
         'Clean' { Invoke-Clean }
@@ -769,6 +819,7 @@ foreach ($t in @('LicensingData', 'AttackData', 'ScubaData', 'SecureScoreData', 
         'AttackData' { Invoke-AttackData }
         'ScubaData' { Invoke-ScubaData }
         'SecureScoreData' { Invoke-SecureScoreData }
+        'MaesterData' { Invoke-MaesterData }
         'Upkeep' { Invoke-Upkeep }
         'Demo' { Invoke-Demo }
         'Publish' { Invoke-Publish -Stage $stage }

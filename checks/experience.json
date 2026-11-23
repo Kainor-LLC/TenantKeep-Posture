@@ -705,6 +705,11 @@
       "narrative": "People decide whether to trust a message in a second, and knowing it came from outside is the most useful hint they get. Outlook's built-in tag shows it in every client without rewriting subjects, which subject-line tags do and which break replies, threading and search.",
       "frameworks": {
         "cisa-scuba": "MS.EXO.7.1v1"
+      },
+      "references": {
+        "maester": [
+          "ORCA.240"
+        ]
       }
     },
     {

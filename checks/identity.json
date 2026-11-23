@@ -366,6 +366,9 @@
       "references": {
         "secureScore": [
           "IntegratedApps"
+        ],
+        "maester": [
+          "EIDSCA.AP08"
         ]
       },
       "attack": [
@@ -408,6 +411,10 @@
       "references": {
         "secureScore": [
           "aad_admin_consent_workflow"
+        ],
+        "maester": [
+          "EIDSCA.CR01",
+          "EIDSCA.CP04"
         ]
       },
       "attack": [
@@ -777,6 +784,9 @@
       "references": {
         "secureScore": [
           "aad_custom_banned_passwords"
+        ],
+        "maester": [
+          "EIDSCA.PR03"
         ]
       },
       "attack": [
@@ -827,6 +837,10 @@
       "references": {
         "secureScore": [
           "aad_password_protection"
+        ],
+        "maester": [
+          "EIDSCA.PR01",
+          "EIDSCA.PR02"
         ]
       },
       "attack": [
@@ -866,6 +880,11 @@
         "cmmc": "AC.L2-3.1.20",
         "cisa-scuba": "MS.AAD.8.2v1"
       },
+      "references": {
+        "maester": [
+          "EIDSCA.AP04"
+        ]
+      },
       "attack": [
         "T1136.003"
       ]
@@ -900,6 +919,11 @@
         "iso27001": "A.5.15",
         "cmmc": "AC.L2-3.1.1",
         "cisa-scuba": "MS.AAD.8.1v1"
+      },
+      "references": {
+        "maester": [
+          "EIDSCA.AP07"
+        ]
       },
       "attack": [
         "T1069.003",

@@ -116,6 +116,10 @@
       "references": {
         "secureScore": [
           "mdo_antiphishingpolicies"
+        ],
+        "maester": [
+          "ORCA.180",
+          "ORCA.244"
         ]
       },
       "attack": [
@@ -218,6 +222,12 @@
           "mdo_safeattachments",
           "mdo_safeattachmentpolicy",
           "mdo_safelinksforemail"
+        ],
+        "maester": [
+          "ORCA.225",
+          "ORCA.236",
+          "ORCA.237",
+          "ORCA.238"
         ]
       },
       "attack": [
@@ -263,6 +273,11 @@
           "mdo_zapspam",
           "mdo_zapphish",
           "mdo_zapmalware"
+        ],
+        "maester": [
+          "ORCA.120.1",
+          "ORCA.120.2",
+          "ORCA.120.3"
         ]
       },
       "attack": [
@@ -309,6 +324,10 @@
       "references": {
         "secureScore": [
           "mdo_highconfidencephishaction"
+        ],
+        "maester": [
+          "ORCA.104",
+          "ORCA.107"
         ]
       },
       "attack": [
@@ -392,6 +411,9 @@
       "references": {
         "secureScore": [
           "mdo_connectionfilter"
+        ],
+        "maester": [
+          "ORCA.114"
         ]
       },
       "attack": [
@@ -432,6 +454,10 @@
       "references": {
         "secureScore": [
           "exo_transportrulesallowlistdomains"
+        ],
+        "maester": [
+          "ORCA.118.2",
+          "ORCA.118.4"
         ]
       },
       "attack": [
@@ -468,6 +494,12 @@
         "iso27001": "A.8.7",
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "ORCA.233",
+          "ORCA.233.1"
+        ]
       },
       "attack": [
         "T1684.002"
@@ -507,6 +539,12 @@
         "iso27001": "A.8.7",
         "cmmc": "SC.L2-3.13.8",
         "cisa-scuba": "MS.EXO.3.1v1"
+      },
+      "references": {
+        "maester": [
+          "ORCA.108",
+          "ORCA.108.1"
+        ]
       },
       "attack": [
         "T1684.002"
@@ -593,6 +631,9 @@
       "references": {
         "secureScore": [
           "exo_SPF_records_for_all_domains"
+        ],
+        "maester": [
+          "ORCA.235"
         ]
       },
       "attack": [
@@ -860,6 +901,11 @@
         "cmmc": "SI.L1-3.14.2",
         "cisa-scuba": ""
       },
+      "references": {
+        "maester": [
+          "ORCA.243"
+        ]
+      },
       "attack": [
         "T1684.002"
       ]
@@ -902,6 +948,9 @@
       "references": {
         "secureScore": [
           "mdo_thresholdreachedaction"
+        ],
+        "maester": [
+          "ORCA.103"
         ]
       },
       "attack": [
@@ -945,6 +994,9 @@
       "references": {
         "secureScore": [
           "mdo_commonattachmentsfilter"
+        ],
+        "maester": [
+          "ORCA.205"
         ]
       },
       "attack": [
@@ -1129,6 +1181,9 @@
           "mdo_atpprotection",
           "mdo_safelinksforOfficeApps",
           "mdo_safedocuments"
+        ],
+        "maester": [
+          "ORCA.158"
         ]
       },
       "attack": [

@@ -1,0 +1,409 @@
+{
+  "name": "maester",
+  "title": "Maester tests",
+  "source": "https://github.com/maester365/maester/tree/2.3.0/tests",
+  "version": "2.3.0",
+  "notice": "Test ids and titles are from Maester, Copyright (c) 2024 Maester Team, MIT License. Listed here are the families the catalog has been compared with so far (families). Maester's CISA tests are the SCuBA policies, which have their own reference file, and its CIS tests are left out because CIS benchmark content is licensed.",
+  "families": [
+    "eidsca",
+    "orca"
+  ],
+  "checkKeys": {
+    "reference": "maester"
+  },
+  "items": {
+    "EIDSCA.AF01": "Authentication Method - FIDO2 security key - State",
+    "EIDSCA.AF02": "Authentication Method - FIDO2 security key - Allow self-service set up",
+    "EIDSCA.AF03": "Authentication Method - FIDO2 security key - Enforce attestation",
+    "EIDSCA.AF04": "Authentication Method - FIDO2 security key - Enforce key restrictions",
+    "EIDSCA.AF05": "Authentication Method - FIDO2 security key - Restricted",
+    "EIDSCA.AF06": "Authentication Method - FIDO2 security key - Restrict specific keys",
+    "EIDSCA.AG01": "Authentication Method - General Settings - Manage migration",
+    "EIDSCA.AG02": "Authentication Method - General Settings - Report suspicious activity - State",
+    "EIDSCA.AG03": "Authentication Method - General Settings - Report suspicious activity - Included users/groups",
+    "EIDSCA.AM01": "Authentication Method - Microsoft Authenticator - State",
+    "EIDSCA.AM02": "Authentication Method - Microsoft Authenticator - Allow use of Microsoft Authenticator OTP",
+    "EIDSCA.AM03": "Authentication Method - Microsoft Authenticator - Require number matching for push notifications",
+    "EIDSCA.AM04": "Authentication Method - Microsoft Authenticator - Included users/groups of number matching for push notifications",
+    "EIDSCA.AM06": "Authentication Method - Microsoft Authenticator - Show application name in push and passwordless notifications",
+    "EIDSCA.AM07": "Authentication Method - Microsoft Authenticator - Included users/groups to show application name in push and passwordless notifications",
+    "EIDSCA.AM09": "Authentication Method - Microsoft Authenticator - Show geographic location in push and passwordless notifications",
+    "EIDSCA.AM10": "Authentication Method - Microsoft Authenticator - Included users/groups to show geographic location in push and passwordless notifications",
+    "EIDSCA.AP01": "Default Authorization Settings - Enabled Self service password reset for administrators",
+    "EIDSCA.AP04": "Default Authorization Settings - Guest invite restrictions",
+    "EIDSCA.AP05": "Default Authorization Settings - Sign-up for email based subscription",
+    "EIDSCA.AP06": "Default Authorization Settings - User can join the tenant by email validation",
+    "EIDSCA.AP07": "Default Authorization Settings - Guest user access",
+    "EIDSCA.AP08": "Default Authorization Settings - User consent policy assigned for applications",
+    "EIDSCA.AP09": "Default Authorization Settings - Allow user consent on risk-based apps",
+    "EIDSCA.AP10": "Default Authorization Settings - Default User Role Permissions - Allowed to create Apps",
+    "EIDSCA.AP14": "Default Authorization Settings - Default User Role Permissions - Allowed to read other users",
+    "EIDSCA.AS04": "Authentication Method - SMS - Use for sign-in",
+    "EIDSCA.AT01": "Authentication Method - Temporary Access Pass - State",
+    "EIDSCA.AT02": "Authentication Method - Temporary Access Pass - One-time",
+    "EIDSCA.AV01": "Authentication Method - Voice call - State",
+    "EIDSCA.CP01": "Default Settings - Consent Policy Settings - Group owner consent for apps accessing data",
+    "EIDSCA.CP03": "Default Settings - Consent Policy Settings - Block user consent for risky apps",
+    "EIDSCA.CP04": "Default Settings - Consent Policy Settings - Users can request admin consent to apps they are unable to consent to",
+    "EIDSCA.CR01": "Consent Framework - Admin Consent Request - Policy to enable or disable admin consent request feature",
+    "EIDSCA.CR02": "Consent Framework - Admin Consent Request - Reviewers will receive email notifications for requests",
+    "EIDSCA.CR03": "Consent Framework - Admin Consent Request - Reviewers will receive email notifications when admin consent requests are about to expire",
+    "EIDSCA.CR04": "Consent Framework - Admin Consent Request - Consent request duration (days)",
+    "EIDSCA.PR01": "Default Settings - Password Rule Settings - Password Protection - Mode",
+    "EIDSCA.PR02": "Default Settings - Password Rule Settings - Password Protection - Enable password protection on Windows Server Active Directory",
+    "EIDSCA.PR03": "Default Settings - Password Rule Settings - Enforce custom list",
+    "EIDSCA.PR05": "Default Settings - Password Rule Settings - Smart Lockout - Lockout duration in seconds",
+    "EIDSCA.PR06": "Default Settings - Password Rule Settings - Smart Lockout - Lockout threshold",
+    "EIDSCA.ST08": "Default Settings - Classification and M365 Groups - M365 groups - Allow Guests to become Group Owner",
+    "EIDSCA.ST09": "Default Settings - Classification and M365 Groups - M365 groups - Allow Guests to have access to groups content",
+    "ORCA.100": "Bulk Complaint Level threshold is between 4 and 6",
+    "ORCA.101": "Bulk is marked as spam",
+    "ORCA.102": "Advanced Spam filter options are turned off",
+    "ORCA.103": "Outbound spam filter policy settings configured",
+    "ORCA.104": "High Confidence Phish action set to Quarantine message",
+    "ORCA.105": "Safe Links Synchronous URL detonation is enabled",
+    "ORCA.106": "Quarantine retention period is 30 days",
+    "ORCA.107": "End-user spam notification is enabled",
+    "ORCA.108": "DKIM signing is set up for all your custom domains",
+    "ORCA.108.1": "DNS Records have been set up to support DKIM",
+    "ORCA.109": "Senders are not being allow listed in an unsafe manner",
+    "ORCA.110": "Internal Sender notifications are disabled",
+    "ORCA.111": "Anti-phishing policy exists and EnableUnauthenticatedSender is true",
+    "ORCA.112": "Anti-spoofing protection action is configured to Move message to the recipients' Junk Email folders in Anti-phishing policy",
+    "ORCA.113": "AllowClickThrough is disabled in Safe Links policies",
+    "ORCA.114": "No IP Allow Lists have been configured",
+    "ORCA.115": "Mailbox intelligence based impersonation protection is enabled in anti-phishing policies",
+    "ORCA.116": "Mailbox intelligence based impersonation protection action set to move message to junk mail folder",
+    "ORCA.118.1": "Domains are not being allow listed in an unsafe manner in Anti-Spam Policies",
+    "ORCA.118.2": "Domains are not being allow listed in an unsafe manner in Transport Rules",
+    "ORCA.118.3": "Your own domains are not being allow listed in an unsafe manner in Anti-Spam Policies",
+    "ORCA.118.4": "Your own domains are not being allow listed in an unsafe manner in Transport Rules",
+    "ORCA.119": "Similar Domains Safety Tips is enabled",
+    "ORCA.120.1": "Zero Hour Autopurge Enabled for Phish",
+    "ORCA.120.2": "Zero Hour Autopurge Enabled for Malware",
+    "ORCA.120.3": "Zero Hour Autopurge Enabled for Spam",
+    "ORCA.121": "Supported filter policy action used",
+    "ORCA.123": "Unusual Characters Safety Tips is enabled",
+    "ORCA.124": "Safe attachments unknown malware response set to block messages",
+    "ORCA.139": "Spam action set to move message to junk mail folder or quarantine",
+    "ORCA.140": "High Confidence Spam action set to Quarantine message",
+    "ORCA.141": "Bulk action set to Move message to Junk Email Folder",
+    "ORCA.142": "Phish action set to Quarantine message",
+    "ORCA.143": "Safety Tips are enabled",
+    "ORCA.156": "Safe Links Policies are tracking when user clicks on safe links",
+    "ORCA.158": "Safe Attachments is enabled for SharePoint and Teams",
+    "ORCA.179": "Safe Links is enabled intra-organization",
+    "ORCA.180": "Anti-phishing policy exists and EnableSpoofIntelligence is true",
+    "ORCA.189": "Safe Attachments is not bypassed",
+    "ORCA.189.2": "Safe Links is not bypassed",
+    "ORCA.205": "Common attachment type filter is enabled",
+    "ORCA.220": "Advanced Phish filter Threshold level is adequate",
+    "ORCA.221": "Mailbox intelligence is enabled in anti-phishing policies",
+    "ORCA.222": "Domain Impersonation action is set to move to Quarantine",
+    "ORCA.223": "User impersonation action is set to move to Quarantine",
+    "ORCA.224": "Similar Users Safety Tips is enabled",
+    "ORCA.225": "Safe Documents is enabled for Office clients",
+    "ORCA.226": "Each domain has a Safe Link policy applied to it",
+    "ORCA.227": "Each domain has a Safe Attachments policy applied to it",
+    "ORCA.228": "No trusted senders in Anti-phishing policy",
+    "ORCA.229": "No trusted domains in Anti-phishing policy",
+    "ORCA.230": "Each domain has a Anti-phishing policy applied to it, or the default policy is being used",
+    "ORCA.231": "Each domain has a anti-spam policy applied to it, or the default policy is being used",
+    "ORCA.232": "Each domain has a malware filter policy applied to it, or the default policy is being used",
+    "ORCA.233": "Domains are pointed directly at EOP or enhanced filtering is used",
+    "ORCA.233.1": "Domains are pointed directly at EOP or enhanced filtering is configured on all default connectors",
+    "ORCA.234": "Click through is disabled for Safe Documents",
+    "ORCA.235": "SPF records is set up for all your custom domains",
+    "ORCA.236": "Safe Links is enabled for emails",
+    "ORCA.237": "Safe Links is enabled for teams messages",
+    "ORCA.238": "Safe Links is enabled for office documents",
+    "ORCA.239": "No exclusions for the built-in protection policies",
+    "ORCA.240": "Outlook is configured to display external tags for external emails",
+    "ORCA.241": "Anti-phishing policy exists and EnableFirstContactSafetyTips is true",
+    "ORCA.242": "Important protection alerts responsible for AIR activities are enabled",
+    "ORCA.243": "Authenticated Receive Chain is set up for domains not pointing to EOP/MDO, or all domains point to EOP/MDO",
+    "ORCA.244": "Policies are configured to honor sending domains DMARC"
+  },
+  "notCovered": {
+    "EIDSCA.AF02": {
+      "reason": "planned",
+      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AF03": {
+      "reason": "planned",
+      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AF04": {
+      "reason": "planned",
+      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AF05": {
+      "reason": "planned",
+      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AF06": {
+      "reason": "planned",
+      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AG02": {
+      "reason": "planned",
+      "note": "Report suspicious activity, in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AG03": {
+      "reason": "planned",
+      "note": "Report suspicious activity, in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AM02": {
+      "reason": "planned",
+      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AM03": {
+      "reason": "planned",
+      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AM04": {
+      "reason": "planned",
+      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
+    },
+    "EIDSCA.AM09": {
+      "reason": "planned",
+      "note": "The location shown in Authenticator is already read; the check judges the app name only."
+    },
+    "EIDSCA.AM10": {
+      "reason": "planned",
+      "note": "The location shown in Authenticator is already read; the check judges the app name only."
+    },
+    "EIDSCA.AP01": {
+      "reason": "planned",
+      "note": "A setting in the authorization policy, which is already collected."
+    },
+    "EIDSCA.AP05": {
+      "reason": "planned",
+      "note": "A setting in the authorization policy, which is already collected."
+    },
+    "EIDSCA.AP06": {
+      "reason": "planned",
+      "note": "A setting in the authorization policy, which is already collected."
+    },
+    "EIDSCA.AP09": {
+      "reason": "planned",
+      "note": "A consent setting in the directory settings."
+    },
+    "EIDSCA.AP10": {
+      "reason": "planned",
+      "note": "A setting in the authorization policy, which is already collected."
+    },
+    "EIDSCA.AP14": {
+      "reason": "planned",
+      "note": "A setting in the authorization policy, which is already collected."
+    },
+    "EIDSCA.CP01": {
+      "reason": "planned",
+      "note": "A consent setting in the directory settings."
+    },
+    "EIDSCA.CP03": {
+      "reason": "planned",
+      "note": "A consent setting in the directory settings."
+    },
+    "EIDSCA.CR02": {
+      "reason": "planned",
+      "note": "A detail of the admin consent request policy."
+    },
+    "EIDSCA.CR03": {
+      "reason": "planned",
+      "note": "A detail of the admin consent request policy."
+    },
+    "EIDSCA.CR04": {
+      "reason": "planned",
+      "note": "A detail of the admin consent request policy."
+    },
+    "EIDSCA.PR05": {
+      "reason": "planned",
+      "note": "Smart lockout, in the same directory settings as the banned password list."
+    },
+    "EIDSCA.PR06": {
+      "reason": "planned",
+      "note": "Smart lockout, in the same directory settings as the banned password list."
+    },
+    "EIDSCA.ST08": {
+      "reason": "planned",
+      "note": "A Microsoft 365 groups setting for guests."
+    },
+    "EIDSCA.ST09": {
+      "reason": "planned",
+      "note": "A Microsoft 365 groups setting for guests."
+    },
+    "ORCA.100": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.101": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.102": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.105": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.106": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.109": {
+      "reason": "planned",
+      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
+    },
+    "ORCA.110": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.111": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.112": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.113": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.115": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.116": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.118.1": {
+      "reason": "planned",
+      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
+    },
+    "ORCA.118.3": {
+      "reason": "planned",
+      "note": "Allowed senders and domains in the anti-spam policies, which are already collected."
+    },
+    "ORCA.119": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.121": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.123": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.124": {
+      "reason": "planned",
+      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
+    },
+    "ORCA.139": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.140": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.141": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.142": {
+      "reason": "planned",
+      "note": "A setting in the anti-spam policies, which are already collected."
+    },
+    "ORCA.143": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.156": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.179": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.189": {
+      "reason": "planned",
+      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
+    },
+    "ORCA.189.2": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.220": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.221": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.222": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.223": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.224": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.226": {
+      "reason": "planned",
+      "note": "A Safe Links policy setting; the policies are already collected."
+    },
+    "ORCA.227": {
+      "reason": "planned",
+      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
+    },
+    "ORCA.228": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.229": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.230": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.231": {
+      "reason": "planned",
+      "note": "Which domains each anti-spam and anti-malware policy applies to."
+    },
+    "ORCA.232": {
+      "reason": "planned",
+      "note": "Which domains each anti-spam and anti-malware policy applies to."
+    },
+    "ORCA.234": {
+      "reason": "planned",
+      "note": "A Safe Attachments or Safe Documents setting; the policies are already collected."
+    },
+    "ORCA.239": {
+      "reason": "planned",
+      "note": "Exclusions from the built-in protection policy."
+    },
+    "ORCA.241": {
+      "reason": "planned",
+      "note": "A setting in the anti-phishing policies, which are already collected."
+    },
+    "ORCA.242": {
+      "reason": "planned",
+      "note": "Alert policies."
+    }
+  }
+}
