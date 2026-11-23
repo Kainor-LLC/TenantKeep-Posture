@@ -73,6 +73,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     Power BI switched off or not ready, or one that is in place, where the thing to do is sign in to the Power BI
     portal once and collect again. Microsoft gives no time for a new licence to be taken up.
 
+- The report's Checks Explorer keeps a check id on one line (2026-11-23). In a window narrower than about 1,300
+  pixels the id broke at its hyphen, AU- over 001.
+
 - Two checks on devices that reach your data (2026-11-23, catalog 2026.11.3), from evidence already collected.
   - Every platform with managed devices has a compliance policy that is assigned (DEV-027). A policy assigned to
     nobody does not count, an iPad counts as iOS, and a platform with no devices needs no policy.
