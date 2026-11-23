@@ -79,6 +79,18 @@ Describe 'Azure exposure, cost, backups, Sentinel and Entra Domain Services' {
         $html | Should -Match 'Connect an app</td><td>5</td><td>Low</td><td><span class="tech">Microsoft''s only</span>'
         [regex]::Matches($html, '<tr class="group">').Count | Should -Be 3 -Because 'three products have an open action'
         $html.IndexOf('Microsoft Entra ID <span class="tech">2 actions') | Should -BeLessThan $html.IndexOf('Defender for Cloud Apps <span class="tech">1 action,') -Because 'the product with the most points to earn comes first'
+        # The remediation plan sits beside the roadmap lanes, in the page, the findings file and the Markdown.
+        $html | Should -Match '<h4>Remediation Plan</h4>'
+        $html | Should -Match '<h4>Roadmap</h4>' -Because 'the lanes stay: they say what matters most, the plan says what comes first'
+        $html | Should -Match 'href="#plan-PJ-038"' -Because 'the failing Azure workload checks make that project part of the plan'
+        $findings = Get-Content -Raw ($rep.Files | Where-Object { $_ -like '*findings.json' }) | ConvertFrom-Json
+        @($findings.plan.stages)[0].stage | Should -Be 'start'
+        @(@($findings.plan.stages)[0].projects.id) | Should -Contain 'PJ-036' -Because 'Azure foundations has a failing check and waits on nothing'
+        $workloads = @(@($findings.plan.stages | Where-Object stage -eq 'then')[0].projects | Where-Object id -eq 'PJ-038')[0]
+        $workloads.checks | Should -Contain 'AZ-024'
+        @($workloads.waitsOn)[0].id | Should -Be 'PJ-036' -Because 'the workloads project is better after the foundations, which are also in the plan'
+        @($workloads.waitsOn)[0].kind | Should -Be 'after'
+        Get-Content -Raw ($rep.Files | Where-Object { $_ -like '*report.md' }) | Should -Match '(?s)### Remediation plan.*\*\*Start now\*\*.*\*\*Then\*\*.*Azure workloads and Defender for Cloud.*better after Azure foundations'
     }
 
     It 'does not pass AZ-026, AZ-027 or AZ-028 on a tenant without backup vaults, Sentinel or Entra Domain Services' {

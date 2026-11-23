@@ -1,0 +1,787 @@
+{
+  "description": "The catalog's checks grouped into projects, the pieces of work an administrator would plan, and what each project waits on. needs: the other project has to be finished first, or this one causes harm or cannot work. after: recommended order, not a requirement. Every check belongs to exactly one project. The report turns this into a plan for one tenant: the projects with something to fix, in the order they can start.",
+  "projects": [
+    {
+      "id": "PJ-001",
+      "name": "Break-glass accounts",
+      "what": "Two emergency administrator accounts that every blocking policy leaves out, tested on a schedule.",
+      "checks": [
+        "ID-005",
+        "CA-012",
+        "OP-003"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-002",
+      "name": "MFA for everyone",
+      "what": "Every member has a second factor registered and every sign-in asks for one.",
+      "checks": [
+        "AU-006",
+        "CA-002",
+        "AU-009",
+        "AU-004",
+        "CA-008"
+      ],
+      "needs": [
+        {
+          "project": "PJ-001",
+          "why": "A sign-in policy that misfires locks everyone out, administrators included; the emergency accounts are the way back in."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-003",
+      "name": "Block legacy and device-code sign-in",
+      "what": "Old protocols and the device-code flow, which skip the second factor, are turned off.",
+      "checks": [
+        "CA-001",
+        "ID-016",
+        "CA-016",
+        "EM-017"
+      ],
+      "needs": [
+        {
+          "project": "PJ-001",
+          "why": "A sign-in policy that misfires locks everyone out, administrators included; the emergency accounts are the way back in."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-004",
+      "name": "Phishing-resistant sign-in",
+      "what": "Passkeys and Authenticator with context replace SMS and voice, and administrators sign in with a method that cannot be phished.",
+      "checks": [
+        "AU-001",
+        "AU-002",
+        "AU-003",
+        "AU-005",
+        "AU-007",
+        "AU-008",
+        "CA-003"
+      ],
+      "needs": [
+        {
+          "project": "PJ-002",
+          "why": "People need a second factor registered before the weaker ones are taken away or a stronger one is required."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-005",
+      "name": "Risk-based access",
+      "what": "A risky sign-in is challenged and a compromised account is contained.",
+      "checks": [
+        "CA-004",
+        "ID-015"
+      ],
+      "needs": [
+        {
+          "project": "PJ-002",
+          "why": "A risky sign-in is answered with a second factor, which people must already have."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-006",
+      "name": "Least-privilege administration",
+      "what": "Few standing administrators, separate cloud-only admin accounts, roles activated when needed and reviewed.",
+      "checks": [
+        "ID-001",
+        "ID-002",
+        "ID-003",
+        "ID-004",
+        "ID-006",
+        "ID-007",
+        "ID-023",
+        "GV-002",
+        "GV-006",
+        "GV-009",
+        "DEV-025",
+        "DEV-026",
+        "PV-008",
+        "CA-009",
+        "AZ-022"
+      ],
+      "needs": [
+        {
+          "project": "PJ-001",
+          "why": "Removing standing roles and adding activation steps is when administrators get locked out; the emergency accounts are the way back in."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-007",
+      "name": "Conditional Access upkeep",
+      "what": "No policy left in report-only or disabled, exclusions kept small, names that say what a policy does.",
+      "checks": [
+        "CA-006",
+        "CA-007",
+        "CA-011",
+        "CA-013",
+        "CA-014",
+        "CA-015"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-008",
+      "name": "Apps and consent",
+      "what": "People cannot grant apps access on their own, a workflow takes their requests, and app credentials and owners are kept current.",
+      "checks": [
+        "ID-008",
+        "ID-009",
+        "ID-010",
+        "ID-011",
+        "ID-024",
+        "GV-007",
+        "GV-008",
+        "GV-010"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-009",
+      "name": "Guests and external access",
+      "what": "Who can invite guests, what guests can see, and reviews that remove the ones no longer needed.",
+      "checks": [
+        "ID-012",
+        "ID-013",
+        "ID-020",
+        "ID-021",
+        "ID-022",
+        "GV-003",
+        "GV-004"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-010",
+      "name": "Passwords",
+      "what": "Passwords that do not expire on a schedule, with banned words refused in the cloud and on-premises.",
+      "checks": [
+        "ID-017",
+        "ID-018",
+        "ID-019",
+        "HY-025",
+        "HY-026",
+        "HY-031"
+      ],
+      "needs": [
+        {
+          "project": "PJ-002",
+          "why": "A password that never expires is only safe once every sign-in also asks for a second factor."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-011",
+      "name": "Joiners, movers and leavers",
+      "what": "Accounts created from HR, access removed when people leave, inactive accounts found.",
+      "checks": [
+        "GV-001",
+        "GV-005",
+        "GV-011",
+        "HY-024"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-012",
+      "name": "Audit logs and monitoring",
+      "what": "Sign-in, audit and activity logs kept and sent somewhere that is watched.",
+      "checks": [
+        "ID-014",
+        "OP-001",
+        "PV-001",
+        "EM-019",
+        "AZ-006",
+        "AZ-027"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-013",
+      "name": "Backup and recovery",
+      "what": "A decision on backup, backups that cannot be deleted quietly, and a way to bring back what was removed.",
+      "checks": [
+        "OP-002",
+        "OP-008",
+        "AZ-026",
+        "AZ-007",
+        "HY-023"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-014",
+      "name": "Operations upkeep",
+      "what": "Expiry dates, Microsoft's announcements and health alerts each have an owner.",
+      "checks": [
+        "OP-004",
+        "OP-005",
+        "OP-006",
+        "OP-007",
+        "OP-009",
+        "OP-010",
+        "OP-011",
+        "DEV-008",
+        "DEV-024",
+        "HY-004",
+        "HY-034"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-015",
+      "name": "Bring devices under management",
+      "what": "Every work device enrolled in Intune, the old management paths retired, stale records cleaned up.",
+      "checks": [
+        "DEV-002",
+        "DEV-003",
+        "DEV-004",
+        "DEV-007",
+        "DEV-009",
+        "DEV-013",
+        "DEV-014",
+        "DEV-016",
+        "DEV-018",
+        "DEV-019",
+        "DEV-020",
+        "DEV-021",
+        "DEV-022",
+        "DEV-023"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-016",
+      "name": "Device compliance",
+      "what": "Every device is judged by a compliance policy, and one without a policy counts as noncompliant.",
+      "checks": [
+        "DEV-001",
+        "DEV-010",
+        "DEV-017"
+      ],
+      "needs": [
+        {
+          "project": "PJ-015",
+          "why": "A device has to be enrolled before a compliance policy can judge it."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-017",
+      "name": "Require compliant devices",
+      "what": "Company data opens only on a device the organisation manages and judges healthy, with sessions bound to that device.",
+      "checks": [
+        "CA-005",
+        "CA-010"
+      ],
+      "needs": [
+        {
+          "project": "PJ-016",
+          "why": "Requiring a compliant device blocks everyone whose device has not been judged yet."
+        },
+        {
+          "project": "PJ-001",
+          "why": "A sign-in policy that misfires locks everyone out, administrators included; the emergency accounts are the way back in."
+        }
+      ],
+      "after": [
+        {
+          "project": "PJ-020",
+          "why": "Compliance should already know when Defender rates a device at risk before access depends on it."
+        }
+      ]
+    },
+    {
+      "id": "PJ-018",
+      "name": "Disk encryption",
+      "what": "BitLocker and FileVault on every computer, with the recovery keys kept in the directory.",
+      "checks": [
+        "EP-002",
+        "EP-015",
+        "DEV-005",
+        "DEV-006"
+      ],
+      "needs": [
+        {
+          "project": "PJ-015",
+          "why": "A policy reaches a device only once the device is enrolled and managed."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-019",
+      "name": "Device hardening",
+      "what": "Security baselines, firewall, SmartScreen, macro blocking, update deadlines and a managed local administrator password.",
+      "checks": [
+        "EP-001",
+        "EP-003",
+        "EP-004",
+        "EP-010",
+        "EP-011",
+        "EP-014",
+        "EP-016",
+        "DEV-011",
+        "HY-020"
+      ],
+      "needs": [
+        {
+          "project": "PJ-015",
+          "why": "A policy reaches a device only once the device is enrolled and managed."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-020",
+      "name": "Defender for Endpoint",
+      "what": "Every device onboarded with antivirus, tamper protection and network protection on, device risk fed into compliance, and open vulnerabilities and incidents worked.",
+      "checks": [
+        "EP-005",
+        "EP-006",
+        "EP-007",
+        "EP-019",
+        "EP-020",
+        "EP-021",
+        "EP-023",
+        "EP-024",
+        "EP-025",
+        "DEV-012",
+        "DEV-015"
+      ],
+      "needs": [
+        {
+          "project": "PJ-015",
+          "why": "A policy reaches a device only once the device is enrolled and managed."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-021",
+      "name": "Attack surface reduction",
+      "what": "The rules that stop common malware techniques, set to block, with exclusions written down.",
+      "checks": [
+        "EP-008",
+        "EP-009",
+        "EP-022"
+      ],
+      "needs": [
+        {
+          "project": "PJ-020",
+          "why": "The rules run inside Defender Antivirus, which has to be the active antivirus first."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-022",
+      "name": "Passwordless on computers",
+      "what": "Windows Hello, cloud Kerberos trust and Platform SSO, so people unlock their computer without typing a password.",
+      "checks": [
+        "EP-012",
+        "EP-013",
+        "EP-017",
+        "UX-014",
+        "UX-015",
+        "UX-016"
+      ],
+      "needs": [
+        {
+          "project": "PJ-015",
+          "why": "A policy reaches a device only once the device is enrolled and managed."
+        }
+      ],
+      "after": [
+        {
+          "project": "PJ-004",
+          "why": "The stronger methods are easier to roll out once people already use them to sign in."
+        }
+      ]
+    },
+    {
+      "id": "PJ-023",
+      "name": "Work apps on phones",
+      "what": "App protection for work apps on phones, with jailbroken and rooted devices blocked.",
+      "checks": [
+        "EP-018",
+        "UX-018"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-024",
+      "name": "Mail authentication",
+      "what": "SPF, DKIM, DMARC and MTA-STS, so nobody else can send mail as your domains.",
+      "checks": [
+        "EM-012",
+        "EM-013",
+        "EM-014",
+        "EM-015",
+        "EM-021"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-025",
+      "name": "Mail filtering",
+      "what": "The preset policies for everyone, impersonation protection, Safe Links and Safe Attachments, and a phishing drill.",
+      "checks": [
+        "EM-001",
+        "EM-002",
+        "EM-003",
+        "EM-004",
+        "EM-005",
+        "EM-006",
+        "EM-007",
+        "EM-020",
+        "EM-022",
+        "EM-023",
+        "EM-027",
+        "UX-023"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-024",
+          "why": "How spoofed mail is treated depends on your own domains authenticating properly first."
+        }
+      ]
+    },
+    {
+      "id": "PJ-026",
+      "name": "Mail flow and mailbox access",
+      "what": "No quiet forwarding, no allow lists that skip filtering, connectors and direct sending closed to strangers.",
+      "checks": [
+        "EM-008",
+        "EM-009",
+        "EM-010",
+        "EM-011",
+        "EM-016",
+        "EM-018",
+        "EM-024",
+        "EM-025",
+        "EM-026",
+        "EM-028"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-024",
+          "why": "Rejecting unauthenticated mail is safe only once your own senders pass authentication."
+        }
+      ]
+    },
+    {
+      "id": "PJ-027",
+      "name": "Sharing in SharePoint and OneDrive",
+      "what": "Sharing limited to named people by default, links that expire, and sync and sessions kept to the organisation's own computers.",
+      "checks": [
+        "CL-001",
+        "CL-002",
+        "CL-003",
+        "CL-004",
+        "CL-005",
+        "CL-006",
+        "CL-016",
+        "CL-017",
+        "CL-018",
+        "CL-019"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-028",
+      "name": "Teams external access and apps",
+      "what": "Who outside can reach your people in Teams, who waits in the lobby, and which apps are allowed.",
+      "checks": [
+        "CL-010",
+        "CL-011",
+        "CL-012",
+        "CL-013",
+        "CL-014"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-029",
+      "name": "Site and group ownership",
+      "what": "Every site and group has an owner, groups expire when unused, and the most exposed sites are reviewed.",
+      "checks": [
+        "CL-007",
+        "CL-008",
+        "CL-009",
+        "CL-015",
+        "CP-018"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-030",
+      "name": "Sensitivity labels",
+      "what": "Labels defined and published to everyone, applied to sites and Teams, and applied automatically where the content is clear.",
+      "checks": [
+        "PV-002",
+        "PV-003",
+        "PV-004",
+        "CP-006"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-031",
+      "name": "Data loss prevention and retention",
+      "what": "Policies that stop sensitive content leaving, keep what must be kept, and flag risky handling.",
+      "checks": [
+        "PV-005",
+        "PV-006",
+        "PV-007"
+      ],
+      "needs": [
+        {
+          "project": "PJ-030",
+          "why": "The policies act on labels, so the labels have to be published first."
+        }
+      ],
+      "after": []
+    },
+    {
+      "id": "PJ-032",
+      "name": "Copilot readiness",
+      "what": "Oversharing found and fixed, restricted search and discovery where needed, and Copilot's own settings governed.",
+      "checks": [
+        "CP-001",
+        "CP-002",
+        "CP-003",
+        "CP-004",
+        "CP-005",
+        "CP-007",
+        "CP-008",
+        "CP-009",
+        "CP-010",
+        "CP-011",
+        "CP-012",
+        "CP-013",
+        "CP-014",
+        "CP-015",
+        "CP-016",
+        "CP-017"
+      ],
+      "needs": [
+        {
+          "project": "PJ-027",
+          "why": "Copilot shows people whatever they can already open, so sharing has to be tightened first."
+        },
+        {
+          "project": "PJ-030",
+          "why": "Labels are what keep Copilot from carrying protected content into new documents."
+        }
+      ],
+      "after": [
+        {
+          "project": "PJ-029",
+          "why": "Access reviews go to site owners, so sites need owners first."
+        },
+        {
+          "project": "PJ-031",
+          "why": "A data loss prevention policy for Copilot builds on the policies already in place."
+        }
+      ]
+    },
+    {
+      "id": "PJ-033",
+      "name": "Active Directory: privileged access",
+      "what": "Few Domain Admins, empty schema and enterprise groups, and admin accounts that cannot be delegated or roasted.",
+      "checks": [
+        "HY-010",
+        "HY-011",
+        "HY-012",
+        "HY-013",
+        "HY-015",
+        "HY-016"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-034",
+      "name": "Active Directory: Kerberos and credentials",
+      "what": "Keys rotated, no unconstrained delegation, no roastable accounts, no certificate templates or policies that hand out credentials.",
+      "checks": [
+        "HY-014",
+        "HY-017",
+        "HY-018",
+        "HY-019",
+        "HY-027",
+        "HY-028",
+        "HY-029",
+        "HY-030"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-035",
+      "name": "Active Directory: platform and sync",
+      "what": "Supported domain controllers and functional levels, password hash sync, and cloud access managed in Entra.",
+      "checks": [
+        "HY-001",
+        "HY-002",
+        "HY-003",
+        "HY-021",
+        "HY-022",
+        "HY-032",
+        "HY-033"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-036",
+      "name": "Azure foundations",
+      "what": "Management groups, policy and tags on every subscription, a security contact, and a budget with an alert.",
+      "checks": [
+        "AZ-001",
+        "AZ-002",
+        "AZ-005",
+        "AZ-008",
+        "AZ-009",
+        "AZ-010",
+        "AZ-023",
+        "AZ-025",
+        "AZ-029"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-037",
+      "name": "Azure access",
+      "what": "Few owners, no standing access at the top, and no guest, orphaned or over-broad role assignments.",
+      "checks": [
+        "AZ-011",
+        "AZ-012",
+        "AZ-013",
+        "AZ-014",
+        "AZ-015",
+        "AZ-016",
+        "AZ-017",
+        "AZ-018",
+        "AZ-030"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-038",
+      "name": "Azure workloads and Defender for Cloud",
+      "what": "Defender for Cloud on, and key vaults, storage, databases and network ports closed to the internet.",
+      "checks": [
+        "AZ-003",
+        "AZ-004",
+        "AZ-019",
+        "AZ-020",
+        "AZ-021",
+        "AZ-024",
+        "AZ-028"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-036",
+          "why": "Plans and policies are assigned through the management groups, which should exist first."
+        }
+      ]
+    },
+    {
+      "id": "PJ-039",
+      "name": "Network access",
+      "what": "Microsoft, internet and private app traffic through Global Secure Access, with the real source address kept for Conditional Access.",
+      "checks": [
+        "NET-001",
+        "NET-002",
+        "NET-003",
+        "NET-004"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-040",
+      "name": "Easier sign-in for people",
+      "what": "A sign-in page people recognise, fewer prompts, password reset they can do themselves, and their best method offered first.",
+      "checks": [
+        "UX-006",
+        "UX-007",
+        "UX-008",
+        "UX-009",
+        "UX-011",
+        "UX-012",
+        "UX-013"
+      ],
+      "needs": [],
+      "after": []
+    },
+    {
+      "id": "PJ-041",
+      "name": "Smoother devices",
+      "what": "New computers that set themselves up, OneDrive that signs in by itself, and update restarts with notice.",
+      "checks": [
+        "UX-001",
+        "UX-002",
+        "UX-003",
+        "UX-004",
+        "UX-005",
+        "UX-017"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-015",
+          "why": "These settings arrive through Intune, so devices should be enrolled first."
+        }
+      ]
+    },
+    {
+      "id": "PJ-042",
+      "name": "Directory and mail tidy",
+      "what": "Names, titles and licences kept in order, and Outlook telling people when mail comes from outside.",
+      "checks": [
+        "UX-010",
+        "UX-019",
+        "UX-020",
+        "UX-021",
+        "UX-022",
+        "UX-024"
+      ],
+      "needs": [],
+      "after": []
+    }
+  ]
+}

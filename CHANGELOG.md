@@ -27,6 +27,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- A remediation plan (2026-11-22). Recommendations gains a flow chart under the Roadmap lanes. The lanes still sort
+  findings by risk; the plan says what has to happen first. The checks are grouped into 42 projects, every check in
+  exactly one (`checks/projects.json`), each naming what it needs first and what it is better after, with the
+  reason. For a run, the projects with something to fix sit in columns by the order they can start: the first column
+  can run side by side, and an arrow leads to each project that waits. A project waiting on something the run could
+  not judge is told to check it first. Highest Risk Only dims the rest. The same plan is in words under the chart, in
+  `report.md` and in `findings.json` (`plan`).
 - The catalog is measured against CISA's SCuBA baselines, policy by policy (2026-11-22). A new file,
   `checks/references/cisa-scuba.json`, lists all 109 policies of ScubaGear v2.0.0. 55 are covered by a check; 53 are
   planned, each with a note on what it needs (17 of them Power BI and Power Platform, which need permissions the app

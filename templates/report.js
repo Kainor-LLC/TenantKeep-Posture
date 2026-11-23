@@ -246,6 +246,16 @@
   // Domains: the charts of each domain are folded sections. The button opens or folds them all; printing opens them
   // for the paper and puts them back; ?areas=open opens them from the address, for a screenshot or a link.
   // The same for the tactics of the ATT&CK view: a button names the sections it folds in data-fold.
+  // Remediation plan: one switch dims everything but the critical and high risk projects.
+  Array.prototype.slice.call(document.querySelectorAll('button[data-plan-risk]')).forEach(function (button) {
+    button.addEventListener('click', function () {
+      var plan = button.closest('.plan');
+      if (!plan) { return; }
+      var on = plan.classList.toggle('only-high');
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      button.textContent = on ? 'Show Every Project' : 'Highest Risk Only';
+    });
+  });
   var foldButtons = Array.prototype.slice.call(document.querySelectorAll('button.fold-toggle'));
   function foldList(selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); }
   function setFold(button, open) {

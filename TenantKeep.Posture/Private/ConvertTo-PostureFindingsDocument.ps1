@@ -62,6 +62,17 @@ function ConvertTo-PostureFindingsDocument {
         }
     }
     $rh = $Report.runHealth
+    # The remediation plan in brief: stages of projects, each with its failing checks and what it waits on.
+    $plan = $null
+    if ($Report.Contains('plan') -and $Report.plan) {
+        $brief = { param($p) [ordered]@{ id = $p.id; name = $p.name; risk = $p.risk; toFix = $p.toFix; size = $p.size; checks = @($p.checks | ForEach-Object { $_.id }); waitsOn = @($p.waitsOn | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; kind = $_.kind; state = $_.state; why = $_.why } }) } }
+        $plan = [ordered]@{
+            about = 'Projects (groups of checks) with something to fix, in the order they can start. Projects in one stage do not wait on each other. waitsOn.kind is needs (finish that one first) or after (recommended order).'
+            stages = @($Report.plan.columns | Where-Object { $_.key -ne 'inPlace' } | ForEach-Object { [ordered]@{ stage = $_.key; projects = @($_.projects | ForEach-Object { & $brief $_ }) } })
+            alsoReady = @($Report.plan.whenever | ForEach-Object { & $brief $_ })
+            counts = $Report.plan.counts
+        }
+    }
     return [ordered]@{
         about          = 'TenantKeep Posture findings. "findings" lists every failing check, most important first (rank 1 first): severity, then effort (S quick, M planned, L a project), then how many objects it affects. category is fix (a gap) or improve (hardening beyond the baseline). userImpact says what users notice when the fix lands (level none, low, medium, high); summary.doToday lists the quick fixes users will barely notice. Each has what was found (observed: the values judged, beside the thresholds), why it matters, how to fix it as steps with the admin portal and Microsoft Learn links, the licence it needs, the MITRE ATT&CK techniques it helps stop or detect (attack), and up to 25 affected objects; affectedFile names the CSV with all of them. "licensing" says what the licences held cover and the smallest addition for the chosen goals, with no prices. "chains" are controls that protect only together: status pass, broken (brokenAt names the first failing link, the one to fix first) or notEvaluated. "acceptedRisks" were failures the organisation accepted with a reason and an expiry; "notEvaluated" could not be judged from what was collected, with why; "summary.runHealth" lists what could not be read and what to grant. Nothing in this file was written to the tenant.'
         schemaVersion  = 1
@@ -83,6 +94,7 @@ function ConvertTo-PostureFindingsDocument {
         findings       = @($findings)
         licensing      = $(if ($Report.Contains('licenseAdvice') -and $Report.licenseAdvice) { $la = $Report.licenseAdvice; [ordered]@{ advice = $la.advice; featuresOwned = @($la.features | Where-Object { $_.status -ne 'missing' } | ForEach-Object { $_.name }); featuresPartlyAssigned = @($la.features | Where-Object { $_.status -eq 'partial' } | ForEach-Object { $_.name }); goalsNotCovered = @($la.goals | Where-Object { -not $_.met } | ForEach-Object { [ordered]@{ goal = $_.name; needs = $_.missing } }) } } else { $null })
         chains         = @($(if ($Report.Contains('chains')) { $Report.chains | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; status = $_.status; brokenAt = $_.brokenAt; whyItMatters = $_.why; links = @($_.links | ForEach-Object { [ordered]@{ id = $_.check; title = $_.title; status = $_.status; role = $_.role } }) } } }))
+        plan           = $plan
         acceptedRisks  = @($Report.results | Where-Object { $_.status -eq 'acceptedRisk' } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; severity = $_.severity; reason = $_.reason } })
         notEvaluated   = @($Report.results | Where-Object { $_.status -eq 'notEvaluated' } | ForEach-Object { [ordered]@{ id = $_.id; title = $_.title; reason = $_.reason } })
     }

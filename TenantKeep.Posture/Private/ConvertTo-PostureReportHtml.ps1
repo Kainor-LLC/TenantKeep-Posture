@@ -482,6 +482,16 @@ function ConvertTo-PostureReportHtml {
         $lanes = '<div class="lanes">' + ((@(@('now', 'Now: next 30 days', 'Critical findings, and high ones that are quick'), @('next', 'Next: 60 days', 'High findings that take planning, quick medium ones'), @('later', 'Later: 90 days', 'The rest, in priority order')) | ForEach-Object { $k = $_[0]; '<div class="lane"><h4>' + (& $h $_[1]) + ' <span class="count">' + @($rm[$k]).Count + '</span></h4><p class="hint">' + (& $h $_[2]) + '</p><ul>' + (@($rm[$k] | Select-Object -First 12 | ForEach-Object { '<li><span class="sev ' + (& $h $_.severity) + '">' + (& $h $_.severity) + '</span> <a href="#rec-' + (& $h $_.id) + '">' + (& $h $_.title) + '</a></li>' }) -join '') + '</ul>' + $(if (@($rm[$k]).Count -gt 12) { '<p class="hint">and ' + (@($rm[$k]).Count - 12) + ' more</p>' }) + '</div>' }) -join '') + '</div>'
         & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Quick Wins' -Takeaway "$(@($qw['none|S']).Count + @($qw['low|S']).Count) open findings are quick fixes users will barely notice: the top left corner." -Body $cells) + (ConvertTo-PostureChartCard -Class 'wide' -Title 'Roadmap' -Takeaway "$(@($rm.now).Count) for the next 30 days, $(@($rm.next).Count) for 60, $(@($rm.later).Count) for 90." -Body $lanes) + '</div>')
     }
+    # The remediation plan: the roadmap above sorts findings by risk; this puts projects in the order they can start.
+    if ($r.Contains('plan') -and $r.plan) {
+        $planHtml = ConvertTo-PosturePlanHtml -Plan $r.plan
+        if ($planHtml) {
+            $ready = @($r.plan.columns | Where-Object { $_.key -eq 'start' } | ForEach-Object { $_.projects }).Count + @($r.plan.whenever).Count
+            $waiting = @($r.plan.columns | Where-Object { $_.key -notin 'inPlace', 'start' } | ForEach-Object { $_.projects }).Count
+            $planTake = "$ready project$(if ($ready -ne 1) { 's' }) can start now and $waiting wait$(if ($waiting -eq 1) { 's' }) on $(if ($waiting -eq 1) { 'one' } else { 'some' }) of them. The roadmap above says what matters most; this says what has to happen first."
+            & $w ('<div class="charts">' + (ConvertTo-PostureChartCard -Class 'wide plan-card' -Title 'Remediation Plan' -Takeaway $planTake -Body $planHtml) + '</div>')
+        }
+    }
     # Control chains: checks that only protect together, one card each with the broken link marked.
     if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {
         $chainLabel = @{ pass = 'Holds'; broken = 'Broken'; notEvaluated = 'Incomplete' }

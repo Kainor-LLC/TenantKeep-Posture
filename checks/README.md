@@ -44,6 +44,18 @@ read yet when it could not be evaluated. A step naming a check the catalog lacks
 
 ## MITRE ATT&CK
 
+## Projects: the remediation plan
+
+`projects.json` groups the checks into projects, the pieces of work an administrator would plan ("Bring devices under
+management"), and says what each waits on. `needs` names projects that have to be finished first, because this one
+causes harm or cannot work without them; `after` names a recommended order. Each carries its reason in `why`, which
+the report shows. Every built-in check belongs to exactly one project: the catalog refuses to load a check in two
+projects or in none, so a new check has to be given a project and the plan leaves nothing out. Loops are refused too.
+
+The report turns this into a plan for one tenant (`Get-PosturePlan`): the projects with something to fix, in columns
+by the order they can start. A project that waits on one the run could not judge is not held back and is not treated
+as ready either; it says which to check first.
+
 ## References: what the catalog is measured against
 
 `references/` holds one file per public reference with every item of it, so coverage is a count and not a claim.

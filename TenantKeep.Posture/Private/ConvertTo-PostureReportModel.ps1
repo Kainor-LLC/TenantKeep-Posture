@@ -553,6 +553,7 @@ function ConvertTo-PostureReportModel {
         chains          = $chains
         layers          = @(Get-PostureLayerSetResult -LayerSet @(Import-PostureLayerSet -Catalog $Catalog) -Result @($results))
         journeys        = @(Get-PostureJourneyResult -Catalog $Catalog -Result @($results))
+        plan            = $(if ($fullTier) { Get-PosturePlan -Catalog $Catalog -Result @($results) } else { $null })
         doToday         = $doToday
         story           = $story
         inventory       = @(Get-PostureInventory -Evidence $Evidence | Where-Object { $fullTier -or [string]$_.domain -in $allowedDomains })

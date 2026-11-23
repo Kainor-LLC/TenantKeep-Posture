@@ -197,6 +197,14 @@ same list as a spreadsheet, most severe first, rebuilt on every run for whoever 
 Export-PostureFindings -Path $folder
 ```
 
+Two views in Recommendations answer two different questions. The Roadmap lanes sort the findings by risk and effort:
+what matters most. The Remediation Plan under them puts the work in order: the checks are grouped into projects, and a
+flow chart shows which projects can start now, side by side, and which wait on another, with a solid arrow where one
+is needed first and a dashed one where it is only better to wait. The same plan is written out below the chart with
+the reason for each wait and the checks each project fixes. Highest Risk Only dims everything but the critical and
+high risk projects. The order is a recommendation, and a project that waits on something the run could not read says
+so.
+
 Microsoft's own list sits beside this one. Under Operations, Top Secure Score Improvements shows the ten actions worth
 the most points, and "All open Secure Score actions, by product" under it opens every action Microsoft still scores as
 open in the tenant, including products this report cannot read a setting from (Defender for Cloud Apps, for one). The

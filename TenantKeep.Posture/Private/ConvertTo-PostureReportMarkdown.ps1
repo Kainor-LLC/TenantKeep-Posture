@@ -140,6 +140,30 @@ function ConvertTo-PostureReportMarkdown {
         foreach ($d in $r.doToday) { & $line "- **$($d.id) $(& $esc $d.title)** ($($d.severity)): $(& $esc $d.userImpact['text'])" }
         & $line
     }
+    if ($r.Contains('plan') -and $r.plan -and @($r.plan.columns).Count -gt 0) {
+        & $line '### Remediation plan'
+        & $line
+        & $line 'Projects in the order they can start. Projects under one heading do not wait on each other. The order is a recommendation.'
+        & $line
+        $planEntry = {
+            param($p)
+            $waits = @($p.waitsOn | ForEach-Object { $(if ($_.kind -eq 'needs') { 'needs ' } else { 'better after ' }) + $_.name + $(if ($_.state -eq 'done') { ' (in place)' } elseif ($_.state -eq 'unknown') { ' (not judged, check it first)' }) }) -join '; '
+            "- **$(& $esc $p.name)**$(if ($p.risk -and -not $p.improvementsOnly) { " ($($p.risk))" }): $($p.toFix) to $(if ($p.improvementsOnly) { 'do' } else { 'fix' }) ($(@($p.checks | ForEach-Object { $_.id }) -join ', '))$(if ($waits) { '; ' + (& $esc $waits) })"
+        }
+        foreach ($col in $r.plan.columns) {
+            if ($col.key -eq 'inPlace') { continue }
+            & $line "**$($col.title)**"
+            & $line
+            foreach ($p in $col.projects) { & $line (& $planEntry $p) }
+            & $line
+        }
+        if (@($r.plan.whenever).Count -gt 0) {
+            & $line '**Also ready to start** (nothing waits on these)'
+            & $line
+            foreach ($p in $r.plan.whenever) { & $line (& $planEntry $p) }
+            & $line
+        }
+    }
     if ($r.Contains('chains') -and @($r.chains).Count -gt 0) {
         & $line '### Control chains'
         & $line

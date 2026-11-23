@@ -319,7 +319,7 @@ function Invoke-AttackData {
     $order = @($tactics | ForEach-Object { $_.key })
 
     $used = [ordered]@{}; $problems = [System.Collections.Generic.List[string]]::new()
-    foreach ($f in Get-ChildItem -Path $dir -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' }) {
+    foreach ($f in Get-ChildItem -Path $dir -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json', 'projects.json' }) {
         foreach ($c in @((Get-Content -Raw $f.FullName | ConvertFrom-Json -AsHashtable -Depth 20).checks)) {
             if (-not $c.Contains('attack')) { continue }
             foreach ($id in @($c.attack)) {
@@ -452,7 +452,7 @@ function Invoke-Upkeep {
             catch { $notes.Add("Graph v1.0 schema not checked: $($_.Exception.Message)") }
 
             # Learn links in the catalog that no longer answer.
-            $links = @(Get-ChildItem (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' } | ForEach-Object { (Get-Content -Raw $_.FullName | ConvertFrom-Json).checks } | Where-Object { $_.learn } | Group-Object learn)
+            $links = @(Get-ChildItem (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json', 'projects.json' } | ForEach-Object { (Get-Content -Raw $_.FullName | ConvertFrom-Json).checks } | Where-Object { $_.learn } | Group-Object learn)
             foreach ($l in $links) {
                 $code = 0
                 try { $code = [int](Invoke-WebRequest -Uri $l.Name -Method Head -MaximumRedirection 5 -UseBasicParsing -ErrorAction Stop).StatusCode } catch { $code = $(if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { -1 }) }
@@ -527,7 +527,7 @@ function Invoke-Catalog {
     $labels = @{}; foreach ($d in @($catalogDoc.domains)) { $labels[[string]$d.key] = [string]$d.label }
     $order = @($catalogDoc.domains | ForEach-Object { [string]$_.key })
     $version = (Get-Content -Raw (Join-Path $Root 'checks' 'catalog.json') | ConvertFrom-Json).version
-    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json' }
+    $files = Get-ChildItem -Path (Join-Path $Root 'checks') -Filter '*.json' | Where-Object { $_.Name -notin 'attack.json', 'catalog.json', 'chains.json', 'facts.json', 'journeys.json', 'layers.json', 'outcomes.json', 'projects.json' }
     $byDomain = @{}
     foreach ($f in $files) { $d = Get-Content -Raw $f.FullName | ConvertFrom-Json; $byDomain[[string]$d.domain] = @($d.checks) }
     $md = [System.Collections.Generic.List[string]]::new()
