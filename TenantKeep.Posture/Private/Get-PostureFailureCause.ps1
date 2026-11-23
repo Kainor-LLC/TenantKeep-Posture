@@ -163,7 +163,14 @@ function Get-PostureFailureAdvice {
         'permission' {
             # Power BI answers no account without a licence, whatever its role. Say only that: on a live run
             # (2026-11-23) a Global Administrator was told to get the Fabric Administrator role it did not need.
-            if ([string]$Failure['message'] -match 'UserNotLicensed') { return 'The account that signed in has no Power BI or Fabric licence, and Power BI answers no account without one, whatever its role. Give it the free Microsoft Fabric licence and open app.powerbi.com with it once.' }
+            # The collector has already said which case it is from the account's licences in Entra (no licence, one
+            # that is switched off or not ready, or one Power BI has not taken up); its words are the advice, and
+            # what Power BI answered, which follows them in the message, is left off.
+            if ([string]$Failure['message'] -match 'UserNotLicensed') {
+                $own = ([string]$Failure['message'] -replace '\s*Power BI answered \d{3} to .*$', '').Trim()
+                if ($own -match '^Power BI refused') { return $own }
+                return 'The account that signed in has no Power BI or Fabric licence, and Power BI answers no account without one, whatever its role. Give it the free Microsoft Fabric licence and open app.powerbi.com with it once.'
+            }
             $t = $(if ($roles.Count) { "Give the account that runs the assessment one of: $($roles -join ', ')." } else { 'The account was refused; the message says by what.' })
             if ($scopes.Count) { $t += " The TenantKeep app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
             if ($licence) { $t += " It also needs $licence." }

@@ -110,9 +110,29 @@ Describe 'The Power BI and Power Platform collectors' {
                 default { throw "No answer in the test for $Uri" }
             }
         }
+        # The licences Entra shows on the account that signed in, as JSON in an environment variable ('refused' for a
+        # read that is refused). Asked for only after Power BI has refused the account.
+        Mock -ModuleName TenantKeep.Posture Invoke-PostureGraphRequest {
+            if ($env:TKP_TEST_LICENCES -eq 'refused') { throw 'Graph answered 403: Authorization_RequestDenied' }
+            return @($env:TKP_TEST_LICENCES | ConvertFrom-Json -AsHashtable -Depth 6)
+        } -ParameterFilter { $Uri -like 'me/licenseDetails*' }
+        # What the Power BI collector says about a refused account whose licences in Entra are the ones given.
+        $script:Unlicensed = {
+            param([string] $Licences, [string] $Account = 'admin@contoso.com')
+            $env:TKP_TEST_POWERBI = 'unlicensed'; $env:TKP_TEST_LICENCES = $Licences
+            try {
+                $folder = & $script:NewFolder
+                InModuleScope TenantKeep.Posture -Parameters @{ Folder = $folder; Account = $Account } {
+                    $script:PostureSession = @{ account = $Account }
+                    try { ((Invoke-PosturePowerBICollection -Folder $Folder -WarningAction SilentlyContinue).errors -join "`n") }
+                    finally { $script:PostureSession = $null }
+                }
+            }
+            finally { $env:TKP_TEST_POWERBI = $null; $env:TKP_TEST_LICENCES = $null }
+        }
         $script:Read = { param([string] $Folder, [string] $Name) Get-Content -Raw (Join-Path $Folder "$Name.json") | ConvertFrom-Json -AsHashtable }
     }
-    AfterAll { $env:TKP_TEST_POWERBI = $null }
+    AfterAll { $env:TKP_TEST_POWERBI = $null; $env:TKP_TEST_LICENCES = $null }
 
     It 'reads every page of the Power BI tenant settings and saves each setting with its groups' {
         $folder = & $script:NewFolder
@@ -148,6 +168,89 @@ Describe 'The Power BI and Power Platform collectors' {
             $unlicensed = Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @($need.roles); scopes = @(); licence = [string]$need.licence; message = $said }
             $unlicensed | Should -Match 'has no Power BI or Fabric licence' -Because 'seen live: a Global Administrator was sent to get a role it did not need'
             $unlicensed | Should -Not -Match 'Fabric Administrator'
+        }
+    }
+
+    It 'says the account holds no licence with Power BI in it, from its licences in Entra' {
+        $none = & $script:Unlicensed '[]'
+        $none | Should -Match 'admin@contoso\.com'
+        $none | Should -Match 'has no Power BI or Fabric licence: Entra shows no licence on it'
+        $none | Should -Match 'free Microsoft Fabric licence'
+        $other = & $script:Unlicensed '[{"skuPartNumber":"SPB","servicePlans":[{"servicePlanName":"EXCHANGE_S_STANDARD","provisioningStatus":"Success"},null]}]'
+        $other | Should -Match 'Entra shows one licence on it, without Power BI'
+        $two = & $script:Unlicensed '[{"skuPartNumber":"SPB","servicePlans":[]},{"skuPartNumber":"AAD_PREMIUM_P2"}]'
+        $two | Should -Match 'Entra shows 2 licences on it, none with Power BI'
+    }
+
+    It 'says the licence is in place and Power BI has not taken it up, which is what a just-assigned licence looks like' {
+        $said = & $script:Unlicensed '[{"skuPartNumber":"SPB","servicePlans":[{"servicePlanName":"EXCHANGE_S_STANDARD","provisioningStatus":"Success"}]},{"skuPartNumber":"POWER_BI_STANDARD","servicePlans":[{"servicePlanName":"EXCHANGE_S_FOUNDATION","provisioningStatus":"Success"},{"servicePlanName":"BI_AZURE_P0","provisioningStatus":"Success"}]}]'
+        $said | Should -Match 'although Entra shows a licence with Power BI on it \(Microsoft Fabric \(Free\)\)' -Because 'reported from a live tenant, 2026-11-23: the licence was assigned and the run still said there was none'
+        $said | Should -Match 'Sign in at app\.powerbi\.com with that account once'
+        $said | Should -Not -Match 'has no Power BI or Fabric licence' -Because 'the account has one, and being told to assign it again sends the admin in a circle'
+        $said | Should -Match 'Resume-PostureRun -Collector PowerBI'
+    }
+
+    It 'says when Power BI is switched off in the licence, or the licence is not ready, and takes the best of several' {
+        $off = & $script:Unlicensed '[{"skuPartNumber":"SPE_E5","servicePlans":[{"servicePlanName":"BI_AZURE_P2","provisioningStatus":"Disabled"}]}]'
+        $off | Should -Match 'Its licence \(SPE_E5\) includes Power BI, and Power BI is switched off in it'
+        $pending = & $script:Unlicensed '[{"skuPartNumber":"POWER_BI_PRO","servicePlans":[{"servicePlanName":"BI_AZURE_P2","provisioningStatus":"PendingProvisioning"}]}]'
+        $pending | Should -Match 'Its licence \(Power BI Pro\) includes Power BI, and Entra says that part is not ready yet \(PendingProvisioning\)'
+        $both = & $script:Unlicensed '[{"skuPartNumber":"SPE_E5","servicePlans":[{"servicePlanName":"BI_AZURE_P2","provisioningStatus":"Disabled"}]},{"skuPartNumber":"POWER_BI_STANDARD","servicePlans":[{"servicePlanName":"BI_AZURE_P0","provisioningStatus":"Success"}]}]'
+        $both | Should -Match 'although Entra shows a licence with Power BI on it \(Microsoft Fabric \(Free\)\)' -Because 'one working licence is enough, whatever the others say'
+    }
+
+    It 'falls back to the plain sentence when the licences cannot be read, and never asks without a signed-in person' {
+        $refused = & $script:Unlicensed 'refused'
+        $refused | Should -Match 'Power BI refused the account that signed in because it has no Power BI or Fabric licence\. Give that account the free Microsoft Fabric licence'
+        $refused | Should -Match 'UserNotLicensed'
+        # A scheduled run has no sign-in of the module's: nothing is asked of Graph about "me".
+        $env:TKP_TEST_POWERBI = 'unlicensed'; $env:TKP_TEST_LICENCES = '[]'
+        try {
+            $folder = & $script:NewFolder
+            $result = InModuleScope TenantKeep.Posture -Parameters @{ Folder = $folder } { Invoke-PosturePowerBICollection -Folder $Folder -WarningAction SilentlyContinue }
+            ($result.errors -join "`n") | Should -Not -Match 'Entra shows'
+        }
+        finally { $env:TKP_TEST_POWERBI = $null; $env:TKP_TEST_LICENCES = $null }
+    }
+
+    It 'keeps what Power BI answered in the message whatever the account is called, and gives the same words as the advice' {
+        # A step's message is cut at 600 characters, and the cause is read from what Power BI answered at its end.
+        $long = ('a' * 52) + '@contoso.com'
+        $states = @(
+            '[]'
+            '[{"skuPartNumber":"POWER_BI_STANDARD","servicePlans":[{"servicePlanName":"BI_AZURE_P0","provisioningStatus":"Success"}]}]'
+            '[{"skuPartNumber":"ENTERPRISEPREMIUM_NOPSTNCONF","servicePlans":[{"servicePlanName":"BI_AZURE_P2","provisioningStatus":"Disabled"}]}]'
+            '[{"skuPartNumber":"ENTERPRISEPREMIUM_NOPSTNCONF","servicePlans":[{"servicePlanName":"BI_AZURE_P2","provisioningStatus":"PendingProvisioning"}]}]'
+        )
+        foreach ($state in $states) {
+            $line = & $script:Unlicensed $state $long
+            $line | Should -Match 'UserNotLicensed: User is not licensed$' -Because "the message for $state must fit a step's 600 characters"
+            $message = ($line -split ' :: ', 2)[1]
+            InModuleScope TenantKeep.Posture -Parameters @{ Message = $message } {
+                Get-PostureFailureCause -Message $Message | Should -Be 'permission'
+                $advice = Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @('Fabric Administrator'); scopes = @(); licence = 'a licence'; message = $Message }
+                $advice | Should -Match '^Power BI refused the account that signed in'
+                $advice | Should -Not -Match 'Power BI answered|Fabric Administrator'
+                $advice | Should -Match 'Resume-PostureRun -Collector PowerBI'
+            }
+        }
+    }
+
+    It 'leaves the Power BI request as the one the failure is recorded against' {
+        InModuleScope TenantKeep.Posture {
+            # Filtered like the stand-in above so that this one, the nearer of the two, is the one that answers.
+            Mock Invoke-PostureGraphRequest {
+                $script:PostureLastCall = 'graph GET me/licenseDetails'
+                return @(@{ skuPartNumber = 'PBI_PREMIUM_PER_USER'; servicePlans = @(@{ servicePlanName = 'BI_AZURE_P3'; provisioningStatus = 'Success' }) })
+            } -ParameterFilter { $Uri -like 'me/licenseDetails*' }
+            $script:PostureSession = @{ account = 'admin@contoso.com' }
+            $before = $script:PostureLastCall
+            try {
+                $script:PostureLastCall = 'powerbi GET v1/admin/tenantsettings'
+                Get-PosturePowerBILicenceAdvice | Should -Match 'a licence with Power BI on it \(Power BI Premium Per User\)' -Because 'this stand-in answered, and it also changed the last call'
+                $script:PostureLastCall | Should -Be 'powerbi GET v1/admin/tenantsettings'
+            }
+            finally { $script:PostureSession = $null; $script:PostureLastCall = $before }
         }
     }
 

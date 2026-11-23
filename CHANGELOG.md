@@ -65,6 +65,13 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     again, and names the identity only for a scheduled run.
   - A tenant that approved the app before a permission was added had no way to get the link again. The collection
     now prints it once, after the permissions it found missing.
+  - An administrator who had just been given the free Microsoft Fabric licence was still refused by Power BI, and
+    all the run could say was that the account had no licence. Power BI's refusal, `UserNotLicensed`, does not say
+    whether the account has no licence or has one Power BI has not taken up yet (verify: which of the two it was is
+    not confirmed yet). The run now reads the licences Entra shows on the account that signed in
+    (`me/licenseDetails`, its own and nobody else's) and says which it is: no licence with Power BI in it, one with
+    Power BI switched off or not ready, or one that is in place, where the thing to do is sign in to the Power BI
+    portal once and collect again. Microsoft gives no time for a new licence to be taken up.
 
 - Two checks on devices that reach your data (2026-11-23, catalog 2026.11.3), from evidence already collected.
   - Every platform with managed devices has a compliance policy that is assigned (DEV-027). A policy assigned to

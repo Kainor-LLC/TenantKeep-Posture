@@ -830,7 +830,7 @@
         "Fabric Administrator"
       ],
       "licence": "a Power BI or Fabric licence on the account that signs in (the free Microsoft Fabric licence counts)",
-      "note": "GET v1/admin/tenantsettings on the Fabric admin API, with Tenant.Read.All on the Power BI Service. Seen on Kainor 2026-11-23: an account with no licence is answered 401 UserNotLicensed."
+      "note": "GET v1/admin/tenantsettings on the Fabric admin API, with Tenant.Read.All on the Power BI Service. Seen on Kainor 2026-11-23: an account with no licence is answered 401 UserNotLicensed. When that happens the run reads the account's own licences (GET me/licenseDetails) to say whether it has none or has one Power BI has not taken up."
     },
     {
       "collector": "PowerPlatform",

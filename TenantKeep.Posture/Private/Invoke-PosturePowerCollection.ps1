@@ -20,7 +20,13 @@ function Invoke-PosturePowerBICollection {
         try { $settings = @(Invoke-PostureFabricRequest -Path '/v1/admin/tenantsettings') }
         catch {
             $said = [string]$_.Exception.Message
-            if ($said -match 'UserNotLicensed') { throw "Power BI refused the account that signed in because it has no Power BI or Fabric licence. Give that account the free Microsoft Fabric licence, open app.powerbi.com with it once, and collect again (Resume-PostureRun -Collector PowerBI). $said" }
+            if ($said -match 'UserNotLicensed') {
+                # Power BI says the same thing for an account with no licence and for one whose licence it has not
+                # taken up yet. The account's own licences in Entra say which, and what to do differs.
+                $advice = Get-PosturePowerBILicenceAdvice
+                if (-not $advice) { $advice = 'Power BI refused the account that signed in because it has no Power BI or Fabric licence. Give that account the free Microsoft Fabric licence, open app.powerbi.com with it once, and collect again (Resume-PostureRun -Collector PowerBI).' }
+                throw "$advice $said"
+            }
             throw
         }
         if ($settings.Count -eq 0) { throw 'Power BI returned no tenant settings. Every tenant has them, so this sign-in was not allowed to see them.' }
