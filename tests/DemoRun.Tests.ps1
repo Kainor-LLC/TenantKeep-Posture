@@ -74,6 +74,19 @@ Describe 'The page a reader opens' {
         $script:Page | Should -Match '@media screen and \(max-width: 760px\)' -Because 'the report carries its stylesheet inline'
     }
 
+    It 'shows no empty chip under a role holder that has no sign-in name, and keeps a sign-in date on one line' {
+        $admins = [regex]::Match($script:Page, '<section class="view" id="admins">(.*?)</section>', 'Singleline').Groups[1].Value
+        $admins | Should -Match '<td>Admins-Privileged</td><td>group</td>' -Because 'a group that holds a role has a name and nothing under it'
+        $admins | Should -Not -Match '<code></code>'
+        $admins | Should -Match '<code>avery\.holloway@fernquill\.example</code>' -Because 'a person still has theirs'
+        $admins | Should -Match '<td class="nw">2026-\d\d-\d\d</td>'
+        $script:Css | Should -Match '(?m)^td\.nw \{ white-space: nowrap; \}'
+    }
+
+    It 'opens a view at the top of the page at once' {
+        $script:Page | Should -Match "window\.scrollTo\(\{ top: 0, left: 0, behavior: 'instant' \}\)" -Because 'a report opened at a view link started at that section and slid up, and a screenshot taken then cut the header off'
+    }
+
     It 'lets the opening cards fill their rows and gives the layered rings a row of their own' {
         $script:Page | Should -Match '<div class="charts story"><figure class="chart-card'
         $depth = [regex]::Match($script:Page, '<h3>Defence in Depth</h3><div class="charts">(.*?)</div>\s*<h3>', 'Singleline').Groups[1].Value

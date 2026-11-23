@@ -95,6 +95,8 @@ tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--soft); }
 /* A check id stays on one line: in a narrow first column it broke at its hyphen (AU- over 001). */
 #checks-table td:first-child { white-space: nowrap; }
+/* A date in a table cell stays on one line too. */
+td.nw { white-space: nowrap; }
 .scroll { overflow-x: auto; }
 /* On a phone a table wider than the screen scrolls inside its own box, and the page never scrolls sideways. Measured
    at 390 pixels on the demo tenant's report, where the administrators table was 1,033 wide. Screen only: print is

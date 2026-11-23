@@ -370,7 +370,7 @@ function ConvertTo-PostureReportHtml {
     if (@($r.admins).Count -eq 0) { & $w '<p class="na-panel">Role assignments were not collected.</p>' }
     else {
         & $w '<table><thead><tr><th>Name</th><th>Type</th><th>Permanent Roles</th><th>Eligible Roles</th><th>Strongest MFA Method</th><th>Last Sign-In</th><th class="tech">Synced from AD</th><th class="tech">Licences</th></tr></thead><tbody>'
-        foreach ($a in $r.admins) { & $w "<tr><td>$(& $h $a.name)<br><span class=`"tech`"><code>$(& $h $a.upn)</code></span></td><td>$(& $h $a.type)</td><td>$(& $h ($a.permanent -join ', '))</td><td>$(& $h ($a.eligible -join ', '))</td><td>$(& $h $a.strongestMethod)</td><td>$(& $h $(if ($a.lastSignIn) { $a.lastSignIn } else { 'unknown' }))</td><td class=`"tech`">$(if ($a.synced) { 'yes' } else { 'no' })</td><td class=`"tech`">$(& $h $a.licenses)</td></tr>" }
+        foreach ($a in $r.admins) { & $w "<tr><td>$(& $h $a.name)$(if ([string]$a.upn) { '<br><span class="tech"><code>' + (& $h $a.upn) + '</code></span>' })</td><td>$(& $h $a.type)</td><td>$(& $h ($a.permanent -join ', '))</td><td>$(& $h ($a.eligible -join ', '))</td><td>$(& $h $a.strongestMethod)</td><td class=`"nw`">$(& $h $(if ($a.lastSignIn) { $a.lastSignIn } else { 'unknown' }))</td><td class=`"tech`">$(if ($a.synced) { 'yes' } else { 'no' })</td><td class=`"tech`">$(& $h $a.licenses)</td></tr>" }
         & $w '</tbody></table>'
     }
     & $w '</section>'

@@ -78,6 +78,10 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - The report fits a phone (2026-11-23). On a screen narrower than 760 pixels a table wider than the screen now
   scrolls inside its own box. Before, seven of the fifteen views scrolled the whole page sideways at 390 pixels,
   the administrators table furthest at 1,033. Print is unchanged.
+- A report opened at a view's link, `report.html#ca`, starts at the top of that view (2026-11-23). It used to start
+  at the section and slide up. The demo build now takes a picture of eleven views, not six.
+- Your Administrators (2026-11-23): a group or an application that holds a role no longer has an empty grey chip
+  under its name where a person has a sign-in name, and a last sign-in date stays on one line.
 
 - Two checks on devices that reach your data (2026-11-23, catalog 2026.11.3), from evidence already collected.
   - Every platform with managed devices has a compliance policy that is assigned (DEV-027). A policy assigned to

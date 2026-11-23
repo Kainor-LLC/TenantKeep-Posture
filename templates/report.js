@@ -57,7 +57,9 @@
   function show(id) {
     views.forEach(function (v) { v.classList.toggle('active', v.id === id); });
     links.forEach(function (a) { if (a.getAttribute('href') === '#' + id) { a.setAttribute('aria-current', 'page'); } else { a.removeAttribute('aria-current'); } });
-    window.scrollTo(0, 0);
+    // At once, not as a glide: the page scrolls smoothly for links inside a view, and a report opened at a view's
+    // link (report.html#ca) would otherwise start at that section and slide up while the reader watches.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }
   // Executive Mode keeps three views (templates/report.css hides the rest); a link to any other lands on the Overview.
   var execViews = ['overview', 'recommendations', 'domains'];

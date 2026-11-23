@@ -594,7 +594,7 @@ function Invoke-Demo {
     New-Item -ItemType Directory -Path $screens -Force | Out-Null
     # A file URL by hand: [uri] reads a bare Unix path as relative. Each segment escaped, a Windows drive kept as is.
     $url = 'file:///' + ((($report -replace '\\', '/').TrimStart('/') -split '/' | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [uri]::EscapeDataString($_) } }) -join '/')
-    foreach ($view in 'overview', 'recommendations', 'domains', 'ca', 'attack', 'copilot') {
+    foreach ($view in 'overview', 'recommendations', 'domains', 'checks', 'admins', 'ca', 'attack', 'copilot', 'inventory', 'licensing', 'health') {
         $png = Join-Path $screens "$view.png"
         & $browser --headless=new --disable-gpu --hide-scrollbars --blink-settings=preferredColorScheme=1 --force-device-scale-factor=2 '--window-size=1280,860' "--screenshot=$png" "$url#$view" 2>$null | Out-Null
         if (Test-Path -LiteralPath $png) { Write-Host "  $view.png" } else { Write-Warning "No screenshot for $view." }
