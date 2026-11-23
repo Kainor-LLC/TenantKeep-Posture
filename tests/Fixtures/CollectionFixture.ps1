@@ -52,8 +52,8 @@ function Initialize-CollectionFixture {
         authenticationMethodConfigurations = @(
             @{ id = 'Sms'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }) }
             @{ id = 'Voice'; state = 'disabled'; includeTargets = @() }
-            @{ id = 'MicrosoftAuthenticator'; state = 'enabled'; includeTargets = @(@{ id = 'all_users' }); featureSettings = @{ displayAppInformationRequiredState = @{ state = 'default' }; displayLocationInformationRequiredState = @{ state = 'enabled' } } }
-            @{ id = 'Fido2'; state = 'enabled'; includeTargets = @(@{ id = 'all_users' }); isAttestationEnforced = $false; keyRestrictions = @{ isEnforced = $false } }
+            @{ id = 'MicrosoftAuthenticator'; state = 'enabled'; isSoftwareOathEnabled = $false; includeTargets = @(@{ id = 'all_users' }); featureSettings = @{ displayAppInformationRequiredState = @{ state = 'default' }; displayLocationInformationRequiredState = @{ state = 'enabled' } } }
+            @{ id = 'Fido2'; state = 'enabled'; includeTargets = @(@{ id = 'all_users' }); isAttestationEnforced = $false; isSelfServiceRegistrationAllowed = $true; keyRestrictions = @{ isEnforced = $false; enforcementType = 'block'; aaGuids = @() } }
             @{ id = 'TemporaryAccessPass'; state = 'enabled'; isUsableOnce = $false; includeTargets = @(@{ id = 'all_users' }) }
         )
     }

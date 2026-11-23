@@ -253,7 +253,7 @@ Write-Demo '02-authentication-methods-policy' @{
         @{ id = 'Sms'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }) }
         @{ id = 'Voice'; state = 'disabled'; includeTargets = @() }
         @{ id = 'Email'; state = 'disabled'; includeTargets = @() }
-        @{ id = 'MicrosoftAuthenticator'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group'; authenticationMode = 'any' }); featureSettings = @{ displayAppInformationRequiredState = @{ state = 'enabled' }; displayLocationInformationRequiredState = @{ state = 'enabled' }; numberMatchingRequiredState = @{ state = 'enabled' } } }
+        @{ id = 'MicrosoftAuthenticator'; state = 'enabled'; isSoftwareOathEnabled = $false; includeTargets = @(@{ id = 'all_users'; targetType = 'group'; authenticationMode = 'any' }); featureSettings = @{ displayAppInformationRequiredState = @{ state = 'enabled' }; displayLocationInformationRequiredState = @{ state = 'enabled' }; numberMatchingRequiredState = @{ state = 'enabled' } } }
         @{ id = 'Fido2'; state = 'enabled'; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }); isAttestationEnforced = $true; isSelfServiceRegistrationAllowed = $true; keyRestrictions = @{ isEnforced = $false; enforcementType = 'block'; aaGuids = @() } }
         @{ id = 'TemporaryAccessPass'; state = 'enabled'; isUsableOnce = $true; defaultLifetimeInMinutes = 60; includeTargets = @(@{ id = 'all_users'; targetType = 'group' }) }
         @{ id = 'X509Certificate'; state = 'disabled'; includeTargets = @() }

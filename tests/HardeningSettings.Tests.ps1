@@ -727,3 +727,88 @@ Describe 'Microsoft Sentinel configuration (catalog 2026.11.3)' {
         $one['AZ-046'].status | Should -Be 'notEvaluated'
     }
 }
+
+Describe 'Passkey settings, Authenticator codes, guest sessions and workload identities (catalog 2026.11.3)' {
+    BeforeAll {
+        $script:Methods = {
+            param([hashtable] $Fido, [hashtable] $Authenticator = @{ state = 'enabled'; isSoftwareOathEnabled = $false })
+            $fidoConfig = @{ id = 'Fido2'; includeTargets = @(@{ id = 'all_users' }) }; foreach ($key in $Fido.Keys) { $fidoConfig[$key] = $Fido[$key] }
+            $authConfig = @{ id = 'MicrosoftAuthenticator'; includeTargets = @(@{ id = 'all_users' }) }; foreach ($key in $Authenticator.Keys) { $authConfig[$key] = $Authenticator[$key] }
+            & $script:Judge 'auth' @{ '02-authentication-methods-policy' = @{ policyMigrationState = 'migrationComplete'; authenticationMethodConfigurations = @($fidoConfig, $authConfig) } }
+        }
+        # Conditional Access policies as Graph sends them, judged with the Workload Identities licence in the profile.
+        $script:Raw = {
+            param([object[]] $Add)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..' 'samples' 'ca-snapshot') -Destination $dir -Recurse
+            $path = Join-Path $dir 'policies.json'
+            $policies = @(Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 30) + @($Add | Where-Object { $_ })
+            ConvertTo-Json -InputObject @($policies) -Depth 30 | Set-Content -LiteralPath $path
+            '{ "version": 1, "licenses": ["E5", "P1", "P2", "WorkloadID"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain ca -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by
+        }
+        $script:Policy = { param([string] $Name, [hashtable] $Conditions, [hashtable] $Grant, [hashtable] $Session) @{ id = [guid]::NewGuid().ToString(); displayName = $Name; state = 'enabled'; conditions = $Conditions; grantControls = $Grant; sessionControls = $Session } }
+    }
+
+    It 'AU-012 and AU-013 judge self-service set up and the list of accepted keys, only where passkeys are on' {
+        $good = & $script:Methods @{ state = 'enabled'; isSelfServiceRegistrationAllowed = $true; keyRestrictions = @{ isEnforced = $true; enforcementType = 'allow'; aaGuids = @('90a3ccdf-635c-4729-a248-9b709135078f', 'de1e552d-db1d-4423-a619-566b625cdc84') } }
+        $good['AU-012'].status | Should -Be 'pass'
+        $good['AU-013'].status | Should -Be 'pass'
+        $good['AU-013'].observed.fido2RestrictedKeys | Should -Be 2 -Because 'how many kinds of key are named is kept, not which'
+        $bad = & $script:Methods @{ state = 'enabled'; isSelfServiceRegistrationAllowed = $false; keyRestrictions = @{ isEnforced = $true; enforcementType = 'allow'; aaGuids = @() } }
+        $bad['AU-012'].status | Should -Be 'fail'
+        $bad['AU-013'].status | Should -Be 'fail' -Because 'restrictions that name no key restrict nothing'
+        (& $script:Methods @{ state = 'enabled'; isSelfServiceRegistrationAllowed = $true; keyRestrictions = @{ isEnforced = $false; aaGuids = @('90a3ccdf-635c-4729-a248-9b709135078f') } })['AU-013'].status | Should -Be 'fail'
+        $off = & $script:Methods @{ state = 'disabled' }
+        foreach ($id in 'AU-012', 'AU-013') { $off[$id].reason | Should -Match 'AU-003 comes first' -Because $id }
+        $silent = & $script:Methods @{ state = 'enabled' }
+        foreach ($id in 'AU-012', 'AU-013') { $silent[$id].status | Should -Be 'notEvaluated' -Because "${id}: a setting the policy did not carry is not off" }
+    }
+
+    It 'AU-014 wants the Authenticator code off, and has no answer where the policy does not say' {
+        $fido = @{ state = 'enabled'; isSelfServiceRegistrationAllowed = $true; keyRestrictions = @{ isEnforced = $false; aaGuids = @() } }
+        (& $script:Methods $fido @{ state = 'enabled'; isSoftwareOathEnabled = $false })['AU-014'].status | Should -Be 'pass'
+        (& $script:Methods $fido @{ state = 'enabled'; isSoftwareOathEnabled = $true })['AU-014'].status | Should -Be 'fail'
+        (& $script:Methods $fido @{ state = 'enabled' })['AU-014'].status | Should -Be 'notEvaluated'
+        (& $script:Methods $fido @{ state = 'disabled'; isSoftwareOathEnabled = $true })['AU-014'].reason | Should -Match 'not enabled'
+    }
+
+    It 'CA-025 wants a policy that reaches guests and ends their session within a day' {
+        (& $script:Raw @())['CA-025'].status | Should -Be 'fail' -Because 'the sample snapshot has no guest session policy'
+        $guests = @{ users = @{ includeUsers = @(); includeGuestsOrExternalUsers = @{ guestOrExternalUserTypes = 'b2bCollaborationGuest'; externalTenants = @{ membershipKind = 'all' } } }; applications = @{ includeApplications = @('All') } }
+        (& $script:Raw @(& $script:Policy 'Guests: 12 hours' $guests $null @{ signInFrequency = @{ isEnabled = $true; type = 'hours'; value = 12 } }))['CA-025'].status | Should -Be 'pass'
+        (& $script:Raw @(& $script:Policy 'Guests: 1 day' $guests $null @{ signInFrequency = @{ isEnabled = $true; type = 'days'; value = 1 } }))['CA-025'].status | Should -Be 'pass'
+        (& $script:Raw @(& $script:Policy 'Guests: 7 days' $guests $null @{ signInFrequency = @{ isEnabled = $true; type = 'days'; value = 7 } }))['CA-025'].status | Should -Be 'fail'
+        (& $script:Raw @(& $script:Policy 'Guests: set and off' $guests $null @{ signInFrequency = @{ isEnabled = $false; type = 'hours'; value = 8 } }))['CA-025'].status | Should -Be 'fail'
+        # A policy for everyone covers guests unless it leaves them out.
+        $everyone = @{ users = @{ includeUsers = @('All'); excludeUsers = @() }; applications = @{ includeApplications = @('All') } }
+        (& $script:Raw @(& $script:Policy 'Everyone: every time' $everyone $null @{ signInFrequency = @{ isEnabled = $true; frequencyInterval = 'everyTime' } }))['CA-025'].status | Should -Be 'pass'
+        $notGuests = @{ users = @{ includeUsers = @('All'); excludeUsers = @('GuestsOrExternalUsers') }; applications = @{ includeApplications = @('All') } }
+        (& $script:Raw @(& $script:Policy 'Members: 8 hours' $notGuests $null @{ signInFrequency = @{ isEnabled = $true; type = 'hours'; value = 8 } }))['CA-025'].status | Should -Be 'fail'
+    }
+
+    It 'CA-026 and CA-027 want a block for risky workload identities and one that names locations' {
+        $none = & $script:Raw @()
+        $none['CA-026'].status | Should -Be 'fail'
+        $none['CA-027'].status | Should -Be 'fail'
+        $risk = & $script:Policy 'Workloads: block risky' @{ clientApplications = @{ includeServicePrincipals = @('ServicePrincipalsInMyTenant') }; servicePrincipalRiskLevels = @('high'); applications = @{ includeApplications = @('All') } } @{ builtInControls = @('block') } $null
+        $place = & $script:Policy 'Workloads: known networks' @{ clientApplications = @{ includeServicePrincipals = @('ServicePrincipalsInMyTenant') }; locations = @{ includeLocations = @('All'); excludeLocations = @('11111111-1111-1111-1111-111111111111') }; applications = @{ includeApplications = @('All') } } @{ builtInControls = @('block') } $null
+        $both = & $script:Raw @($risk, $place)
+        $both['CA-026'].status | Should -Be 'pass'
+        $both['CA-027'].status | Should -Be 'pass'
+        $only = & $script:Raw @($risk)
+        $only['CA-026'].status | Should -Be 'pass'
+        $only['CA-027'].status | Should -Be 'fail'
+        # A policy for users that happens to look at risk is not a policy for workload identities.
+        $users = & $script:Policy 'Users: risky' @{ users = @{ includeUsers = @('All') }; servicePrincipalRiskLevels = @('high'); applications = @{ includeApplications = @('All') } } @{ builtInControls = @('block') } $null
+        (& $script:Raw @($users))['CA-026'].status | Should -Be 'fail'
+    }
+
+    It 'CA-026 and CA-027 need the Workload Identities licence, and say so without it' {
+        $by = & $script:Policies $null
+        foreach ($id in 'CA-026', 'CA-027') { $by[$id].status | Should -Be 'notEvaluated'; $by[$id].reason | Should -Match 'WorkloadID' -Because $id }
+    }
+}

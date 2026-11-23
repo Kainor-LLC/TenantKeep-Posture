@@ -1118,6 +1118,140 @@
           "MT.1184"
         ]
       }
+    },
+    {
+      "id": "CA-025",
+      "domain": "ca",
+      "title": "Guests sign in again within a day",
+      "severityDefault": "Medium",
+      "license": [
+        "P1"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {
+        "maxGuestSessionHours": 24
+      },
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.guestSessionPolicies >= 1",
+      "remediation": [
+        "Create a Conditional Access policy for Guest or external users, all types, on all resources.",
+        "Under Session, set Sign-in frequency to 24 hours or less.",
+        "Leave persistent browser session off for them, and run the policy report-only for a week before turning it on."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A guest is asked to sign in again once a day."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/concept-session-lifetime",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A guest's account lives in another organisation, which you cannot see: you do not know when they left it, or when their password was last stolen. A short session is the one control on your side that limits how long a token taken from a guest stays useful. This check looks for an enabled policy that reaches guests and sets a sign-in frequency within the threshold.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-03",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.11",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21824"
+        ]
+      },
+      "attack": [
+        "T1550.004"
+      ]
+    },
+    {
+      "id": "CA-026",
+      "domain": "ca",
+      "title": "Risky workload identities are blocked",
+      "severityDefault": "Medium",
+      "license": [
+        "WorkloadID"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.workloadRiskPolicies >= 1",
+      "remediation": [
+        "Create a Conditional Access policy assigned to Workload identities, all owned service principals.",
+        "Under Conditions, Service principal risk, choose High, and Medium if you can act on it.",
+        "Grant: Block access. Run it report-only first and look at which applications it would have stopped."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people. An application whose credential Microsoft believes is leaked or misused stops getting tokens until someone looks."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/workload-identity",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "Applications sign in with secrets and certificates that leak into code, logs and build systems, and no person is there to notice an odd sign-in. ID Protection rates service principals for risk as it does users. Without a policy that acts on the rating, a leaked credential keeps working after Microsoft has flagged it.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21883"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "CA-027",
+      "domain": "ca",
+      "title": "Workload identities are held to the networks they call from",
+      "severityDefault": "Low",
+      "license": [
+        "WorkloadID"
+      ],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "policies.json"
+      ],
+      "pass": "facts.workloadLocationPolicies >= 1",
+      "remediation": [
+        "List where your own applications call from: your Azure regions, your data centre's addresses, your build system's.",
+        "Create named locations for them and a Conditional Access policy assigned to Workload identities that blocks any location except those.",
+        "Start with the service principals that hold the most permission, and run it report-only first."
+      ],
+      "effort": "M",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people. An application's credential stops working from anywhere but the networks you listed."
+      },
+      "learn": "https://learn.microsoft.com/entra/identity/conditional-access/workload-identity",
+      "deepLink": "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies",
+      "narrative": "A secret copied from a pipeline is used from the thief's network, not yours. A location policy for service principals makes the stolen copy worthless there. It applies to single-tenant applications you own, and it needs you to know where each one runs, which is worth knowing anyway.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.5",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "zeroTrust": [
+          "21884"
+        ]
+      },
+      "attack": [
+        "T1078.004"
+      ]
     }
   ]
 }

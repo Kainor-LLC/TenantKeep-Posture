@@ -438,10 +438,6 @@
       "reason": "planned",
       "note": "A guest or cross-tenant setting."
     },
-    "21824": {
-      "reason": "planned",
-      "note": "A guest or cross-tenant setting."
-    },
     "21830": {
       "reason": "planned",
       "note": "A property of the app registrations and enterprise applications, which are already collected."
@@ -533,14 +529,6 @@
     "21882": {
       "reason": "planned",
       "note": "A Conditional Access or tenant access setting."
-    },
-    "21883": {
-      "reason": "planned",
-      "note": "A Conditional Access or tenant access setting."
-    },
-    "21884": {
-      "reason": "planned",
-      "note": "A guest or cross-tenant setting."
     },
     "21885": {
       "reason": "planned",

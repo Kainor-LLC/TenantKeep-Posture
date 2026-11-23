@@ -65,7 +65,10 @@
         "AU-008",
         "CA-003",
         "AU-010",
-        "AU-011"
+        "AU-011",
+        "AU-012",
+        "AU-013",
+        "AU-014"
       ],
       "needs": [
         {
@@ -81,7 +84,9 @@
       "what": "A risky sign-in is challenged and a compromised account is contained.",
       "checks": [
         "CA-004",
-        "ID-015"
+        "ID-015",
+        "CA-026",
+        "CA-027"
       ],
       "needs": [
         {
@@ -137,7 +142,8 @@
         "CA-015",
         "CA-019",
         "CA-020",
-        "CA-024"
+        "CA-024",
+        "CA-025"
       ],
       "needs": [],
       "after": []

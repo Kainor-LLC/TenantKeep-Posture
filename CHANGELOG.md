@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 390 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 396 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,17 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Six checks from settings the run already collects (2026-11-23, catalog 2026.11.3): no new read, no new
+  permission.
+  - Passkeys: people may add one themselves (AU-012), and key restrictions are enforced and name at least one kind
+    of key (AU-013). Both are judged only where passkeys are on. How many kinds of key are named is kept, not which.
+  - Microsoft Authenticator one-time codes are off (AU-014), with no answer where the policy does not say.
+  - Guests sign in again within a day (CA-025): an enabled policy that reaches guests, by name or through all
+    users, with a sign-in frequency inside the threshold, 24 hours unless the baseline says otherwise.
+  - Workload identities: a policy that blocks the ones Microsoft rates risky (CA-026) and one that holds them to
+    named locations (CA-027). Both need the Workload Identities licence and say so without it.
+  - Five Maester tests and three Zero Trust Assessment tests are covered by these: Maester 188 of 613, Zero Trust
+    Assessment 189 of 364.
 - Twenty checks on Global Secure Access (2026-11-23, catalog 2026.11.3), from Microsoft's Zero Trust Assessment. The
   network domain had four: which traffic profiles are on, whether a filtering policy exists, and signaling. These ask
   whether what was set up reaches anyone and what it does.

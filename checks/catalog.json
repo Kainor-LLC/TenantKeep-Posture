@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "A hundred and eight new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "A hundred and fourteen new checks, most from settings the run already collects, two from new reads on permissions already held, twelve on how Microsoft Sentinel workspaces are set up, twenty on Global Secure Access and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -119,7 +119,13 @@
         "NET-021": "New: whether an enabled Conditional Access policy asks for multifactor authentication for each Private Access application.",
         "NET-022": "New: whether a private network is defined for Intelligent Local Access.",
         "NET-023": "New: whether a change to Global Secure Access failed to deploy in the last 30 days.",
-        "NET-024": "New: whether the network access log categories are sent to a workspace or an event hub. Needs the Azure collector's read of the Entra diagnostic settings."
+        "NET-024": "New: whether the network access log categories are sent to a workspace or an event hub. Needs the Azure collector's read of the Entra diagnostic settings.",
+        "AU-012": "New: whether people may add a passkey themselves.",
+        "AU-013": "New: whether passkey key restrictions are enforced and name at least one kind of key.",
+        "AU-014": "New: whether Microsoft Authenticator one-time codes are turned off.",
+        "CA-025": "New: whether an enabled policy that reaches guests ends their session within a day.",
+        "CA-026": "New: whether a policy blocks workload identities rated risky. Needs the Workload Identities licence.",
+        "CA-027": "New: whether a policy holds workload identities to named locations. Needs the Workload Identities licence."
       }
     },
     {

@@ -89,6 +89,20 @@ function Get-PostureAuthFact {
         # AU-011 judges attestation only where passkeys are on; with them off there is nothing to attest, and that is AU-003's finding.
         if (-not $facts.fido2Enabled) { $notEvaluated['AU-011'] = 'Passkeys are not enabled, so there is no attestation to enforce. AU-003 comes first.' }
         elseif ($null -eq (& $v $fido 'isAttestationEnforced')) { $notEvaluated['AU-011'] = 'The authentication methods policy did not say whether passkey attestation is enforced.' }
+        # AU-012 and AU-013: people can add a passkey themselves, and only the keys the organisation chose. A list of
+        # keys is the AAGUIDs under key restrictions; how many are named is kept, never which.
+        $facts.fido2SelfService = $(if ($null -eq (& $v $fido 'isSelfServiceRegistrationAllowed')) { $null } else { [bool](& $v $fido 'isSelfServiceRegistrationAllowed') })
+        $facts.fido2RestrictedKeys = @(& $v $fido 'keyRestrictions.aaGuids' | Where-Object { $_ }).Count
+        if (-not $facts.fido2Enabled) { foreach ($id in 'AU-012', 'AU-013') { $notEvaluated[$id] = 'Passkeys are not enabled, so there is nothing to set here yet. AU-003 comes first.' } }
+        else {
+            if ($null -eq $facts.fido2SelfService) { $notEvaluated['AU-012'] = 'The authentication methods policy did not say whether people may add a passkey themselves.' }
+            if ($null -eq (& $v $fido 'keyRestrictions')) { $notEvaluated['AU-013'] = 'The authentication methods policy did not carry the passkey key restrictions.' }
+        }
+        # AU-014: the six-digit code in Microsoft Authenticator. The setting is absent from older answers of the API.
+        $otp = & $v $auth 'isSoftwareOathEnabled'
+        if (-not $facts.authenticatorEnabled) { $notEvaluated['AU-014'] = 'Microsoft Authenticator is not enabled, so its one-time codes are not in use.' }
+        elseif ($null -eq $otp) { $notEvaluated['AU-014'] = 'The authentication methods policy did not say whether Microsoft Authenticator one-time codes are allowed.' }
+        else { $facts.authenticatorOtpAllowed = [bool]$otp }
 
         $facts.policyMigrationState = [string](& $v $policy 'policyMigrationState')
 

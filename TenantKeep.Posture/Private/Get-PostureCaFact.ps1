@@ -30,7 +30,7 @@ function Get-PostureCaFact {
         return @{ available = $false; reason = "The Conditional Access snapshot is incomplete: $(@($absent | ForEach-Object { "$_.json" }) -join ', ') missing. Take it again (Resume-PostureRun -Collector Entra, or Export-PostureCaSnapshot)." }
     }
     $snap = Import-PostureCaSnapshot -Path $Evidence
-    $t = @{ maxExclusionGroupMembers = 25; reportOnlyMaxDays = 90; disabledMaxDays = 90; namePattern = $null; registrationControl = 'any' }
+    $t = @{ maxExclusionGroupMembers = 25; reportOnlyMaxDays = 90; disabledMaxDays = 90; namePattern = $null; registrationControl = 'any'; maxGuestSessionHours = 24 }
     foreach ($k in @($Thresholds.Keys)) { $t[$k] = $Thresholds[$k] }
     $namePattern = $t.namePattern
     if (-not $namePattern -and $OrgProfile.Contains('thresholds') -and $OrgProfile.thresholds -and $OrgProfile.thresholds.Contains('namePattern')) { $namePattern = $OrgProfile.thresholds.namePattern }
@@ -252,6 +252,34 @@ function Get-PostureCaFact {
         })
     $facts.untargetedPolicies = $untargeted.Count
     $affected.untargetedPolicies = @($untargeted | ForEach-Object { & $label $_ 'names no application, user action or authentication context, so it applies to nothing' })
+
+    # CA-025 to CA-027, read from the snapshot as Graph sent it: the policy model above leaves out guest targeting by
+    # kind, session lengths and workload identities.
+    $rawOn = @($rawItems | Where-Object { [string](Get-PostureValue $_ 'state') -eq 'enabled' })
+    $hasAny = { param($policy, [string] $path) @(Get-PostureValue $policy $path | Where-Object { $_ }).Count -gt 0 }
+    # CA-025: guests sign in again within a day. A policy counts when it names guests, or names all users without
+    # leaving guests out, and sets a sign-in frequency of at most the threshold.
+    $reachesGuests = {
+        param($policy)
+        $include = @(Get-PostureValue $policy 'conditions.users.includeUsers' | ForEach-Object { [string]$_ })
+        $exclude = @(Get-PostureValue $policy 'conditions.users.excludeUsers' | ForEach-Object { [string]$_ })
+        ($null -ne (Get-PostureValue $policy 'conditions.users.includeGuestsOrExternalUsers')) -or ($include -contains 'GuestsOrExternalUsers') -or
+        ($include -contains 'All' -and $null -eq (Get-PostureValue $policy 'conditions.users.excludeGuestsOrExternalUsers') -and $exclude -notcontains 'GuestsOrExternalUsers')
+    }
+    $shortSession = {
+        param($policy)
+        $f = Get-PostureValue $policy 'sessionControls.signInFrequency'
+        if (-not $f -or (Get-PostureValue $f 'isEnabled') -ne $true) { return $false }
+        if ([string](Get-PostureValue $f 'frequencyInterval') -eq 'everyTime') { return $true }
+        $hours = [double](Get-PostureValue $f 'value') * $(if ([string](Get-PostureValue $f 'type') -eq 'days') { 24 } else { 1 })
+        return ($hours -gt 0 -and $hours -le [double]$t.maxGuestSessionHours)
+    }
+    $facts.guestSessionPolicies = @($rawOn | Where-Object { (& $reachesGuests $_) -and (& $shortSession $_) }).Count
+    # CA-026 and CA-027: service principals under Conditional Access. One policy blocks them when Microsoft rates them
+    # risky; another holds them to the networks they are known to call from.
+    $forWorkloads = @($rawOn | Where-Object { (& $hasAny $_ 'conditions.clientApplications.includeServicePrincipals') -and @(Get-PostureValue $_ 'grantControls.builtInControls') -contains 'block' })
+    $facts.workloadRiskPolicies = @($forWorkloads | Where-Object { & $hasAny $_ 'conditions.servicePrincipalRiskLevels' }).Count
+    $facts.workloadLocationPolicies = @($forWorkloads | Where-Object { (& $hasAny $_ 'conditions.locations.includeLocations') -or (& $hasAny $_ 'conditions.locations.excludeLocations') }).Count
 
     return @{
         available    = $true

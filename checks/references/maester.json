@@ -630,26 +630,6 @@
     "AD-USER-29": "No users should be configured for unconstrained delegation"
   },
   "notCovered": {
-    "EIDSCA.AF02": {
-      "reason": "planned",
-      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AF04": {
-      "reason": "planned",
-      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AF05": {
-      "reason": "planned",
-      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AF06": {
-      "reason": "planned",
-      "note": "A FIDO2 setting in the authentication methods policy, which is already collected."
-    },
-    "EIDSCA.AM02": {
-      "reason": "planned",
-      "note": "A Microsoft Authenticator setting in the authentication methods policy, which is already collected."
-    },
     "EIDSCA.AM03": {
       "reason": "outOfScope",
       "note": "Microsoft has enforced number matching for every tenant since May 2023, whatever this setting says, so there is nothing left to judge."

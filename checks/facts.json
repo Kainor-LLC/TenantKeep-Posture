@@ -537,7 +537,14 @@
     "privateApps": "Private Access applications",
     "privateAppsUnassigned": "Private Access applications with nobody assigned",
     "privateAppsWithoutStrongAuth": "Private Access applications no policy asks multifactor authentication for",
-    "networkLogCategoriesMissing": "Network access log categories not sent anywhere"
+    "networkLogCategoriesMissing": "Network access log categories not sent anywhere",
+    "fido2KeyRestrictionsEnforced": "Passkey key restrictions are enforced",
+    "fido2SelfService": "People may add a passkey themselves",
+    "fido2RestrictedKeys": "Kinds of passkey named in the key restrictions",
+    "authenticatorOtpAllowed": "Authenticator one-time codes allowed",
+    "guestSessionPolicies": "Policies that end a guest's session within the limit",
+    "workloadRiskPolicies": "Policies that block risky workload identities",
+    "workloadLocationPolicies": "Policies that hold workload identities to named locations"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -618,6 +625,7 @@
     "sentinelInteractiveDays": "Days a Sentinel workspace keeps logs to hand, at least",
     "sentinelTotalDays": "Days a security table is kept in total, at least",
     "tlsCertificateWarningDays": "Days before a TLS inspection certificate expires to warn",
-    "tlsBypassReviewDays": "Days a TLS inspection policy with bypass rules may go unchanged"
+    "tlsBypassReviewDays": "Days a TLS inspection policy with bypass rules may go unchanged",
+    "maxGuestSessionHours": "Hours a guest may stay signed in, at most"
   }
 }

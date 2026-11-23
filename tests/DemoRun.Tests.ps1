@@ -28,9 +28,10 @@ Describe 'Demo tenant' {
     }
 
     It 'leaves unevaluated only what the demo leaves out on purpose' {
-        # Azure and Active Directory are not part of it, Global Secure Access is unlicensed, and a few Copilot gates
-        # wait on an attestation or a report nobody can collect.
-        $expected = 'AZ-*', 'HY-*', 'NET-*', 'CP-*', 'GV-005', 'ID-014', 'OP-007'
+        # Azure and Active Directory are not part of it, Global Secure Access is unlicensed, the organisation holds no
+        # Workload Identities licence (CA-026, CA-027), and a few Copilot gates wait on an attestation or a report
+        # nobody can collect.
+        $expected = 'AZ-*', 'HY-*', 'NET-*', 'CP-*', 'GV-005', 'ID-014', 'OP-007', 'CA-026', 'CA-027'
         $left = @($script:Results | Where-Object { $r = $_; $r['status'] -eq 'notEvaluated' -and -not @($expected | Where-Object { $r['id'] -like $_ }).Count })
         $left | ForEach-Object { "$($_['id']): $($_['reason'])" } | Should -BeNullOrEmpty
     }
