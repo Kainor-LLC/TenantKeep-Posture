@@ -141,9 +141,13 @@ Describe 'The Power BI and Power Platform collectors' {
             $said = 'Power BI refused the account that signed in because it has no Power BI or Fabric licence. Power BI answered 401 to GET v1/admin/tenantsettings: UserNotLicensed: User is not licensed'
             Get-PostureFailureCause -Message $said | Should -Be 'permission' -Because 'a free licence on the account fixes it; the tenant is not what is unlicensed'
             $need = Resolve-PostureStepRequirement -Collector PowerBI -Label 'Power BI tenant settings'
-            $advice = Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @($need.roles); scopes = @(); licence = [string]$need.licence }
+            # A refusal for the role names the role and the licence; the refusal for the licence names the licence alone.
+            $advice = Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @($need.roles); scopes = @(); licence = [string]$need.licence; message = 'Power BI answered 403 to GET v1/admin/tenantsettings' }
             $advice | Should -Match 'Fabric Administrator'
             $advice | Should -Match 'It also needs a Power BI or Fabric licence on the account that signs in'
+            $unlicensed = Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @($need.roles); scopes = @(); licence = [string]$need.licence; message = $said }
+            $unlicensed | Should -Match 'has no Power BI or Fabric licence' -Because 'seen live: a Global Administrator was sent to get a role it did not need'
+            $unlicensed | Should -Not -Match 'Fabric Administrator'
         }
     }
 
