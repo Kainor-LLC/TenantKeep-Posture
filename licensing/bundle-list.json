@@ -1,6 +1,6 @@
 {
-  "description": "The SKUs the advisor compares, hand-kept. build.ps1 -Task LicensingData turns this list and Microsoft's service plan CSV into bundles.json (name and features per SKU). A SKU missing from the CSV carries its plans here and is marked verify. requiresBase: the base SKUs an add-on is sold on top of (any one); the advisor offers it only with one of them, held or in the same option (verify against Microsoft's prerequisites).",
-  "reviewed": "2026-11-20",
+  "description": "The SKUs the advisor compares, hand-kept. build.ps1 -Task LicensingData turns this list and Microsoft's service plan CSV into bundles.json (name and features per SKU). A SKU missing from the CSV carries its plans here and is marked verify. requiresBase: the base SKUs an add-on is sold on top of (any one); the advisor offers it only with one of them, held or in the same option (verify against Microsoft's prerequisites). adds: features Microsoft has said a licence includes that its service plan list does not show on that SKU, with the source in addsNote; a held licence brings them like any other of its features. madeOf: the products a suite is made of, as Microsoft describes it (E7 is E5 with Copilot, Entra Suite and Agent 365); the advisor passes over a suite that would bring one of them when the tenant does not hold it and no chosen goal needs it.",
+  "reviewed": "2026-11-23",
   "skus": [
     {
       "sku": "O365_BUSINESS_ESSENTIALS",
@@ -31,12 +31,42 @@
     {
       "sku": "SPE_E3",
       "kind": "suite",
-      "token": "E3"
+      "token": "E3",
+      "adds": [
+        "intunePlan2"
+      ],
+      "addsNote": "From 1 July 2026 Enterprise Mobility + Security E3, and so Microsoft 365 E3, includes Intune Plan 2, Remote Help and Advanced Analytics (Microsoft Intune blog, 2026-06-30). Microsoft's service plan list shows none of these plans on this SKU as of 2026-11-23 (verify on a tenant that holds it)."
     },
     {
       "sku": "SPE_E5",
       "kind": "suite",
-      "token": "E5"
+      "token": "E5",
+      "adds": [
+        "intunePlan2",
+        "intuneSuite"
+      ],
+      "addsNote": "From 1 July 2026 Microsoft 365 E5 includes what E3 gained plus Endpoint Privilege Management, Enterprise App Management and Cloud PKI (Microsoft Intune blog, 2026-06-30). Microsoft's service plan list carries Enterprise App Management and Cloud PKI on a companion SKU, M365_E5_SUITE_COMPONENTS, and none of the others on this SKU as of 2026-11-23 (verify on a tenant that holds it).",
+      "madeOf": [
+        "SPE_E3",
+        "IDENTITY_THREAT_PROTECTION",
+        "INFORMATION_PROTECTION_COMPLIANCE"
+      ]
+    },
+    {
+      "sku": "MICROSOFT_365_E7",
+      "kind": "suite",
+      "token": "E5",
+      "adds": [
+        "intunePlan2",
+        "intuneSuite"
+      ],
+      "addsNote": "Microsoft 365 E7 is Microsoft 365 E5 with Microsoft 365 Copilot, Microsoft Entra Suite and Agent 365 (Microsoft 365 blog, 2026-05-01), so it carries the Intune capabilities E5 gained on 1 July 2026. Microsoft's service plan list shows none of those plans on this SKU as of 2026-11-23 (verify on a tenant that holds it). Its token is E5: every check that asks for E5 is met by E7.",
+      "madeOf": [
+        "SPE_E5",
+        "Microsoft_365_Copilot",
+        "Microsoft_Entra_Suite",
+        "AGENT_365"
+      ]
     },
     {
       "sku": "SPE_F1",
@@ -45,7 +75,11 @@
     {
       "sku": "EMS",
       "kind": "suite",
-      "companion": true
+      "companion": true,
+      "adds": [
+        "intunePlan2"
+      ],
+      "addsNote": "From 1 July 2026 Enterprise Mobility + Security E3, and so Microsoft 365 E3, includes Intune Plan 2, Remote Help and Advanced Analytics (Microsoft Intune blog, 2026-06-30). Microsoft's service plan list shows none of these plans on this SKU as of 2026-11-23 (verify on a tenant that holds it)."
     },
     {
       "sku": "EMSPREMIUM",
@@ -165,7 +199,16 @@
     {
       "sku": "Microsoft_Entra_Suite_Step_Up_for_Microsoft_Entra_ID_P2",
       "kind": "addon",
-      "token": "EntraSuite"
+      "token": "EntraSuite",
+      "requiresBase": [
+        "SPE_E5",
+        "EMSPREMIUM",
+        "IDENTITY_THREAT_PROTECTION",
+        "DEFENDER_SUITE_FOR_BUSINESS_PREMIUM_NEW",
+        "DEFENDER_PURVIEW_SUITES_FOR_BUSINESS",
+        "AAD_PREMIUM_P2"
+      ],
+      "verify": "An add-on for tenants that already hold Entra ID P2, as its name says: offered only with a licence that brings P2. The list of those is every licence here whose plans include P2, written 2026-11-23."
     },
     {
       "sku": "Microsoft_Intune_Suite",
@@ -201,6 +244,10 @@
       "sku": "Microsoft_365_Copilot",
       "kind": "addon",
       "token": "Copilot"
+    },
+    {
+      "sku": "AGENT_365",
+      "kind": "addon"
     }
   ]
 }

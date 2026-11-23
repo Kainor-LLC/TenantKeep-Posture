@@ -1,6 +1,6 @@
 {
   "description": "Licensed features: the token the check catalog gates on, the service plans that grant it, and what it unlocks. kind security features count towards goals; kind value features (Power BI, Teams Phone) never do but show what a bundle also brings. coveredBy names the profile's thirdParty category that can stand in for a feature. Detection and the advisor read this file; nothing else holds plan names.",
-  "reviewed": "2026-11-20",
+  "reviewed": "2026-11-23",
   "sources": [
     "https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference",
     "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv"
@@ -97,17 +97,34 @@
     },
     {
       "id": "intuneSuite",
-      "name": "Microsoft Intune Suite",
+      "name": "Intune Endpoint Privilege Management, Enterprise App Management and Cloud PKI",
       "token": "IntuneSuite",
       "plans": [
-        "INTUNE_P2",
         "Intune-EPM",
+        "3_PARTY_APP_PATCH",
+        "CLOUD_PKI"
+      ],
+      "includes": [],
+      "what": "Standard users who elevate only what is approved, a catalogue of packaged apps kept up to date, and certificates issued from the cloud.",
+      "note": "The advanced Intune capabilities Microsoft 365 E5 and E7 include and E3 does not, from 1 July 2026 (Microsoft Intune blog, 2026-06-30). Also sold in the Microsoft Intune Suite. Intune Plan 1 is a prerequisite.",
+      "requires": [
+        "intune"
+      ],
+      "kind": "security"
+    },
+    {
+      "id": "intunePlan2",
+      "name": "Intune Plan 2, Remote Help and Advanced Analytics",
+      "token": null,
+      "plans": [
+        "INTUNE_P2",
+        "REMOTE_HELP",
         "Intune_AdvancedEA",
         "Intune-MAMTunnel"
       ],
       "includes": [],
-      "what": "Endpoint Privilege Management, Remote Help, advanced analytics, Tunnel for MAM.",
-      "note": "The Intune Suite SKU carries these plans; each add-on sold alone carries one of them. Intune Plan 1 is a prerequisite, not part of the suite.",
+      "what": "Remote Help sessions, advanced endpoint analytics, Tunnel for app management and specialty devices.",
+      "note": "Included in Enterprise Mobility + Security E3 and so in Microsoft 365 E3, E5 and E7 from 1 July 2026 (Microsoft Intune blog). Also sold in the Microsoft Intune Suite. Intune Plan 1 is a prerequisite.",
       "requires": [
         "intune"
       ],
@@ -316,6 +333,18 @@
       ],
       "includes": [],
       "what": "Copilot in the Microsoft 365 apps and grounded on work data.",
+      "kind": "security"
+    },
+    {
+      "id": "agent365",
+      "name": "Microsoft Agent 365",
+      "token": null,
+      "plans": [
+        "AGENT_365"
+      ],
+      "includes": [],
+      "what": "One registry of AI agents, with each agent's access, activity and risk in one place.",
+      "note": "Generally available 1 May 2026, alone and in Microsoft 365 E7 (Microsoft 365 blog, 2026-05-01).",
       "kind": "security"
     },
     {

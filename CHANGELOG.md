@@ -81,6 +81,20 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   wider windows and print are unchanged.
 - A report opened at a view's link, `report.html#ca`, starts at the top of that view (2026-11-23). It used to start
   at the section and slide up. The demo build now takes a picture of eleven views, not six.
+- The licence recommendation knows Microsoft's 2026 licences (2026-11-23), from Microsoft's service plan list as
+  downloaded that day and its announcements.
+  - Microsoft 365 E7 and Agent 365 are licences it can recommend. E7 is E5 with Microsoft 365 Copilot, Microsoft
+    Entra Suite and Agent 365, and a check that asks for E5 is met by it.
+  - Microsoft 365 E5 includes Endpoint Privilege Management, Enterprise App Management and Cloud PKI since 1 July
+    2026, and E3 includes Intune Plan 2, Remote Help and Advanced Analytics. An E5 tenant that ticked "elevation on
+    request" was told to add the Intune Suite it already had. Microsoft's list does not show these plans on the
+    suites themselves yet, so the data says where each comes from and is marked to be checked on a tenant.
+  - Two goals to tick: Copilot in the apps people work in, and AI agents registered, governed and watched.
+  - A suite that would bring a product nobody asked for is passed over when something else does the job. Without
+    this, E7 covering everything meant an E3 tenant with two gaps was told to move to E7. E7 is recommended when
+    each product it adds is wanted or already held.
+  - The Entra Suite add-on made for tenants with Entra ID P2 is offered only where P2 is held or comes with the
+    same recommendation; an E3 tenant was offered it.
 - The guide has pictures and the footprint page has diagrams (2026-11-23). `docs/guide.md` shows eleven views of the
   report at the steps that produce them, each from the sample report of a made-up tenant. `docs/footprint.md` opens
   with what runs where and as whom, drawn: a run on your machine, the scheduled run, the sign-in apps, what Kainor

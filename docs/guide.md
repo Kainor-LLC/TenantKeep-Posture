@@ -415,8 +415,11 @@ another.
 How the one combination is chosen. Every combination that works is built from the rules in `licensing/`: it covers
 every chosen goal, brings what its own licences need first, and takes away no goal the tenant meets today. Then:
 
-- **On function alone**, which is what every run does unless you give it prices: the fewest licences, then keeping
-  the suite the tenant holds, then the least overlap with other products.
+- **On function alone**, which is what every run does unless you give it prices: first, nothing nobody asked for.
+  A suite is made of products (Microsoft 365 E7 is E5 with Copilot, Entra Suite and Agent 365), and a suite that
+  would bring a product the tenant neither holds nor needs for a chosen goal is passed over when something else
+  does the job, so two gaps are not answered with E7. Then the fewest licences, then keeping the suite the tenant
+  holds, then the least overlap with other products.
 - **With a price file of your own**, the lowest total for a user, then the same order. Only when every licence in the
   comparison has a price; if one is missing the whole choice goes back to function, and the run tells you which.
 

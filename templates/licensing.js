@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Kainor LLC. Source-available, see LICENSE.md.
 // The licensing advisor, in the page: the same combinations as Get-PostureLicenseAdvice, so ticking a goal or naming
 // another product recomputes the recommendation without saving anything. The page holds no price and chooses on
-// function alone: the fewest licences, then keeping the suite the tenant holds, then the least overlap with other
-// products, then the order of the data. A Pester test runs this file under node on the same inputs as the PowerShell
+// function alone: first a combination that brings no product nobody asked for (a suite is made of products, madeOf,
+// and one the tenant neither holds nor needs for a chosen goal counts against it), then the fewest licences, then
+// keeping the suite the tenant holds, then the least overlap with other products, then the order of the data. A Pester test runs this file under node on the same inputs as the PowerShell
 // (without a price file) and compares the answers; change one, change both.
 var tkLicenseAdvice = (function () {
   'use strict';
@@ -96,11 +97,31 @@ var tkLicenseAdvice = (function () {
     var mainSuite = null; heldSuites.forEach(function (b) { if (mainSuite === null || b.features.length > mainSuite.features.length) { mainSuite = b; } });
     var candidateSuites = data.bundles.filter(function (s) { return s.kind === 'suite' && !s.companion && fits(s) && heldSkus.indexOf(s.sku) < 0 && s.features.some(function (x) { return !owned[x] && isSecurity(x); }); });
 
+    // The products a move to a suite would bring that the tenant does not hold and no open gap of a chosen goal needs.
+    // A suite inside a suite is opened up, not counted.
+    var askedFor = {}; groups.forEach(function (grp) { grp.forEach(function (x) { askedFor[x] = true; }); });
+    var bundleBySku = {}; data.bundles.forEach(function (b) { bundleBySku[b.sku] = b; });
+    var unaskedOf = function (suite) {
+      var count = 0, todo = [suite], seenPart = {};
+      while (todo.length) {
+        var s = todo.pop();
+        (s.madeOf || []).forEach(function (id) {
+          var part = bundleBySku[id];
+          if (!part || heldSkus.indexOf(id) >= 0 || seenPart[id]) { return; }
+          seenPart[id] = true;
+          if (part.kind === 'suite') { todo.push(part); return; }
+          var fresh = part.features.filter(function (x) { return !have[x] && isSecurity(x); });
+          if (fresh.length && !fresh.some(function (x) { return askedFor[x]; })) { count++; }
+        });
+      }
+      return count;
+    };
+
     // Step one: every combination that works. Step two: the one to recommend.
     var made = [];
     var addPlan = function (kind, suite, items, replaced, kept) {
       var all = (suite ? [suite] : []).concat(items);
-      made.push({ kind: kind, suite: suite, items: items, replaced: replaced, kept: kept, count: all.length, kindOrder: kind === 'suite' ? 1 : 0, overlap: overlapCount(all), order: made.length });
+      made.push({ kind: kind, suite: suite, items: items, replaced: replaced, kept: kept, unasked: kind === 'suite' && suite ? unaskedOf(suite) : 0, count: all.length, kindOrder: kind === 'suite' ? 1 : 0, overlap: overlapCount(all), order: made.length });
     };
     var skuKey = function (c) { return (c ? c.items : []).map(function (b) { return b.sku; }).join(','); };
     if (groups.length) {
@@ -126,6 +147,7 @@ var tkLicenseAdvice = (function () {
     var top = null;
     made.forEach(function (m) {
       var better = top === null ? true
+        : m.unasked !== top.unasked ? m.unasked < top.unasked
         : m.count !== top.count ? m.count < top.count
           : m.kindOrder !== top.kindOrder ? m.kindOrder < top.kindOrder
             : m.overlap !== top.overlap ? m.overlap < top.overlap

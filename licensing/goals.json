@@ -1,6 +1,6 @@
 {
   "description": "Goals a customer can choose; each needs every group of features, and any one feature satisfies a group. core goals are the advisor's default when the profile names none. The advisor reads this with features.json and bundles.json.",
-  "reviewed": "2026-11-20",
+  "reviewed": "2026-11-23",
   "goals": [
     {
       "id": "phishing-resistant-mfa",
@@ -146,6 +146,17 @@
       "core": false
     },
     {
+      "id": "copilot",
+      "name": "Copilot in the apps people already work in",
+      "what": "Microsoft 365 Copilot in Word, Excel, Outlook and Teams, grounded on what each person can already open.",
+      "needs": [
+        [
+          "copilot"
+        ]
+      ],
+      "core": false
+    },
+    {
       "id": "copilot-data",
       "name": "Copilot cannot surface what was overshared",
       "what": "Oversharing reports and restricted access, labels, and DLP for Copilot.",
@@ -158,6 +169,17 @@
         ],
         [
           "purviewIp"
+        ]
+      ],
+      "core": false
+    },
+    {
+      "id": "agent-governance",
+      "name": "AI agents registered, governed and watched",
+      "what": "Microsoft Agent 365: every agent in one registry, with its access, its activity and its risk.",
+      "needs": [
+        [
+          "agent365"
         ]
       ],
       "core": false

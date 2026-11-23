@@ -95,6 +95,42 @@ Describe 'Get-PostureLicenseAdvice' {
         }
     }
 
+    It 'knows Microsoft 365 E7, Agent 365 and what E5 gained in July 2026, and does not answer two gaps with everything' {
+        InModuleScope TenantKeep.Posture {
+            $data = Get-PostureLicensingData
+            @($data.goals.id) | Should -Contain 'copilot'
+            @($data.goals.id) | Should -Contain 'agent-governance'
+            $e7 = @($data.bundles | Where-Object sku -EQ 'MICROSOFT_365_E7')[0]
+            foreach ($f in 'copilot', 'agent365', 'governance', 'privateAccess', 'internetAccess', 'intuneSuite', 'mde2', 'purviewIp') { @($e7.features) | Should -Contain $f -Because 'E7 is E5 with Copilot, Entra Suite and Agent 365' }
+            Get-PostureLicenseToken -Sku @(@{ SkuPartNumber = 'MICROSOFT_365_E7' }) | Should -Contain 'E5' -Because 'a check that asks for E5 is met by E7'
+
+            $e5 = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E5' }))
+            $e5 | Should -Contain 'intuneSuite' -Because 'Endpoint Privilege Management came with Microsoft 365 E5 on 1 July 2026'
+            $elevation = Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'admin-elevation' -OwnedSku 'SPE_E5'
+            ($elevation.goals | Where-Object id -EQ 'admin-elevation').met | Should -BeTrue
+            $elevation.advice.recommended | Should -BeNullOrEmpty -Because 'an E5 tenant was told to add the Intune Suite it already has'
+
+            $e3 = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E3' }))
+            $e3 | Should -Contain 'intunePlan2' -Because 'E3 gained Remote Help, Advanced Analytics and Plan 2'
+            $e3 | Should -Not -Contain 'intuneSuite' -Because 'Endpoint Privilege Management is in E5, not E3'
+            @((Get-PostureLicenseAdvice -Owned $e3 -Seats 400 -Goal 'admin-elevation' -OwnedSku 'SPE_E3').advice.recommended.licences.sku) | Should -Be @('Microsoft_Intune_Suite')
+
+            # E7 when every product it adds is wanted; add-ons when it would bring one nobody asked for.
+            $all3 = (Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'copilot', 'agent-governance', 'vpn-replacement' -OwnedSku 'SPE_E5').advice.recommended
+            $all3.title | Should -Be 'Move to Microsoft 365 E7'
+            $two = (Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'agent-governance', 'vpn-replacement' -OwnedSku 'SPE_E5').advice.recommended
+            @($two.licences.sku) | Should -Be @('Microsoft_Entra_Suite_Step_Up_for_Microsoft_Entra_ID_P2', 'AGENT_365') -Because 'E7 would bring Copilot, which no chosen goal needs'
+            @((Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'agent-governance' -OwnedSku 'SPE_E5').advice.recommended.licences.sku) | Should -Be @('AGENT_365')
+            $held = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E5' }, @{ SkuPartNumber = 'Microsoft_365_Copilot' }))
+            (Get-PostureLicenseAdvice -Owned $held -Seats 400 -Goal 'agent-governance', 'vpn-replacement' -OwnedSku 'SPE_E5', 'Microsoft_365_Copilot').advice.recommended.title | Should -Be 'Move to Microsoft 365 E7' -Because 'Copilot is already held, so E7 brings nothing unasked'
+
+            # An E3 tenant with two gaps is not sent to E7, and is not offered the add-on made for tenants with P2.
+            $gaps = (Get-PostureLicenseAdvice -Owned $e3 -Seats 400 -Goal 'auto-labels', 'vpn-replacement' -OwnedSku 'SPE_E3').advice.recommended
+            @($gaps.licences.sku) | Should -Be @('INFORMATION_PROTECTION_COMPLIANCE', 'Microsoft_Entra_Suite')
+            (Get-PostureLicenseAdvice -Owned $e3 -Seats 400 -Goal 'risk-based-access', 'edr', 'auto-labels', 'insider-risk' -OwnedSku 'SPE_E3').advice.recommended.title | Should -Be 'Move to Microsoft 365 E5' -Because 'both products E5 adds are wanted, and E7 would add three that are not'
+        }
+    }
+
     It 'gives the same answer in the page (templates/licensing.js under node) as in PowerShell without prices' {
         $node = Get-Command node -ErrorAction SilentlyContinue
         if (-not $node) { Set-ItResult -Skipped -Because 'node is not installed'; return }
@@ -108,6 +144,11 @@ Describe 'Get-PostureLicenseAdvice' {
             @{ sku = @('SPE_E5', 'AAD_PREMIUM_P2'); goals = @(); tp = @{}; seats = 100 }
             @{ sku = @('ENTERPRISEPACK', 'EMS'); goals = @('device-gating', 'copilot-data', 'email-protection'); tp = @{ email = 'Mimecast' }; seats = 250 }
             @{ sku = @(); goals = @('lifecycle', 'edr'); tp = @{}; seats = 500 }
+            @{ sku = @('SPE_E5'); goals = @('copilot', 'agent-governance', 'vpn-replacement'); tp = @{}; seats = 400 }
+            @{ sku = @('SPE_E5'); goals = @('agent-governance', 'vpn-replacement'); tp = @{}; seats = 400 }
+            @{ sku = @('SPE_E5', 'Microsoft_365_Copilot'); goals = @('agent-governance', 'vpn-replacement', 'lifecycle', 'web-filtering', 'admin-elevation'); tp = @{}; seats = 400 }
+            @{ sku = @('SPE_E3'); goals = @('auto-labels', 'vpn-replacement'); tp = @{}; seats = 400 }
+            @{ sku = @('SPE_E3'); goals = @('admin-elevation', 'agent-governance'); tp = @{ ztna = 'Zscaler' }; seats = 900 }
         )
         $shape = {
             param($a)

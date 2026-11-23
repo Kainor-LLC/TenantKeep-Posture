@@ -16,8 +16,11 @@ function Get-PostureLicenseAdvice {
         works when it covers every chosen goal, brings what its own licences need first (ID Governance needs Entra ID
         P1), and takes away no goal the tenant meets today. Then one is chosen:
 
-        - Without -Price, on function alone: the fewest licences, then keeping the suite the tenant holds, then the
-          least overlap with other products, then the order of bundles.json.
+        - Without -Price, on function alone: first a combination that brings no product nobody asked for (a suite
+          is made of products, bundles.json madeOf, and one the tenant neither holds nor needs for a chosen goal
+          counts against it, so two gaps are not answered with Microsoft 365 E7), then the fewest licences, then
+          keeping the suite the tenant holds, then the least overlap with other products, then the order of
+          bundles.json.
         - With -Price (a price for a user per licence, from the report owner's own price file), the lowest total,
           then the same order. Only when every licence in the comparison has a price; one missing puts the whole
           choice back on function, so a recommendation never rests on half a comparison.
@@ -197,12 +200,39 @@ function Get-PostureLicenseAdvice {
     $names = { param($list) $n = @($list | ForEach-Object { [string]$_.name }); if ($n.Count -le 1) { return ($n -join '') }; return (($n[0..($n.Count - 2)] -join ', ') + ' and ' + $n[-1]) }
     $overlapCount = { param($list) @($list | ForEach-Object { @($_.features) } | Select-Object -Unique | Where-Object { $vendorOf.ContainsKey([string]$_) -and -not $owned.Contains([string]$_) }).Count }
 
+    # A suite is made of products (bundles.json, madeOf: Microsoft 365 E7 is E5 with Copilot, Entra Suite and Agent
+    # 365; E5 is E3 with the Defender and Purview suites). The products a move would bring that the tenant does not
+    # hold and that no open gap of a chosen goal needs. A suite inside a suite is opened up, not counted.
+    $askedFor = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($grp in $groups) { foreach ($x in @($grp)) { $null = $askedFor.Add([string]$x) } }
+    $bundleBySku = @{}
+    foreach ($b in $data.bundles) { $bundleBySku[[string]$b.sku] = $b }
+    $unaskedOf = {
+        param($suite)
+        $count = 0
+        $todo = [System.Collections.Generic.Stack[object]]::new()
+        $todo.Push($suite)
+        $seenPart = [System.Collections.Generic.HashSet[string]]::new()
+        while ($todo.Count -gt 0) {
+            $s = $todo.Pop()
+            if (-not $s.Contains('madeOf')) { continue }
+            foreach ($id in @($s.madeOf)) {
+                if (-not $bundleBySku.ContainsKey([string]$id) -or [string]$id -in $OwnedSku -or -not $seenPart.Add([string]$id)) { continue }
+                $part = $bundleBySku[[string]$id]
+                if ($part.kind -eq 'suite') { $todo.Push($part); continue }
+                $fresh = @($part.features | Where-Object { -not $have.Contains([string]$_) -and (& $isSecurity $_) })
+                if ($fresh.Count -gt 0 -and @($fresh | Where-Object { $askedFor.Contains([string]$_) }).Count -eq 0) { $count++ }
+            }
+        }
+        return $count
+    }
+
     # Step one: every combination that works. Step two: the one to recommend.
     $made = [System.Collections.Generic.List[object]]::new()
     $addPlan = {
         param([string] $Kind, $Suite, $Items, $Replaced, $Kept, [decimal] $Cost)
         $all = @(@($Suite) + @($Items) | Where-Object { $_ })
-        $made.Add(@{ kind = $Kind; suite = $Suite; items = @($Items); replaced = @($Replaced | Where-Object { $_ }); kept = @($Kept | Where-Object { $_ }); cost = $Cost; count = $all.Count; kindOrder = $(if ($Kind -eq 'suite') { 1 } else { 0 }); overlap = (& $overlapCount $all); order = $made.Count })
+        $made.Add(@{ kind = $Kind; suite = $Suite; items = @($Items); replaced = @($Replaced | Where-Object { $_ }); kept = @($Kept | Where-Object { $_ }); cost = $Cost; unasked = $(if ($Kind -eq 'suite' -and $Suite) { [int](& $unaskedOf $Suite) } else { 0 }); count = $all.Count; kindOrder = $(if ($Kind -eq 'suite') { 1 } else { 0 }); overlap = (& $overlapCount $all); order = $made.Count })
     }
     if ($groups.Count) {
         $addOnly = & $coverAll @($have) $groups $OwnedSku $false
@@ -231,6 +261,7 @@ function Get-PostureLicenseAdvice {
         $better = $(
             if ($null -eq $top) { $true }
             elseif ($usePrice -and $m.cost -ne $top.cost) { $m.cost -lt $top.cost }
+            elseif ($m.unasked -ne $top.unasked) { $m.unasked -lt $top.unasked }
             elseif ($m.count -ne $top.count) { $m.count -lt $top.count }
             elseif ($m.kindOrder -ne $top.kindOrder) { $m.kindOrder -lt $top.kindOrder }
             elseif ($m.overlap -ne $top.overlap) { $m.overlap -lt $top.overlap }
@@ -336,7 +367,7 @@ function Get-PostureLicensePageData {
     $ld = Get-PostureLicensingData
     return [ordered]@{
         features   = @($ld.features.Values | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; kind = $(if ($_.Contains('kind')) { $_.kind } else { 'security' }); coveredBy = $(if ($_.Contains('coveredBy')) { $_.coveredBy } else { $null }); requires = @($(if ($_.Contains('requires')) { $_.requires })) } })
-        bundles    = @($ld.bundles | ForEach-Object { [ordered]@{ sku = $_.sku; name = $_.name; kind = $_.kind; features = @($_.features); companion = [bool]($_.Contains('companion') -and $_.companion); seatCap = $(if ($_.Contains('seatCap')) { [int]$_.seatCap } else { $null }); verify = $(if ($_.Contains('verify')) { $_.verify } else { $null }); requiresBase = @($(if ($_.Contains('requiresBase')) { $_.requiresBase })) } })
+        bundles    = @($ld.bundles | ForEach-Object { [ordered]@{ sku = $_.sku; name = $_.name; kind = $_.kind; features = @($_.features); companion = [bool]($_.Contains('companion') -and $_.companion); seatCap = $(if ($_.Contains('seatCap')) { [int]$_.seatCap } else { $null }); verify = $(if ($_.Contains('verify')) { $_.verify } else { $null }); requiresBase = @($(if ($_.Contains('requiresBase')) { $_.requiresBase })); madeOf = @($(if ($_.Contains('madeOf')) { $_.madeOf })) } })
         goals      = @($ld.goals | ForEach-Object { [ordered]@{ id = $_.id; name = $_.name; core = [bool]$_.core; needs = @($_.needs | ForEach-Object { , @($_) }) } })
         owned      = @($Owned)
         thirdParty = $ThirdParty
