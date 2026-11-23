@@ -1,6 +1,6 @@
 {
   "name": "cisa-scuba",
-  "description": "CISA Secure Cloud Business Applications baselines for Microsoft 365, as ScubaGear v2.0.0 states them: every check filed under an MS.AAD, MS.EXO, MS.SECURITYSUITE, MS.SHAREPOINT or MS.TEAMS policy id, catalog severities lifted to High for the SHALL policies carried here. checks/references/cisa-scuba.json lists every policy with the checks that cover it, or the reason none does yet. Three checks are held to the baseline's stricter reading through thresholds: a managed device to register a sign-in method (CA-017), and an address beyond the default recipients for the role alerts (ID-026, ID-027).",
+  "description": "CISA Secure Cloud Business Applications baselines for Microsoft 365, as ScubaGear v2.0.0 states them: every check filed under an MS.AAD, MS.EXO, MS.SECURITYSUITE, MS.SHAREPOINT, MS.TEAMS, MS.POWERBI or MS.POWERPLATFORM policy id, catalog severities lifted to High for the SHALL policies carried here. checks/references/cisa-scuba.json lists every policy with the checks that cover it, or the reason none does yet. Three checks are held to the baseline's stricter reading through thresholds: a managed device to register a sign-in method (CA-017), and an address beyond the default recipients for the role alerts (ID-026, ID-027).",
   "checks": [
     "framework:cisa-scuba"
   ],
@@ -27,7 +27,9 @@
       "MS.EXO": "Exchange Online",
       "MS.SHAREPOINT": "SharePoint and OneDrive",
       "MS.TEAMS": "Teams",
-      "MS.SECURITYSUITE": "Defender and Purview"
+      "MS.SECURITYSUITE": "Defender and Purview",
+      "MS.POWERBI": "Power BI",
+      "MS.POWERPLATFORM": "Power Platform"
     }
   }
 }

@@ -1,0 +1,557 @@
+{
+  "domain": "powerplatform",
+  "checks": [
+    {
+      "id": "BI-001",
+      "domain": "powerplatform",
+      "title": "Publish to web is off in Power BI",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiPublishToWebOn",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Export and sharing settings.",
+        "Set Publish to web to Disabled.",
+        "Open Embed codes in the same portal and remove the public links that already exist, after telling their owners."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People can no longer create a public link to a report. Reports already published stay public until their embed codes are removed."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-export-sharing",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "Publish to web turns a report into a page anyone on the internet can open, with no sign-in and no record of who looked. It was built for public data. One report made this way from a sales or payroll dataset is a breach nobody is told about.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.22",
+        "cisa-scuba": "MS.POWERBI.1.1v1"
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "BI-002",
+      "domain": "powerplatform",
+      "title": "Guests open Power BI content only where you chose",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiGuestAccessOpen",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Export and sharing settings.",
+        "Set Guest users can access Microsoft Fabric to Disabled, or keep it on for the security groups that work with outside people."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A guest opens shared Power BI content only when the person sharing is in a group you allowed."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-export-sharing",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "With this on for the whole organisation, any guest in the directory can open whatever Power BI content is shared with them, and every user can be the one who shares. Holding it to named groups keeps outside access to the teams that have a reason for it.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.POWERBI.2.1v1"
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "BI-003",
+      "domain": "powerplatform",
+      "title": "Inviting outside users through Power BI is limited",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiGuestInvitesOpen",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Export and sharing settings.",
+        "Set Users can invite guest users to collaborate through item sharing and permissions to Disabled, or keep it on for named security groups.",
+        "Send other invitations through the guest process you already have in Entra."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "People outside the chosen groups can no longer add a new guest to the directory by sharing a report with an outside address."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-export-sharing",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "Sharing a report with an address that is not in the directory creates a guest account for it. With the setting on for everyone, Power BI is a way to invite guests that skips whatever approval the organisation set up for invitations.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.19",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.POWERBI.3.1v1"
+      },
+      "attack": [
+        "T1078.004"
+      ]
+    },
+    {
+      "id": "BI-004",
+      "domain": "powerplatform",
+      "title": "Service principals call the Fabric APIs only from named groups",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiServicePrincipalApisOpen",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Developer settings.",
+        "Set Service principals can call Fabric public APIs to Disabled, or to Enabled for the security groups that hold the applications you know.",
+        "Put each application that needs the APIs in such a group."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users. An application outside the named groups can no longer call the Fabric APIs."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-developer",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "A service principal that can call the Fabric APIs reads and changes content with no person and no MFA behind it. On for the whole organisation, every application registered in the tenant can try. Named groups turn that into a short list somebody owns.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": "MS.POWERBI.4.1v1"
+      },
+      "attack": [
+        "T1528"
+      ]
+    },
+    {
+      "id": "BI-005",
+      "domain": "powerplatform",
+      "title": "Service principal profiles are limited to named groups",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiServicePrincipalProfilesOpen",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Developer settings.",
+        "Set Allow service principals to create and use profiles to Disabled, or to Enabled for named security groups."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for users."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-developer",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "Profiles let one service principal act as many identities, one per customer, which is how multi-tenant embedding works. An application that does not need that and can still create profiles has more ways to hold access than anyone reviewing it will think to look for.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.3",
+        "cmmc": "AC.L2-3.1.2",
+        "cisa-scuba": "MS.POWERBI.4.2v1"
+      },
+      "attack": [
+        "T1528"
+      ]
+    },
+    {
+      "id": "BI-006",
+      "domain": "powerplatform",
+      "title": "Resource key authentication is blocked in Power BI",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "facts.powerBiResourceKeysBlocked",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Developer settings.",
+        "Set Block ResourceKey Authentication to Enabled.",
+        "Streaming and push datasets that still use a resource key need moving to Entra sign-in first; list them before you turn this on."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A streaming or push dataset that still uses a key stops receiving data until it is moved to a signed-in connection."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-developer",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "A resource key is a password for one dataset that never expires and belongs to nobody. Whoever has the address and the key can push data in, with no sign-in for Conditional Access to judge and nothing in the sign-in log.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-01",
+        "iso27001": "A.5.17",
+        "cmmc": "IA.L2-3.5.3",
+        "cisa-scuba": "MS.POWERBI.5.1v1"
+      },
+      "attack": [
+        "T1528"
+      ]
+    },
+    {
+      "id": "BI-007",
+      "domain": "powerplatform",
+      "title": "R and Python visuals are off in Power BI",
+      "severityDefault": "Low",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "!facts.powerBiScriptVisualsOn",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, R and Python visuals settings.",
+        "Set Interact with and share R and Python visuals to Disabled.",
+        "If analysts depend on them, keep the setting on and accept the finding with the reason."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "medium",
+        "text": "Reports that use an R or Python visual show an error in its place."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-r-python-visuals",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "An R or Python visual is a script that runs when the report opens. Microsoft runs it in a sandbox, and it is still code written by whoever made the report, running for everyone who views it. Organisations that do not use these visuals lose nothing by turning them off.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.19",
+        "cmmc": "CM.L2-3.4.8",
+        "cisa-scuba": "MS.POWERBI.6.1v1"
+      }
+    },
+    {
+      "id": "BI-008",
+      "domain": "powerplatform",
+      "title": "Sensitivity labels are on in Power BI",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pbi-01-tenant-settings.json"
+      ],
+      "pass": "facts.powerBiSensitivityLabelsOn",
+      "remediation": [
+        "In the Fabric admin portal, open Tenant settings, Information protection.",
+        "Set Allow users to apply sensitivity labels for content to Enabled.",
+        "Publish the labels to the people who build reports (PV-002), and turn on the settings that carry a label from a data source and to an exported file."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "Report builders see the same labels as in Office and can label datasets and reports. An exported file keeps the label."
+      },
+      "learn": "https://learn.microsoft.com/fabric/admin/service-admin-portal-information-protection",
+      "deepLink": "https://app.powerbi.com/admin-portal/tenantSettings",
+      "narrative": "A labelled spreadsheet becomes an unlabelled dataset the moment it is loaded into Power BI, and an unlabelled export after that. With labels on, the label and its protection follow the data into the report and back out into the Excel or PDF someone downloads.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.13",
+        "cmmc": "MP.L2-3.8.4",
+        "cisa-scuba": "MS.POWERBI.7.1v1"
+      }
+    },
+    {
+      "id": "PP-001",
+      "domain": "powerplatform",
+      "title": "Only administrators create production and sandbox environments",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-01-tenant-settings.json"
+      ],
+      "pass": "!facts.anyoneCreatesEnvironments",
+      "remediation": [
+        "In the Power Platform admin center, select the gear icon at the top right, then Power Platform settings.",
+        "Under Production environment assignments, choose Only specific admins.",
+        "Tell makers how to ask for an environment."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A maker who needs a new environment asks an administrator for one."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/control-environment-creation",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "Every environment is a place with its own data, its own connections and its own DLP rules, or none. When any licensed user can create one, apps and flows move to environments no policy was written for, and nobody knows they exist.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.POWERPLATFORM.1.1v1"
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "PP-002",
+      "domain": "powerplatform",
+      "title": "Only administrators create trial environments",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-01-tenant-settings.json"
+      ],
+      "pass": "!facts.anyoneCreatesTrialEnvironments",
+      "remediation": [
+        "In the Power Platform admin center, select the gear icon at the top right, then Power Platform settings.",
+        "Under Trial environment assignments, choose Only specific admins."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A person who wants to try something asks for a trial environment, or uses the developer environment you allow."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/control-environment-creation",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "A trial environment is a real environment for thirty days: real connectors, real company data, and the DLP policies of an environment nobody planned. Left open, it is the easiest way around the rules on the environments you do manage.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.POWERPLATFORM.1.2v1"
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "PP-003",
+      "domain": "powerplatform",
+      "title": "A DLP policy covers the default environment",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-02-environments.json",
+        "pp-03-dlp-policies.json"
+      ],
+      "pass": "facts.defaultEnvironmentHasDlp",
+      "remediation": [
+        "In the Power Platform admin center, open Security, Data and privacy, Data policy (older menus: Policies, Data policies).",
+        "Create a policy that includes the default environment, or all environments.",
+        "Put the connectors to company data (SharePoint, Outlook, Dataverse) in Business, leave the rest in Non-business, and block the ones you never want."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "A flow or app in the default environment that mixes a business connector with a personal one stops working and says why. Review what exists before you turn the policy on."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "Everyone with a licence is a maker in the default environment, and without a DLP policy a flow there can read a SharePoint library and post it to a personal Dropbox or a webhook. The policy is the only thing that says which connectors may be used together.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": "MS.POWERPLATFORM.2.1v1"
+      },
+      "attack": [
+        "T1567",
+        "T1537"
+      ]
+    },
+    {
+      "id": "PP-004",
+      "domain": "powerplatform",
+      "title": "Every other environment has a DLP policy",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-02-environments.json",
+        "pp-03-dlp-policies.json"
+      ],
+      "pass": "facts.environmentsWithoutDlp == 0",
+      "affected": "facts.environmentsWithoutDlp",
+      "remediation": [
+        "In the Power Platform admin center, open the data policies and look at which environments each one applies to.",
+        "The simplest shape is one policy for all environments, with stricter ones on top for the environments that hold more.",
+        "Add each listed environment to a policy, or delete it if nobody uses it."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "Flows and apps in those environments that mix business and personal connectors stop working and say why."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "A policy that names its environments covers those and no others. Each environment created after it starts with no rules at all, and the people building in it have no reason to know.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.8.12",
+        "cmmc": "SC.L2-3.13.16",
+        "cisa-scuba": "MS.POWERPLATFORM.2.2v1"
+      },
+      "attack": [
+        "T1567",
+        "T1537"
+      ]
+    },
+    {
+      "id": "PP-005",
+      "domain": "powerplatform",
+      "title": "Tenant isolation is on in Power Platform",
+      "severityDefault": "High",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-04-tenant-isolation.json"
+      ],
+      "pass": "facts.tenantIsolationOn",
+      "remediation": [
+        "In the Power Platform admin center, open Policies, Tenant isolation (newer menus: Security, Identity and access).",
+        "Find the connections that cross tenants today, with the cross-tenant connection report.",
+        "Turn isolation on and add the tenants you work with to the allow list, with the direction each needs."
+      ],
+      "effort": "M",
+      "category": "fix",
+      "userImpact": {
+        "level": "medium",
+        "text": "A connection that signs in to another organisation's tenant, or one from another tenant into yours, stops working unless that tenant is on the allow list."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/cross-tenant-restrictions",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "A connector signs in wherever its maker has an account. Without isolation a flow in your tenant can sign in to a personal or a competitor's tenant and copy data there, and a flow in someone else's tenant can sign in to yours with one of your users' accounts. Isolation stops both unless you name the tenant.",
+      "frameworks": {
+        "nist-csf-2": "PR.DS-01",
+        "iso27001": "A.5.14",
+        "cmmc": "AC.L2-3.1.20",
+        "cisa-scuba": "MS.POWERPLATFORM.3.1v1"
+      },
+      "attack": [
+        "T1537"
+      ]
+    },
+    {
+      "id": "PP-006",
+      "domain": "powerplatform",
+      "title": "Only administrators create Power Pages sites",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-01-tenant-settings.json"
+      ],
+      "pass": "!facts.anyoneCreatesPowerPages",
+      "remediation": [
+        "This setting has no switch in the admin center. It is set with Microsoft's Power Apps PowerShell module (Microsoft.PowerApps.Administration.PowerShell), as a Power Platform Administrator.",
+        "Sign in with Add-PowerAppsAccount -Endpoint prod",
+        "Then run: Set-TenantSettings -RequestBody @{ \"disablePortalsCreationByNonAdminUsers\" = $true }"
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A maker who wants a public site asks an administrator to create it."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/powerapps-powershell",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "A Power Pages site is a public website on top of company data. When any maker can create one, a table meant for staff can end up on the internet behind a page nobody in IT has seen, and misconfigured table permissions on such sites have exposed records at many organisations.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.8.2",
+        "cmmc": "AC.L2-3.1.5",
+        "cisa-scuba": "MS.POWERPLATFORM.5.1v1"
+      },
+      "attack": [
+        "T1567"
+      ]
+    },
+    {
+      "id": "PP-007",
+      "domain": "powerplatform",
+      "title": "Apps cannot be shared with Everyone",
+      "severityDefault": "Medium",
+      "license": [],
+      "applicableWhen": {},
+      "coveredBy": [],
+      "thresholds": {},
+      "evidence": [
+        "pp-01-tenant-settings.json"
+      ],
+      "pass": "!facts.appsShareWithEveryone",
+      "remediation": [
+        "This setting has no switch in the admin center. It is set with Microsoft's Power Apps PowerShell module (Microsoft.PowerApps.Administration.PowerShell), as a Power Platform Administrator.",
+        "Sign in with Add-PowerAppsAccount -Endpoint prod",
+        "Then run these three lines: $tenantSettings = Get-TenantSettings; $tenantSettings.powerPlatform.powerApps.disableShareWithEveryone = $true; Set-TenantSettings $tenantSettings",
+        "Makers then share an app with the people or groups who need it."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A maker shares an app with named people or groups, and no longer with the whole directory in one click."
+      },
+      "learn": "https://learn.microsoft.com/power-platform/admin/powerapps-powershell",
+      "deepLink": "https://admin.powerplatform.microsoft.com/",
+      "narrative": "Sharing an app with Everyone gives every account in the directory, guests included, the app and the data connections it runs on. It is one click for the maker and usually meant as a shortcut for one department.",
+      "frameworks": {
+        "nist-csf-2": "PR.AA-05",
+        "iso27001": "A.5.15",
+        "cmmc": "AC.L2-3.1.1",
+        "cisa-scuba": "MS.POWERPLATFORM.6.1v1"
+      },
+      "attack": [
+        "T1530"
+      ]
+    }
+  ]
+}

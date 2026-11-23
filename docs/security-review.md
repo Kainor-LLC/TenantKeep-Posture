@@ -57,12 +57,18 @@ run) and what the record shows afterwards (below).
 
 - **One entry point per service, reads only.** Graph requests, Exchange and Purview commands (`Get-` only), PnP
   commands (`Get-PnP` only), Teams commands (`Get-Cs`, `Get-Team` and the two app availability reads,
-  `Get-AllM365TeamsApps` and `Get-M365UnifiedTenantSettings`) and Azure requests each go through one function that
-  refuses anything else.
-- **Tests that fail the build.** The module's test suite fails if any code sends a request other than GET, except four
-  POSTs that are reads with the question in the body, each marked in the code: Graph batches of reads, advanced
-  hunting queries, directory lookups by id, and the Cost Management cost query. The same tests fail on a SharePoint,
-  Teams or Exchange command that is not a read, and on any connection made outside the sign-in code.
+  `Get-AllM365TeamsApps` and `Get-M365UnifiedTenantSettings`), Azure requests, and the Power BI and Power Platform
+  requests each go through one function that refuses anything else.
+- **Tests that fail the build.** The module's test suite fails if any code sends a request other than GET, except five
+  POSTs that are reads, each marked in the code: Graph batches of reads, advanced hunting queries, directory lookups
+  by id, the Cost Management cost query, and the listing of the Power Platform tenant settings, which Microsoft made
+  a POST and which goes to one fixed address with no body. The same tests fail on a SharePoint, Teams or Exchange
+  command that is not a read, and on any connection made outside the sign-in code.
+- **Where Microsoft offers no read-only permission, the code is the limit.** Three APIs have none: the Teams admin
+  API, Azure Service Management, and the Power Platform admin API. The app holds the one delegated permission each
+  has, and the entry points above are what keep the run to reads. Power Platform's is optional and approved from a
+  second link, so an organisation that does not want that domain never grants it. Power BI's optional permission,
+  Tenant.Read.All, is read-only by name.
 - **Releases are checked when they load.** The integrity manifest lists every file with its hash, signed with Kainor's
   key; the module checks it when it loads and the report says what it found. Authenticode signatures on every file
   follow once the signing account is validated (until then the zip is named unsigned).

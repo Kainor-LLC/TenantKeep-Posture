@@ -52,6 +52,25 @@ function Invoke-PostureAzureRest {
     }
 }
 
+function Get-PostureAzureResourceToken {
+    <#
+    .SYNOPSIS
+        An access token for another Microsoft API from the Azure session that is open: for a scheduled run, whose only
+        sign-in is the managed identity's. Az is asked for it and nothing is stored.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)] [ValidatePattern('^https://[a-z0-9.-]+(/[a-z0-9./-]*)?$')] [string] $ResourceUrl)
+
+    $ErrorActionPreference = 'Stop'
+    if (-not (Get-Command -Name Get-AzAccessToken -ErrorAction SilentlyContinue)) { throw 'There is no sign-in to read this with. Start-PostureRun signs in; a scheduled run needs Az.Accounts and the session of its managed identity.' }
+    $answer = Get-AzAccessToken -ResourceUrl $ResourceUrl -ErrorAction Stop
+    $value = $answer.Token
+    # Az.Accounts hands the token back as a secure string from version 5; older ones as text.
+    if ($value -is [securestring]) { return [System.Net.NetworkCredential]::new('', $value).Password }
+    return [string]$value
+}
+
 function Invoke-PostureAzureQuery {
     <#
     .SYNOPSIS

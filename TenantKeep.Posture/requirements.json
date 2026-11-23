@@ -104,6 +104,26 @@
         "Security Reader (on each subscription, for Defender for Cloud)"
       ],
       "note": "Azure roles, granted on the subscriptions or a management group, not in Entra."
+    },
+    "PowerBI": {
+      "service": "Fabric admin API",
+      "roles": [
+        "Fabric Administrator"
+      ],
+      "note": "The account also needs a Power BI or Fabric licence (the free one counts) and to have opened the Power BI portal once. The permission is optional and approved from the second consent link. A scheduled run needs no role: its identity is in a security group the Fabric tenant setting for read-only admin APIs names.",
+      "alsoWorks": [
+        "Global Administrator"
+      ]
+    },
+    "PowerPlatform": {
+      "service": "Power Platform admin API",
+      "roles": [
+        "Power Platform Administrator"
+      ],
+      "note": "There is no read-only role and no read-only permission for these settings; the module's request entry point is what keeps the read a read. Optional, approved from the second consent link. Not collected in a scheduled run.",
+      "alsoWorks": [
+        "Global Administrator"
+      ]
     }
   },
   "steps": [
@@ -766,6 +786,23 @@
       "scopes": [
         "Domain-InternalFederation.Read.All"
       ]
+    },
+    {
+      "collector": "PowerBI",
+      "match": "^Power BI tenant settings$",
+      "roles": [
+        "Fabric Administrator"
+      ],
+      "licence": "a Power BI or Fabric licence on the account that signs in (the free Microsoft Fabric licence counts)",
+      "note": "GET v1/admin/tenantsettings on the Fabric admin API, with Tenant.Read.All on the Power BI Service. Seen on Kainor 2026-11-23: an account with no licence is answered 401 UserNotLicensed."
+    },
+    {
+      "collector": "PowerPlatform",
+      "match": "^Power Platform (tenant settings|environments|DLP policies|tenant isolation)$",
+      "roles": [
+        "Power Platform Administrator"
+      ],
+      "note": "The Power Platform admin API (api.bap.microsoft.com) with the PowerApps Service permission, which is not read-only by name. Three GETs and the one POST that lists tenant settings. The tenant settings call answered for a Global Administrator on Kainor, 2026-11-23."
     }
   ]
 }

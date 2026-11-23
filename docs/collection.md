@@ -319,6 +319,26 @@ The Entra collector adds `02-group-lifecycle-policy` and `07-groups-ownerless` (
 oversharing views that need SharePoint Advanced Management reports (sites shared with Everyone except external users,
 active anonymous links, inactive sites) are not collected yet.
 
+## What the Power BI and Power Platform collectors write
+
+Two collectors behind two optional permissions, approved from a second consent link (`Start-PostureRun` prints it when
+a tenant has not approved them, and collects everything else as usual). Neither uses a PowerShell module: the requests
+are made by the module's own entry points in `Invoke-PosturePowerRequest.ps1`, which allow GET on the two admin APIs
+and one POST, the listing of the Power Platform tenant settings.
+
+| File | Source | Notes |
+|---|---|---|
+| `pbi-01-tenant-settings` | Fabric admin API, `GET v1/admin/tenantsettings`, every page | One row per tenant setting: name, title, group, on or off, and the security groups it is limited to or excludes. Feeds BI-001 to BI-008. Needs Tenant.Read.All on the Power BI Service and a Fabric Administrator whose account has a Power BI or Fabric licence (the free one counts) and has opened the Power BI portal once: an account with no licence is answered 401 `UserNotLicensed`, and the run says so in plain words |
+| `pp-01-tenant-settings` | Power Platform admin API, `POST listTenantSettings` (a read) | The settings as Microsoft returns them. Feeds PP-001, PP-002, PP-006, PP-007 |
+| `pp-02-environments` (+csv) | `GET scopes/admin/environments` | Name, display name, whether it is the default, kind, region, created |
+| `pp-03-dlp-policies` | `GET scopes/admin/apiPolicies` | Each policy with the environments it reaches: all, only the named, or all but the named. With the environments, feeds PP-003 and PP-004 |
+| `pp-04-tenant-isolation` | `GET tenants/{id}/tenantIsolationPolicy` | Whether isolation is off, and how many tenants are on the allow list (counted, not saved). Feeds PP-005 |
+
+Power Platform needs a Power Platform Administrator. Its admin API has no read-only permission and no read-only role,
+so the permission the app holds there (User on the PowerApps Service) is not a read permission by name; what makes
+the run a read is the entry point. For the same reason a scheduled run does not read Power Platform: an unattended
+identity would have to be registered with full Power Platform administration. Commercial cloud only for now.
+
 ## SharePoint and Teams setup
 
 Without any SharePoint setup the SharePoint checks read Graph's SharePoint settings (the Entra collector, read-only

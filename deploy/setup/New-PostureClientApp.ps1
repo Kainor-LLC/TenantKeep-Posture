@@ -168,14 +168,27 @@ if ([string]$manifest['consentRedirectUri']) {
     # The link names what this product asks for and nothing else: a link for everything registered would have a
     # customer approve the permissions of the product that shares the app.
     $basics = 'openid', 'profile', 'offline_access'
-    $named = @(foreach ($resource in @($manifest['resources'])) { foreach ($value in @($resource['scopes'])) { if ($value -in $basics) { [string]$value } else { "$($resource['audience'])/$value" } } }) | Select-Object -Unique
-    $link = "https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=$($app.appId)&scope=$([uri]::EscapeDataString(($named -join ' ')))&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))&state=posture"
+    # A resource marked optional (Power BI, Power Platform) has a second link, so a customer who approved the first
+    # is not asked again and one who does not want those checks approves nothing for them.
+    $isOptional = { param($resource) [bool]($resource.ContainsKey('optional') -and $resource['optional']) }
+    $nameScopes = { param($resources) @(foreach ($resource in @($resources)) { foreach ($value in @($resource['scopes'])) { if ($value -in $basics) { [string]$value } else { "$($resource['audience'])/$value" } } }) | Select-Object -Unique }
+    $consent = { param($scopes) "https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=$($app.appId)&scope=$([uri]::EscapeDataString((@($scopes) -join ' ')))&redirect_uri=$([uri]::EscapeDataString([string]$manifest['consentRedirectUri']))&state=posture" }
+    $link = & $consent (& $nameScopes @($manifest['resources'] | Where-Object { -not (& $isOptional $_) }))
     Write-Host @"
 
 Done. Customers approve what TenantKeep Posture reads once, with an admin account, at:
   $link
 Start-PostureRun prints that link when a tenant has not approved it yet. Nothing else is created anywhere.
 "@
+    $optionalResources = @($manifest['resources'] | Where-Object { & $isOptional $_ })
+    if ($optionalResources.Count -gt 0) {
+        Write-Host @"
+
+The checks for $(@($optionalResources | ForEach-Object { $_['label'] }) -join ' and ') are approved separately, by a customer who wants them, at:
+  $(& $consent (& $nameScopes $optionalResources))
+A run without that approval says so and gives this link; everything else in the run is unaffected.
+"@
+    }
     if ($shared.Count -gt 0) { Write-Host "The registration also carries what $(@($shared | ForEach-Object { $_['product'] }) -join ', ') asks for; that product has its own link, which names its own permissions." }
 }
 else {

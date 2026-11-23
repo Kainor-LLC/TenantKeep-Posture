@@ -142,12 +142,32 @@ Describe 'Read-only guard' {
     }
 
     It 'calls Invoke-MgGraphRequest only inside the wrapper, and the identity platform only inside the token request' {
-        $hits = Find-Code 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest' 'Invoke-PostureGraphRequest.ps1', 'Invoke-PostureTokenRequest.ps1'
+        $hits = Find-Code 'Invoke-MgGraphRequest|Invoke-RestMethod|Invoke-WebRequest' 'Invoke-PostureGraphRequest.ps1', 'Invoke-PostureTokenRequest.ps1', 'Invoke-PosturePowerRequest.ps1'
         $hits | ForEach-Object { "$($_.Filename):$($_.LineNumber) $($_.Line.Trim())" } | Should -BeNullOrEmpty
         $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PostureTokenRequest.ps1')
         $src | Should -Match "Authority = 'https://login\.microsoftonline\.com'"
         $src | Should -Match '/oauth2/v2\.0/\$Endpoint'
         $src | Should -Not -Match 'client_secret|client_assertion|password'
+    }
+
+    It 'sends web requests to Power BI and Power Platform from one file, to two hosts, and only to read' {
+        # Neither service has a module the run can use on every platform, so the requests are made by hand in one
+        # file. Power Platform's admin API has no read-only permission: this is what keeps it to reads.
+        $src = Get-Content -Raw (Join-Path $script:ModuleRoot 'Private' 'Invoke-PosturePowerRequest.ps1')
+        @([regex]::Matches($src, 'Invoke-WebRequest')).Count | Should -Be 1 -Because 'one place sends the request'
+        $src | Should -Not -Match 'Invoke-RestMethod'
+        @([regex]::Matches($src, "https://[a-z0-9.-]+\.[a-z]{2,}(?![a-z0-9.-])") | ForEach-Object { $_.Value } | Sort-Object -Unique) | Should -Be @('https://api.bap.microsoft.com', 'https://api.fabric.microsoft.com')
+        $src | Should -Match "\[ValidateSet\('GET', 'POST'\)\] \[string\] \`$Method" -Because 'no other verb can be asked of the sender'
+        $posts = @($src -split "`n" | Where-Object { $_ -match '-Method POST' })
+        $posts.Count | Should -Be 2 -Because 'the listing of the tenant settings, and its entry in the call ledger'
+        foreach ($post in $posts) { $post | Should -Match 'posture:read-only-post' }
+        $src | Should -Match "/providers/Microsoft\.BusinessAppPlatform/listTenantSettings\?api-version=2023-06-01" -Because 'the one POST has a fixed address'
+        InModuleScope TenantKeep.Posture {
+            (Get-Command Get-PosturePowerPlatformTenantSetting).Parameters.Keys | Where-Object { $_ -notin [System.Management.Automation.Cmdlet]::CommonParameters } | Should -BeNullOrEmpty -Because 'a caller cannot choose where the POST goes'
+            { Invoke-PosturePowerPlatformRequest -Path '/providers/Microsoft.PowerApps/apps?api-version=2016-11-01' } | Should -Throw -Because 'only the two admin providers are read'
+            { Invoke-PostureFabricRequest -Path '/v1/workspaces' } | Should -Throw -Because 'only the admin read addresses are read'
+            { Invoke-PosturePowerRest -Service powerplatform -Method GET -Uri 'https://example.org/providers/x' } | Should -Throw
+        }
     }
 
     It 'never issues a non-GET request except an annotated query-style POST' {

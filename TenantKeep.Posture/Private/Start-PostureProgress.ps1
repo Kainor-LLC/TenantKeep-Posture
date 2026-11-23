@@ -13,6 +13,8 @@ $script:PostureProgressDefaults = [ordered]@{
     Intune            = @{ seconds = 180; steps = 18; label = 'Intune' }
     Defender          = @{ seconds = 120; steps = 6; label = 'Defender' }
     Azure             = @{ seconds = 120; steps = 13; label = 'Azure' }
+    PowerBI           = @{ seconds = 10; steps = 1; label = 'Power BI' }
+    PowerPlatform     = @{ seconds = 20; steps = 4; label = 'Power Platform' }
     SharePoint        = @{ seconds = 300; steps = 3; label = 'SharePoint and OneDrive' }
     Teams             = @{ seconds = 60; steps = 1; label = 'Teams' }
     Purview           = @{ seconds = 180; steps = 1; label = 'Purview' }

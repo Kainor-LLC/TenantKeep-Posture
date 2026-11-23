@@ -107,7 +107,7 @@ function Invoke-PostureCollection {
     param(
         [ValidateNotNullOrEmpty()] [string] $OutRoot = (Join-Path $HOME 'tenantkeep' 'evidence'),
         [string] $OutputFolder,
-        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure', 'PowerBI', 'PowerPlatform')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
         [ValidateRange(1, 30)] [int] $SignInDays = 7,
         [ValidateRange(1, 3650)] [int] $StaleDays = 90,
         [Alias('Profile')] [string] $ProfilePath,
@@ -197,6 +197,10 @@ function Invoke-PostureCollection {
         Teams      = @{ test = { Test-PostureTeamsSession }; hint = 'Connect-MicrosoftTeams' }
         Purview    = @{ test = { Test-PosturePurviewSession -TenantId $tenant }; hint = "Connect-IPPSSession -UserPrincipalName <reader> (in tenant $tenant)" }
         Azure      = @{ test = { Test-PostureAzureSession -TenantId $tenant }; hint = "Connect-AzAccount -Tenant $tenant" }
+        # Power BI and Power Platform are read with a token, not a module session: the run's own sign-in, or for
+        # Power BI in a scheduled run the Azure session of the managed identity. Neither is collected unless named.
+        PowerBI       = @{ test = { Test-PosturePowerSession -TenantId $tenant }; hint = 'Start-PostureRun, which signs in (a scheduled run: Connect-AzAccount -Identity)' }
+        PowerPlatform = @{ test = { [bool]$script:PostureSession }; hint = 'Start-PostureRun, which signs in; Power Platform is not read in a scheduled run' }
     }
     $run = @{}
     $run['Defender'] = $Collector -contains 'Defender'
@@ -353,6 +357,8 @@ function Invoke-PostureCollection {
         if ($run.Purview) { & $timed 'Purview' { Invoke-PosturePurviewCollection -Folder $folder } }
         if ($run.Azure) { & $timed 'Azure' { Invoke-PostureAzureCollection -Folder $folder } }
         if ($run.Defender) { & $timed 'Defender' { Invoke-PostureDefenderCollection -Folder $folder -AsOf $startedUtc } }
+        if ($run.PowerBI) { & $timed 'PowerBI' { Invoke-PosturePowerBICollection -Folder $folder } }
+        if ($run.PowerPlatform) { & $timed 'PowerPlatform' { Invoke-PosturePowerPlatformCollection -Folder $folder -TenantId $tenant } }
 
         $manifest = & $writeManifest -Final
         Invoke-PostureStepCompleted -Folder $folder -State collector

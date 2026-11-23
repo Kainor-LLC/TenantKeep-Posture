@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 335 in 15 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 350 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -27,6 +27,24 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- A sixteenth domain, Power Platform and Power BI (2026-11-23, catalog 2026.11.3), with fifteen checks and two new
+  collectors. It is optional: a tenant approves two more permissions on the TenantKeep app from a second link, and
+  a tenant that has not is told so, with the link, while the rest of the run is unchanged.
+  - Power BI (`-Collector PowerBI`, BI-001 to BI-008): Publish to web, guest access, inviting outside users,
+    service principals and their profiles, resource key authentication, R and Python visuals, sensitivity labels.
+    One read of the Fabric admin API with Tenant.Read.All, which is read-only by name. The account needs Fabric
+    Administrator and a Power BI or Fabric licence (the free one counts); an account without one is answered
+    `UserNotLicensed`, and the run says what to do about it.
+  - Power Platform (`-Collector PowerPlatform`, PP-001 to PP-007): who may create environments, trial environments
+    and Power Pages sites, sharing apps with Everyone, DLP policies on the default and on every other environment,
+    tenant isolation. The settings are on Power Platform's older admin API, which has no read-only permission and
+    no read-only role, so the app holds its one permission and the module keeps the run to reads: three GETs and
+    the one POST Microsoft made the way to list tenant settings, from a single file with a test of its own. For the
+    same reason a scheduled run does not read Power Platform.
+  - Seventeen policies of CISA's SCuBA baselines for the two products are now accounted for: fifteen by a check,
+    one out of scope with the reason, one planned. SCuBA coverage goes from 82 to 97 of 109 policies.
+  - `deploy/setup/New-PostureClientApp.ps1` registers the two APIs and prints the second link. The main consent
+    link is unchanged, so a tenant that approved it is not asked again.
 - Ten more checks, seven of them on Conditional Access (2026-11-23, catalog 2026.11.3), all from evidence already
   collected. Authentication transfer is blocked (CA-018). No policy asks for the retired approved client app grant
   (CA-019). User risk and sign-in risk sit in separate policies, since a policy with both applies only when both

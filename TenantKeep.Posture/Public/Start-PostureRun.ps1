@@ -96,7 +96,7 @@ function Start-PostureRun {
         [string] $Name,
         [string] $Client,
         [string] $OutRoot,
-        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure'),
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure', 'PowerBI', 'PowerPlatform')] [string[]] $Collector = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure', 'PowerBI', 'PowerPlatform'),
         [string] $Folder,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
@@ -185,6 +185,14 @@ function Start-PostureRun {
             catch { $skipped['Azure'] = "Azure sign-in failed: $($_.Exception.Message)" }
         }
         else { $skipped['Azure'] = 'Az.Accounts and Az.ResourceGraph are not installed; the Azure domain was not collected. Set azure: none in the profile if there is nothing in Azure.' }
+    }
+    # Power BI and Power Platform are read with this sign-in once the tenant has approved the second link. The token
+    # is asked for now: a tenant that has not approved them is told before the run starts, with the link, and the
+    # rest of the run is the same either way.
+    foreach ($svc in 'PowerBI', 'PowerPlatform') {
+        if ($svc -notin $Collector) { continue }
+        try { $null = Get-PostureToken -Resource $svc.ToLowerInvariant(); $main += $svc }
+        catch { $skipped[$svc] = Get-PosturePowerSkipReason -Collector $svc -Message ([string]$_.Exception.Message) -TenantId ([string]$session.tenantId) }
     }
     if ($main.Count -eq 0 -and -not $into) { $main = @('Entra') }
     # Into an existing run, the Conditional Access snapshot is kept when it is there.

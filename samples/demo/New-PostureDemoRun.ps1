@@ -705,7 +705,36 @@ Write-Demo 'gov-05-administrative-units' @()
 Write-Demo 'az-11-m365-backup' @{ ServiceStatus = 'enabled'; SharePointPolicies = 1; OneDrivePolicies = 1; ExchangePolicies = 1 }
 
 # --- The run's own files -------------------------------------------------------------------------------------------------------------
-$collectors = @('Entra', 'SignIns', 'Intune', 'Defender', 'Exchange', 'Purview', 'SharePoint', 'Teams')
+# Power BI and Power Platform: a tenant that approved the optional reads. Mostly sound, with the gaps most tenants have:
+# guests open shared Power BI content everywhere, trial environments are open to anyone, only the default environment
+# has a DLP policy, and tenant isolation is off.
+$setting = { param([string] $Name, [string] $Title, [string] $Group, [bool] $Enabled, [string[]] $Groups = @()) @{ SettingName = $Name; Title = $Title; Group = $Group; Enabled = $Enabled; CanSpecifySecurityGroups = $true; EnabledSecurityGroups = @($Groups); ExcludedSecurityGroups = @() } }
+Write-Demo 'pbi-01-tenant-settings' @(
+    (& $setting 'PublishToWeb' 'Publish to web' 'Export and sharing settings' $false)
+    (& $setting 'AllowGuestUserToAccessSharedContent' 'Guest users can access Microsoft Fabric' 'Export and sharing settings' $true)
+    (& $setting 'ExternalSharingV2' 'Users can invite guest users to collaborate through item sharing and permissions' 'Export and sharing settings' $true @('SG-PowerBI-ExternalSharing'))
+    (& $setting 'ServicePrincipalAccessPermissionAPIs' 'Service principals can call Fabric public APIs' 'Developer settings' $false)
+    (& $setting 'AllowServicePrincipalsCreateAndUseProfiles' 'Allow service principals to create and use profiles' 'Developer settings' $false)
+    (& $setting 'BlockResourceKeyAuthentication' 'Block ResourceKey Authentication' 'Developer settings' $false)
+    (& $setting 'RScriptVisual' 'Interact with and share R and Python visuals' 'R and Python visuals settings' $true)
+    (& $setting 'EimInformationProtectionEdit' 'Allow users to apply sensitivity labels for content' 'Information protection' $true)
+    (& $setting 'ExportToExcelSetting' 'Export to Excel' 'Export and sharing settings' $true)
+)
+Write-Demo 'pp-01-tenant-settings' @{
+    walkMeOptOut = $false; disableNPSCommentsReachout = $false; disableNewsletterSendout = $false; disableEnvironmentCreationByNonAdminUsers = $true; disablePortalsCreationByNonAdminUsers = $true
+    disableSurveyFeedback = $false; disableTrialEnvironmentCreationByNonAdminUsers = $false; disableCapacityAllocationByEnvironmentAdmins = $false; disableSupportTicketsVisibleByAllUsers = $false
+    powerPlatform = @{ powerApps = @{ disableShareWithEveryone = $true; enableGuestsToMake = $false }; search = @{ disableDocsSearch = $false } }
+}
+$defaultEnvironment = "Default-$tenantId"
+Write-Demo 'pp-02-environments' @(
+    @{ Name = $defaultEnvironment; DisplayName = 'Fernquill Engineering (default)'; IsDefault = $true; Sku = 'Default'; Location = 'unitedstates'; CreatedTime = Get-DemoDate 900 }
+    @{ Name = '5c1a0f6e-7d2b-4c3a-9e41-2b7f0a6d1c01'; DisplayName = 'Field apps'; IsDefault = $false; Sku = 'Production'; Location = 'unitedstates'; CreatedTime = Get-DemoDate 420 }
+    @{ Name = '5c1a0f6e-7d2b-4c3a-9e41-2b7f0a6d1c02'; DisplayName = 'Sandbox - finance'; IsDefault = $false; Sku = 'Sandbox'; Location = 'unitedstates'; CreatedTime = Get-DemoDate 75 }
+)
+Write-Demo 'pp-03-dlp-policies' @(@{ Name = 'd0b6a1e2-3f44-4a55-8c66-7d8e9f0a1b2c'; DisplayName = 'Default environment guardrail'; EnvironmentType = 'OnlyEnvironments'; Environments = @($defaultEnvironment) })
+Write-Demo 'pp-04-tenant-isolation' @{ IsDisabled = $true; AllowedTenants = 0 }
+
+$collectors = @('Entra', 'SignIns', 'Intune', 'Defender', 'Exchange', 'Purview', 'SharePoint', 'Teams', 'PowerBI', 'PowerPlatform')
 $started = $AsOf.AddMinutes(-23)
 Write-Demo 'collection' @{
     product = 'TenantKeep Posture'; moduleVersion = '0.9.0'; collectors = $collectors; tenantId = $tenantId; account = "posture-run@$domain"; authType = 'Delegated'

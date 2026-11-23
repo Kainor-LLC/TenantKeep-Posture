@@ -835,6 +835,35 @@
       ],
       "needs": [],
       "after": []
+    },
+    {
+      "id": "PJ-043",
+      "name": "Power Platform and Power BI",
+      "what": "Who may create environments and sites, which connectors may be used together, whether flows can reach other tenants, and what Power BI lets out of the organisation.",
+      "checks": [
+        "BI-001",
+        "BI-002",
+        "BI-003",
+        "BI-004",
+        "BI-005",
+        "BI-006",
+        "BI-007",
+        "BI-008",
+        "PP-001",
+        "PP-002",
+        "PP-003",
+        "PP-004",
+        "PP-005",
+        "PP-006",
+        "PP-007"
+      ],
+      "needs": [],
+      "after": [
+        {
+          "project": "PJ-030",
+          "why": "Power BI carries your sensitivity labels, so they are worth publishing first."
+        }
+      ]
     }
   ]
 }

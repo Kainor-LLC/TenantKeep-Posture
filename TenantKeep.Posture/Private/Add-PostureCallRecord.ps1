@@ -32,7 +32,7 @@ function Add-PostureCallRecord {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)] [ValidateSet('graph', 'exchange', 'sharepoint', 'teams', 'azure')] [string] $Service,
+        [Parameter(Mandatory)] [ValidateSet('graph', 'exchange', 'sharepoint', 'teams', 'azure', 'powerbi', 'powerplatform')] [string] $Service,
         [Parameter(Mandatory)] [string] $Method,
         [Parameter(Mandatory)] [AllowEmptyString()] [string] $Target
     )
@@ -98,10 +98,11 @@ function Get-PostureCallSummary {
         $m = [string]$c['method']; $t = [string]$c['target']
         ($m -eq 'GET') -or ($m -eq 'CMDLET' -and $t -match '^Get-') -or ($m -eq 'QUERY') -or
         ($m -eq 'POST' -and [string]$c['service'] -eq 'graph' -and $t -match '^(v1\.0|beta)/(\$batch|security/runHuntingQuery|directoryObjects/getByIds)$') -or
-        ($m -eq 'POST' -and [string]$c['service'] -eq 'azure' -and $t -match '/providers/Microsoft\.CostManagement/query$')
+        ($m -eq 'POST' -and [string]$c['service'] -eq 'azure' -and $t -match '/providers/Microsoft\.CostManagement/query$') -or
+        ($m -eq 'POST' -and [string]$c['service'] -eq 'powerplatform' -and $t -eq 'providers/Microsoft.BusinessAppPlatform/listTenantSettings')
     }
-    $label = @{ graph = 'Microsoft Graph'; exchange = 'Exchange Online and Purview'; sharepoint = 'SharePoint'; teams = 'Teams'; azure = 'Azure' }
-    $services = foreach ($s in 'graph', 'exchange', 'sharepoint', 'teams', 'azure') {
+    $label = @{ graph = 'Microsoft Graph'; exchange = 'Exchange Online and Purview'; sharepoint = 'SharePoint'; teams = 'Teams'; azure = 'Azure'; powerbi = 'Power BI'; powerplatform = 'Power Platform' }
+    $services = foreach ($s in 'graph', 'exchange', 'sharepoint', 'teams', 'azure', 'powerbi', 'powerplatform') {
         $mine = @($calls | Where-Object { $_['service'] -eq $s })
         if (-not $mine.Count) { continue }
         $top = @($mine | Sort-Object { - [int]$_['count'] }, { $_['target'] } | Select-Object -First 8 | ForEach-Object { [ordered]@{ method = [string]$_['method']; target = [string]$_['target']; count = [int]$_['count'] } })

@@ -52,7 +52,7 @@ function Resume-PostureRun {
         [Parameter(Position = 0)] [string] $Path,
         [string] $Client,
         [ValidatePattern('^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$')] [string] $TenantId,
-        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')] [string[]] $Collector,
+        [ValidateSet('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure', 'PowerBI', 'PowerPlatform')] [string[]] $Collector,
         [switch] $DeviceCode,
         [switch] $NoBrowser,
         [switch] $AllowSleep,
@@ -101,7 +101,7 @@ function Resume-PostureRun {
         }
         $again = @($why.Keys)
     }
-    $valid = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure')
+    $valid = @('Entra', 'SignIns', 'Intune', 'Exchange', 'SharePoint', 'Teams', 'Defender', 'Purview', 'Azure', 'PowerBI', 'PowerPlatform')
     $again = @($again | Where-Object { $_ -in $valid })
     if ($plan -and $plan['skipped'] -and @($plan['skipped'].Keys).Count -gt 0 -and -not $Collector) {
         foreach ($k in @($plan['skipped'].Keys)) { Write-Host "Skipped when the run started: $k ($($plan['skipped'][$k])). Add -Collector to try it now." -ForegroundColor DarkGray }

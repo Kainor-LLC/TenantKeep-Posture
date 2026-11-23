@@ -73,7 +73,7 @@ Describe 'Start-PostureRun' {
             $result.Client | Should -Be $client
             $result.Report | Should -Match 'report\.html$'
             $result.Errors | Should -Be 3
-            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'signin:sharepoint', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
+            @($script:Calls) | Should -Be @('signin', 'connect:azure', 'signin:sharepoint', 'awake', 'child:Exchange+Purview', 'collect:Entra+SignIns+Intune+Defender+Azure+PowerBI+PowerPlatform', 'connect:sharepoint', 'connect:teams', 'collect:SharePoint+Teams', 'wait', 'profile', 'report:none', 'findings', 'sleep-ok', 'open:report.html') -Because 'Exchange and Purview start first so the Purview sign-in comes in the first minute, and the machine is let sleep before the report opens'
             $script:ChildNoWait | Should -BeTrue
             $script:ChildRequest['progressFile'] | Should -Be (Join-Path $result.Folder 'logs' '.progress-child.json')
             @($script:ChildRequest['tokens'].Keys) | Should -Be @('graph') -Because 'Exchange and Purview sign in through the Exchange module in that process'
@@ -177,7 +177,7 @@ Describe 'Start-PostureRun' {
             $result.Skipped['SharePoint'] | Should -Match 'Install-Module PnP.PowerShell'
             $result.Skipped['Azure'] | Should -Match 'Az.Accounts'
             $result.Report | Should -BeNullOrEmpty
-            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+SignIns+Intune+Defender', 'profile', 'sleep-ok')
+            @($script:Calls) | Should -Be @('signin', 'awake', 'collect:Entra+SignIns+Intune+Defender+PowerBI+PowerPlatform', 'profile', 'sleep-ok')
         }
     }
 
@@ -190,6 +190,22 @@ Describe 'Start-PostureRun' {
             @($script:Calls) | Should -Not -Contain 'signin:sharepoint'
             @($script:Calls) | Should -Contain 'collect:Teams'
             Mock Test-PostureSharePointAccess { @{ status = 'granted'; reason = '' } }
+        }
+    }
+
+    It 'leaves Power BI and Power Platform out, with the second consent link, when the tenant has not approved them' {
+        InModuleScope TenantKeep.Posture -Parameters @{ client = $script:Client } {
+            $script:Calls.Clear()
+            # The broker's answer for a permission nobody approved: only for the two optional resources.
+            Mock Get-PostureToken { throw 'invalid_grant: AADSTS65001: The user or administrator has not consented to use the application.' } -ParameterFilter { $Resource -in 'powerbi', 'powerplatform' }
+            $result = Start-PostureRun -Client $client -OutRoot $script:TestOutRoot -SkipReport -NoBrowser -PassThru 6>$null
+            foreach ($name in 'PowerBI', 'PowerPlatform') {
+                $result.Skipped[$name] | Should -Match 'has not approved' -Because $name
+                $result.Skipped[$name] | Should -Match 'v2\.0/adminconsent\?client_id=' -Because 'the reason carries the link that fixes it'
+            }
+            @($script:Calls | Where-Object { $_ -like 'collect:*' -and $_ -match 'PowerBI|PowerPlatform' }).Count | Should -Be 0
+            @($script:Calls | Where-Object { $_ -like 'collect:Entra*' }).Count | Should -Be 1 -Because 'the rest of the run is the same'
+            Mock Get-PostureToken { 'tok' }
         }
     }
 

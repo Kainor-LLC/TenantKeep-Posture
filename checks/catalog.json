@@ -9,7 +9,7 @@
     {
       "version": "2026.11.3",
       "date": "2026-11-23",
-      "summary": "Fifty-three new checks, most from settings the run already collects and two from new reads on permissions already held, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
+      "summary": "Sixty-eight new checks, most from settings the run already collects, two from new reads on permissions already held and fifteen in a new domain, Power Platform and Power BI, read with two optional permissions, one check that now asks for what its title always said, and the CISA SCuBA ids brought up to CISA's current baselines, which changes which checks the SCuBA baseline selects.",
       "checks": {
         "PV-009": "New: whether a label policy gives an email the sensitivity label of its attachment. Needs a Purview collection made with this version or later.",
         "ID-025": "New: whether ordinary users may register applications.",
@@ -64,7 +64,22 @@
         "CA-024": "New: enabled policies that target nothing.",
         "ID-040": "New: whether the MSOnline PowerShell module is blocked.",
         "ID-041": "New: whether people can read the BitLocker keys of their own devices.",
-        "AU-011": "New: whether passkey attestation is enforced."
+        "AU-011": "New: whether passkey attestation is enforced.",
+        "BI-001": "New, in the new domain Power Platform and Power BI: publish to web is off in Power BI. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-002": "New, in the new domain Power Platform and Power BI: guests open Power BI content only where you chose. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-003": "New, in the new domain Power Platform and Power BI: inviting outside users through Power BI is limited. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-004": "New, in the new domain Power Platform and Power BI: service principals call the Fabric APIs only from named groups. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-005": "New, in the new domain Power Platform and Power BI: service principal profiles are limited to named groups. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-006": "New, in the new domain Power Platform and Power BI: resource key authentication is blocked in Power BI. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-007": "New, in the new domain Power Platform and Power BI: r and Python visuals are off in Power BI. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "BI-008": "New, in the new domain Power Platform and Power BI: sensitivity labels are on in Power BI. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-001": "New, in the new domain Power Platform and Power BI: only administrators create production and sandbox environments. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-002": "New, in the new domain Power Platform and Power BI: only administrators create trial environments. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-003": "New, in the new domain Power Platform and Power BI: a DLP policy covers the default environment. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-004": "New, in the new domain Power Platform and Power BI: every other environment has a DLP policy. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-005": "New, in the new domain Power Platform and Power BI: tenant isolation is on in Power Platform. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-006": "New, in the new domain Power Platform and Power BI: only administrators create Power Pages sites. Needs the optional Power BI and Power Platform reads approved, and a collection with this version.",
+        "PP-007": "New, in the new domain Power Platform and Power BI: apps cannot be shared with Everyone. Needs the optional Power BI and Power Platform reads approved, and a collection with this version."
       }
     },
     {
@@ -176,6 +191,10 @@
     {
       "key": "network",
       "label": "Network access"
+    },
+    {
+      "key": "powerplatform",
+      "label": "Power Platform and Power BI"
     },
     {
       "key": "azure",
@@ -302,6 +321,30 @@
       "who": "The admin who ran the assessment, with Security Reader",
       "where": "Here, on the machine that has the run",
       "get": "Resume-PostureRun -Path {run} -Collector Defender",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "powerbi",
+      "collector": "PowerBI",
+      "title": "Power BI tenant settings",
+      "evidence": [
+        "pbi-"
+      ],
+      "who": "The admin who ran the assessment, as a Fabric Administrator whose account has a Power BI or Fabric licence (the free one counts)",
+      "where": "Here, on the machine that has the run, once the tenant has approved the optional Power BI and Power Platform reads",
+      "get": "Resume-PostureRun -Path {run} -Collector PowerBI",
+      "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
+    },
+    {
+      "id": "powerplatform",
+      "collector": "PowerPlatform",
+      "title": "Power Platform settings, environments and DLP policies",
+      "evidence": [
+        "pp-"
+      ],
+      "who": "The admin who ran the assessment, as a Power Platform Administrator",
+      "where": "Here, on the machine that has the run, once the tenant has approved the optional Power BI and Power Platform reads. A scheduled run does not read Power Platform.",
+      "get": "Resume-PostureRun -Path {run} -Collector PowerPlatform",
       "bring": "Nothing to bring back: it collects into the run and rebuilds the report."
     },
     {

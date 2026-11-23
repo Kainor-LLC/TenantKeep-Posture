@@ -94,10 +94,15 @@ Describe 'TenantKeep.Posture/app.json' {
     }
 
     It 'holds read permissions only, in what Posture asks for and in what a product sharing the app asks for' {
-        # The shared read app cannot write: every scope is a sign-in basic or reads, by its name. Two APIs offer no
-        # read-only scope at all, so Posture's own list (and only it) may name user_impersonation on those two.
+        # The shared read app cannot write: every scope is a sign-in basic or reads, by its name. Three APIs offer no
+        # read-only scope at all, so Posture's own list (and only it) may name the one scope each of them has:
+        # user_impersonation on the Teams admin API and on Azure Service Management, and User on the PowerApps
+        # Service, whose admin API answers the tenant settings, DLP policies and tenant isolation that Microsoft's
+        # newer Power Platform API has no read permission for. The module's request entry points are what keep
+        # those three to reads (the read-only guard tests).
         $basics = 'openid', 'profile', 'offline_access', 'User.Read'
         $noReadOnlyScope = '48ac35b8-9aa8-4d74-927d-1f4a14a0b239', '797f4846-ba00-4fd7-ba43-dac1f8f63013'
+        $powerApps = '475226c6-020e-4fb2-8a90-7a972cbfc1d4'
         $reads = '^[A-Za-z-]+\.(Read|ReadBasic)\.(All|Directory|AzureADGroup)$'
         # The pattern above is what makes a scope a read. This second list is the words Microsoft uses for the rest,
         # looked for after the first dot so that a resource named RoleManagement or PrivilegedEligibilitySchedule passes.
@@ -108,6 +113,11 @@ Describe 'TenantKeep.Posture/app.json' {
         foreach ($resource in @($script:Manifest['resources'])) {
             foreach ($scope in @($resource['scopes'])) {
                 if ($scope -eq 'user_impersonation') { $resource['appId'] | Should -BeIn $noReadOnlyScope -Because 'only the Teams admin API and Azure Service Management are read through a scope that is not read-only by name'; continue }
+                if ($scope -eq 'User') {
+                    $resource['appId'] | Should -Be $powerApps -Because 'only the PowerApps Service is read through the scope User'
+                    $resource['optional'] | Should -BeTrue -Because 'a customer approves the Power Platform read separately, knowing what it is'
+                    continue
+                }
                 if ($scope -in $basics) { continue }
                 $scope | Should -Match $reads -Because "$scope is on the read app"
                 $scope | Should -Not -Match $writes
@@ -144,6 +154,11 @@ Describe 'TenantKeep.Posture/app.json' {
             Get-PostureConsentLink | Should -Match 'microsoftonline\.com/organizations/v2\.0/adminconsent'
             $teams = [uri]::UnescapeDataString(([regex]::Match((Get-PostureConsentLink -Resource teams), 'scope=([^&]+)')).Groups[1].Value)
             $teams | Should -Be '48ac35b8-9aa8-4d74-927d-1f4a14a0b239/user_impersonation' -Because 'one API alone, in case Microsoft refuses a link that names several'
+            # Power BI and Power Platform are approved from a second link, by a customer who wants those checks.
+            @($scopes | Where-Object { $_ -match 'powerbi|powerapps' }).Count | Should -Be 0 -Because 'a tenant that approved the first link is not asked again, and nobody approves Power Platform without choosing to'
+            $second = Get-PostureConsentLink -TenantId '33333333-3333-3333-3333-333333333333' -Optional
+            $second | Should -Match '^https://login\.microsoftonline\.com/33333333-3333-3333-3333-333333333333/v2\.0/adminconsent\?client_id=e5b148e7-9689-40b2-9b09-9d0bef133049&scope='
+            ([uri]::UnescapeDataString(([regex]::Match($second, 'scope=([^&]+)')).Groups[1].Value) -split ' ') | Should -Be @('https://analysis.windows.net/powerbi/api/Tenant.Read.All', 'https://service.powerapps.com//User') -Because 'the second link names the two optional APIs and nothing else'
         }
     }
 }
@@ -172,7 +187,9 @@ Describe 'New-PostureClientApp.ps1' {
         $domain[0].Body.publisherDomain | Should -Be 'kainor.com'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'passwordCredentials'
         $create[0].Body.PSObject.Properties.Name | Should -Not -Contain 'keyCredentials'
-        @($create[0].Body.requiredResourceAccess).Count | Should -Be 3 -Because 'Graph, Teams and Azure; Exchange signs in through its own module, and SharePoint full control lives only in the separate SharePoint app'
+        @($create[0].Body.requiredResourceAccess).Count | Should -Be 5 -Because 'Graph, Teams and Azure, and the two a customer approves separately, Power BI and Power Platform; Exchange signs in through its own module, and SharePoint full control lives only in the separate SharePoint app'
+        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Contain '00000009-0000-0000-c000-000000000000' -Because 'Power BI is registered so that a customer can approve it'
+        @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Contain '475226c6-020e-4fb2-8a90-7a972cbfc1d4'
         @($create[0].Body.requiredResourceAccess).resourceAppId | Should -Not -Contain '00000007-0000-0ff1-ce00-000000000000'
         foreach ($r in @($create[0].Body.requiredResourceAccess)) { foreach ($a in @($r.resourceAccess)) { $a.type | Should -Be 'Scope' } }
         $graphAccess = @($create[0].Body.requiredResourceAccess | Where-Object { $_.resourceAppId -eq '00000003-0000-0000-c000-000000000000' })[0]

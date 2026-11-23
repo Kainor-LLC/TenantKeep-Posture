@@ -418,6 +418,25 @@ an Azure subscription is the scheduled cycle, because the Automation account is 
 what that puts where is in docs/footprint.md. For a nightly Conditional Access cycle without Azure, the GitHub Action
 and launchd samples in deploy/schedules run it from a machine you already have.
 
+## 9b. Power Platform and Power BI
+
+These checks are optional and read with two more permissions on the TenantKeep app. A tenant approves them once, from
+a second link that names only those two; the first approval is not asked for again. A run in a tenant that has not
+approved them says so under what it skipped, gives the link, and collects everything else.
+
+The account that signs in needs a role each product accepts, and neither has a read-only one for these settings:
+
+- **Power BI:** Fabric Administrator, on an account with a Power BI or Fabric licence (the free Microsoft Fabric licence
+  counts) that has opened the Power BI portal once.
+- **Power Platform:** Power Platform Administrator.
+
+Global Administrator covers both. With PIM, activate the role before the run. To collect only these two into a run
+you already have:
+
+```powershell
+Resume-PostureRun -Path <run folder> -Collector PowerBI, PowerPlatform
+```
+
 ## 10. Unattended, in the customer's Azure
 
 deploy/automation deploys an Automation account with a managed identity that runs the Conditional Access cycle nightly

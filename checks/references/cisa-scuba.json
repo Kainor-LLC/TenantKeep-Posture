@@ -144,73 +144,13 @@
       "reason": "outOfScope",
       "note": "Names a mailbox of the US federal government; it applies to federal agencies only."
     },
-    "MS.POWERBI.1.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.2.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.3.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.4.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.4.2v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.5.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.6.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERBI.7.1v1": {
-      "reason": "planned",
-      "note": "Power BI tenant settings need the Fabric admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.1.1v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.1.2v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.2.1v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.2.2v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.3.1v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
     "MS.POWERPLATFORM.3.2v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+      "reason": "outOfScope",
+      "note": "With tenant isolation on (PP-005), an empty allow list blocks every other tenant, which is the stricter state. Which tenants to allow is the organisation's own choice."
     },
     "MS.POWERPLATFORM.4.1v1": {
       "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.5.1v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
-    },
-    "MS.POWERPLATFORM.6.1v1": {
-      "reason": "planned",
-      "note": "Power Platform settings need its admin API, a permission the app does not hold yet."
+      "note": "Content security policy is set per environment; reading it needs each environment's own settings, which is the second phase of the Power Platform work."
     },
     "MS.SECURITYSUITE.2.3v1": {
       "reason": "planned",

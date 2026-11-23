@@ -61,6 +61,9 @@ function Get-PostureFailureCause {
     # What the module itself says when a read cannot be made with the sign-in it has. First, because the sentence
     # names a token and would otherwise read as a sign-in that ran out.
     if ($m -match '(?i)^Not readable with this sign-in') { return 'notReadable' }
+    # Power BI refusing an account that holds no Power BI or Fabric licence. The account is what to fix (a free licence
+    # does it), not the tenant, so this is not the "tenant is not licensed" cause the next line gives.
+    if ($m -match 'UserNotLicensed') { return 'permission' }
     if ($m -match '(?i)(not licensed|licen[cs]e (is )?required|required licen[cs]e|requires? (a |an )?(premium|P1|P2|E5)|AadPremiumLicenseRequired|tenant does not have a (valid )?licen[cs]e|LicenseRequired|SubscriptionNotFound|InvalidLicense|feature is not (enabled|available)|not enabled for (this|the) tenant|Tenant is not onboarded|RequestFromNonPremiumTenantOrB2CTenant|premium licen[cs]e)') { return 'licence' }
     # A consent that is missing comes back as invalid_grant, like an ended sign-in, and is a grant to make.
     if ($m -match '(?i)(AADSTS65001|consent_required|AADSTS650\d\d)') { return 'permission' }

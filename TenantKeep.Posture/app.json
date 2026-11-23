@@ -4,7 +4,7 @@
   "publisherDomain": "kainor.com",
   "redirectUri": "http://localhost",
   "consentRedirectUri": "https://tenantkeep.app/consent/",
-  "notes": "TenantKeep: one registration that TenantKeep Posture and TenantKeep On-Call both sign in to for everything they read. Public client, delegated read permissions only, no credentials, and it exposes nothing. Owned by Kainor LLC; the manifest is published in the Posture source repository. resources is what Posture asks for. sharedWith is what On-Call asks for, by name, when a customer approves it from On-Call's own link; Posture never requests those. Nothing that writes is here: every write lives in a separate On-Call app, and SharePoint full control lives only in the optional app-sharepoint.json, granted to named admins.",
+  "notes": "TenantKeep: one registration that TenantKeep Posture and TenantKeep On-Call both sign in to for everything they read. Public client, delegated read permissions only, no credentials, and it exposes nothing. Owned by Kainor LLC; the manifest is published in the Posture source repository. resources is what Posture asks for. sharedWith is what On-Call asks for, by name, when a customer approves it from On-Call's own link; Posture never requests those. A resource marked optional is approved from a second link and only by a customer who wants those checks: Power BI (Tenant.Read.All, read-only by name) and Power Platform, whose admin API has no read-only permission at all, so like the Teams admin API and Azure it is read through the one permission it has, by code that only reads. Nothing that writes is here: every write lives in a separate On-Call app, and SharePoint full control lives only in the optional app-sharepoint.json, granted to named admins.",
   "resources": [
     {
       "name": "graph",
@@ -68,6 +68,26 @@
       "audience": "https://management.core.windows.net/",
       "scopes": [
         "user_impersonation"
+      ]
+    },
+    {
+      "name": "powerbi",
+      "label": "Power BI Service",
+      "appId": "00000009-0000-0000-c000-000000000000",
+      "audience": "https://analysis.windows.net/powerbi/api",
+      "optional": true,
+      "scopes": [
+        "Tenant.Read.All"
+      ]
+    },
+    {
+      "name": "powerplatform",
+      "label": "Power Platform (PowerApps Service)",
+      "appId": "475226c6-020e-4fb2-8a90-7a972cbfc1d4",
+      "audience": "https://service.powerapps.com/",
+      "optional": true,
+      "scopes": [
+        "User"
       ]
     }
   ],
