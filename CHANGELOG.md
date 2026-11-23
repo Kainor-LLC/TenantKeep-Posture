@@ -81,6 +81,11 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   wider windows and print are unchanged.
 - A report opened at a view's link, `report.html#ca`, starts at the top of that view (2026-11-23). It used to start
   at the section and slide up. The demo build now takes a picture of eleven views, not six.
+- The guide has pictures and the footprint page has diagrams (2026-11-23). `docs/guide.md` shows eleven views of the
+  report at the steps that produce them, each from the sample report of a made-up tenant. `docs/footprint.md` opens
+  with what runs where and as whom, drawn: a run on your machine, the scheduled run, the sign-in apps, what Kainor
+  holds, and the on-premises collector. The pictures are served from the website, so on GitHub they appear once the
+  site carries them.
 - The licensing view counts the seats someone paid for (2026-11-23). Licences Microsoft gives away, such as the
   million free Fabric seats most tenants hold, were counted among the paid seats nobody uses, which made that number
   a million. They are now left out of the count and its bars, and kept in the table, marked. A licence is shown by

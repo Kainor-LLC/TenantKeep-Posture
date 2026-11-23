@@ -1,7 +1,76 @@
 # What gets installed, and where
 
 The complete inventory of what TenantKeep Posture puts in a customer's environment, per way of running it, and how to
-remove every piece. Nothing on this page phones home, and nothing leaves a tenant.
+remove every piece. Nothing on this page phones home, and nothing leaves a tenant. The pictures come first, then the
+inventory they summarise.
+
+## The whole system
+
+<div class="flow" role="img" aria-label="The module on your machine reads Microsoft as your administrator and writes files to your disk. No Kainor service takes part.">
+  <div class="node"><b>Microsoft</b> <span>Entra ID for sign-in. Graph, Exchange, SharePoint, Teams, Purview and Azure for your tenant's settings</span></div>
+  <div class="hop"><span>reads only,<br>as your admin</span></div>
+  <div class="node you"><b>Your machine</b> <span>PowerShell with the TenantKeep.Posture module</span></div>
+  <div class="hop"><span>files</span></div>
+  <div class="node you"><b>Your disk</b> <span>The evidence folder, the report and the findings list</span></div>
+</div>
+
+That is all of it for a run on your own machine. No Kainor server sits between the module and Microsoft. The report
+is one file that loads nothing from anywhere, and the licence is a file checked on your machine. Nothing is sent to
+Kainor, and nothing is written to your tenant.
+
+## On a schedule, in your own Azure
+
+<div class="flow" role="img" aria-label="An Automation account in your subscription reads Microsoft as its managed identity and writes each run to a storage account beside it.">
+  <div class="node"><b>Microsoft</b> <span>The same reads</span></div>
+  <div class="hop"><span>reads only, as a<br>managed identity</span></div>
+  <div class="node you"><b>Automation account</b> <span>In your subscription. Conditional Access nightly, the full report monthly</span></div>
+  <div class="hop"><span>files</span></div>
+  <div class="node you"><b>Storage account</b> <span>In the same resource group. Every run, report and findings list</span></div>
+</div>
+
+The schedule exists so that the reads have somewhere to run as an identity instead of as a person. A change alert, if
+you turn alerts on, goes to your own Teams channel or mailbox through your own webhook or mail, never through Kainor.
+
+## Who it reads as
+
+<div class="flow" role="img" aria-label="Your administrator signs in to the TenantKeep app, which holds read-only permissions only, for Microsoft Graph and Power BI.">
+  <div class="node you"><b>Your administrator</b> <span>One sign-in in the browser</span></div>
+  <div class="hop"><span>TenantKeep,<br>read-only app</span></div>
+  <div class="node"><b>Graph and Power BI</b> <span>Every permission on this app is read-only by its name</span></div>
+</div>
+<div class="flow" role="img" aria-label="The same administrator signs in to a second app for Azure, Teams and Power Platform, which offer no read-only permission.">
+  <div class="node you"><b>The same administrator</b> <span>A second sign-in, only when a run reads one of these</span></div>
+  <div class="hop"><span>second app,<br>Posture only</span></div>
+  <div class="node"><b>Azure, Teams, Power Platform</b> <span>Three APIs that offer no read-only permission. The module only reads through it</span></div>
+</div>
+
+Every token is your administrator's and reaches no further than their roles. Neither app has a secret or a
+certificate, so there is nothing in either to steal. Exchange and Purview sign the same administrator in through
+Microsoft's own Exchange Online PowerShell app, and the SharePoint admin settings through a third app that is
+optional and granted to named administrators only. The scheduled run signs in to none of them: it reads as its
+managed identity.
+
+## What Kainor holds
+
+<div class="flow" role="img" aria-label="Kainor signs a licence file for your tenant id and emails it. The module checks it on your machine and contacts nobody.">
+  <div class="node kainor"><b>Kainor</b> <span>Signs a licence file for your tenant id</span></div>
+  <div class="hop"><span>one file,<br>by email</span></div>
+  <div class="node you"><b>Your client folder</b> <span>tenantkeep.lic, beside your profile</span></div>
+  <div class="hop"><span>checked<br>offline</span></div>
+  <div class="node you"><b>The module</b> <span>Compares the signature with public keys built into it</span></div>
+</div>
+
+That file is the only thing that travels from Kainor to you, and nothing travels back: no licence server, no
+telemetry, no callbacks. Kainor also publishes the sign-in apps. It controls their names, redirect addresses and
+permission lists, all of which are in the source, and it holds no credential for any of them.
+
+## A domain on premises
+
+<div class="flow" role="img" aria-label="A script run once on a domain-joined Windows machine writes a folder, which you carry to the run.">
+  <div class="node you"><b>A domain-joined machine</b> <span>One read-only script, run as a domain user</span></div>
+  <div class="hop"><span>a folder<br>you carry</span></div>
+  <div class="node you"><b>The run</b> <span>Its files join the evidence folder</span></div>
+</div>
 
 ## Running it locally (no Azure needed)
 
