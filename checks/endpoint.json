@@ -1264,6 +1264,336 @@
           "41061"
         ]
       }
+    },
+    {
+      "id": "EP-026",
+      "domain": "endpoint",
+      "title": "Defender Antivirus scans archives, mail, scripts, removable drives and network files",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avArchiveScanning && facts.avEmailScanning && facts.avScriptScanning && facts.avRemovableDriveScanning && facts.avNetworkFileScanning",
+      "affected": "facts.avScanGaps",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Allow Archive Scanning, Allow Email Scanning, Allow Script Scanning, Allow Full Scan Removable Drive Scanning and Allow Scanning Network Files to Allowed.",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A full scan takes a little longer on a device with a large USB drive attached."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "Malware arrives zipped, attached to mail, as a script, on a USB stick or from a file share. Each of these is a separate switch in Defender Antivirus, and two of them, mail and removable drives, are off until a policy turns them on. The others are on by default, which a local administrator can change unless a policy sets them. The scans listed are set by no assigned policy.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-05",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1148",
+          "MT.1151",
+          "MT.1152",
+          "MT.1154",
+          "MT.1156"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
+    },
+    {
+      "id": "EP-027",
+      "domain": "endpoint",
+      "title": "Defender Antivirus watches behaviour and scans files in both directions",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avBehaviorMonitoring && facts.avBothDirections",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Allow Behavior Monitoring to Allowed.",
+        "Set Real Time Scan Direction to Monitor all files (bi-directional).",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "Behaviour monitoring is what catches malware no signature knows: it watches what a process does and stops it when the pattern is ransomware or credential theft. Scanning in both directions catches a file as it arrives and as it leaves. Both are on by default, and a policy that sets them is what keeps them on when someone with local administrator rights would rather they were not.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-05",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1149",
+          "MT.1167"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
+    },
+    {
+      "id": "EP-028",
+      "domain": "endpoint",
+      "title": "Cloud protection blocks at High and waits for a verdict",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {
+        "minCloudTimeoutSeconds": 30
+      },
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avCloudBlockHigh && facts.avCloudTimeoutSeconds >= thresholds.minCloudTimeoutSeconds",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Cloud Block Level to High, or High Plus if your pilot shows few false positives.",
+        "Set Cloud Extended Timeout to 50 seconds, the most it allows.",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A file nobody has seen before can take up to a minute to open while the cloud decides. A rare clean file is blocked and has to be released."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "Most new malware is seen for the first time on somebody's device. At the default level Defender lets an unknown file run after ten seconds unless the cloud already has a verdict. High blocks more of what looks suspicious, and the extended timeout gives the cloud time to detonate the file before it runs. Together they are what stops the first copy.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-05",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L2-3.14.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1161",
+          "MT.1162"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
+    },
+    {
+      "id": "EP-029",
+      "domain": "endpoint",
+      "title": "Defender signatures are checked before a scan and updated every few hours",
+      "severityDefault": "Medium",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {
+        "maxSignatureIntervalHours": 4
+      },
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avSignaturesBeforeScan && facts.avSignatureIntervalHours >= 1 && facts.avSignatureIntervalHours <= thresholds.maxSignatureIntervalHours",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Check For Signatures Before Running Scan to Enabled.",
+        "Set Signature Update Interval to 4 hours or fewer.",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "Microsoft publishes new protection updates several times a day. A device that waits for the daily Windows Update check runs yesterday's knowledge against today's malware. An interval of a few hours, and a check before each scheduled scan, keep the fleet within hours of current.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-02",
+        "iso27001": "A.8.7",
+        "cmmc": "SI.L1-3.14.4",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1160",
+          "MT.1163"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
+    },
+    {
+      "id": "EP-030",
+      "domain": "endpoint",
+      "title": "Local administrators cannot add their own Defender exclusions",
+      "severityDefault": "High",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {},
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avLocalAdminMergeOff",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Disable Local Admin Merge to Enable.",
+        "Move any exclusion that is really needed into the policy, where it is reviewed.",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "fix",
+      "userImpact": {
+        "level": "low",
+        "text": "A person with local administrator rights can no longer exclude a folder from scanning by themselves."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "With merge allowed, an exclusion added on the device joins the ones from policy. The first thing a good deal of malware does with administrator rights is exclude its own folder, and a developer in a hurry does the same. Turning merge off makes the policy the only source of exclusions.",
+      "frameworks": {
+        "nist-csf-2": "PR.PS-01",
+        "iso27001": "A.8.7",
+        "cmmc": "CM.L2-3.4.2",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1166"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
+    },
+    {
+      "id": "EP-031",
+      "domain": "endpoint",
+      "title": "Quarantined malware is kept long enough to investigate",
+      "severityDefault": "Low",
+      "license": [
+        "Intune"
+      ],
+      "applicableWhen": {
+        "platforms": [
+          "windows"
+        ]
+      },
+      "coveredBy": [
+        "mdm:*",
+        "edr:*"
+      ],
+      "thresholds": {
+        "minQuarantineDays": 30
+      },
+      "evidence": [
+        "09-intune-config-profiles-settings-catalog.json",
+        "09-intune-policy-settings.json"
+      ],
+      "pass": "facts.avQuarantineKeptForever || facts.avQuarantineDays >= thresholds.minQuarantineDays",
+      "remediation": [
+        "In Intune, Endpoint security, Antivirus, open your Microsoft Defender Antivirus policy for Windows, or create one.",
+        "Set Days To Retain Cleaned Malware to 30 or more, or to 0 to keep quarantined files until someone removes them.",
+        "Assign the policy to all Windows devices."
+      ],
+      "effort": "S",
+      "category": "improve",
+      "userImpact": {
+        "level": "none",
+        "text": "Nothing changes for people."
+      },
+      "learn": "https://learn.microsoft.com/mem/intune/protect/endpoint-security-antivirus-policy",
+      "deepLink": "https://intune.microsoft.com/#view/Microsoft_Intune_Workflows/SecurityManagementMenu/~/antivirus",
+      "narrative": "When an incident is investigated weeks later, the file Defender quarantined on day one is evidence: what it was, where it came from, what else it matches. The setting says how many days a quarantined file is kept, and zero keeps it until someone removes it. This check wants an assigned policy that sets it to the threshold or more, or to zero.",
+      "frameworks": {
+        "nist-csf-2": "RS.AN-03",
+        "iso27001": "A.5.28",
+        "cmmc": "IR.L2-3.6.1",
+        "cisa-scuba": ""
+      },
+      "references": {
+        "maester": [
+          "MT.1168"
+        ]
+      },
+      "attack": [
+        "T1204.002"
+      ]
     }
   ]
 }

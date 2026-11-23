@@ -1062,77 +1062,25 @@
       "reason": "planned",
       "note": "A hybrid identity setting."
     },
-    "MT.1148": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1149": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1151": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1152": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1154": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
     "MT.1155": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1156": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
+      "reason": "outOfScope",
+      "note": "Whether a full scan covers mapped network drives is a performance and scheduling choice of the organisation's own. Neither value makes a device safer."
     },
     "MT.1157": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
+      "reason": "outOfScope",
+      "note": "How much processor time a scan may take is a performance and scheduling choice of the organisation's own. Neither value makes a device safer."
     },
     "MT.1159": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1160": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1161": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1162": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1163": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1166": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1167": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
-    },
-    "MT.1168": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
+      "reason": "outOfScope",
+      "note": "The time of day a quick scan runs is a performance and scheduling choice of the organisation's own. Neither value makes a device safer."
     },
     "MT.1169": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
+      "reason": "outOfScope",
+      "note": "Whether a missed full scan is caught up is a performance and scheduling choice of the organisation's own. Neither value makes a device safer."
     },
     "MT.1170": {
-      "reason": "planned",
-      "note": "One Defender Antivirus policy setting; the Intune policies are already collected."
+      "reason": "outOfScope",
+      "note": "Whether a missed quick scan is caught up is a performance and scheduling choice of the organisation's own. Neither value makes a device safer."
     },
     "MT.1179": {
       "reason": "planned",

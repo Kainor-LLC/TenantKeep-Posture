@@ -812,3 +812,99 @@ Describe 'Passkey settings, Authenticator codes, guest sessions and workload ide
         foreach ($id in 'CA-026', 'CA-027') { $by[$id].status | Should -Be 'notEvaluated'; $by[$id].reason | Should -Match 'WorkloadID' -Because $id }
     }
 }
+
+Describe 'The rest of the Defender Antivirus policy (catalog 2026.11.3)' {
+    BeforeAll {
+        # Settings catalog rows as the Intune collector saves them: one per setting of an assigned policy.
+        $script:Av = {
+            param([System.Collections.IDictionary] $Settings)
+            $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            $rows = @(foreach ($id in $Settings.Keys) {
+                    $full = $(if ($id -like 'configuration_*') { "device_vendor_msft_defender_$id" } else { "device_vendor_msft_policy_config_defender_$id" })
+                    $value = [string]$Settings[$id]
+                    @{ PolicyId = 'p1'; PolicyName = 'Antivirus'; TemplateFamily = 'endpointSecurityAntivirus'; TemplateDisplayName = 'Microsoft Defender Antivirus'; Platforms = 'windows10'; SettingDefinitionId = $full; Value = $(if ($value -match '^_') { "$full$value" } else { $value }) }
+                })
+            ConvertTo-Json -InputObject @($rows) -Depth 5 | Set-Content (Join-Path $dir '09-intune-policy-settings.json')
+            ConvertTo-Json -InputObject @(@{ Id = 'p1'; Name = 'Antivirus'; Platforms = 'windows10'; Technologies = 'mdm,microsoftSense'; TemplateFamily = 'endpointSecurityAntivirus'; TemplateDisplayName = 'Microsoft Defender Antivirus'; SettingCount = 13; CreatedDateTime = '2026-01-10T09:00:00Z'; LastModifiedDateTime = '2026-10-01T09:00:00Z'; Assignments = 1 }) -Depth 5 | Set-Content (Join-Path $dir '09-intune-config-profiles-settings-catalog.json')
+            '{ "version": 1, "licenses": ["Intune", "P1"], "platforms": ["windows"] }' | Set-Content (Join-Path $dir 'profile.json')
+            InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+            $run = Invoke-PostureChecks -Evidence $dir -Domain endpoint -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+            $by = @{}; foreach ($r in $run.results) { $by[$r.id] = $r }
+            $by
+        }
+        $script:AvGood = {
+            [ordered]@{
+                allowarchivescanning = '_1'; allowemailscanning = '_1'; allowscriptscanning = '_1'; allowfullscanremovabledrivescanning = '_1'; allowscanningnetworkfiles = '_1'
+                allowbehaviormonitoring = '_1'; realtimescandirection = '_0'; cloudblocklevel = '_2'; cloudextendedtimeout = '50'
+                checkforsignaturesbeforerunningscan = '_1'; signatureupdateinterval = '4'; configuration_disablelocaladminmerge = '_1'; daystoretaincleanedmalware = '30'
+            }
+        }
+        $script:AvIds = 'EP-026', 'EP-027', 'EP-028', 'EP-029', 'EP-030', 'EP-031'
+    }
+
+    It 'passes all six on a policy that sets every one of them' {
+        $by = & $script:Av (& $script:AvGood)
+        foreach ($id in $script:AvIds) { $by[$id].status | Should -Be 'pass' -Because "$id $($by[$id].reason)" }
+    }
+
+    It 'fails all six on a policy that sets none of them: a default is not enforced' {
+        $by = & $script:Av @{ allowrealtimemonitoring = '_1' }
+        foreach ($id in $script:AvIds) { $by[$id].status | Should -Be 'fail' -Because $id }
+        @($by['EP-026'].affected).name | Should -Be @('archives', 'email', 'scripts', 'removable drives in a full scan', 'files on the network')
+    }
+
+    It 'EP-026 lists the scans no policy turns on' {
+        $settings = & $script:AvGood; $settings.Remove('allowemailscanning'); $settings['allowscanningnetworkfiles'] = '_0'
+        $by = & $script:Av $settings
+        $by['EP-026'].status | Should -Be 'fail'
+        @($by['EP-026'].affected).name | Should -Be @('email', 'files on the network')
+    }
+
+    It 'EP-027 wants both directions: incoming only is not enough' {
+        $settings = & $script:AvGood; $settings['realtimescandirection'] = '_1'
+        (& $script:Av $settings)['EP-027'].status | Should -Be 'fail'
+        $settings = & $script:AvGood; $settings['allowbehaviormonitoring'] = '_0'
+        (& $script:Av $settings)['EP-027'].status | Should -Be 'fail'
+    }
+
+    It 'EP-028 wants High or above and a timeout of at least 30 seconds' {
+        foreach ($level in '_2', '_4', '_6') { $settings = & $script:AvGood; $settings['cloudblocklevel'] = $level; (& $script:Av $settings)['EP-028'].status | Should -Be 'pass' -Because $level }
+        $settings = & $script:AvGood; $settings['cloudblocklevel'] = '_0'
+        (& $script:Av $settings)['EP-028'].status | Should -Be 'fail' -Because 'the default level lets an unknown file run'
+        $settings = & $script:AvGood; $settings['cloudextendedtimeout'] = '10'
+        $short = & $script:Av $settings
+        $short['EP-028'].status | Should -Be 'fail'
+        $short['EP-028'].observed.avCloudTimeoutSeconds | Should -Be 10
+    }
+
+    It 'EP-029 wants an interval between one hour and the threshold, and the check before a scan' {
+        $settings = & $script:AvGood; $settings['signatureupdateinterval'] = '8'
+        (& $script:Av $settings)['EP-029'].status | Should -Be 'fail'
+        $settings = & $script:AvGood; $settings['signatureupdateinterval'] = '1'
+        (& $script:Av $settings)['EP-029'].status | Should -Be 'pass'
+        $settings = & $script:AvGood; $settings.Remove('signatureupdateinterval')
+        (& $script:Av $settings)['EP-029'].status | Should -Be 'fail' -Because 'no interval set leaves the daily default'
+        $settings = & $script:AvGood; $settings['checkforsignaturesbeforerunningscan'] = '_0'
+        (& $script:Av $settings)['EP-029'].status | Should -Be 'fail'
+    }
+
+    It 'EP-031 accepts the threshold or more, and zero, which keeps quarantined files until someone removes them' {
+        $settings = & $script:AvGood; $settings['daystoretaincleanedmalware'] = '7'
+        (& $script:Av $settings)['EP-031'].status | Should -Be 'fail'
+        $settings = & $script:AvGood; $settings['daystoretaincleanedmalware'] = '90'
+        (& $script:Av $settings)['EP-031'].status | Should -Be 'pass'
+        $settings = & $script:AvGood; $settings['daystoretaincleanedmalware'] = '0'
+        (& $script:Av $settings)['EP-031'].status | Should -Be 'pass'
+    }
+
+    It 'says the settings were not collected when the file is missing' {
+        $dir = Join-Path $script:Root ([guid]::NewGuid().ToString('n'))
+        New-Item -ItemType Directory -Path $dir | Out-Null
+        '[]' | Set-Content (Join-Path $dir '09-intune-config-profiles-settings-catalog.json')
+        '{ "version": 1, "licenses": ["Intune", "P1"], "platforms": ["windows"] }' | Set-Content (Join-Path $dir 'profile.json')
+        InModuleScope TenantKeep.Posture { Clear-PostureEvidenceCache }
+        $run = Invoke-PostureChecks -Evidence $dir -Domain endpoint -ProfilePath (Join-Path $dir 'profile.json') -PassThru
+        foreach ($r in @($run.results | Where-Object { $_.id -in $script:AvIds })) { $r.status | Should -Be 'notEvaluated'; $r.reason | Should -Match '09-intune-policy-settings\.json' }
+    }
+}

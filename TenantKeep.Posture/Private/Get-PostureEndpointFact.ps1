@@ -55,7 +55,7 @@ function Get-PostureEndpointFact {
 
     # Settings catalog rows: every match is "some assigned policy sets this".
     $settings = & $load '09-intune-policy-settings'
-    if ($null -eq $settings) { & $missing @('EP-002', 'EP-003', 'EP-004', 'EP-005', 'EP-006', 'EP-007', 'EP-008', 'EP-009', 'EP-010', 'EP-011', 'EP-012', 'EP-013', 'EP-015', 'EP-016', 'EP-017') '09-intune-policy-settings' }
+    if ($null -eq $settings) { & $missing @('EP-002', 'EP-003', 'EP-004', 'EP-005', 'EP-006', 'EP-007', 'EP-008', 'EP-009', 'EP-010', 'EP-011', 'EP-012', 'EP-013', 'EP-015', 'EP-016', 'EP-017', 'EP-026', 'EP-027', 'EP-028', 'EP-029', 'EP-030', 'EP-031') '09-intune-policy-settings' }
     else {
         $all = @(& $rows $settings)
         $win = @($all | Where-Object { [string]$_.Platforms -match '(?i)windows' })
@@ -92,6 +92,33 @@ function Get-PostureEndpointFact {
         $facts.avScheduledScan = & $hasWin 'defender_schedulescanday$' '_([0-7])$'
         $affected.avGaps = @(@(@('real-time protection', $facts.avRealTime), @('cloud-delivered protection', $facts.avCloudProtection), @('PUA protection block', $facts.avPua), @('automatic sample submission', $facts.avSampleSubmission), @('scheduled scan day', $facts.avScheduledScan)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'not set in any assigned antivirus policy' } })
         $facts.tamperProtection = & $hasWin 'tamperprotection' '_0$'
+        # EP-026 to EP-031: the rest of the Defender Antivirus policy. As for EP-005, each is "an assigned policy sets
+        # this": a setting left at its default is not enforced, and a local administrator can change it. Numbers are
+        # read from the settings that carry one (a timeout in seconds, an interval in hours, days of retention).
+        $numbers = { param([string] $IdPattern) @($win | Where-Object { [string]$_.SettingDefinitionId -match $IdPattern } | ForEach-Object { $n = 0; if ([int]::TryParse([string]$_.Value, [ref]$n)) { $n } }) }
+        $facts.avArchiveScanning = & $hasWin 'defender_allowarchivescanning$' '_1$'
+        $facts.avEmailScanning = & $hasWin 'defender_allowemailscanning$' '_1$'
+        $facts.avScriptScanning = & $hasWin 'defender_allowscriptscanning$' '_1$'
+        $facts.avRemovableDriveScanning = & $hasWin 'defender_allowfullscanremovabledrivescanning$' '_1$'
+        $facts.avNetworkFileScanning = & $hasWin 'defender_allowscanningnetworkfiles$' '_1$'
+        $affected.avScanGaps = @(@(@('archives', $facts.avArchiveScanning), @('email', $facts.avEmailScanning), @('scripts', $facts.avScriptScanning), @('removable drives in a full scan', $facts.avRemovableDriveScanning), @('files on the network', $facts.avNetworkFileScanning)) | Where-Object { -not $_[1] } | ForEach-Object { [ordered]@{ name = $_[0]; detail = 'no assigned policy turns this scan on' } })
+        $facts.avBehaviorMonitoring = & $hasWin 'defender_allowbehaviormonitoring$' '_1$'
+        # realtimescandirection: 0 is both directions, 1 incoming files only, 2 outgoing only.
+        $facts.avBothDirections = & $hasWin 'defender_realtimescandirection$' '_0$'
+        # cloudblocklevel: 0 is the default, 2 High, 4 High Plus, 6 zero tolerance.
+        $facts.avCloudBlockHigh = & $hasWin 'defender_cloudblocklevel$' '_(2|4|6)$'
+        $timeouts = @(& $numbers 'defender_cloudextendedtimeout$')
+        $facts.avCloudTimeoutSeconds = $(if ($timeouts.Count) { [int]($timeouts | Measure-Object -Maximum).Maximum } else { 0 })
+        $facts.avSignaturesBeforeScan = & $hasWin 'defender_checkforsignaturesbeforerunningscan$' '_1$'
+        $intervals = @(& $numbers 'defender_signatureupdateinterval$' | Where-Object { $_ -gt 0 })
+        # The shortest interval a policy sets; none set reads as 0, which no threshold accepts.
+        $facts.avSignatureIntervalHours = $(if ($intervals.Count) { [int]($intervals | Measure-Object -Minimum).Minimum } else { 0 })
+        $facts.avLocalAdminMergeOff = & $hasWin 'defender_configuration_disablelocaladminmerge$' '_1$'
+        # daystoretaincleanedmalware: a number of days, and 0 keeps quarantined items until someone removes them
+        # (verify the meaning of 0 against the policy CSP on a device).
+        $retained = @(& $numbers 'defender_daystoretaincleanedmalware$')
+        $facts.avQuarantineKeptForever = @($retained | Where-Object { $_ -eq 0 }).Count -gt 0
+        $facts.avQuarantineDays = $(if ($retained.Count) { [int]($retained | Measure-Object -Maximum).Maximum } else { 0 })
         $facts.networkProtectionBlock = & $hasWin 'defender_enablenetworkprotection$' '_1$'
 
         # ASR rules (EP-008) and exclusions (EP-009). The 19 rule ids as the settings catalog names them (18 confirmed on a live policy 2026-10-14;

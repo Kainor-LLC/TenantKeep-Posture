@@ -8,7 +8,7 @@ work landed on main.
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
-- The catalog went from 204 checks in 13 domains to 396 in 16 (catalog 2026.11.3). User experience and network
+- The catalog went from 204 checks in 13 domains to 402 in 16 (catalog 2026.11.3). User experience and network
   access are new domains, and Azure, email, devices, identity and hybrid each have more checks.
 - The report draws what it used to list: outcomes, charts, sign-in flows, a licence recommendation, an inventory, and a
   card for each failed check that says what was found and what users will notice when it is fixed.
@@ -30,6 +30,19 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Active Directory or federates a domain (Defender for Identity health, a federated domain's certificate), and the
   Windows AD collector's changes on a real domain.
 
+- Six checks on the rest of the Defender Antivirus policy (2026-11-23, catalog 2026.11.3), from Maester's tests of
+  it and from the Intune policy settings the run already collects. EP-005 asked for real-time, cloud, PUA, sample
+  submission and a schedule. These ask for the remainder, each as "an assigned policy sets this", because a setting
+  left at its default is one a local administrator can change.
+  - What is scanned: archives, mail, scripts, removable drives and network files (EP-026, which lists the ones no
+    policy turns on), and behaviour monitoring with scanning in both directions (EP-027).
+  - Cloud protection: block level High or above and an extended timeout of 30 seconds or more (EP-028).
+  - Upkeep: signatures checked before a scan and updated every four hours or fewer (EP-029), quarantined malware
+    kept 30 days or more, or until removed (EP-031). The numbers are thresholds.
+  - Exclusions come from policy alone: local admin merge is off (EP-030).
+  - Thirteen Maester tests are covered by these. Five more are marked out of scope with the reason: mapped drive
+    scanning, processor load, quick scan time and the two catch-up scans are performance and scheduling choices,
+    and neither value makes a device safer. Maester coverage goes from 188 to 201 of 613.
 - Six checks from settings the run already collects (2026-11-23, catalog 2026.11.3): no new read, no new
   permission.
   - Passkeys: people may add one themselves (AU-012), and key restrictions are enforced and name at least one kind

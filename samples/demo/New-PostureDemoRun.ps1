@@ -519,6 +519,18 @@ $settings = @(
     (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_submitsamplesconsent' 'device_vendor_msft_policy_config_defender_submitsamplesconsent_3')
     (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_schedulescanday' 'device_vendor_msft_policy_config_defender_schedulescanday_0')
     (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_enablenetworkprotection' 'device_vendor_msft_policy_config_defender_enablenetworkprotection_1')
+    # The rest of the antivirus policy, as an organisation half way through it: scanning and cloud protection are
+    # set, removable drives and network files are not, and local administrators can still add exclusions.
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_allowarchivescanning' 'device_vendor_msft_policy_config_defender_allowarchivescanning_1')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_allowemailscanning' 'device_vendor_msft_policy_config_defender_allowemailscanning_1')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_allowscriptscanning' 'device_vendor_msft_policy_config_defender_allowscriptscanning_1')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_allowbehaviormonitoring' 'device_vendor_msft_policy_config_defender_allowbehaviormonitoring_1')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_realtimescandirection' 'device_vendor_msft_policy_config_defender_realtimescandirection_0')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_cloudblocklevel' 'device_vendor_msft_policy_config_defender_cloudblocklevel_2')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_cloudextendedtimeout' '50')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_checkforsignaturesbeforerunningscan' 'device_vendor_msft_policy_config_defender_checkforsignaturesbeforerunningscan_1')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_signatureupdateinterval' '4')
+    (& $set 'sc-av' 'device_vendor_msft_policy_config_defender_daystoretaincleanedmalware' '30')
     (& $set 'sc-av' 'vendor_msft_defender_configuration_tamperprotection_options' 'vendor_msft_defender_configuration_tamperprotection_options_0')
     (& $set 'sc-whfb' "device_vendor_msft_passportforwork_$($tenantId)_policies_usepassportforwork" "device_vendor_msft_passportforwork_$($tenantId)_policies_usepassportforwork_true")
     (& $set 'sc-office' 'user_vendor_msft_policy_config_word16v2~policy~l_microsoftofficeword~l_wordoptions~l_security~l_trustcenter_l_blockmacroexecutionfrominternet' 'user_vendor_msft_policy_config_word16v2~policy~l_microsoftofficeword~l_wordoptions~l_security~l_trustcenter_l_blockmacroexecutionfrominternet_1')

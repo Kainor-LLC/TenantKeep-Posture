@@ -544,7 +544,21 @@
     "authenticatorOtpAllowed": "Authenticator one-time codes allowed",
     "guestSessionPolicies": "Policies that end a guest's session within the limit",
     "workloadRiskPolicies": "Policies that block risky workload identities",
-    "workloadLocationPolicies": "Policies that hold workload identities to named locations"
+    "workloadLocationPolicies": "Policies that hold workload identities to named locations",
+    "avArchiveScanning": "A policy turns on archive scanning",
+    "avEmailScanning": "A policy turns on email scanning",
+    "avScriptScanning": "A policy turns on script scanning",
+    "avRemovableDriveScanning": "A policy scans removable drives in a full scan",
+    "avNetworkFileScanning": "A policy scans files on the network",
+    "avBehaviorMonitoring": "A policy turns on behaviour monitoring",
+    "avBothDirections": "A policy scans files in both directions",
+    "avCloudBlockHigh": "A policy sets the cloud block level to High or above",
+    "avCloudTimeoutSeconds": "Cloud extended timeout, seconds",
+    "avSignaturesBeforeScan": "A policy checks for signatures before a scan",
+    "avSignatureIntervalHours": "Signature update interval, hours",
+    "avLocalAdminMergeOff": "A policy turns local admin merge off",
+    "avQuarantineKeptForever": "A policy keeps quarantined malware until removed",
+    "avQuarantineDays": "Days quarantined malware is kept"
   },
   "thresholds": {
     "adminUnitScaleUsers": "Members before admin units are expected",
@@ -626,6 +640,9 @@
     "sentinelTotalDays": "Days a security table is kept in total, at least",
     "tlsCertificateWarningDays": "Days before a TLS inspection certificate expires to warn",
     "tlsBypassReviewDays": "Days a TLS inspection policy with bypass rules may go unchanged",
-    "maxGuestSessionHours": "Hours a guest may stay signed in, at most"
+    "maxGuestSessionHours": "Hours a guest may stay signed in, at most",
+    "minCloudTimeoutSeconds": "Cloud extended timeout, at least (seconds)",
+    "maxSignatureIntervalHours": "Signature update interval, at most (hours)",
+    "minQuarantineDays": "Days to keep quarantined malware, at least"
   }
 }
