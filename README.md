@@ -7,11 +7,12 @@ PowerShell 7. Mac first; Windows and Linux supported.
 
 ## Status
 
-Pre-release 0.3.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture), Authenticode-signed by Kainor LLC. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
-one command, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, plus a
-Windows-only Active Directory script), thirteen check domains, the interactive report, the findings list, the
-Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled runs. Next: the
-first tagged release, the Marketplace listing, the trial licence on first run.
+Pre-release 0.4.0-alpha on the [PowerShell Gallery](https://www.powershellgallery.com/packages/TenantKeep.Posture). Each release carries a signed list of its files, and its release page says whether the files themselves are Authenticode-signed. Everything in [CHANGELOG.md](CHANGELOG.md) runs today:
+one command, every collector (Entra, Intune, Defender, Exchange Online, SharePoint, Teams, Purview, Azure, Power BI
+and Power Platform, plus two Windows-only scripts for Active Directory and the SharePoint admin read), more than four
+hundred checks in sixteen domains, the interactive report with its remediation plan and licence recommendation, the
+findings list, the Conditional Access snapshot, document and diff, and the Azure Automation deployment for scheduled
+runs. Next: the Marketplace listing, the trial licence on first run.
 
 ## Use
 
