@@ -39,6 +39,9 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
   Connect-MgGraph session the scopes to connect with. When the sign-in carries them all, the row says a
   permission is not what is missing and names the roles. A run whose sign-in could not be read says what it
   said before.
+- The managed devices flow chart draws in the same order every time (2026-11-24). Its tallies were kept in a table
+  whose order changes from one PowerShell process to the next, so the same evidence drew its bands and listed
+  its rows differently on each render. The largest flow comes first, and equal ones go by name.
 - Run Health says how to read the two Teams app settings (2026-11-24). A run that was not started with
   -TeamsAppSignIn cannot make those two reads, and their rows said "Nothing to grant, and collecting again says
   the same", with the switch named only in the folded message: on a live run that read as a fault nobody had

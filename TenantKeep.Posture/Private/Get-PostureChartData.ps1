@@ -124,7 +124,10 @@ function Get-PostureChartData {
         $slot = @{ Windows = 'c1'; macOS = 'c2'; iOS = 'c3'; Android = 'c4'; Linux = 'c5' }
         $platNodes = @($plat.Keys | Sort-Object { - $plat[$_] } | ForEach-Object { @{ id = "p-$_"; label = $_; tone = $(if ($slot.ContainsKey($_)) { $slot[$_] } else { 'na' }) } })
         $compTone = @{ 'Compliant' = 'ok'; 'Not compliant' = 'err'; 'Unknown or in grace' = 'na' }
-        $flows = @(@($pj.Keys | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "p-$a"; to = "j-$b"; value = $pj[$_] } }) + @($jc.Keys | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "j-$a"; to = "c-$b"; value = $jc[$_] } }))
+        # Largest flow first, equal ones by name. The tallies are plain hashtables, whose own order changes from one
+        # PowerShell process to the next: the same evidence drew its bands and listed its rows in a different order
+        # on every render (seen 2026-11-24, when a second build of the sample report differed from the first).
+        $flows = @(@($pj.Keys | Sort-Object { - $pj[$_] }, { [string]$_ } | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "p-$a"; to = "j-$b"; value = $pj[$_] } }) + @($jc.Keys | Sort-Object { - $jc[$_] }, { [string]$_ } | ForEach-Object { $a, $b = $_ -split '\|', 2; @{ from = "j-$a"; to = "c-$b"; value = $jc[$_] } }))
         $nComp = $md.compliant
         $out.devices = [ordered]@{
             column   = @($platNodes, @($joins.Keys | ForEach-Object { @{ id = "j-$_"; label = $_; tone = 'c1' } }), @($comps.Keys | ForEach-Object { @{ id = "c-$_"; label = $_; tone = $compTone[$_] } }))
@@ -160,7 +163,7 @@ function Get-PostureChartData {
         }
     }
     # Detail charts for the Domains view: counts only, each left out when its evidence is missing.
-    $topOf = { param($map, [int] $n) @(@($map.Keys) | Sort-Object { - [double]$map[$_] } | Select-Object -First $n | ForEach-Object { [ordered]@{ label = [string]$_; value = [double]$map[$_] } }) }
+    $topOf = { param($map, [int] $n) @(@($map.Keys) | Sort-Object { - [double]$map[$_] }, { [string]$_ } | Select-Object -First $n | ForEach-Object { [ordered]@{ label = [string]$_; value = [double]$map[$_] } }) }
     $toDay = { param($k) $d = [datetime]::MinValue; foreach ($f in 'yyyy-MM-dd', 'M/d/yyyy', 'MM/dd/yyyy') { if ([datetime]::TryParseExact([string]$k, $f, [cultureinfo]::InvariantCulture, 'None', [ref]$d)) { return $d } }; $null }
     if ($signins) {
         $byDay = & $v $signins 'ByDay'
@@ -374,7 +377,7 @@ function Get-PostureChartData {
     }
     if ($siteCount.n) {
         $order = @('Anyone', 'New and existing guests', 'Existing guests', 'Only people in the organisation')
-        $out.siteSharing = [ordered]@{ item = @(@($order | Where-Object { $sc.ContainsKey($_) }) + @($sc.Keys | Where-Object { $_ -notin $order }) | ForEach-Object { [ordered]@{ label = $_; value = $sc[$_]; tone = $(if ($_ -eq 'Anyone') { 'err' } elseif ($_ -eq 'New and existing guests') { 'warn' } else { 'c1' }) } }); takeaway = "$(if ($sc.ContainsKey('Anyone')) { $sc['Anyone'] } else { 0 }) site(s) allow Anyone links." }
+        $out.siteSharing = [ordered]@{ item = @(@($order | Where-Object { $sc.ContainsKey($_) }) + @($sc.Keys | Where-Object { $_ -notin $order } | Sort-Object) | ForEach-Object { [ordered]@{ label = $_; value = $sc[$_]; tone = $(if ($_ -eq 'Anyone') { 'err' } elseif ($_ -eq 'New and existing guests') { 'warn' } else { 'c1' }) } }); takeaway = "$(if ($sc.ContainsKey('Anyone')) { $sc['Anyone'] } else { 0 }) site(s) allow Anyone links." }
     }
     $iw = & $load 'def-05-incidents-weekly'
     if ($iw -and @(& $v $iw 'Weeks').Count -ge 2) {

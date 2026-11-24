@@ -64,6 +64,25 @@ Describe 'Report charts' {
         }
     }
 
+
+    It 'draws the device flows in the same order every time: the largest first, equal ones by name' {
+        # The tallies are plain hashtables, whose own order changes between PowerShell processes.
+        $ev = Join-Path $TestDrive 'flow-order'
+        New-Item -ItemType Directory -Path $ev | Out-Null
+        $device = { param([string] $Os, [string] $Join, [string] $State, [int] $Count) 1..$Count | ForEach-Object { @{ OperatingSystem = $Os; JoinType = $Join; ComplianceState = $State; ManagedDeviceOwnerType = 'company' } } }
+        $rows = @(& $device 'macOS' '' 'compliant' 2) + @(& $device 'Android' '' 'noncompliant' 1) + @(& $device 'Windows' 'azureADJoined' 'compliant' 3) + @(& $device 'iOS' '' 'compliant' 2)
+        ConvertTo-Json -InputObject $rows -Depth 4 | Set-Content (Join-Path $ev '09-intune-managed-devices.json')
+        $d = InModuleScope TenantKeep.Posture -Parameters @{ Ev = $ev } { param($Ev) Clear-PostureEvidenceCache; Get-PostureChartData -Evidence $Ev -Admin @() }
+        @($d.devices.flow | ForEach-Object { "$($_.from) > $($_.to): $($_.value)" }) | Should -Be @(
+            'p-Windows > j-Entra joined: 3'
+            'p-iOS > j-Join type not reported: 2'
+            'p-macOS > j-Join type not reported: 2'
+            'p-Android > j-Join type not reported: 1'
+            'j-Join type not reported > c-Compliant: 4'
+            'j-Entra joined > c-Compliant: 3'
+            'j-Join type not reported > c-Not compliant: 1'
+        )
+    }
     It 'builds the chart numbers from summaries, with takeaways in words, and leaves out what was not collected' {
         $ev = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-chartdata-$([guid]::NewGuid().ToString('n'))"
         New-Item -ItemType Directory -Path $ev | Out-Null
