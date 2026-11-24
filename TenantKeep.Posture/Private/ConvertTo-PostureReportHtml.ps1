@@ -787,7 +787,7 @@ function ConvertTo-PostureReportHtml {
         else { & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in.</p>" }
         & $w '<table><thead><tr><th>Domain</th><th>Step</th><th>Why</th><th>What To Do</th></tr></thead><tbody>'
         foreach ($f in $rh.failures) {
-            & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)<details class=`"tech`"><summary>The message</summary><code>$(& $h $f.message)</code></details></td></tr>"
+            & $w "<tr class=`"cause-$(& $h $f.cause)`"><td>$(& $h $(if ($f.collector) { $f.collector } else { 'Run' }))</td><td>$(& $h $f.step)</td><td><span class=`"status fail`">$(& $h $f.causeLabel)</span></td><td>$(& $h $f.advice)$(if ($f.Contains('approve') -and [string]$f.approve -match '^https://login\.microsoftonline\.com/') { ' <a href="' + (& $h $f.approve) + '" target="_blank" rel="noopener">Approve the app again</a>' })<details class=`"tech`"><summary>The message</summary><code>$(& $h $f.message)</code></details></td></tr>"
         }
         & $w '</tbody></table>'
         # For support: each failure as text with the tenant's names taken out, one at a time or all together.

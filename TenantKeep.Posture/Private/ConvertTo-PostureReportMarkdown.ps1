@@ -316,6 +316,8 @@ function ConvertTo-PostureReportMarkdown {
         else { & $line "$(@($rh.failures).Count) step(s) could not be read. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in." }
         & $line
         & $table @('Domain', 'Step', 'Why', 'What to do') @($rh.failures | ForEach-Object { , @($_.collector, $_.step, $_.causeLabel, $_.advice) })
+        $approve = @($rh.failures | Where-Object { $_.Contains('approve') -and $_.approve } | ForEach-Object { [string]$_.approve } | Select-Object -Unique)
+        if ($approve.Count -gt 0) { & $line; & $line "A Global Administrator approves the TenantKeep app again here: $($approve[0])" }
     }
     if ($rh -and $rh.Contains('notFinished') -and (@($rh.notFinished).Count + @($rh.stoppedIn).Count + @($rh.stale).Count + @($rh.cutShort).Count) -gt 0) {
         & $line '### Where the collection stopped'

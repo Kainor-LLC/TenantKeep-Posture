@@ -71,6 +71,33 @@ Describe 'Macs on a partner MDM' {
         $html | Should -Match 'id="inv-mdm-partners"'
     }
 
+    It 'lists in the inventory only the partners the tenant has set up, not every partner Microsoft offers' {
+        # Intune answers with its whole catalogue: a partner nobody set up has the state unknown and a heartbeat in the year 1.
+        $offered = @('Relution', 'NinjaOne', 'Addigy') | ForEach-Object { @{ DisplayName = $_; PartnerState = 'unknown'; LastHeartbeatDateTime = '0001-01-01T00:00:00Z'; MacOsOnboarded = $false; IosOnboarded = $false; AndroidOnboarded = $false; LinuxOnboarded = $false } }
+        $section = {
+            param([string] $Dir)
+            InModuleScope TenantKeep.Posture -Parameters @{ Dir = $Dir } { param($Dir) Clear-PostureEvidenceCache; @(Get-PostureInventory -Evidence $Dir | Where-Object { $_.key -eq 'mdm-partners' })[0] }
+        }
+        $none = Join-Path $TestDrive 'offered-only'
+        & $script:Write $none '09-intune-compliance-partners' @($offered)
+        & $script:Write $none '09-intune-device-management-partners' @(@{ DisplayName = 'Legacy MDM'; PartnerState = 'unknown'; IsConfigured = $false; LastHeartbeatDateTime = '0001-01-01T00:00:00Z' })
+        $empty = & $section $none
+        $empty.total | Should -Be 0
+        $empty.note | Should -Be 'No device management partner is connected to Intune. Microsoft lists 4 that Intune can connect to, and none is set up in this tenant.'
+
+        $some = Join-Path $TestDrive 'offered-and-used'
+        & $script:Write $some '09-intune-compliance-partners' (@($offered) + @(
+                @{ DisplayName = 'Jamf'; PartnerState = 'enabled'; LastHeartbeatDateTime = '2026-11-20T08:15:00Z'; MacOsOnboarded = $true }
+                @{ DisplayName = 'Broken Partner'; PartnerState = 'terminated'; LastHeartbeatDateTime = '0001-01-01T00:00:00Z'; MacOsOnboarded = $false }
+            ))
+        & $script:Write $some '09-intune-device-management-partners' @()
+        $used = & $section $some
+        @($used.rows | ForEach-Object { $_.Partner }) | Should -Be @('Jamf', 'Broken Partner')
+        $used.rows[0].'Last Heartbeat' | Should -Be '2026-11-20'
+        $used.rows[1].'Last Heartbeat' | Should -Be 'never' -Because 'the year 1 is how Microsoft writes no heartbeat'
+        $used.note | Should -BeNullOrEmpty
+    }
+
     It 'lets a Mac-only MDM cover the macOS checks and nothing else' {
         $d = Join-Path $TestDrive 'covered'
         & $script:Base $d

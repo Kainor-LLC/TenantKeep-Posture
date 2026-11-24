@@ -82,6 +82,38 @@ function Get-PostureFailureCause {
     return 'unknown'
 }
 
+function Get-PostureSignInScope {
+    <#
+    .SYNOPSIS
+        The Graph permissions the current sign-in carries and what kind of sign-in it is, or nothing when that is
+        not known.
+    .DESCRIPTION
+        Microsoft answers a read with 403 both when the sign-in lacks a permission and when the account lacks a
+        role, and its message does not say which. The sign-in does: its permissions are listed in the token. Kind
+        is app (a person signed in through the TenantKeep app), graph (a person who ran Connect-MgGraph) or
+        application (a managed identity or an app's own sign-in, which lists its application permissions under the
+        same names). Returns nothing without a Graph session, or when the session lists no permission at all, so
+        that "not known" is never read as "not granted".
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param()
+
+    $context = $(try { Get-MgContext } catch { $null })
+    if (-not $context) { return $null }
+    $read = { param([string] $Name) if ($context -is [System.Collections.IDictionary]) { $context[$Name] } elseif ($context.PSObject.Properties[$Name]) { $context.$Name } }
+    $granted = @(& $read 'Scopes' | Where-Object { $_ } | ForEach-Object { [string]$_ })
+    $throughApp = [bool]($script:PostureSession -and $script:PostureSession['tokens'] -and $script:PostureSession['tokens'].ContainsKey('graph'))
+    # After Connect-MgGraph -AccessToken the context may list nothing (see Assert-PostureGraphScope); the token does.
+    if ($granted.Count -eq 0 -and $throughApp) {
+        $claims = $(try { ConvertFrom-PostureJwt -Token ([string]$script:PostureSession['tokens']['graph']['accessToken']) } catch { @{} })
+        if ($claims -and $claims.ContainsKey('scp')) { $granted = @(([string]$claims['scp']) -split ' ' | Where-Object { $_ }) }
+    }
+    if ($granted.Count -eq 0) { return $null }
+    $kind = $(if (Test-PostureAppOnlySignIn -AuthType ([string](& $read 'AuthType'))) { 'application' } elseif ($script:PostureSession) { 'app' } else { 'graph' })
+    return @{ kind = $kind; scopes = $granted }
+}
+
 function Write-PostureStepFailure {
     <#
     .SYNOPSIS
@@ -105,6 +137,17 @@ function Write-PostureStepFailure {
         roles = @($need.roles); scopes = @($need.scopes); licence = $need.licence; note = $need.note; message = $Message
         request = $Request; where = @($Where); moduleVersion = [string]$script:ModuleVersion; powershell = [string]$PSVersionTable.PSVersion
         os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+    }
+    # A refusal does not say what was missing, the permission or the role. The sign-in does, so which of the step's
+    # permissions it did not carry is recorded beside the message, and the advice is written from that. Left out
+    # when the sign-in's own list is not known, which must not read as "nothing was missing".
+    $needed = @($need.scopes | Where-Object { $_ })
+    if ($entry.cause -eq 'permission' -and $needed.Count -gt 0) {
+        $signIn = $(try { Get-PostureSignInScope } catch { $null })
+        if ($signIn) {
+            $entry['signIn'] = [string]$signIn.kind
+            $entry['scopesMissing'] = @($needed | Where-Object { $_ -notin $signIn.scopes })
+        }
     }
     if (-not $PSCmdlet.ShouldProcess((Join-Path (Get-PostureRunLayout -Folder $Folder).errors 'errors.jsonl'), "Record the $Label failure")) { return }
     $line = $entry | ConvertTo-Json -Compress -Depth 5
@@ -171,7 +214,32 @@ function Get-PostureFailureAdvice {
                 if ($own -match '^Power BI refused') { return $own }
                 return 'The account that signed in has no Power BI or Fabric licence, and Power BI answers no account without one, whatever its role. Give it the free Microsoft Fabric licence and open app.powerbi.com with it once.'
             }
-            $t = $(if ($roles.Count) { "Give the account that runs the assessment one of: $($roles -join ', ')." } else { 'The account was refused; the message says by what.' })
+            $role = $(if ($roles.Count) { "Give the account that runs the assessment one of: $($roles -join ', ')." } else { 'The account was refused; the message says by what.' })
+            # Microsoft says "forbidden" for a missing permission and for a missing role alike. When the run
+            # recorded which of the step's permissions the sign-in did not carry, the advice says which it is. On
+            # a live run (2026-11-23) a Global Administrator was told to get a reader role, in a tenant that had
+            # approved the app before the step's permission was added to it.
+            if ($Failure.Contains('scopesMissing') -and $null -ne $Failure['scopesMissing']) {
+                $lacking = @($Failure['scopesMissing'] | Where-Object { $_ })
+                if ($lacking.Count -eq 0) {
+                    $t = "The sign-in carries the $(if ($scopes.Count -eq 1) { 'permission' } else { 'permissions' }) this step reads with ($($scopes -join ', ')), so a permission is not what is missing. $role"
+                    if ($licence) { $t += " It also needs $licence." }
+                    return $t
+                }
+                $what = "the $(if ($lacking.Count -eq 1) { 'permission' } else { 'permissions' }) $($lacking -join ', ')"
+                $it = $(if ($lacking.Count -eq 1) { 'it' } else { 'them' })
+                # Every permission the step names is missing: nothing else needs to be. Some of them: a step's list
+                # can name a permission only part of it reads with, so the role is still said, second.
+                $certain = ($lacking.Count -ge $scopes.Count)
+                $refused = $(if ($certain) { "and Microsoft refuses this read without $it, whatever role the account holds." } else { 'which this step can need.' })
+                $after = $(if (-not $certain -and $roles.Count) { " If the step is refused again after that, give the account one of: $($roles -join ', ')." } else { '' })
+                switch ([string]$Failure['signIn']) {
+                    'application' { return "The identity the run signs in as has not been granted $what, $refused Grant $it (deploy/automation/Grant-ManagedIdentityGraphRole.ps1 -IncludePosture), and the next run reads this step.$after" }
+                    'graph' { return "The Graph session does not carry $what, $refused Connect again with $it in -Scopes, then collect this step again.$after" }
+                    default { return "The tenant's approval of the TenantKeep app does not include $what, $refused A Global Administrator approves the app again, from the link the run prints when collecting starts, then Resume-PostureRun collects this step.$after" }
+                }
+            }
+            $t = $role
             if ($scopes.Count) { $t += " The TenantKeep app needs the delegated permission $($scopes -join ', ') too, which the tenant's consent grants." }
             if ($licence) { $t += " It also needs $licence." }
             return $t

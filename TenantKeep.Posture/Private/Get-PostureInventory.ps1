@@ -125,14 +125,24 @@ function Get-PostureInventory {
     }
 
     # Device management partners: Jamf and other MDMs connected to Intune, for which platforms, and whether they report.
+    # Microsoft answers with every partner Intune can connect to, whether the tenant uses it or not: a tenant with
+    # none got 28 rows, each with the state unknown and a heartbeat in the year 1 (seen live 2026-11-23). Only a
+    # partner the tenant has set up is listed: one onboarded for a platform or configured, one in a state only a
+    # partner that was set up has, or one that has ever reported. The rest is Microsoft's catalogue, which the note
+    # counts.
     $cpRows = & $load '09-intune-compliance-partners'; $dpRows = & $load '09-intune-device-management-partners'
     if ($null -ne $cpRows -or $null -ne $dpRows) {
         $platformsOf = { param($r) @(@('macOS', 'MacOsOnboarded'), @('iOS', 'IosOnboarded'), @('Android', 'AndroidOnboarded'), @('Linux', 'LinuxOnboarded') | Where-Object { Test-PostureTrue (& $v $r $_[1]) } | ForEach-Object { $_[0] }) -join ', ' }
+        $reported = { param($r) $d = ConvertTo-PostureUtcDateTime (& $v $r 'LastHeartbeatDateTime'); if ($d -and $d.Year -gt 1) { $d } }
+        $isSetUp = { param($r, [bool] $Marked) $Marked -or (([string](& $v $r 'PartnerState')) -in 'enabled', 'terminated', 'rejected', 'unresponsive') -or ($null -ne (& $reported $r)) }
+        $heartbeat = { param($r) $d = & $reported $r; if ($d) { & $day $d } else { 'never' } }
         $list = @(
-            @(& $rows $cpRows | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Compliance partner'; Platforms = (& $platformsOf $_); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = [string](& $v $_ 'LastHeartbeatDateTime') } })
-            @(& $rows $dpRows | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Device management partner'; Platforms = $(if (Test-PostureTrue (& $v $_ 'IsConfigured')) { 'configured' } else { 'not configured' }); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = [string](& $v $_ 'LastHeartbeatDateTime') } })
+            @(& $rows $cpRows | Where-Object { & $isSetUp $_ ([bool](& $platformsOf $_)) } | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Compliance partner'; Platforms = (& $platformsOf $_); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = (& $heartbeat $_) } })
+            @(& $rows $dpRows | Where-Object { & $isSetUp $_ (Test-PostureTrue (& $v $_ 'IsConfigured')) } | ForEach-Object { [ordered]@{ Partner = [string](& $v $_ 'DisplayName'); Connection = 'Device management partner'; Platforms = $(if (Test-PostureTrue (& $v $_ 'IsConfigured')) { 'configured' } else { 'not configured' }); State = (& $words ([string](& $v $_ 'PartnerState'))); 'Last Heartbeat' = (& $heartbeat $_) } })
         )
-        $out.Add((& $section 'mdm-partners' 'Device Management Partners' 'devices' @('09-intune-compliance-partners.json', '09-intune-device-management-partners.json') @('Partner', 'Connection', 'Platforms', 'State', 'Last Heartbeat') $list $(if ($list.Count -eq 0) { 'No device management partner is connected to Intune.' })))
+        $offered = @(& $rows $cpRows).Count + @(& $rows $dpRows).Count
+        $none = "No device management partner is connected to Intune.$(if ($offered -gt 0) { " Microsoft lists $offered that Intune can connect to, and none is set up in this tenant." })"
+        $out.Add((& $section 'mdm-partners' 'Device Management Partners' 'devices' @('09-intune-compliance-partners.json', '09-intune-device-management-partners.json') @('Partner', 'Connection', 'Platforms', 'State', 'Last Heartbeat') $list $(if ($list.Count -eq 0) { $none })))
     }
 
     # Privileged roles: who holds each role permanently, activated now, or eligible through PIM.

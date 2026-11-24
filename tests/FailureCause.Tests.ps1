@@ -109,4 +109,95 @@ Describe 'Why a step failed' {
         Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match '### Run health'
         InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
     }
+
+    Context 'A refusal that does not say whether a permission or a role was missing' {
+        # Microsoft answers 403 for both. The run records which of the step's permissions the sign-in did not carry.
+        BeforeAll {
+            $script:Refused = 'Response status code does not indicate success: Forbidden (Forbidden). [GET https://graph.microsoft.com/v1.0/informationProtection/bitlocker/recoveryKeys?$select=id,deviceId,createdDateTime,volumeType]'
+            $script:Fail = {
+                param([string] $Folder, [string] $Message, $Context, $Session)
+                InModuleScope TenantKeep.Posture -Parameters @{ Folder = $Folder; Message = $Message; Context = $Context; Session = $Session } {
+                    param($Folder, $Message, $Context, $Session)
+                    New-Item -ItemType Directory -Path $Folder -Force | Out-Null
+                    Mock Get-MgContext { $Context }
+                    $script:PostureSession = $Session
+                    $script:PostureCurrentCollector = 'Intune'
+                    try { $null = Invoke-PostureStep -Label 'BitLocker recovery keys' -Folder $Folder -Script { throw $Message } -WarningAction SilentlyContinue }
+                    finally { $script:PostureCurrentCollector = $null; $script:PostureSession = $null }
+                    @(Read-PostureRunFailure -Folder $Folder)[0]
+                }
+            }
+        }
+
+        It 'records the permission the sign-in did not carry, and says to approve the app again, not to grant a role' {
+            $context = [pscustomobject]@{ TenantId = '11111111-2222-3333-4444-555555555555'; Scopes = @('Directory.Read.All', 'Policy.Read.All'); AuthType = 'UserProvidedAccessToken' }
+            $f = & $script:Fail (Join-Path $script:Root 'lacks') $script:Refused $context @{ account = 'admin@contoso.example'; tokens = @{} }
+            $f['cause'] | Should -Be 'permission'
+            $f['signIn'] | Should -Be 'app'
+            @($f['scopesMissing']) | Should -Be @('BitlockerKey.ReadBasic.All')
+            $advice = InModuleScope TenantKeep.Posture -Parameters @{ f = $f } { param($f) Get-PostureFailureAdvice -Failure $f }
+            $advice | Should -Match "^The tenant's approval of the TenantKeep app does not include the permission BitlockerKey\.ReadBasic\.All, and Microsoft refuses this read without it, whatever role the account holds\."
+            $advice | Should -Match 'A Global Administrator approves the app again'
+            $advice | Should -Not -Match 'Give the account'
+        }
+
+        It 'says a permission is not what is missing when the sign-in carries it, whatever its spelling' {
+            $context = [pscustomobject]@{ TenantId = '11111111-2222-3333-4444-555555555555'; Scopes = @('Directory.Read.All', 'BitLockerKey.ReadBasic.All'); AuthType = 'Delegated' }
+            $f = & $script:Fail (Join-Path $script:Root 'carries') $script:Refused $context $null
+            $f['signIn'] | Should -Be 'graph'
+            @($f['scopesMissing']).Count | Should -Be 0
+            $advice = InModuleScope TenantKeep.Posture -Parameters @{ f = $f } { param($f) Get-PostureFailureAdvice -Failure $f }
+            $advice | Should -Match '^The sign-in carries the permission this step reads with \(BitlockerKey\.ReadBasic\.All\), so a permission is not what is missing\. Give the account that runs the assessment one of: Global Reader'
+            $advice | Should -Match 'It also needs Intune\.$'
+        }
+
+        It 'records nothing about permissions when the sign-in''s own list is not known, or the refusal is about a licence' {
+            $unknown = & $script:Fail (Join-Path $script:Root 'unknown') $script:Refused $null $null
+            $unknown.Contains('scopesMissing') | Should -BeFalse -Because 'not known must not read as nothing missing'
+            $advice = InModuleScope TenantKeep.Posture -Parameters @{ f = $unknown } { param($f) Get-PostureFailureAdvice -Failure $f }
+            $advice | Should -Match '^Give the account that runs the assessment one of: Global Reader.*The TenantKeep app needs the delegated permission BitlockerKey\.ReadBasic\.All too'
+            $empty = [pscustomobject]@{ TenantId = '11111111-2222-3333-4444-555555555555'; Scopes = @(); AuthType = 'Delegated' }
+            (& $script:Fail (Join-Path $script:Root 'empty') $script:Refused $empty $null).Contains('scopesMissing') | Should -BeFalse
+            $context = [pscustomobject]@{ TenantId = '11111111-2222-3333-4444-555555555555'; Scopes = @('Directory.Read.All'); AuthType = 'Delegated' }
+            $licence = & $script:Fail (Join-Path $script:Root 'licence') 'Response status code does not indicate success: Forbidden (Forbidden). AadPremiumLicenseRequired' $context $null
+            $licence['cause'] | Should -Be 'licence'
+            $licence.Contains('scopesMissing') | Should -BeFalse
+        }
+
+        It 'words the fix for <Kind>' -ForEach @(
+            @{ Kind = 'application'; Expect = '^The identity the run signs in as has not been granted the permission X\.Read\.All, and Microsoft refuses this read without it, whatever role the account holds\. Grant it \(deploy/automation/Grant-ManagedIdentityGraphRole\.ps1 -IncludePosture\), and the next run reads this step\.$' }
+            @{ Kind = 'graph'; Expect = '^The Graph session does not carry the permission X\.Read\.All, and Microsoft refuses this read without it, whatever role the account holds\. Connect again with it in -Scopes, then collect this step again\.$' }
+            @{ Kind = 'app'; Expect = 'from the link the run prints when collecting starts, then Resume-PostureRun collects this step\.$' }
+        ) {
+            InModuleScope TenantKeep.Posture -Parameters @{ Kind = $Kind } {
+                param($Kind)
+                Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @('Global Reader'); scopes = @('X.Read.All'); licence = ''; message = 'Forbidden'; signIn = $Kind; scopesMissing = @('X.Read.All') }
+            } | Should -Match $Expect
+        }
+
+        It 'still names the role when only some of a step''s permissions are missing, since the step may not read with them' {
+            $advice = InModuleScope TenantKeep.Posture {
+                Get-PostureFailureAdvice -Failure @{ cause = 'permission'; roles = @('Security Reader', 'Global Reader'); scopes = @('IdentityRiskyUser.Read.All', 'IdentityRiskEvent.Read.All'); licence = ''; message = 'Forbidden'; signIn = 'app'; scopesMissing = @('IdentityRiskEvent.Read.All') }
+            }
+            $advice | Should -Match 'does not include the permission IdentityRiskEvent\.Read\.All, which this step can need\.'
+            $advice | Should -Match 'If the step is refused again after that, give the account one of: Security Reader, Global Reader\.$'
+            $advice | Should -Not -Match 'whatever role'
+        }
+
+        It 'shows it in the report as a permission to approve, with the address to approve the app at' {
+            InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+            . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
+            $ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'approve-run')
+            @{ tenantId = '11111111-2222-3333-4444-555555555555' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $ev 'metadata.json')
+            $context = [pscustomobject]@{ TenantId = '11111111-2222-3333-4444-555555555555'; Scopes = @('Directory.Read.All'); AuthType = 'UserProvidedAccessToken' }
+            $null = & $script:Fail $ev $script:Refused $context @{ account = 'admin@contoso.example'; tokens = @{} }
+            $r = New-PostureReport -Evidence $ev -PassThru
+            $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+            $html | Should -Match '<span class="status fail">Needs a permission</span>'
+            $html | Should -Match 'approves the app again, from the link the run prints when collecting starts, then Resume-PostureRun collects this step\. <a href="https://login\.microsoftonline\.com/11111111-2222-3333-4444-555555555555/v2\.0/adminconsent\?[^"]*BitLockerKey\.ReadBasic\.All[^"]*" target="_blank" rel="noopener">Approve the app again</a>'
+            $html | Should -Not -Match 'Give the account that runs the assessment one of: Global Reader, Security Reader, Cloud Device Administrator'
+            Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match 'A Global Administrator approves the TenantKeep app again here: https://login\.microsoftonline\.com/11111111-2222-3333-4444-555555555555/'
+            InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
+        }
+    }
 }

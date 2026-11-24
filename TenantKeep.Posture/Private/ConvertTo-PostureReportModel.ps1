@@ -439,10 +439,16 @@ function ConvertTo-PostureReportModel {
     $causeOrder = @{ permission = 0; unavailable = 1; licence = 2; token = 3; module = 4; throttled = 5; network = 6; notProvisioned = 7; notReadable = 8; unknown = 9 }
     $causeLabel = @{ permission = 'Needs a role'; unavailable = 'Needs a role or licence'; licence = 'Needs a licence'; token = 'Sign-in ran out'; module = 'Module missing'; throttled = 'Throttled'; network = 'Network or service error'; notProvisioned = 'Not set up in this tenant'; notReadable = 'Not readable with this sign-in'; unknown = 'Not recognised' }
     $failures = @($(try { Read-PostureRunFailure -Folder $Evidence } catch { @() }))
+    # A step refused because the sign-in lacked one of its permissions (the run records which) waits for a permission,
+    # not for a role. Where a person signed in through the TenantKeep app, the row carries the address at which a
+    # Global Administrator approves the app again: the same one the run printed when collecting started.
+    $lacksPermission = { param($f) [string]$f['cause'] -eq 'permission' -and $f.Contains('scopesMissing') -and @($f['scopesMissing'] | Where-Object { $_ }).Count -gt 0 }
+    $approveAt = { param($f) (& $lacksPermission $f) -and [string]$f['signIn'] -eq 'app' }
+    $approveLink = [string]$(if ($tenantId -and @($failures | Where-Object { & $approveAt $_ }).Count -gt 0) { try { Get-PostureConsentLink -TenantId ([string]$tenantId) } catch { '' } })
     $fullTierForHealth = ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')
     $runHealth = [ordered]@{
         failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {
-                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $causeLabel[[string]$_['cause']]; advice = (Get-PostureFailureAdvice -Failure $_); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
+                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $(if (& $lacksPermission $_) { 'Needs a permission' } else { $causeLabel[[string]$_['cause']] }); advice = (Get-PostureFailureAdvice -Failure $_); approve = $(if (& $approveAt $_) { $approveLink } else { '' }); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
                     support = (Get-PostureSupportDetail -Failure $_ -RunName (Split-Path $runLayout.root -Leaf) -Build ([string]$buildState.detail) -Name @($tenantName, $clientName, $(if ($runAs) { [string](Get-PostureValue $runAs 'account') })))
                 }
             })

@@ -333,8 +333,11 @@ told so, not left to wonder.
 A step that fails is recorded with its cause: needs a role, needs a licence, sign-in ran out, throttled, network,
 not readable with this sign-in, or not set up in this tenant. The console ends with the failures grouped by cause and what to do, the report opens
 with a banner, and its Run Health view lists each step with the role, delegated permission or licence it needs
-(from the module's requirements.json) and Microsoft's own message. Checks that depend on a failed step say not
-evaluated, never pass or fail.
+(from the module's requirements.json) and Microsoft's own message. Microsoft answers "forbidden" both for a missing
+permission and for a missing role, so the run records which of the step's permissions the sign-in carried. A step
+that lacked one reads "Needs a permission" and links to where a Global Administrator approves the app again; a step
+that had them all is told which roles to grant. Checks that depend on a failed step say not evaluated, never pass
+or fail.
 
 After granting what was missing, collect only what failed, into the same run:
 
