@@ -59,7 +59,7 @@ PSScriptAnalyzerSettings.psd1
 - Say plainly when you're not sure. `(verify)` beats a confident guess.
 - Push back if I ask for something you think is a mistake.
 - Local testing account and tenant details are in `CLAUDE.local.md` (gitignored). Never commit them, never put real tenant output in `samples/`.
-- Two test tenants: Kainor (Business Premium, cloud-only) for everyday runs, and the first customer's E5 tenant with their agreement for the licensed domains (P2, Intune, Defender, Purview). Every live run pins `-TenantId`; evidence from either stays under `~/audit/evidence` and never enters the repo, `samples/` or a commit message.
+- One test tenant: Kainor (Business Premium, cloud-only). Every live run pins `-TenantId`; its evidence stays under `~/audit/evidence` and never enters the repo, `samples/` or a commit message. The E5 tenant that covered the licensed domains (P2, Intune, Defender, Purview) is closed to this project since 2026-11-23: no run, sign-in or script there, and nothing asked of it. Until another licensed tenant is agreed, those domains are tested against `samples/` and synthetic evidence only, and what was not seen live stays tagged `(verify)`.
 
 ## Licensing (D22, decided: source-available, public repo)
 
