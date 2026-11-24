@@ -200,4 +200,49 @@ Describe 'Why a step failed' {
             InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
         }
     }
+
+    Context 'A read the run was not asked to make' {
+        BeforeAll {
+            $script:NotAsked = 'Not readable with this sign-in: the Teams module reads Get-AllM365TeamsApps with a Microsoft 365 token (substrate.office.com) that a session opened with access tokens does not carry. Start-PostureRun -TeamsAppSignIn reads it: Teams then asks for a sign-in of its own.'
+        }
+
+        It 'says how to read the two Teams app settings, and keeps "nothing to do" for a read nothing changes' {
+            InModuleScope TenantKeep.Posture -Parameters @{ NotAsked = $script:NotAsked } {
+                param($NotAsked)
+                $offer = @{ cause = 'notReadable'; roles = @(); scopes = @(); licence = ''; message = $NotAsked }
+                Test-PostureTeamsSignInOffer -Failure $offer | Should -BeTrue
+                Get-PostureFailureAdvice -Failure $offer | Should -Match "^Read only through the Teams module's own sign-in, which this run was not asked to make\. To read it, collect Teams again with: Resume-PostureRun -Collector Teams -TeamsAppSignIn\."
+                # A run that asked and was refused by the tenant's own policy, and a read Microsoft keeps for other applications.
+                foreach ($message in @(
+                        "Not readable with this sign-in: Conditional Access in this tenant refused the Teams module's own sign-in, which outside Windows can only be made with a device code. That is the tenant's policy working, and nothing in the run changes it. On Windows the Teams module signs in through the browser instead, so these two reads can be collected there with -TeamsAppSignIn."
+                        'Not readable with this sign-in: Microsoft 365 Backup refused the read of its protection policies although the sign-in carries BackupRestore-Configuration.Read.All.'
+                    )) {
+                    $other = @{ cause = 'notReadable'; roles = @(); scopes = @(); licence = ''; message = $message }
+                    Test-PostureTeamsSignInOffer -Failure $other | Should -BeFalse
+                    Get-PostureFailureAdvice -Failure $other | Should -Match 'Nothing to grant, and collecting again says the same'
+                }
+            }
+        }
+
+        It 'shows it in the report as needing the Teams sign-in, and does not say that nothing is fixed by collecting again' {
+            InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = @{ tier = 'full'; source = 'test fixtures carry no licence' } }
+            . (Join-Path $PSScriptRoot 'Fixtures' 'CollectionFixture.ps1')
+            $ev = Initialize-CollectionFixture -Root (Join-Path $script:Root 'teams-offer-run')
+            InModuleScope TenantKeep.Posture -Parameters @{ ev = $ev; NotAsked = $script:NotAsked } {
+                param($ev, $NotAsked)
+                $script:PostureCurrentCollector = 'Teams'
+                $null = Invoke-PostureStep -Label 'Teams app availability' -Folder $ev -Script { throw $NotAsked } -WarningAction SilentlyContinue
+                $script:PostureCurrentCollector = $null
+            }
+            $r = New-PostureReport -Evidence $ev -PassThru
+            $html = Get-Content -Raw (@($r.Files) -like '*.html')[0]
+            $html | Should -Match '<span class="status fail">Needs the Teams sign-in</span>'
+            $html | Should -Match 'collect Teams again with: Resume-PostureRun -Collector Teams -TeamsAppSignIn\.'
+            $html | Should -Match 'None of them is fixed by collecting again the same way: .* A row that can be read another way says how\.'
+            $html | Should -Match 'none of them is fixed by collecting again the same way, and a row that can be read another way says how'
+            $html | Should -Not -Match 'None of them is fixed by collecting again: '
+            Get-Content -Raw (@($r.Files) -like '*.md')[0] | Should -Match 'None of them is fixed by collecting again the same way'
+            InModuleScope TenantKeep.Posture { $script:PostureEntitlementOverride = $null }
+        }
+    }
 }

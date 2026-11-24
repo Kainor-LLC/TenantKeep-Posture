@@ -190,6 +190,24 @@ function Read-PostureRunFailure {
     return $out.ToArray()
 }
 
+function Test-PostureTeamsSignInOffer {
+    <#
+    .SYNOPSIS
+        Whether a failure is one of the two Teams app reads in a run that was not asked to make them: the one
+        "not readable with this sign-in" that another way of collecting does read.
+    .DESCRIPTION
+        The Teams module makes those two reads only with its own sign-in, which a run makes under -TeamsAppSignIn
+        and never otherwise. The collector's message names the switch; a run that tried the sign-in and was
+        refused by Conditional Access says something else, and is not this.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory)] [AllowNull()] [System.Collections.IDictionary] $Failure)
+
+    if (-not $Failure) { return $false }
+    return ([string]$Failure['message'] -match '(?i)^Not readable with this sign-in' -and [string]$Failure['message'] -match '-TeamsAppSignIn reads it')
+}
+
 function Get-PostureFailureAdvice {
     <#
     .SYNOPSIS
@@ -252,7 +270,14 @@ function Get-PostureFailureAdvice {
         }
         'licence' { return $(if ($licence) { "Needs $licence. Without it the checks that read this stay not applicable; nothing to grant." } else { 'The tenant is not licensed for this; nothing to grant.' }) }
         'notProvisioned' { return 'Not set up in this tenant, so there was nothing to read. Nothing to grant.' }
-        'notReadable' { return 'Microsoft does not give this read to the sign-in the run uses; the message says why. Nothing to grant, and collecting again says the same. The check that needs it has no answer from this run.' }
+        'notReadable' {
+            # The two Teams app reads have a way in, and this is where "what to do" is read. On a live run
+            # (2026-11-23) the row said there was nothing to do, with the switch named only in the folded message.
+            if (Test-PostureTeamsSignInOffer -Failure $Failure) {
+                return "Read only through the Teams module's own sign-in, which this run was not asked to make. To read it, collect Teams again with: Resume-PostureRun -Collector Teams -TeamsAppSignIn. Teams then asks for a sign-in of its own: a browser window on Windows, a code to enter elsewhere, which a tenant that blocks device code sign-in refuses. Until then the check that needs it has no answer."
+            }
+            return 'Microsoft does not give this read to the sign-in the run uses; the message says why. Nothing to grant, and collecting again says the same. The check that needs it has no answer from this run.'
+        }
         'throttled' { return 'Microsoft asked the run to slow down. Resume-PostureRun tries again.' }
         'network' { return 'A network or service error. Resume-PostureRun tries again.' }
         'token' { return 'The sign-in ran out before this step. Resume-PostureRun signs in again and collects it.' }

@@ -111,7 +111,7 @@ function ConvertTo-PostureReportHtml {
     }
     if ($rh -and @($rh.failures).Count -gt 0) {
         $parts = @($rh.byCause.Keys | ForEach-Object { "$($rh.byCause[$_]) $($_.ToLowerInvariant())" }) -join ', '
-        & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says why for each$(if (@($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) { ', what to grant, and how to collect just those again' } else { '; none of them is fixed by collecting again' }).</div>"
+        & $w "<div class=`"banner warn`"><strong>$(@($rh.failures).Count) step(s) could not be read</strong> ($(& $h $parts)). The checks that depend on them say not evaluated. <a href=`"#health`">Run Health</a> says why for each$(if (@($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) { ', what to grant, and how to collect just those again' } elseif (@($rh.failures | Where-Object { $_.Contains('otherWay') -and $_.otherWay }).Count -gt 0) { '; none of them is fixed by collecting again the same way, and a row that can be read another way says how' } else { '; none of them is fixed by collecting again' }).</div>"
     }
     # What the assessment still lacks, each piece with who can add it and how. The rows are data (the completion
     # block of checks/catalog.json through Get-PostureCompletion); nothing here knows a check or a collector.
@@ -784,6 +784,7 @@ function ConvertTo-PostureReportHtml {
             & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why and what to do. After granting a role, collect only what failed, into the same run, then refresh this page:</p>"
             & $w "<div class=`"cmd`"><code id=`"cmd-resume`">$(& $h $rh.resume)</code><button type=`"button`" data-copy=`"cmd-resume`">Copy</button></div>"
         }
+        elseif (@($rh.failures | Where-Object { $_.Contains('otherWay') -and $_.otherWay }).Count -gt 0) { & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why. None of them is fixed by collecting again the same way: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in. A row that can be read another way says how.</p>" }
         else { & $w "<p>$(@($rh.failures).Count) step(s) could not be read. Each row says why. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in.</p>" }
         & $w '<table><thead><tr><th>Domain</th><th>Step</th><th>Why</th><th>What To Do</th></tr></thead><tbody>'
         foreach ($f in $rh.failures) {

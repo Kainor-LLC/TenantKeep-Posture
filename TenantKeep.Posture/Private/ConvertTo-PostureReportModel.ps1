@@ -448,7 +448,7 @@ function ConvertTo-PostureReportModel {
     $fullTierForHealth = ($Entitlement['domains'] -is [string] -and $Entitlement['domains'] -eq '*')
     $runHealth = [ordered]@{
         failures = @($failures | Sort-Object { $causeOrder[[string]$_['cause']] }, { [string]$_['collector'] }, { [string]$_['step'] } | ForEach-Object {
-                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $(if (& $lacksPermission $_) { 'Needs a permission' } else { $causeLabel[[string]$_['cause']] }); advice = (Get-PostureFailureAdvice -Failure $_); approve = $(if (& $approveAt $_) { $approveLink } else { '' }); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
+                [ordered]@{ collector = [string]$_['collector']; step = [string]$_['step']; cause = [string]$_['cause']; causeLabel = $(if (& $lacksPermission $_) { 'Needs a permission' } elseif (Test-PostureTeamsSignInOffer -Failure $_) { 'Needs the Teams sign-in' } else { $causeLabel[[string]$_['cause']] }); otherWay = (Test-PostureTeamsSignInOffer -Failure $_); advice = (Get-PostureFailureAdvice -Failure $_); approve = $(if (& $approveAt $_) { $approveLink } else { '' }); roles = @($_['roles']); licence = [string]$_['licence']; message = [string]$_['message']
                     support = (Get-PostureSupportDetail -Failure $_ -RunName (Split-Path $runLayout.root -Leaf) -Build ([string]$buildState.detail) -Name @($tenantName, $clientName, $(if ($runAs) { [string](Get-PostureValue $runAs 'account') })))
                 }
             })

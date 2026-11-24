@@ -33,12 +33,18 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
 - A refused read says whether a permission or a role is missing (2026-11-23). Microsoft answers "forbidden" for
   both, and Run Health gave both pieces of advice at once: on a live run a Global Administrator was told to get a
   reader role for the BitLocker step, in a tenant that had approved the app before that step's permission was
-  added to it (verify that this was the cause there). The run now records which of a step's permissions the
+  added to it. Approving the app again cleared it there. The run now records which of a step's permissions the
   sign-in did not carry. When one is missing the row reads "Needs a permission", says a Global Administrator
   approves the app again, and links to where. For a managed identity it names the grant script, and for a
   Connect-MgGraph session the scopes to connect with. When the sign-in carries them all, the row says a
   permission is not what is missing and names the roles. A run whose sign-in could not be read says what it
   said before.
+- Run Health says how to read the two Teams app settings (2026-11-24). A run that was not started with
+  -TeamsAppSignIn cannot make those two reads, and their rows said "Nothing to grant, and collecting again says
+  the same", with the switch named only in the folded message: on a live run that read as a fault nobody had
+  fixed. The rows now read "Needs the Teams sign-in" and give the command, Resume-PostureRun -Collector Teams
+  -TeamsAppSignIn, and the page no longer says that none of its rows is fixed by collecting again. A run that
+  asked for the sign-in and was refused by the tenant's Conditional Access says what it said before.
 - The inventory's Device Management Partners lists the partners a tenant has set up (2026-11-23). Intune answers
   with every partner it can connect to, used or not: a tenant with none showed 28 rows, each with the state
   unknown and a last heartbeat of 01/01/0001. Those are left out and counted in one line, a heartbeat that never

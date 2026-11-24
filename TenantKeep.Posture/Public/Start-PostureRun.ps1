@@ -418,6 +418,7 @@ function Start-PostureRun {
             $resume = $(if ((Split-Path $Client -Parent) -eq $defaultClients) { "Resume-PostureRun -Client $(Split-Path $Client -Leaf)" } else { "Resume-PostureRun -Path '$($runLayout.root -replace "'", "''")'" })
             Write-Host "  Then collect only what failed, into this run: $resume" -ForegroundColor Cyan
         }
+        elseif (@($failures | Where-Object { Test-PostureTeamsSignInOffer -Failure $_ }).Count -gt 0) { Write-Host '  None of these is fixed by collecting again the same way. A step that can be read another way says how, above.' }
         else { Write-Host '  None of these is fixed by collecting again.' }
     }
     foreach ($k in $skipped.Keys) { Write-Host "Skipped $($k): $($skipped[$k])" -ForegroundColor Yellow }

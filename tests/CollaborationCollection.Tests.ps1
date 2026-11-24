@@ -141,7 +141,7 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
             $script:NoAppsResult = Invoke-PostureCollection -Collector Teams -SkipCaSnapshot -OutputFolder $script:NoApps -PassThru -WarningAction SilentlyContinue
         }
 
-        It 'says in words what could not be read, and that there is nothing to grant' {
+        It 'says in words what could not be read, and how a run does read it' {
             $lines = @($script:NoAppsResult.Errors | Where-Object { $_ -match '^Teams (org-wide app settings|app availability) :: ' })
             $lines.Count | Should -Be 2
             $lines | ForEach-Object { $_ | Should -Match ' :: Not readable with this sign-in: the Teams module reads Get-(M365UnifiedTenantSettings|AllM365TeamsApps) with a Microsoft 365 token' }
@@ -151,7 +151,9 @@ Describe 'Invoke-PostureCollection -Collector SharePoint, Teams' {
                 param($folder)
                 $failure = @(Read-PostureRunFailure -Folder $folder | Where-Object { [string]$_['step'] -eq 'Teams org-wide app settings' })[0]
                 $failure['cause'] | Should -Be 'notReadable'
-                Get-PostureFailureAdvice -Failure $failure | Should -Match 'Nothing to grant'
+                $advice = Get-PostureFailureAdvice -Failure $failure
+                $advice | Should -Match 'collect Teams again with: Resume-PostureRun -Collector Teams -TeamsAppSignIn\.'
+                $advice | Should -Not -Match 'Nothing to grant' -Because 'the run was not asked for this read, and asking for it is something to do'
             }
         }
 

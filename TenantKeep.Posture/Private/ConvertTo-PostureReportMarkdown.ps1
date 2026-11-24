@@ -313,6 +313,7 @@ function ConvertTo-PostureReportMarkdown {
         & $line '### Run health'
         & $line
         if (@($rh.failures | Where-Object { [string]$_.cause -in 'permission', 'token', 'throttled', 'network', 'module', 'unknown' }).Count -gt 0) { & $line "$(@($rh.failures).Count) step(s) could not be read. After granting a role, collect only what failed: ``$($rh.resume)``" }
+        elseif (@($rh.failures | Where-Object { $_.Contains('otherWay') -and $_.otherWay }).Count -gt 0) { & $line "$(@($rh.failures).Count) step(s) could not be read. None of them is fixed by collecting again the same way: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in. A row that can be read another way says how." }
         else { & $line "$(@($rh.failures).Count) step(s) could not be read. None of them is fixed by collecting again: each waits for a licence the tenant does not have, or for a read Microsoft does not give this sign-in." }
         & $line
         & $table @('Domain', 'Step', 'Why', 'What to do') @($rh.failures | ForEach-Object { , @($_.collector, $_.step, $_.causeLabel, $_.advice) })

@@ -67,8 +67,8 @@ What you need:
   browser window on Windows, a device code elsewhere, because the Teams module has no browser sign-in outside
   Windows. It asks when the run reaches Teams, near its end, so stay for it. Many tenants block device code sign-in
   with Conditional Access, and should: there the code is refused (seen on macOS, 2026-11-22), the run says so once,
-  and the two reads can be collected from Windows instead. Without the switch those two steps say "Not readable with
-  this sign-in" and the check has no answer. The browser sign-in on Windows has not been run live yet (verify).
+  and the two reads can be collected from Windows instead. Without the switch Run Health lists those two steps as
+  needing the Teams sign-in, with the command that reads them, and the check has no answer. The browser sign-in on Windows has not been run live yet (verify).
 - While it runs: a progress bar shows the domain and step under way, the time so far and the time left (estimated
   from this tenant's last run; rough on the first), with a second bar for Exchange and Purview. The computer is kept
   from idle sleep until the run ends (`caffeinate` on macOS, `systemd-inhibit` on Linux, the Windows power request
