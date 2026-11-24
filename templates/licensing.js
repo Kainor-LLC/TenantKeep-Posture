@@ -155,30 +155,30 @@ var tkLicenseAdvice = (function () {
       if (better) { top = m; }
     });
 
-    // The recommendation, in terms of function only: each licence with the goals it is there for and what it brings.
-    var recommended = null, prerequisite = [];
-    if (top) {
-      var all = (top.suite ? [top.suite] : []).concat(top.items);
+    // A combination in terms of function only: each licence with the goals it is there for and what it brings.
+    var describe = function (plan) {
+      var prerequisite = [];
+      var all = (plan.suite ? [plan.suite] : []).concat(plan.items);
       var brought = {}; all.forEach(function (b) { b.features.forEach(function (x) { brought[x] = true; }); });
       var licences = all.map(function (b) {
         var mine = {}; b.features.forEach(function (x) { mine[x] = true; });
         return {
-          sku: b.sku, name: b.name, role: (top.suite && b === top.suite) ? 'moveTo' : 'add', verify: b.verify || null,
+          sku: b.sku, name: b.name, role: (plan.suite && b === plan.suite) ? 'moveTo' : 'add', verify: b.verify || null,
           covers: chosen.filter(function (g) { return unmet(g, have).some(function (grp) { return grp.some(function (x) { return mine[x]; }); }); }).map(function (g) { return g.name; }),
           brings: order.filter(function (id) { return mine[id] && !owned[id] && !vendorOf[id] && isSecurity(id); }).map(function (id) { return feat[id].name; }),
           neededBy: data.features.filter(function (f) { return f.requires && f.requires.length && brought[f.id] && !mine[f.id] && f.requires.some(function (r) { return mine[r] && !have[r]; }); }).map(function (f) { return f.name; })
         };
       });
       var after = {}; Object.keys(brought).forEach(function (x) { after[x] = true; });
-      top.kept.forEach(function (b) { b.features.forEach(function (x) { after[x] = true; }); });
-      heldBundles.forEach(function (b) { if (top.replaced.indexOf(b) < 0) { b.features.forEach(function (x) { after[x] = true; }); } });
-      recommended = {
-        kind: top.kind,
-        title: top.kind === 'suite' ? 'Move to ' + top.suite.name + (top.items.length ? ' with ' + names(top.items) : '') : 'Add ' + names(top.items) + (mainSuite ? ' to ' + mainSuite.name : ' to what you have'),
+      plan.kept.forEach(function (b) { b.features.forEach(function (x) { after[x] = true; }); });
+      heldBundles.forEach(function (b) { if (plan.replaced.indexOf(b) < 0) { b.features.forEach(function (x) { after[x] = true; }); } });
+      var card = {
+        kind: plan.kind,
+        title: plan.kind === 'suite' ? 'Move to ' + plan.suite.name + (plan.items.length ? ' with ' + names(plan.items) : '') : 'Add ' + names(plan.items) + (mainSuite ? ' to ' + mainSuite.name : ' to what you have'),
         licences: licences,
-        replaces: top.replaced.map(function (b) { return { name: b.name, by: top.suite.name }; }),
-        keeps: top.kept.map(function (b) { return b.name; }),
-        noLonger: order.filter(function (id) { return !after[id] && top.replaced.some(function (b) { return b.features.indexOf(id) >= 0; }); }).map(function (id) { return feat[id].name; }),
+        replaces: plan.replaced.map(function (b) { return { name: b.name, by: plan.suite.name }; }),
+        keeps: plan.kept.map(function (b) { return b.name; }),
+        noLonger: order.filter(function (id) { return !after[id] && plan.replaced.some(function (b) { return b.features.indexOf(id) >= 0; }); }).map(function (id) { return feat[id].name; }),
         redundant: order.filter(function (id) { return brought[id] && !owned[id] && vendorOf[id]; }).map(function (id) { return { name: feat[id].name, vendor: vendorOf[id] }; }),
         alsoIncludes: order.filter(function (id) { return brought[id] && !owned[id] && !isSecurity(id); }).map(function (id) { return feat[id].name; })
       };
@@ -186,6 +186,27 @@ var tkLicenseAdvice = (function () {
       Object.keys(brought).forEach(function (x) {
         ((feat[x] && feat[x].requires) || []).forEach(function (r) { if (!have[r] && !brought[r]) { var note = feat[x].name + ' needs ' + feat[r].name + '.'; if (!seenNote[note]) { seenNote[note] = true; prerequisite.push(note); } } });
       });
+      return { card: card, prerequisite: prerequisite };
+    };
+    var recommended = null, prerequisite = [], alternatives = [];
+    if (top) {
+      var told = describe(top);
+      recommended = told.card; prerequisite = told.prerequisite;
+      // Up to two other combinations that cover the same goals, in the order the rules give. Left out: far more
+      // licences than the recommended one, the same licences reached another way, a move to a suite that closes none
+      // of the gaps itself, and a move that would take away something the tenant has today.
+      var keyOf = function (m) { return (m.suite ? [m.suite] : []).concat(m.items).map(function (b) { return b.sku; }).sort().join('+'); };
+      var closesAGap = function (suite) { return groups.some(function (grp) { return grp.some(function (x) { return suite.features.indexOf(x) >= 0; }); }); };
+      var seenPlan = {}; seenPlan[keyOf(top)] = true;
+      made.filter(function (m) { return m !== top && m.count <= top.count + 3 && (m.kind !== 'suite' || closesAGap(m.suite)); })
+        .sort(function (x, y) { return (x.unasked - y.unasked) || (x.count - y.count) || (x.kindOrder - y.kindOrder) || (x.overlap - y.overlap) || (x.order - y.order); })
+        .forEach(function (m) {
+          var k = keyOf(m);
+          if (seenPlan[k]) { return; }
+          seenPlan[k] = true;
+          var other = describe(m).card;
+          if (!other.noLonger.length && alternatives.length < 2) { alternatives.push(other); }
+        });
     }
     // Licences the tenant holds today that overlap: everything one brings is also in another it holds.
     var heldOverlap = [];
@@ -205,6 +226,7 @@ var tkLicenseAdvice = (function () {
       met: groups.length === 0,
       missing: missingOnce,
       recommended: recommended,
+      alternatives: alternatives,
       heldOverlap: heldOverlap,
       prerequisite: prerequisite
     };

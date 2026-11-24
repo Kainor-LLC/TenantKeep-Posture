@@ -235,6 +235,14 @@ function ConvertTo-PostureReportMarkdown {
                 if (@($rec.noLonger).Count) { & $line "- No longer included after the move: $(& $esc (@($rec.noLonger) -join ', '))." }
                 if (@($rec.redundant).Count) { & $line "- Overlaps with a product in use: $(& $esc (@($rec.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', '))." }
                 if (@($rec.alsoIncludes).Count) { & $line "- Also includes $(& $esc (@($rec.alsoIncludes) -join ', '))." }
+                # The other combinations that cover the same goals, to take to a partner beside the recommended one.
+                $others = @($(if ($ad.Contains('alternatives')) { $ad.alternatives }) | Where-Object { $_ })
+                if ($others.Count) {
+                    & $line
+                    & $line 'Other ways to cover the same goals, to compare with your Microsoft partner:'
+                    & $line
+                    foreach ($o in $others) { & $line "- $(& $esc $o.title): $(& $esc (@($o.licences | ForEach-Object { $_.name }) -join ', '))$(if (@($o.replaces).Count) { "; takes the place of $(& $esc (@($o.replaces | ForEach-Object { $_.name }) -join ', '))" })." }
+                }
             }
             & $line
             & $line "For $($ad.seats) licensed users. Eligibility and terms are your Microsoft partner's to confirm."

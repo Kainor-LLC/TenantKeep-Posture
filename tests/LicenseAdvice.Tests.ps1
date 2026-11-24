@@ -131,6 +131,37 @@ Describe 'Get-PostureLicenseAdvice' {
         }
     }
 
+    It 'names up to two other combinations that cover the same goals, for a partner to compare, and none that makes no sense' {
+        InModuleScope TenantKeep.Posture {
+            $e5 = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E5' }))
+            $a = (Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'agent-governance', 'vpn-replacement' -OwnedSku 'SPE_E5').advice
+            $a.recommended.title | Should -Match '^Add Microsoft Entra Suite Add-on for Microsoft Entra ID P2 and Agent 365'
+            @($a.alternatives.title) | Should -Be @('Move to Microsoft 365 E7') -Because 'E7 covers the same two goals: which is the better buy is for the customer and a partner to say'
+            @($a.alternatives[0].licences.covers) | Should -Contain 'AI agents registered, governed and watched'
+            @($a.alternatives[0].replaces.name) | Should -Be @('Microsoft 365 E5')
+
+            $all = (Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'copilot', 'agent-governance', 'vpn-replacement' -OwnedSku 'SPE_E5').advice
+            $all.recommended.title | Should -Be 'Move to Microsoft 365 E7'
+            @($all.alternatives.licences.sku) | Should -Be @('Microsoft_Entra_Suite_Step_Up_for_Microsoft_Entra_ID_P2', 'Microsoft_365_Copilot', 'AGENT_365') -Because 'the three add-ons are the other way to the same place'
+
+            $e3 = @(Get-PostureOwnedFeature -Sku @(@{ SkuPartNumber = 'SPE_E3' }))
+            $two = (Get-PostureLicenseAdvice -Owned $e3 -Seats 400 -Goal 'auto-labels', 'vpn-replacement' -OwnedSku 'SPE_E3').advice
+            @($two.alternatives.title) | Should -Be @('Move to Microsoft 365 E5 with Microsoft Entra Suite Add-on for Microsoft Entra ID P2', 'Move to Microsoft 365 E7')
+            @($two.alternatives.title) | Should -Not -Match 'Office 365' -Because 'a move from Microsoft 365 E3 to Office 365 E5 takes away what the tenant has'
+            $every = (Get-PostureLicenseAdvice -Owned $e3 -Seats 400 -Goal @((Get-PostureLicensingData).goals.id) -OwnedSku 'SPE_E3').advice
+            $every.recommended.title | Should -Be 'Move to Microsoft 365 E7'
+            @($every.alternatives.title) | Should -Be @('Move to Microsoft 365 E5 with Microsoft Entra Suite Add-on for Microsoft Entra ID P2, Microsoft Copilot for Microsoft 365 and Agent 365') -Because 'E7 against E5 with the three add-ons is the comparison to make'
+
+            # No licences at all: a suite that closes neither gap is not offered as a way to close them.
+            $bare = (Get-PostureLicenseAdvice -Owned @() -Seats 500 -Goal 'lifecycle', 'edr').advice
+            @($bare.alternatives.title) | Should -Not -Match 'Office 365 E3'
+            # Covered goals: nothing to recommend and nothing beside it.
+            $met = (Get-PostureLicenseAdvice -Owned $e5 -Seats 400 -Goal 'admin-elevation' -OwnedSku 'SPE_E5').advice
+            $met.recommended | Should -BeNullOrEmpty
+            @($met.alternatives).Count | Should -Be 0
+        }
+    }
+
     It 'gives the same answer in the page (templates/licensing.js under node) as in PowerShell without prices' {
         $node = Get-Command node -ErrorAction SilentlyContinue
         if (-not $node) { Set-ItResult -Skipped -Because 'node is not installed'; return }
@@ -159,6 +190,7 @@ Describe 'Get-PostureLicenseAdvice' {
                 replaces = @($(if ($r) { $r['replaces'] | ForEach-Object { "$($_['name'])>$($_['by'])" } })); keeps = @($(if ($r) { $r['keeps'] })); noLonger = @($(if ($r) { $r['noLonger'] }))
                 redundant = @($(if ($r) { $r['redundant'] | ForEach-Object { "$($_['name'])($($_['vendor']))" } })); also = @($(if ($r) { $r['alsoIncludes'] }))
                 heldOverlap = @($a['heldOverlap'] | ForEach-Object { "$($_['licence'])<$($_['includedIn'])" }); prerequisite = @($a['prerequisite'] | Sort-Object)
+                alternatives = @($a['alternatives'] | Where-Object { $_ } | ForEach-Object { "$($_['title'])=$(@($_['licences'] | ForEach-Object { "$($_['sku'])/$($_['role'])/$(@($_['covers']) -join ';')" }) -join ',')>$(@($_['replaces'] | ForEach-Object { $_['name'] }) -join ',')" })
             } | ConvertTo-Json -Depth 6 -Compress
         }
         try {
@@ -381,14 +413,40 @@ Describe 'The licensing section of a report' {
         $html | Should -Match 'Partly assigned</span> <span class="muted">20 of 38 users' -Because 'Intune is switched on for 20 of 38 licensed users'
         $html | Should -Match '2 paid seats are not assigned to anyone\.'
         $html | Should -Match 'id="goals-unmet-only"'
+        @([regex]::Matches($html, '<div class="advice-card"><h4><span class="chip">Also Covers Them</span> [A-Z]')).Count | Should -Be 0 -Because 'for this tenant every other way is a move that would take something away, and those are not offered'
         (& $script:Section $html) | Should -Not -Match $script:CostWords
         $md = Get-Content -Raw (Get-ChildItem $script:LicRoot -Recurse -Filter 'report.md' | Select-Object -First 1).FullName
         $md | Should -Match '## Licensing'
         $md | Should -Match 'Recommended: Add Microsoft Entra ID P2 to Microsoft 365 Business Premium\.'
+        $md | Should -Not -Match 'Other ways to cover the same goals'
         $doc = Get-Content -Raw (Get-ChildItem $script:LicRoot -Recurse -Filter 'findings.json' | Select-Object -First 1).FullName | ConvertFrom-Json
         $doc.licensing.advice.recommended.licences[0].sku | Should -Be 'AAD_PREMIUM_P2'
         $doc.licensing.featuresPartlyAssigned | Should -Contain 'Microsoft Intune Plan 1'
         Get-ChildItem $script:LicRoot -Recurse -Filter 'licensing-basis.json' | Should -BeNullOrEmpty -Because 'no price file was named'
+    }
+
+    It 'shows the other combinations that cover the same goals beside the recommended one, with no word about money' {
+        $skuFile = Join-Path $script:LicEvidence '01-subscribed-skus.json'
+        $before = Get-Content -Raw -LiteralPath $skuFile
+        try {
+            '[ { "skuPartNumber": "SPE_E3", "skuId": "s1", "capabilityStatus": "Enabled", "consumedUnits": 38, "prepaidUnits": { "enabled": 40 }, "servicePlans": [ { "servicePlanName": "AAD_PREMIUM" }, { "servicePlanName": "INTUNE_A" }, { "servicePlanName": "MDE_LITE" }, { "servicePlanName": "ATP_ENTERPRISE" } ] } ]' | Set-Content -LiteralPath $skuFile
+            $out = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-licother-$([guid]::NewGuid().ToString('n'))"
+            $null = New-PostureReport -Evidence $script:LicEvidence -OutputPath $out -Format Html, Markdown 6>$null 3>$null
+            $html = Get-Content -Raw (Get-ChildItem $out -Recurse -Filter 'report.html' | Select-Object -First 1).FullName
+            $live = [regex]::Match($html, '<div id="advice-live">(.*?)<h4 class="adv-sub">Licences You Hold|<div id="advice-live">(.*?)<p class="hint">A starting point', 'Singleline').Value
+            $live | Should -Match '<span class="chip">Recommended</span> Add Microsoft Defender Suite \(was Microsoft 365 E5 Security\) to Microsoft 365 E3'
+            $live | Should -Match '<h4 class="adv-sub">Other Ways to Cover the Same Goals</h4><p class="hint">Each of these covers every goal chosen\.'
+            @([regex]::Matches($live, '<div class="advice-card"><h4><span class="chip">Also Covers Them</span> [A-Z]')).Count | Should -Be 2
+            $live | Should -Match 'Also Covers Them</span> Move to Microsoft 365 E5</h4>'
+            @([regex]::Matches($live, 'advice-card advice-rec')).Count | Should -Be 1 -Because 'one is recommended; the others are beside it'
+            (& $script:Section $html) | Should -Not -Match $script:CostWords
+            $md = Get-Content -Raw (Get-ChildItem $out -Recurse -Filter 'report.md' | Select-Object -First 1).FullName
+            $md | Should -Match 'Other ways to cover the same goals, to compare with your Microsoft partner:'
+            $md | Should -Match '- Move to Microsoft 365 E5: Microsoft 365 E5; takes the place of Microsoft 365 E3\.'
+            $doc = Get-Content -Raw (Get-ChildItem $out -Recurse -Filter 'findings.json' | Select-Object -First 1).FullName | ConvertFrom-Json -AsHashtable -Depth 20
+            @($doc.licensing.advice.alternatives.title) | Should -Contain 'Move to Microsoft 365 E5'
+        }
+        finally { Set-Content -LiteralPath $skuFile -Value $before -NoNewline; if ($out -and (Test-Path -LiteralPath $out)) { Remove-Item -LiteralPath $out -Recurse -Force } }
     }
 
     It 'leaves a licence Microsoft gives away out of the paid seats nobody uses: one it knows by name, and any with a million seats' {
@@ -399,7 +457,7 @@ Describe 'The licensing section of a report' {
             $skus += @{ skuPartNumber = 'FLOW_FREE'; skuId = 's2'; capabilityStatus = 'Enabled'; consumedUnits = 3; prepaidUnits = @{ enabled = 10000 }; servicePlans = @() }
             $skus += @{ skuPartNumber = 'SOMETHING_NEW_VIRAL'; skuId = 's3'; capabilityStatus = 'Enabled'; consumedUnits = 0; prepaidUnits = @{ enabled = 1000000 }; servicePlans = @() }
             ConvertTo-Json -InputObject $skus -Depth 6 | Set-Content -LiteralPath $skuFile
-            $out = Join-Path $script:LicRoot 'given-away'
+            $out = Join-Path ([System.IO.Path]::GetTempPath()) "tkp-licgiven-$([guid]::NewGuid().ToString('n'))"
             $null = New-PostureReport -Evidence $script:LicEvidence -OutputPath $out -Format Html 6>$null 3>$null
             $html = Get-Content -Raw (Get-ChildItem $out -Recurse -Filter 'report.html' | Select-Object -First 1).FullName
             $html | Should -Match '<p class="takeaway">2 paid seats are not assigned to anyone\. 2 licences Microsoft gives away are left out of the count\.</p>' -Because 'ten thousand free Power Automate seats and a million of anything are not seats someone bought'
@@ -408,7 +466,7 @@ Describe 'The licensing section of a report' {
             $html | Should -Match '<td>SOMETHING_NEW_VIRAL</td><td>1000000</td><td>0</td><td>1000000</td><td>given away</td>' -Because 'a licence the list has never heard of is recognised by its million seats'
             $html | Should -Not -Match '<span class="seat-frac">\d+ of 10000</span>|<span class="seat-frac">\d+ of 1000000</span>'
         }
-        finally { Set-Content -LiteralPath $skuFile -Value $before -NoNewline }
+        finally { Set-Content -LiteralPath $skuFile -Value $before -NoNewline; if ($out -and (Test-Path -LiteralPath $out)) { Remove-Item -LiteralPath $out -Recurse -Force } }
     }
 
     It 'chooses with a price file and lets no price, total or cost word into anything it writes for the customer' {

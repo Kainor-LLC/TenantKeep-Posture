@@ -643,22 +643,33 @@ function ConvertTo-PostureReportHtml {
                 $rec = $ad.recommended
                 if (-not $rec) { & $w '<p class="banner">No combination of the licences this report knows covers these goals together. Take the missing features above to your Microsoft partner.</p>' }
                 else {
-                    # One combination, each licence with the reason it is there. No price, no rank, no alternatives.
-                    $parts = '<div class="advice-card advice-rec"><h4><span class="chip">Recommended</span> ' + (& $h $rec.title) + '</h4><ul class="advice-skus">'
-                    foreach ($l in @($rec.licences)) {
-                        $parts += '<li><strong>' + (& $h $l.name) + '</strong> <code class="tech">' + (& $h $l.sku) + '</code>' + $(if ($l.verify) { ' <span class="tech">(verify: ' + (& $h $l.verify) + ')</span>' })
-                        if (@($l.covers).Count) { $parts += '<br><span class="adv-why">Covers: ' + (& $h (@($l.covers) -join '; ')) + '.</span>' }
-                        if (@($l.neededBy).Count) { $parts += '<br><span class="adv-why">Needed first by ' + (& $h (@($l.neededBy) -join ', ')) + '.</span>' }
-                        if (@($l.brings).Count) { $parts += '<br><span class="muted">Brings ' + (& $h (@($l.brings) -join ', ')) + '.</span>' }
-                        $parts += '</li>'
+                    # A combination as a card: each licence with the reason it is there. No price and no rank. The
+                    # recommended one first, then up to two others that cover the same goals, for the reader to take
+                    # to a partner and compare.
+                    $comboCard = {
+                        param($rec, [bool] $Recommended)
+                        $parts = '<div class="advice-card' + $(if ($Recommended) { ' advice-rec' }) + '"><h4><span class="chip">' + $(if ($Recommended) { 'Recommended' } else { 'Also Covers Them' }) + '</span> ' + (& $h $rec.title) + '</h4><ul class="advice-skus">'
+                        foreach ($l in @($rec.licences)) {
+                            $parts += '<li><strong>' + (& $h $l.name) + '</strong> <code class="tech">' + (& $h $l.sku) + '</code>' + $(if ($l.verify) { ' <span class="tech">(verify: ' + (& $h $l.verify) + ')</span>' })
+                            if (@($l.covers).Count) { $parts += '<br><span class="adv-why">Covers: ' + (& $h (@($l.covers) -join '; ')) + '.</span>' }
+                            if (@($l.neededBy).Count) { $parts += '<br><span class="adv-why">Needed first by ' + (& $h (@($l.neededBy) -join ', ')) + '.</span>' }
+                            if (@($l.brings).Count) { $parts += '<br><span class="muted">Brings ' + (& $h (@($l.brings) -join ', ')) + '.</span>' }
+                            $parts += '</li>'
+                        }
+                        $parts += '</ul>'
+                        if (@($rec.replaces).Count) { $parts += '<p><strong>Takes the place of</strong> ' + (& $h (@($rec.replaces | ForEach-Object { $_.name }) -join ', ')) + ': ' + (& $h ([string]@($rec.replaces)[0].by)) + ' includes what ' + $(if (@($rec.replaces).Count -gt 1) { 'they bring' } else { 'it brings' }) + ' for these goals.</p>' }
+                        if (@($rec.keeps).Count) { $parts += '<p><strong>Stays as it is</strong> ' + (& $h (@($rec.keeps) -join ', ')) + '.</p>' }
+                        if (@($rec.noLonger).Count) { $parts += '<p><strong>No longer included after the move</strong> ' + (& $h (@($rec.noLonger) -join ', ')) + '.</p>' }
+                        if (@($rec.redundant).Count) { $parts += '<p class="muted"><strong>Overlaps with a product you use</strong> ' + (& $h (@($rec.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', ')) + '.</p>' }
+                        if (@($rec.alsoIncludes).Count) { $parts += '<p class="muted"><strong>Also includes</strong> ' + (& $h (@($rec.alsoIncludes) -join ', ')) + '.</p>' }
+                        return ($parts + '</div>')
                     }
-                    $parts += '</ul>'
-                    if (@($rec.replaces).Count) { $parts += '<p><strong>Takes the place of</strong> ' + (& $h (@($rec.replaces | ForEach-Object { $_.name }) -join ', ')) + ': ' + (& $h ([string]@($rec.replaces)[0].by)) + ' includes what ' + $(if (@($rec.replaces).Count -gt 1) { 'they bring' } else { 'it brings' }) + ' for these goals.</p>' }
-                    if (@($rec.keeps).Count) { $parts += '<p><strong>Stays as it is</strong> ' + (& $h (@($rec.keeps) -join ', ')) + '.</p>' }
-                    if (@($rec.noLonger).Count) { $parts += '<p><strong>No longer included after the move</strong> ' + (& $h (@($rec.noLonger) -join ', ')) + '.</p>' }
-                    if (@($rec.redundant).Count) { $parts += '<p class="muted"><strong>Overlaps with a product you use</strong> ' + (& $h (@($rec.redundant | ForEach-Object { "$($_.name) ($($_.vendor))" }) -join ', ')) + '.</p>' }
-                    if (@($rec.alsoIncludes).Count) { $parts += '<p class="muted"><strong>Also includes</strong> ' + (& $h (@($rec.alsoIncludes) -join ', ')) + '.</p>' }
-                    & $w ($parts + '</div>')
+                    & $w (& $comboCard $rec $true)
+                    $others = @($(if ($ad.Contains('alternatives')) { $ad.alternatives }) | Where-Object { $_ })
+                    if ($others.Count) {
+                        & $w '<h4 class="adv-sub">Other Ways to Cover the Same Goals</h4><p class="hint">Each of these covers every goal chosen. They differ in what else they bring and what they replace, so take them to your Microsoft partner beside the one above and see which suits.</p>'
+                        foreach ($o in $others) { & $w (& $comboCard $o $false) }
+                    }
                 }
                 & $w ('<p class="hint">For ' + $ad.seats + ' licensed users. Eligibility and terms are your Microsoft partner''s to confirm.</p>')
                 foreach ($pq in @($ad.prerequisite)) { & $w ('<p class="hint">' + (& $h $pq) + '</p>') }

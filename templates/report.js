@@ -124,8 +124,8 @@
   }
   function adviceKey() { var st = adviceState(); return JSON.stringify([st.goals.slice().sort(), Object.keys(st.thirdParty).sort().map(function (k) { return k + '=' + st.thirdParty[k]; })]); }
   var adviceStart = (licData && live) ? { key: adviceKey(), html: live.innerHTML, forText: $('advice-for') ? $('advice-for').textContent : '' } : null;
-  function recommendationHtml(rec) {
-    var parts = '<div class="advice-card advice-rec"><h4><span class="chip">Recommended</span> ' + esc(rec.title) + '</h4><ul class="advice-skus">';
+  function recommendationHtml(rec, other) {
+    var parts = '<div class="advice-card' + (other ? '' : ' advice-rec') + '"><h4><span class="chip">' + (other ? 'Also Covers Them' : 'Recommended') + '</span> ' + esc(rec.title) + '</h4><ul class="advice-skus">';
     rec.licences.forEach(function (l) {
       parts += '<li><strong>' + esc(l.name) + '</strong> <code class="tech">' + esc(l.sku) + '</code>' + (l.verify ? ' <span class="tech">(verify: ' + esc(l.verify) + ')</span>' : '');
       if (l.covers.length) { parts += '<br><span class="adv-why">Covers: ' + esc(l.covers.join('; ')) + '.</span>'; }
@@ -150,6 +150,10 @@
     if (forEl) { forEl.textContent = 'For ' + (adviceState().goals.length ? 'the goals ticked below' : 'the core goals') + ': ' + a.goals.map(function (id) { return goalName[id]; }).join('; ') + '.'; }
     if (a.met) { live.innerHTML = '<p class="banner ready"><strong>Covered.</strong> The licences you hold, with the products you named, include every feature these goals need. The work is configuration: see Recommendations.</p>'; return; }
     var body = a.recommended ? recommendationHtml(a.recommended) : '<p class="banner">No combination of the licences this report knows covers these goals together. Take the missing features above to your Microsoft partner.</p>';
+    if (a.recommended && a.alternatives && a.alternatives.length) {
+      body += '<h4 class="adv-sub">Other Ways to Cover the Same Goals</h4><p class="hint">Each of these covers every goal chosen. They differ in what else they bring and what they replace, so take them to your Microsoft partner beside the one above and see which suits.</p>' +
+        a.alternatives.map(function (o) { return recommendationHtml(o, true); }).join('');
+    }
     live.innerHTML = '<p>Missing: ' + esc(a.missing.map(function (g) { return g.join(' or '); }).join('; ')) + '.</p>' + body +
       '<p class="hint">For ' + licData.seats + ' licensed users. Eligibility and terms are your Microsoft partner\'s to confirm.</p>' +
       a.prerequisite.map(function (q) { return '<p class="hint">' + esc(q) + '</p>'; }).join('');

@@ -26,7 +26,9 @@ function Get-PostureLicenseAdvice {
           choice back on function, so a recommendation never rests on half a comparison.
 
         Nothing about price leaves this function. The answer names licences and what they cover; it carries no
-        price, no total, no rank and no other combination. -Record receives how the choice was made (which of the
+        price, no total and no rank. Beside the recommended combination it names up to two others that cover the
+        same goals, for the customer to take to a partner and compare. Those are listed in the order the rules
+        alone give, whether or not prices chose the recommendation, so the list says nothing about any price. -Record receives how the choice was made (which of the
         two ways, and the licences that had no price), for the person running the report and never for the report.
     #>
     [CmdletBinding()]
@@ -269,11 +271,10 @@ function Get-PostureLicenseAdvice {
         if ($better) { $top = $m }
     }
 
-    # The recommendation, in terms of function only: each licence with the goals it is there for and what it brings.
-    $recommended = $null
-    $prereq = @()
-    if ($top) {
-        $all = @(@($top.suite) + @($top.items) | Where-Object { $_ })
+    # A combination in terms of function only: each licence with the goals it is there for and what it brings.
+    $describe = {
+        param($plan)
+        $all = @(@($plan.suite) + @($plan.items) | Where-Object { $_ })
         $brought = [System.Collections.Generic.HashSet[string]]::new([string[]]@($all | ForEach-Object { @($_.features) }))
         $licences = foreach ($b in $all) {
             $mine = [System.Collections.Generic.HashSet[string]]::new([string[]]@($b.features))
@@ -283,7 +284,7 @@ function Get-PostureLicenseAdvice {
             [ordered]@{
                 sku      = $b.sku
                 name     = $b.name
-                role     = $(if ($top.suite -and $b -eq $top.suite) { 'moveTo' } else { 'add' })
+                role     = $(if ($plan.suite -and $b -eq $plan.suite) { 'moveTo' } else { 'add' })
                 verify   = $(if ($b.Contains('verify')) { $b.verify } else { $null })
                 covers   = $covers
                 brings   = @($data.features.Keys | Where-Object { $mine.Contains($_) -and -not $owned.Contains($_) -and -not $vendorOf.ContainsKey($_) -and (& $isSecurity $_) } | ForEach-Object { & $nameOf $_ })
@@ -291,19 +292,41 @@ function Get-PostureLicenseAdvice {
             }
         }
         # What a move would leave behind: features of the licences it replaces that nothing in the new set brings.
-        $after = [System.Collections.Generic.HashSet[string]]::new([string[]]@(@($brought) + @($top.kept | ForEach-Object { @($_.features) }) + @($heldBundles | Where-Object { $_ -notin $top.replaced } | ForEach-Object { @($_.features) })))
-        $recommended = [ordered]@{
-            kind         = $top.kind
-            title        = $(if ($top.kind -eq 'suite') { 'Move to ' + [string]$top.suite.name + $(if (@($top.items).Count) { ' with ' + (& $names $top.items) } else { '' }) } else { 'Add ' + (& $names $top.items) + $(if ($mainSuite) { ' to ' + [string]$mainSuite.name } else { ' to what you have' }) })
+        $after = [System.Collections.Generic.HashSet[string]]::new([string[]]@(@($brought) + @($plan.kept | ForEach-Object { @($_.features) }) + @($heldBundles | Where-Object { $_ -notin $plan.replaced } | ForEach-Object { @($_.features) })))
+        $card = [ordered]@{
+            kind         = $plan.kind
+            title        = $(if ($plan.kind -eq 'suite') { 'Move to ' + [string]$plan.suite.name + $(if (@($plan.items).Count) { ' with ' + (& $names $plan.items) } else { '' }) } else { 'Add ' + (& $names $plan.items) + $(if ($mainSuite) { ' to ' + [string]$mainSuite.name } else { ' to what you have' }) })
             licences     = @($licences)
-            replaces     = @($top.replaced | ForEach-Object { [ordered]@{ name = [string]$_.name; by = [string]$top.suite.name } })
-            keeps        = @($top.kept | ForEach-Object { [string]$_.name })
-            noLonger     = @($data.features.Keys | Where-Object { $id = $_; -not $after.Contains($id) -and @($top.replaced | Where-Object { @($_.features) -contains $id }).Count -gt 0 } | ForEach-Object { & $nameOf $_ })
+            replaces     = @($plan.replaced | ForEach-Object { [ordered]@{ name = [string]$_.name; by = [string]$plan.suite.name } })
+            keeps        = @($plan.kept | ForEach-Object { [string]$_.name })
+            noLonger     = @($data.features.Keys | Where-Object { $id = $_; -not $after.Contains($id) -and @($plan.replaced | Where-Object { @($_.features) -contains $id }).Count -gt 0 } | ForEach-Object { & $nameOf $_ })
             redundant    = @($data.features.Keys | Where-Object { $brought.Contains($_) -and -not $owned.Contains($_) -and $vendorOf.ContainsKey($_) } | ForEach-Object { [ordered]@{ name = (& $nameOf $_); vendor = $vendorOf[$_] } })
             alsoIncludes = @($data.features.Keys | Where-Object { $brought.Contains($_) -and -not $owned.Contains($_) -and -not (& $isSecurity $_) } | ForEach-Object { & $nameOf $_ })
         }
         # A feature the combination brings that needs another it does not bring and the tenant lacks.
-        $prereq = @($brought | ForEach-Object { $f = $data.features[[string]$_]; if ($f.Contains('requires')) { @($f.requires | Where-Object { -not $have.Contains([string]$_) -and -not $brought.Contains([string]$_) } | ForEach-Object { "$($f.name) needs $(& $nameOf $_)." }) } } | Select-Object -Unique)
+        $needs = @($brought | ForEach-Object { $f = $data.features[[string]$_]; if ($f.Contains('requires')) { @($f.requires | Where-Object { -not $have.Contains([string]$_) -and -not $brought.Contains([string]$_) } | ForEach-Object { "$($f.name) needs $(& $nameOf $_)." }) } } | Select-Object -Unique)
+        return @{ card = $card; prerequisite = $needs }
+    }
+    $recommended = $null
+    $prereq = @()
+    $alternatives = @()
+    if ($top) {
+        $told = & $describe $top
+        $recommended = $told.card
+        $prereq = @($told.prerequisite)
+        # Up to two other combinations that cover the same goals, for the customer to take to a partner beside the
+        # recommended one and see which suits. Always in the order the rules alone give, whether or not prices chose
+        # the recommendation, so nothing about a price can be read from the list. Left out: a combination of far more
+        # licences than the recommended one (three more is allowed: Microsoft 365 E7 beside E5 with its three
+        # add-ons is the comparison to make), the same set of licences reached another way, a move to a suite that
+        # closes none of the gaps itself, and a move that would take away something the tenant has today
+        # (Microsoft 365 E3 to Office 365 E5 is not a way forward).
+        $closesAGap = { param($suite) $mine = [System.Collections.Generic.HashSet[string]]::new([string[]]@($suite.features)); foreach ($grp in $groups) { foreach ($x in @($grp)) { if ($mine.Contains([string]$x)) { return $true } } }; return $false }
+        $keyOf = { param($m) (@(@($m.suite) + @($m.items) | Where-Object { $_ } | ForEach-Object { [string]$_.sku } | Sort-Object) -join '+') }
+        $seenPlan = [System.Collections.Generic.HashSet[string]]::new()
+        $null = $seenPlan.Add((& $keyOf $top))
+        $others = @($made | Where-Object { -not [object]::ReferenceEquals($_, $top) -and $_.count -le ($top.count + 3) -and ($_.kind -ne 'suite' -or (& $closesAGap $_.suite)) } | Sort-Object { $_.unasked }, { $_.count }, { $_.kindOrder }, { $_.overlap }, { $_.order })
+        $alternatives = @(foreach ($m in $others) { if ($seenPlan.Add((& $keyOf $m))) { $other = (& $describe $m).card; if (@($other.noLonger).Count -eq 0) { $other } } }) | Select-Object -First 2
     }
 
     # Licences the tenant holds today that overlap: everything one brings is also in another it holds.
@@ -338,6 +361,8 @@ function Get-PostureLicenseAdvice {
             missing      = $missingOnce.ToArray()
             # One combination, or nothing when the goals are covered or no licence in the data covers them.
             recommended  = $recommended
+            # Up to two other combinations that cover the same goals, in the order the rules give. Never ranked by price.
+            alternatives = @($alternatives)
             heldOverlap  = $heldOverlap.ToArray()
             vendors      = $vendorOf
             prerequisite = @($prereq)

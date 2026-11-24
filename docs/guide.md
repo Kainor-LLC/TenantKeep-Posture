@@ -412,6 +412,11 @@ another.
 </div>
 
 
+Beside the recommended combination the view lists up to two others that cover the same goals: Microsoft 365 E7
+beside E5 with its add-ons, or a suite beside the add-ons that would do the same on the one you hold. The report does
+not say which is the better buy. Take them to your Microsoft partner and compare. They are listed in the order the
+rules below give, never by price, and a move that would take away something you have today is not offered.
+
 How the one combination is chosen. Every combination that works is built from the rules in `licensing/`: it covers
 every chosen goal, brings what its own licences need first, and takes away no goal the tenant meets today. Then:
 

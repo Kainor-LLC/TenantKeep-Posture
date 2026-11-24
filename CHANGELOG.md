@@ -95,6 +95,12 @@ The short version, for someone coming from 0.3.0-alpha. The entries under it say
     each product it adds is wanted or already held.
   - The Entra Suite add-on made for tenants with Entra ID P2 is offered only where P2 is held or comes with the
     same recommendation; an E3 tenant was offered it.
+  - Beside the recommended combination the Licensing view lists up to two others that cover the same goals, under
+    "Other Ways to Cover the Same Goals": E7 beside E5 with its add-ons, a suite beside the add-ons that do the
+    same. The report does not say which is the better buy; the reader takes them to a partner and compares. They
+    are in the order the rules give, never by price, also when a price file chose the recommendation. A move that
+    would take away something the tenant has, or to a suite that closes none of the gaps, is not listed. They are
+    in report.md and findings.json too.
 - The Trend view counts from the day the earlier evidence was collected (2026-11-23). It used to say "since" the
   time the earlier run was last evaluated, so an old report built again today made the trend start today. Each run's
   record now carries its collection time. The demo build takes a picture of the Trend view from an earlier run of
