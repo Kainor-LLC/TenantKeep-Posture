@@ -4,7 +4,7 @@ One entry per release. Pre-release work is summarised under Unreleased until the
 entry names the version, the date and what changed for the person running the module. Dates are the day the
 work landed on main.
 
-## 0.4.0-alpha (2026-11-21)
+## 0.4.0-alpha (2026-11-24)
 
 The short version, for someone coming from 0.3.0-alpha. The entries under it say what changed and why.
 
